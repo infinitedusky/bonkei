@@ -1,0 +1,329 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>merman · themes sketch</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1218;font:13px system-ui,sans-serif;color:#9aa6c0;overflow:hidden}
+  #scene{position:absolute;inset:0}
+  #scene svg{width:100%;height:100%;display:block}
+  .bar{position:absolute;top:10px;left:10px;display:flex;gap:6px;align-items:center;z-index:2}
+  .b{padding:5px 12px;border:1px solid #3a4560;background:#1a2030;color:#fff;border-radius:5px;cursor:pointer;font:inherit;text-decoration:none}
+  .b.on{background:#4b6bdc}
+  .pop{position:absolute;top:44px;left:300px;z-index:3;background:#151a26;border:1px solid #3a4560;border-radius:8px;padding:10px;width:560px;box-shadow:0 10px 30px #0008}
+  .pop h4{margin:0 0 8px;color:#cfd8ea;font-weight:600}
+  .cards{display:flex;gap:8px}
+  .card{flex:1;border:2px solid #2a3348;border-radius:6px;overflow:hidden;text-decoration:none;color:#cfd8ea}
+  .card.on{border-color:#4b6bdc}
+  .card .th{height:110px}
+  .card .th svg{width:100%;height:100%;display:block}
+  .card .nm{padding:6px 8px;font-weight:600}
+  .card .ds{padding:0 8px 8px;font-size:11px;color:#8a94ac}
+  .pop .row{margin-top:10px;display:flex;gap:14px;font-size:12px;color:#8a94ac}
+  .note{position:absolute;right:10px;bottom:10px;z-index:2;max-width:330px;background:#fffbe6;color:#3a3220;border-radius:6px;padding:10px 12px;font-size:12px;line-height:1.45;box-shadow:0 4px 14px #0006}
+  .note b{display:block;margin-bottom:4px}
+  .hint{position:absolute;bottom:10px;left:10px;color:#556;font-size:11px;z-index:2}
+</style></head>
+<body>
+<div id="scene"></div>
+<div class="bar">
+  <button class="b">flat</button><button class="b on">iso</button><button class="b">3d</button>
+  <span style="width:8px"></span>
+  <button class="b">labels: top</button><button class="b">fit / relayout</button>
+  <a class="b on" id="themeBtn" href="#">theme: <span id="themeName"></span> ▾</a>
+  <select class="b"><option>large</option></select>
+  <button class="b">source</button><span>ELK 41ms</span>
+</div>
+<div class="pop" id="pop">
+  <h4>Theme</h4>
+  <div class="cards" id="cards"></div>
+  <div class="row"><label><input type="checkbox" checked> animate (paperboy rides, marble rolls)</label><label><input type="checkbox"> remember per diagram (<code>%%{theme: …}%%</code>)</label></div>
+</div>
+<div class="hint">drag node · drag bg pan (3d: orbit) · wheel zoom · click tray to fly in</div>
+<div class="note" id="note"></div>
+
+<script>
+const THEME = 'default'
+const PICKER_OPEN = true
+
+const NOTES = {
+  default: '<b>Sketch: the theme picker</b>Made-up diagram, drawn in iso. A new <i>theme</i> button opens this picker; each card is the same diagram in that theme. The current dark look becomes "Default". A theme changes only the scene (ground, trays, shapes, edges, labels), not the toolbar.',
+  paperboy: '<b>Sketch: Paperboy</b>Made-up diagram. The ground is a lawn, subgraphs are city blocks with sidewalks and picket fences, rect nodes are houses, decisions are stop signs, cylinders are water towers, rounds are shops, and edges are roads. Labels are upright street signs. The paperboy rides the roads along the flow.',
+  marble: '<b>Sketch: Marble Madness</b>Made-up diagram. The scene floats in a starfield, subgraphs are checkerboard plateaus, ground nodes sit on a START pad, rects are blocks, decisions are pyramids, cylinders are goal funnels, rounds are bumpers, and edges are chutes that ramp up onto the plateaus. Marbles roll along the flow.',
+}
+
+const THEMES = {
+  default: { name: 'Default', desc: 'Today’s look: dark, extruded shapes.' },
+  paperboy: { name: 'Paperboy', desc: 'Suburban street: houses, roads, signs.' },
+  marble: { name: 'Marble Madness', desc: 'Checkered plateaus, chutes, marbles.' },
+}
+const FILES = { default: 'theme-default.html', paperboy: 'theme-paperboy.html', marble: 'theme-marble.html' }
+
+// ---------- the made-up diagram (world units, x right/down, y left/down in iso) ----------
+const TRAYS = [
+  { id: 'orders', label: 'Orders', x0: 7, y0: 0, x1: 21, y1: 5 },
+  { id: 'payments', label: 'Payments', x0: 7, y0: 7, x1: 21, y1: 12 },
+]
+const NODES = [
+  { id: 'browser', label: 'Browser', shape: 'round', cx: 1, cy: 6, w: 2, d: 1.4 },
+  { id: 'gw', label: 'API Gateway', shape: 'rect', cx: 4.5, cy: 6, w: 2.2, d: 1.4 },
+  { id: 'oapi', label: 'Order API', shape: 'rect', cx: 9, cy: 2.5, w: 2.2, d: 1.4 },
+  { id: 'valid', label: 'Valid?', shape: 'diamond', cx: 12.5, cy: 2.5, w: 2, d: 2 },
+  { id: 'osvc', label: 'Order Svc', shape: 'rect', cx: 15.5, cy: 1.5, w: 2.2, d: 1.4 },
+  { id: 'reject', label: 'Reject', shape: 'round', cx: 16, cy: 3.9, w: 1.8, d: 1.1 },
+  { id: 'queue', label: 'Order Queue', shape: 'cylinder', cx: 19, cy: 1.5, w: 1.6, d: 1.6 },
+  { id: 'papi', label: 'Payment API', shape: 'rect', cx: 9, cy: 9.5, w: 2.2, d: 1.4 },
+  { id: 'fraud', label: 'Fraud?', shape: 'diamond', cx: 12.5, cy: 9.5, w: 2, d: 2 },
+  { id: 'charge', label: 'Charge Card', shape: 'rect', cx: 16, cy: 9.5, w: 2.2, d: 1.4 },
+  { id: 'ledger', label: 'Ledger', shape: 'cylinder', cx: 19, cy: 9.5, w: 1.6, d: 1.6 },
+]
+const EDGES = [
+  { id: 'e1', pts: [[2, 6], [3.4, 6]], label: 'HTTPS' },
+  { id: 'e2', pts: [[5.6, 6], [6.3, 6], [6.3, 2.5], [7.9, 2.5]], ride: true },
+  { id: 'e3', pts: [[5.6, 6], [6.3, 6], [6.3, 9.5], [7.9, 9.5]], ride: true },
+  { id: 'e4', pts: [[10.1, 2.5], [11.5, 2.5]] },
+  { id: 'e5', pts: [[13.5, 2.5], [14, 2.5], [14, 1.5], [14.4, 1.5]], label: 'yes' },
+  { id: 'e6', pts: [[12.5, 3.5], [12.5, 3.9], [15.1, 3.9]], label: 'no' },
+  { id: 'e7', pts: [[16.6, 1.5], [18.2, 1.5]] },
+  { id: 'e8', pts: [[10.1, 9.5], [11.5, 9.5]] },
+  { id: 'e9', pts: [[13.5, 9.5], [14.9, 9.5]], label: 'ok' },
+  { id: 'e10', pts: [[17.1, 9.5], [18.2, 9.5]], ride: true },
+]
+
+// ---------- iso drawing ----------
+const C = Math.cos(Math.PI / 6), SN = 0.5
+let U = 36, out, late, mini, uid = 0
+const P = (x, y, z) => [(x - y) * C * U, (x + y) * SN * U - z * U]
+const pts = a => a.map(p => P(...p).map(v => v.toFixed(1)).join(',')).join(' ')
+const poly = (a, fill, extra = '') => out.push(`<polygon points="${pts(a)}" fill="${fill}" stroke="${fill}" stroke-width=".6" stroke-linejoin="round" ${extra}/>`)
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16)
+  const f = v => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0')
+  return '#' + f(n >> 16) + f((n >> 8) & 255) + f(n & 255)
+}
+const TRAY_TOP = 0.25
+const inTray = (x, y) => TRAYS.some(t => x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1)
+const groundZ = (x, y) => inTray(x, y) ? TRAY_TOP : 0
+
+function rectPlan(cx, cy, w, d, r = 0.1) {
+  const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - d / 2, y1 = cy + d / 2, a = []
+  const arc = (ox, oy, s) => { for (let i = 0; i <= 4; i++) { const t = s + i / 4 * Math.PI / 2; a.push([ox + r * Math.cos(t), oy + r * Math.sin(t)]) } }
+  arc(x1 - r, y0 + r, -Math.PI / 2); arc(x1 - r, y1 - r, 0); arc(x0 + r, y1 - r, Math.PI / 2); arc(x0 + r, y0 + r, Math.PI)
+  return a
+}
+const circlePlan = (cx, cy, rx, ry, n = 36) => Array.from({ length: n }, (_, i) => [cx + rx * Math.cos(i / n * 2 * Math.PI), cy + ry * Math.sin(i / n * 2 * Math.PI)])
+const diamondPlan = (cx, cy, w, d) => [[cx, cy - d / 2], [cx + w / 2, cy], [cx, cy + d / 2], [cx - w / 2, cy]]
+
+function extrude(plan, z0, z1, col, top) {
+  const n = plan.length; let area = 0
+  for (let i = 0; i < n; i++) { const [a, b] = plan[i], [c, d] = plan[(i + 1) % n]; area += a * d - c * b }
+  const sg = area > 0 ? 1 : -1, faces = []
+  for (let i = 0; i < n; i++) {
+    const [a, b] = plan[i], [c, d] = plan[(i + 1) % n]
+    let nx = (d - b) * sg, ny = -(c - a) * sg
+    if (nx + ny <= 1e-9) continue
+    const L = Math.hypot(nx, ny); ny /= L
+    faces.push({ k: a + b + c + d, q: [[a, b, z0], [c, d, z0], [c, d, z1], [a, b, z1]], f: shade(col, 0.6 + 0.22 * ny) })
+  }
+  faces.sort((p, q) => p.k - q.k).forEach(f => poly(f.q, f.f))
+  if (top !== null) poly(plan.map(([x, y]) => [x, y, z1]), top || col)
+}
+function pyramid(plan, z0, h, col) {
+  const n = plan.length, cx = plan.reduce((s, p) => s + p[0], 0) / n, cy = plan.reduce((s, p) => s + p[1], 0) / n
+  const faces = []
+  for (let i = 0; i < n; i++) {
+    const [a, b] = plan[i], [c, d] = plan[(i + 1) % n]
+    const mx = (a + c) / 2 - cx, my = (b + d) / 2 - cy, L = Math.hypot(mx, my)
+    faces.push({ k: a + b + c + d, q: [[a, b, z0], [c, d, z0], [cx, cy, z0 + h]], f: shade(col, 0.7 + 0.3 * (my / L) - 0.1 * (mx / L)) })
+  }
+  faces.sort((p, q) => p.k - q.k).forEach(f => poly(f.q, f.f))
+}
+function checker(x0, y0, x1, y1, z, c1, c2, step = 1) {
+  for (let x = x0, i = 0; x < x1 - 1e-6; x += step, i++)
+    for (let y = y0, j = 0; y < y1 - 1e-6; y += step, j++) {
+      const xx = Math.min(x + step, x1), yy = Math.min(y + step, y1)
+      poly([[x, y, z], [xx, y, z], [xx, yy, z], [x, yy, z]], (i + j) % 2 ? c1 : c2)
+    }
+}
+function topLabel(x, y, z, text, size, color, weight = 600, anchor = 'middle', font = 'system-ui,sans-serif') {
+  if (mini) return
+  const [X, Y] = P(x, y, z)
+  out.push(`<text transform="matrix(${C},${SN},${-C},${SN},${X.toFixed(1)},${Y.toFixed(1)})" font-family="${font}" font-size="${size}" font-weight="${weight}" fill="${color}" text-anchor="${anchor}" dominant-baseline="middle">${text}</text>`)
+}
+function upright(x, y, z, text, o = {}) {
+  if (mini) return
+  const [X, Y] = P(x, y, z)
+  const size = o.size || 12, fam = o.font || 'system-ui,sans-serif'
+  if (o.sign) {
+    const w = text.length * size * 0.62 + 14, h = size + 10
+    late.push(`<line x1="${X}" y1="${Y + h / 2}" x2="${X}" y2="${Y + h / 2 + 10}" stroke="${o.post || '#6b4a2a'}" stroke-width="2"/>`)
+    late.push(`<rect x="${X - w / 2}" y="${Y - h / 2}" width="${w}" height="${h}" rx="3" fill="${o.bg}" stroke="${o.border}" stroke-width="2"/>`)
+  }
+  late.push(`<text x="${X}" y="${Y + 1}" font-family="${fam}" font-size="${size}" font-weight="${o.weight || 700}" fill="${o.color || '#fff'}" text-anchor="middle" dominant-baseline="middle" ${o.outline ? `stroke="${o.outline}" stroke-width="3" paint-order="stroke"` : ''}>${text}</text>`)
+}
+function edgeScreen(e) { return e.pts.map(([x, y]) => P(x, y, groundZ(x, y) + 0.04)) }
+function arrow(e, col, size = 9) {
+  const s = edgeScreen(e), [ax, ay] = s[s.length - 2], [bx, by] = s[s.length - 1]
+  const L = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / L, uy = (by - ay) / L
+  out.push(`<polygon points="${bx},${by} ${bx - ux * size * 1.6 - uy * size * 0.7},${by - uy * size * 1.6 + ux * size * 0.7} ${bx - ux * size * 1.6 + uy * size * 0.7},${by - uy * size * 1.6 - ux * size * 0.7}" fill="${col}"/>`)
+}
+function edgeLabel(e, color, o = {}) {
+  if (!e.label || mini) return
+  let best = 0, bi = 0
+  for (let i = 0; i < e.pts.length - 1; i++) { const l = Math.hypot(e.pts[i + 1][0] - e.pts[i][0], e.pts[i + 1][1] - e.pts[i][1]); if (l > best) { best = l; bi = i } }
+  const [a, b] = [e.pts[bi], e.pts[bi + 1]], x = (a[0] + b[0]) / 2, y = (a[1] + b[1]) / 2
+  upright(x, y, groundZ(x, y) + 0.35, e.label, { size: 11, color, outline: o.outline || '#000', font: o.font })
+}
+const pathD = s => 'M' + s.map(p => p.map(v => v.toFixed(1)).join(',')).join(' L')
+
+// ---------- themes ----------
+const DRAW = {
+  default: {
+    bg: '#0f1218',
+    ground() {
+      for (let i = -4; i <= 25; i++) { out.push(`<line ${ln(P(i, -4, 0), P(i, 16, 0))} stroke="#1a2130" stroke-width="1"/>`) }
+      for (let j = -4; j <= 16; j++) { out.push(`<line ${ln(P(-4, j, 0), P(25, j, 0))} stroke="#1a2130" stroke-width="1"/>`) }
+    },
+    tray(t) { extrude(rectPlan((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2, t.x1 - t.x0, t.y1 - t.y0, 0.05), 0, TRAY_TOP, '#243044'); topLabel(t.x0 + 0.3, t.y0 + 0.5, TRAY_TOP + 0.01, t.label, 14, '#cfd8ea', 600, 'start') },
+    edge(e) { out.push(`<path d="${pathD(edgeScreen(e))}" fill="none" stroke="#e8edf7" stroke-width="2"/>`); arrow(e, '#e8edf7', 6); edgeLabel(e, '#ffd479') },
+    node(n, z) {
+      const col = { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' }[n.shape]
+      const plan = n.shape === 'cylinder' ? circlePlan(n.cx, n.cy, n.w / 2, n.d / 2) : n.shape === 'diamond' ? diamondPlan(n.cx, n.cy, n.w, n.d) : rectPlan(n.cx, n.cy, n.w, n.d, n.shape === 'round' ? Math.min(n.w, n.d) / 2 * 0.95 : 0.12)
+      extrude(plan, z, z + 0.7, col)
+      topLabel(n.cx, n.cy, z + 0.71, n.label, 12, '#fff')
+    },
+  },
+
+  paperboy: {
+    bg: '#2f5e25',
+    ground() {
+      poly([[-4, -4, 0], [25, -4, 0], [25, 16, 0], [-4, 16, 0]], '#74b843')
+      for (let i = -4; i < 25; i += 2) poly([[i, -4, 0], [i + 1, -4, 0], [i + 1, 16, 0], [i, 16, 0]], '#7ec64c')
+    },
+    tray(t) {
+      extrude(rectPlan((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2, t.x1 - t.x0, t.y1 - t.y0, 0.02), 0, TRAY_TOP, '#d9cfb4')
+      const i = 0.45, z = TRAY_TOP + 0.005
+      poly([[t.x0 + i, t.y0 + i, z], [t.x1 - i, t.y0 + i, z], [t.x1 - i, t.y1 - i, z], [t.x0 + i, t.y1 - i, z]], '#8fd15a')
+      // picket fence
+      const fence = (ax, ay, bx, by) => { const L = Math.hypot(bx - ax, by - ay), n = Math.round(L / 0.35); for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, y = ay + (by - ay) * k / n; out.push(`<line ${ln(P(x, y, z), P(x, y, z + 0.28))} stroke="#fff" stroke-width="1.6"/>`) } out.push(`<line ${ln(P(ax, ay, z + 0.2), P(bx, by, z + 0.2))} stroke="#fff" stroke-width="1.2"/>`) }
+      fence(t.x0 + i, t.y0 + i, t.x1 - i, t.y0 + i); fence(t.x0 + i, t.y0 + i, t.x0 + i, t.y1 - i)
+      topLabel(t.x0 + 0.6, t.y1 - 0.22, TRAY_TOP + 0.01, t.label.toUpperCase() + ' ST.', 11, '#3a3220', 700, 'start', 'Courier New,monospace')
+      // trees in the corners
+      this.trees.push([t.x1 - 0.9, t.y0 + 0.9, TRAY_TOP], [t.x0 + 0.9, t.y1 - 0.9, TRAY_TOP], [(t.x0 + t.x1) / 2 + 1.2, t.y0 + 0.9, TRAY_TOP])
+    },
+    trees: [],
+    edge(e) {
+      const d = pathD(edgeScreen(e))
+      out.push(`<path d="${d}" fill="none" stroke="#c8c2ad" stroke-width="${mini ? 10 : 20}" stroke-linejoin="round" stroke-linecap="round"/>`)
+      out.push(`<path d="${d}" fill="none" stroke="#5d5d63" stroke-width="${mini ? 7 : 15}" stroke-linejoin="round" stroke-linecap="round"/>`)
+      out.push(`<path d="${d}" fill="none" stroke="#ffd43b" stroke-width="1.6" stroke-dasharray="7 6"/>`)
+      arrow(e, '#fff', 5); edgeLabel(e, '#fff', { font: 'Courier New,monospace' })
+    },
+    node(n, z, idx) {
+      const sign = (h) => upright(n.cx, n.cy, z + h, n.label.toUpperCase(), { sign: true, size: 10, bg: '#fff', border: '#2a2a2a', color: '#1a1a1a', font: 'Courier New,monospace' })
+      if (n.shape === 'rect') {
+        const walls = ['#f1e3c0', '#cfe3f2', '#f6d27a', '#e9c4c8'][idx % 4]
+        const x0 = n.cx - n.w / 2, x1 = n.cx + n.w / 2, y0 = n.cy - n.d / 2, y1 = n.cy + n.d / 2, h = z + 0.6, r = 0.55
+        extrude(rectPlan(n.cx, n.cy, n.w, n.d, 0.01), z, h, walls, null)
+        poly([[n.cx - 0.15, y1, z], [n.cx + 0.15, y1, z], [n.cx + 0.15, y1, z + 0.4], [n.cx - 0.15, y1, z + 0.4]], '#7a4a24')
+        for (const wy of [y0 + 0.3, y1 - 0.3]) poly([[x1, wy - 0.12, z + 0.25], [x1, wy + 0.12, z + 0.25], [x1, wy + 0.12, z + 0.45], [x1, wy - 0.12, z + 0.45]], '#5f8fc4')
+        poly([[x0 - .05, y0 - .05, h], [x1 + .05, y0 - .05, h], [x1 + .05, n.cy, h + r], [x0 - .05, n.cy, h + r]], '#8e2f25')
+        poly([[x1, y0, h], [x1, y1, h], [x1, n.cy, h + r]], shade(walls, 0.7))
+        poly([[x0 - .05, y1 + .05, h], [x1 + .05, y1 + .05, h], [x1 + .05, n.cy, h + r], [x0 - .05, n.cy, h + r]], '#c2443a')
+        sign(1.75)
+      } else if (n.shape === 'round') {
+        extrude(rectPlan(n.cx, n.cy, n.w, n.d, Math.min(n.w, n.d) / 2 * 0.9), z, z + 0.55, '#f3b7c9', '#f8f1e6')
+        const y1 = n.cy + n.d / 2
+        for (let k = 0; k < 6; k++) { const xa = n.cx - 0.5 + k / 6, xb = xa + 1 / 6; poly([[xa, y1 + 0.05, z + 0.55], [xb, y1 + 0.05, z + 0.55], [xb, y1 + 0.3, z + 0.38], [xa, y1 + 0.3, z + 0.38]], k % 2 ? '#fff' : '#e0506e') }
+        sign(1.3)
+      } else if (n.shape === 'diamond') {
+        extrude(diamondPlan(n.cx, n.cy, n.w, n.d), z, z + 0.08, '#5aa83a', '#8fd15a')
+        const [X, Y] = P(n.cx, n.cy, z + 0.08), [, Yt] = P(n.cx, n.cy, z + 1.5)
+        out.push(`<line x1="${X}" y1="${Y}" x2="${X}" y2="${Yt}" stroke="#888" stroke-width="2.5"/>`)
+        const R = mini ? 7 : 20, oct = Array.from({ length: 8 }, (_, i) => { const a = Math.PI / 8 + i * Math.PI / 4; return `${(X + R * Math.cos(a)).toFixed(1)},${(Yt + R * Math.sin(a)).toFixed(1)}` }).join(' ')
+        late.push(`<polygon points="${oct}" fill="#d32f2f" stroke="#fff" stroke-width="2"/>`)
+        if (!mini) late.push(`<text x="${X}" y="${Yt + 1}" font-family="Courier New,monospace" font-size="10" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="middle">${n.label.toUpperCase()}</text>`)
+      } else {
+        for (const [dx, dy] of [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]]) out.push(`<line ${ln(P(n.cx + dx * n.w * .7, n.cy + dy * n.d * .7, z), P(n.cx + dx * n.w * .7, n.cy + dy * n.d * .7, z + 0.7))} stroke="#7d6a55" stroke-width="2.5"/>`)
+        extrude(circlePlan(n.cx, n.cy, n.w / 2, n.d / 2), z + 0.7, z + 1.4, '#b9c7d3', '#dbe5ee')
+        sign(1.9)
+      }
+    },
+    after() {
+      for (const [x, y, z] of this.trees) {
+        const [X, Y] = P(x, y, z), r = mini ? 5 : 14
+        out.push(`<line x1="${X}" y1="${Y}" x2="${X}" y2="${Y - r * 1.4}" stroke="#6b4a2a" stroke-width="${mini ? 2 : 4}"/>`)
+        out.push(`<circle cx="${X - r * .5}" cy="${Y - r * 1.6}" r="${r * .8}" fill="#2f7d32"/><circle cx="${X + r * .5}" cy="${Y - r * 1.7}" r="${r * .8}" fill="#2f7d32"/><circle cx="${X}" cy="${Y - r * 2.2}" r="${r * .85}" fill="#3c9a3f"/>`)
+      }
+      this.trees = []
+      if (mini) return
+      // the paperboy rides the routes
+      for (const e of EDGES.filter(e => e.ride)) {
+        late.push(`<g><g transform="translate(0,-10)"><circle cx="-5" cy="6" r="4" fill="none" stroke="#222" stroke-width="1.5"/><circle cx="5" cy="6" r="4" fill="none" stroke="#222" stroke-width="1.5"/><line x1="-5" y1="6" x2="2" y2="-3" stroke="#c62828" stroke-width="2"/><rect x="-2" y="-12" width="6" height="9" fill="#1e5bb8"/><circle cx="1" cy="-15" r="3.5" fill="#f1c27d"/><rect x="-2" y="-19" width="7" height="3" fill="#c62828"/><rect x="4" y="-9" width="6" height="4" fill="#fff" stroke="#333" stroke-width=".6"/></g><animateMotion dur="${3 + Math.random() * 2}s" repeatCount="indefinite" path="${pathD(edgeScreen(e))}"/></g>`)
+      }
+    },
+  },
+
+  marble: {
+    bg: '#07050f',
+    ground() {
+      out.push(`<defs><radialGradient id="mbg${uid}" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#25124a"/><stop offset="1" stop-color="#05040a"/></radialGradient>
+        <radialGradient id="ball${uid}" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#4f8bff"/><stop offset="1" stop-color="#0a1a60"/></radialGradient></defs>`)
+      out.push(`<rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#mbg${uid})"/>`)
+      let s = 7; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280
+      for (let i = 0; i < 90; i++) { const [X, Y] = P(-6 + rnd() * 32, -6 + rnd() * 24, -2); out.push(`<circle cx="${X}" cy="${Y}" r="${rnd() * 1.4 + .3}" fill="#fff" opacity="${rnd() * .7 + .2}"/>`) }
+      // START pad for ground-level nodes
+      extrude(rectPlan(3.1, 6, 6.8, 2.8, 0.01), -1.1, 0, '#5b3fa8', null)
+      checker(-0.3, 4.6, 6.5, 7.4, 0, '#e3eaf6', '#8aa0d2', 0.7)
+      topLabel(-0.1, 7.15, 0.01, 'START', 13, '#ffe14d', 800, 'start')
+    },
+    tray(t) {
+      extrude(rectPlan((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2, t.x1 - t.x0, t.y1 - t.y0, 0.01), TRAY_TOP - 1.6, TRAY_TOP, '#5b3fa8', null)
+      // stripes down the cliff
+      for (let k = 1; k < 4; k++) { const z = TRAY_TOP - k * 0.4; out.push(`<polyline points="${pts([[t.x1, t.y0, z], [t.x1, t.y1, z], [t.x0, t.y1, z]])}" fill="none" stroke="#3fd0e0" stroke-width="1.5" opacity=".55"/>`) }
+      checker(t.x0, t.y0, t.x1, t.y1, TRAY_TOP, '#e3eaf6', '#8aa0d2', 1)
+      topLabel(t.x0 + 0.3, t.y0 + 0.5, TRAY_TOP + 0.01, t.label.toUpperCase(), 14, '#3a1f7a', 800, 'start')
+    },
+    edge(e) {
+      const d = pathD(edgeScreen(e))
+      out.push(`<path d="${d}" fill="none" stroke="#2a1850" stroke-width="${mini ? 8 : 15}" stroke-linejoin="round"/>`)
+      out.push(`<path d="${d}" fill="none" stroke="#b9c6ea" stroke-width="${mini ? 5 : 10}" stroke-linejoin="round"/>`)
+      out.push(`<path d="${d}" fill="none" stroke="#fff" stroke-width="2" opacity=".7"/>`)
+      arrow(e, '#ffe14d', 6); edgeLabel(e, '#ffe14d', { outline: '#2a1850' })
+    },
+    node(n, z) {
+      const lbl = h => upright(n.cx, n.cy, z + h, n.label, { size: 12, color: '#fff', outline: '#2a1850', weight: 800 })
+      if (n.shape === 'rect') { extrude(rectPlan(n.cx, n.cy, n.w, n.d, 0.02), z, z + 0.6, '#e0479e', '#ff7cc4'); topLabel(n.cx, n.cy, z + 0.61, n.label, 12, '#fff', 800) }
+      else if (n.shape === 'round') { extrude(circlePlan(n.cx, n.cy, n.w / 2, n.d / 2), z, z + 0.4, '#ff8a3d', '#ffc15e'); extrude(circlePlan(n.cx, n.cy, n.w / 3.2, n.d / 3.2), z + 0.4, z + 0.5, '#fff', '#fff'); lbl(1) }
+      else if (n.shape === 'diamond') { pyramid(diamondPlan(n.cx, n.cy, n.w, n.d), z, 1.1, '#ffe14d'); lbl(1.45) }
+      else { extrude(circlePlan(n.cx, n.cy, n.w / 2, n.d / 2), z, z + 0.5, '#8a5cff', '#2a1850'); extrude(circlePlan(n.cx, n.cy, n.w / 3.4, n.d / 3.4), z + 0.5, z + 0.505, '#000', '#000'); lbl(1); if (!mini) upright(n.cx, n.cy, z + 0.12, 'GOAL', { size: 9, color: '#ffe14d', weight: 800 }) }
+    },
+    after() {
+      if (mini) return
+      EDGES.filter(e => e.ride).forEach((e, i) => late.push(`<circle r="7" fill="url(#ball${uid})"><animateMotion dur="${2.4 + i * .7}s" repeatCount="indefinite" path="${pathD(edgeScreen(e))}" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".5 0 .9 .6"/></circle>`))
+    },
+  },
+}
+function ln(a, b) { return `x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}"` }
+
+function render(theme, small = false) {
+  out = []; late = []; mini = small; uid++
+  const T = DRAW[theme]
+  T.ground()
+  TRAYS.forEach(t => T.tray(t))
+  EDGES.forEach(e => T.edge(e))
+  NODES.map((n, i) => ({ n, i })).sort((a, b) => (a.n.cx + a.n.cy) - (b.n.cx + b.n.cy)).forEach(({ n, i }) => T.node(n, groundZ(n.cx, n.cy), i))
+  T.after && T.after()
+  const [xa] = P(-2, 14, 0), [xb] = P(23, -1, 0), [, ya] = P(-1, -1, 2.5), [, yb] = P(22, 13, -1.8)
+  const vb = `${(xa - 20).toFixed(0)} ${(ya - 20).toFixed(0)} ${(xb - xa + 40).toFixed(0)} ${(yb - ya + 40).toFixed(0)}`
+  return `<svg viewBox="${vb}" preserveAspectRatio="xMidYMid ${small ? 'slice' : 'meet'}" style="background:${T.bg}">${out.join('')}${late.join('')}</svg>`
+}
+
+document.getElementById('scene').innerHTML = render(THEME)
+document.body.style.background = DRAW[THEME].bg
+document.getElementById('themeName').textContent = THEMES[THEME].name
+document.getElementById('note').innerHTML = NOTES[THEME]
+const pop = document.getElementById('pop')
+pop.style.display = PICKER_OPEN ? 'block' : 'none'
+document.getElementById('themeBtn').onclick = e => { e.preventDefault(); pop.style.display = pop.style.display === 'none' ? 'block' : 'none' }
+document.getElementById('cards').innerHTML = Object.keys(THEMES).map(k =>
+  `<a class="card ${k === THEME ? 'on' : ''}" href="${FILES[k]}"><div class="th">${render(k, true)}</div><div class="nm">${THEMES[k].name}</div><div class="ds">${THEMES[k].desc}</div></a>`).join('')
+</script>
+</body></html>
