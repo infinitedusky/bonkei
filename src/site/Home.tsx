@@ -92,6 +92,8 @@ export function Home({ name = 'merman', stars = 0, poster = false }: { name?: st
           </div>
         </section>
 
+        {/* Follow-on: "Big diagrams" section hidden until it has real clips. Restore from git history. */}
+        {/*
         <section>
           <h2>Big diagrams stop being a wall of boxes</h2>
           <p className="site-lead">Nest subgraphs as deep as you like. Click a tray to fly in, or drag a node and its edges re-route live.</p>
@@ -101,6 +103,7 @@ export function Home({ name = 'merman', stars = 0, poster = false }: { name?: st
             <div className="site-card"><img className="site-img" src={B + 'still-seq.png'} alt="a sequence diagram in 3D" /><h3>Sequence diagrams too</h3><p>Lifelines lie on the ground, and loop, alt, opt and par blocks become trays.</p></div>
           </div>
         </section>
+        */}
 
         <section id="status">
           <div className="site-status">
