@@ -17,7 +17,9 @@ export default function App() {
   const [sel, setSel] = useState(Object.keys(SAMPLES)[0])
   const [data, setData] = useState<LayoutResult | SeqLayout | null>(null)
   const [err, setErr] = useState('')
-  const [mode, setM] = useState<Mode>('iso')
+  const qs = new URLSearchParams(location.search)
+  const bare = qs.has('bare')
+  const [mode, setM] = useState<Mode>((qs.get('mode') as Mode) || 'iso')
   const [labelMode, setLabelMode] = useState<LabelMode>('top')
   const [edit, setEdit] = useState(false)
   const [ms, setMs] = useState(0)
@@ -33,13 +35,14 @@ export default function App() {
     return () => clearTimeout(t)
   }, [src])
 
+  useEffect(() => { setMode(mode) }, [data])
   const pick = (m: Mode) => { setM(m); setMode(m) }
   const fit = () => data && focusOn(0, 0, data.width * S, data.height * S)
   void cam
   return (
     <div style={{ position: 'relative', height: '100%' }}>
-      <SceneView data={data} labelMode={labelMode} mode={mode} />
-      <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6, alignItems: 'center', color: '#9aa6c0' }}>
+      <SceneView data={data} labelMode={labelMode} mode={mode} showFps={!bare} preserveBuffer={bare} />
+      <div style={{ position: 'absolute', top: 10, left: 10, display: bare ? 'none' : 'flex', gap: 6, alignItems: 'center', color: '#9aa6c0' }}>
         {(['flat', 'iso', '3d'] as Mode[]).map(m => <button key={m} style={btn(mode === m)} onClick={() => pick(m)}>{m}</button>)}
         <span style={{ width: 8 }} />
         <button style={btn(false)} onClick={() => setLabelMode(l => l === 'top' ? 'billboard' : 'top')}>labels: {labelMode}</button>
@@ -51,7 +54,7 @@ export default function App() {
       {edit && <textarea value={src} onChange={e => setSrc(e.target.value)} spellCheck={false}
         style={{ position: 'absolute', top: 48, left: 10, width: 360, height: '60%', background: '#10151f', color: '#cfd8ea', border: '1px solid #3a4560', font: '12px monospace' }} />}
       {err && <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#ff8a8a' }}>{err}</div>}
-      <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#556', fontSize: 11 }}>drag node · drag bg pan (3d: orbit) · wheel zoom · click tray to fly in</div>
+      <div style={{ position: 'absolute', bottom: 10, left: 10, display: bare ? 'none' : undefined, color: '#556', fontSize: 11 }}>drag node · drag bg pan (3d: orbit) · wheel zoom · click tray to fly in</div>
     </div>
   )
 }
