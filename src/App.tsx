@@ -13,7 +13,8 @@ import type { LabelMode } from './shapes'
 const btn = (on: boolean): React.CSSProperties => ({ padding: '5px 12px', border: '1px solid #3a4560', background: on ? '#4b6bdc' : '#1a2030', color: '#fff', borderRadius: 5, cursor: 'pointer' })
 
 export default function App() {
-  const [src, setSrc] = useState(Object.values(SAMPLES)[0])
+  const qs0 = new URLSearchParams(location.search)
+  const [src, setSrc] = useState(SAMPLES[qs0.get('sample') ?? ''] ?? Object.values(SAMPLES)[0])
   const [sel, setSel] = useState(Object.keys(SAMPLES)[0])
   const [data, setData] = useState<LayoutResult | SeqLayout | null>(null)
   const [err, setErr] = useState('')

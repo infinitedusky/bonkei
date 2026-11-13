@@ -96,9 +96,9 @@ export function Home({ name = 'merman', stars = 0, poster = false }: { name?: st
           <h2>Big diagrams stop being a wall of boxes</h2>
           <p className="site-lead">Nest subgraphs as deep as you like. Click a tray to fly in, or drag a node and its edges re-route live.</p>
           <div className="site-cards">
-            <div className="site-card"><Shot>clip: click a tray, fly in</Shot><h3>Fly into subgraphs</h3><p>Each nested group is a tray you can zoom straight into.</p></div>
-            <div className="site-card"><Shot>clip: drag a node, edges re-route</Shot><h3>Drag to tidy</h3><p>Nodes stay inside their subgraph while edges follow.</p></div>
-            <div className="site-card"><Shot>sequence diagram in 3d</Shot><h3>Sequence diagrams too</h3><p>Lifelines lie on the ground, and loop, alt, opt and par blocks become trays.</p></div>
+            <div className="site-card"><img className="site-img" src={B + 'still-nested.png'} alt="nested subgraphs" /><h3>Fly into subgraphs</h3><p>Each nested group is a tray you can zoom straight into.</p></div>
+            <div className="site-card"><img className="site-img" src={B + 'still-large.png'} alt="a large diagram in 3D" /><h3>Drag to tidy</h3><p>Nodes stay inside their subgraph while edges follow.</p></div>
+            <div className="site-card"><img className="site-img" src={B + 'still-seq.png'} alt="a sequence diagram in 3D" /><h3>Sequence diagrams too</h3><p>Lifelines lie on the ground, and loop, alt, opt and par blocks become trays.</p></div>
           </div>
         </section>
 
