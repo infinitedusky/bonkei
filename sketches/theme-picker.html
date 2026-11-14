@@ -387,14 +387,34 @@ flowchart LR
   end
   queue -.-&gt; browser   <span class="c">%% long-haul: drawn as an arc</span>
   classDef critical <span class="k">stroke</span>:<span class="s">#e5484d</span>   <span class="c">%% per-node, as in Mermaid</span>`
+  // the library side: a custom theme is code the developer ships with their app
+  const nest = {}; ov.forEach(([k, v]) => { const ks = k.split('.'); if (ks.length === 1) nest[k] = v; else (nest[ks[0]] ||= {})[ks.slice(1).join('.')] = v })
+  const val = v => `<span class="s">${typeof v === 'string' ? `'${v}'` : JSON.stringify(v)}</span>`
+  const body = Object.entries(nest).map(([k, v]) => typeof v === 'object' && !Array.isArray(v)
+    ? `  <span class="k">${k}</span>: { ${Object.entries(v).map(([kk, vv]) => `<span class="k">${kk}</span>: ${val(vv)}`).join(', ')} },`
+    : `  <span class="k">${k}</span>: ${val(v)},`).map(l => `<span class="chg">${l}</span>`).join('\n')
+  const name = ov.length ? 'acme' : base
+  const lib = ov.length ? `<span class="k">import</span> { defineTheme, registerTheme } <span class="k">from</span> <span class="s">'merman'</span>
+
+<span class="k">export const</span> acme = defineTheme({
+  <span class="k">extends</span>: <span class="s">'${base}'</span>,   <span class="c">// any built-in, or another custom theme</span>
+${body}
+})
+
+registerTheme(<span class="s">'acme'</span>, acme)
+<span class="c">// or per view: &lt;Merman source={src} theme={acme} /&gt;</span>` : `<span class="c">// '${base}' is built in: nothing to register.
+// Change any control to start a custom theme
+// built on it; its code appears here.</span>`
   let last = ''
   const tokens = flat(theme).filter(([k]) => k !== 'name').map(([k, v]) => {
     const [sec, ...rest] = k.split('.'), head = rest.length && sec !== last ? `<span class="k">${sec}</span>:\n` : ''; if (rest.length) last = sec
     const line = `${rest.length ? '  ' : ''}<span class="k">${rest.length ? rest.join('.') : k}</span>: ${yaml(v)}`
     return head + (ovk.has(k) ? `<span class="chg">${line}</span>` : line)
   }).join('\n')
-  return `<h4>In the diagram</h4><pre>${fm}</pre><h4>The theme file · themes/${base}${ov.length ? '-custom' : ''}.yaml</h4><pre>${tokens}</pre>
-    <div class="btns"><button class="b">Save as new theme…</button><button class="b">Export</button><button class="b">Import</button></div>`
+  return `<h4>In your app · themes/${name}.ts</h4><pre>${lib}</pre>
+    <div class="btns"><button class="b">Copy code</button><button class="b">Download JSON</button></div>
+    <h4>In the diagram</h4><pre>${fm.replace(`${yaml(base)}       <span class="c"># built-in, or ./themes/acme.json</span>`, `${yaml(name)}       <span class="c"># a built-in or a registered theme</span>`).replace(/\n  <span class="k">themeVariables<\/span>[\s\S]*?(?=\n<span class="c">---)/, ov.length ? '\n  <span class="c"># overrides live in the theme itself;</span>\n  <span class="c"># themeVariables still works for one-offs</span>' : '$&')}</pre>
+    <h4>Resolved tokens (every value the renderer reads)</h4><pre>${tokens}</pre>`
 }
 
 function controls() {
@@ -416,7 +436,7 @@ function mountEditor() {
       <div id="ctls"></div></div>
     <div class="stage" id="stage"><div class="bar"><button class="b">flat</button><button class="b on">iso</button><button class="b">3d</button><button class="b">◐ Done</button></div><div id="preview"></div><div id="overlay"></div></div>
     <div class="code" id="code"></div></div>
-    <div class="note" style="left:304px;bottom:12px"><b>Sketch: the theme system</b>A theme is plain data: the tokens on the left, the file on the right. One renderer reads them, and the six built-ins are only presets of the same tokens. Change anything and the preview redraws; edited tokens turn yellow. The diagram names a theme and overrides only what differs (Mermaid’s <code>theme</code> + <code>themeVariables</code>), with <code>classDef</code> for single nodes and <code>@{ icon, detail }</code> for per-node data. Made-up diagram.</div>`
+    <div class="note" style="left:304px;bottom:12px"><b>Sketch: the theme system</b>A theme is plain data: the tokens on the left, the file on the right. One renderer reads them, and the six built-ins are only presets of the same tokens. Change anything and the preview redraws; edited tokens turn yellow. Custom themes belong to whoever uses the library: <code>defineTheme({ extends, …overrides })</code> plus <code>registerTheme(name)</code>, or passed straight to the component. This editor writes that code. A diagram then names the theme in Mermaid’s frontmatter (<code>config.theme</code>), with <code>themeVariables</code> for one-offs and <code>classDef</code> for single nodes. Made-up diagram.</div>`
   const draw = () => {
     document.getElementById('preview').innerHTML = render(theme)
     document.getElementById('overlay').innerHTML = theme.scene.titleBlock ? `<div class="tb"><div class="t">CHECKOUT PLATFORM</div><div><span class="k">DRAWN</span><br>merman</div><div><span class="k">REV</span><br>3 · 2026-11-13</div><div><span class="k">SOURCE</span><br>large.mmd</div><div><span class="k">SHEET</span><br>1 / 1 · ISO</div></div>` : ''
