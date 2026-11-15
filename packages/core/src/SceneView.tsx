@@ -46,10 +46,19 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
 function Edge({ r, boxes, labelMode, middle }: { r: Route; boxes: Map<string, Box>; labelMode: LabelMode; middle: boolean }) {
   const a = boxes.get(r.from)!, b = boxes.get(r.to)!
   const ba = baseOf(a) + (a.kind === 'group' ? TRAY : 0), bb = baseOf(b) + (b.kind === 'group' ? TRAY : 0)
-  // middle: use the lower endpoint's base so an edge crossing a tray border is not high on the outer node
-  const y = middle ? Math.min(ba, bb) + NODE_H / 2 : Math.max(ba, bb) + 0.06
+  // middle: each end meets its own node at mid-height, so the edge slopes between tray levels
+  const ya = middle ? ba + NODE_H / 2 : Math.max(ba, bb) + 0.06, yb = middle ? bb + NODE_H / 2 : ya
+  const y = (ya + yb) / 2
   const pts = r.points
-  const v = useMemo(() => pts.map(([x, z]) => new THREE.Vector3(x, y, z)), [pts, y])
+  const v = useMemo(() => {
+    let total = 0
+    for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])
+    let run = 0
+    return pts.map(([x, z], i) => {
+      if (i) run += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1])
+      return new THREE.Vector3(x, ya + (yb - ya) * (total ? run / total : 0), z)
+    })
+  }, [pts, ya, yb])
   const n = v.length
   const dir = new THREE.Vector3().subVectors(v[n - 1], v[n - 2]).normalize()
   const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
