@@ -45,7 +45,9 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
 
 function Edge({ r, boxes, labelMode, middle }: { r: Route; boxes: Map<string, Box>; labelMode: LabelMode; middle: boolean }) {
   const a = boxes.get(r.from)!, b = boxes.get(r.to)!
-  const y = Math.max(baseOf(a) + (a.kind === 'group' ? TRAY : 0), baseOf(b) + (b.kind === 'group' ? TRAY : 0)) + (middle ? NODE_H / 2 : 0.06)
+  const ba = baseOf(a) + (a.kind === 'group' ? TRAY : 0), bb = baseOf(b) + (b.kind === 'group' ? TRAY : 0)
+  // middle: use the lower endpoint's base so an edge crossing a tray border is not high on the outer node
+  const y = middle ? Math.min(ba, bb) + NODE_H / 2 : Math.max(ba, bb) + 0.06
   const pts = r.points
   const v = useMemo(() => pts.map(([x, z]) => new THREE.Vector3(x, y, z)), [pts, y])
   const n = v.length
