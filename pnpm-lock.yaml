@@ -16,15 +16,24 @@ importers:
       '@react-three/fiber':
         specifier: ^8.17.10
         version: 8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0)
+      '@xyflow/react':
+        specifier: ^12.12.1
+        version: 12.12.1(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       bonkei:
         specifier: workspace:*
         version: link:../../packages/core
+      bonkei-reactflow:
+        specifier: workspace:*
+        version: link:../../packages/reactflow
       react:
         specifier: ^18.3.1
         version: 18.3.1
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      three:
+        specifier: ^0.170.0
+        version: 0.170.0
     devDependencies:
       '@storybook/addon-docs':
         specifier: ^10.6.7
@@ -115,6 +124,43 @@ importers:
       '@types/three':
         specifier: ^0.170.0
         version: 0.170.0
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      three:
+        specifier: ^0.170.0
+        version: 0.170.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/reactflow:
+    dependencies:
+      '@xyflow/system':
+        specifier: 0.0.84
+        version: 0.0.84
+      bonkei:
+        specifier: workspace:*
+        version: link:../core
+      html-to-image:
+        specifier: 1.11.11
+        version: 1.11.11
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.1
+        version: 18.3.7(@types/react@18.3.31)
+      '@types/three':
+        specifier: ^0.170.0
+        version: 0.170.0
+      '@xyflow/react':
+        specifier: ^12.12.1
+        version: 12.12.1(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1527,6 +1573,9 @@ packages:
 
   hls.js@1.7.4:
     resolution: {integrity: sha512-3GlxGdPvT2YHvQYOt+yOzT/DEior/qJVNIylHA77kgeoBTdQQqi70GwefNEUmHQeNGyjC8U62+bruqW/Tpm+tg==}
+
+  html-to-image@1.11.11:
+    resolution: {integrity: sha512-9gux8QhvjRO/erSnDPv28noDZcPZmYE7e1vFsBLKLlRlKDSqNJYebj6Qz1TGd5lsRV+X+xYyjCKjuZdABinWjA==}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -3286,6 +3335,8 @@ snapshots:
       function-bind: 1.1.2
 
   hls.js@1.7.4: {}
+
+  html-to-image@1.11.11: {}
 
   ieee754@1.2.1: {}
 
