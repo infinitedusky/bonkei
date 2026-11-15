@@ -73,3 +73,11 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - Two Pages deployments: Pages serves one artifact per repository.
 
 **Consequences.** One artifact, the same URLs, no workflow change. In dev both servers must run (`pnpm dev` starts them together); the viewer's port 5174 is fixed (`strictPort`) because the proxy points at it.
+
+## 2026-11-15 — React Flow adapter prototype (`bonkei-reactflow`)
+
+**Context.** Question: can a `<Bonkei3D />` inside a React Flow app show that app's own diagram in 3D, with its positions, edge paths and custom nodes, and keep up with a 2D drag?
+
+**Decision (prototype).** New package `packages/reactflow` (`bonkei-reactflow`; peer `@xyflow/react` 12, depends on `bonkei`, `@xyflow/system` for `getEdgePosition`, `html-to-image` 1.11.11). `toLayout` turns the store's `nodeLookup`/`edges` into a `LayoutResult` (React Flow's absolute positions and measured sizes; edge points from `getEdgePosition` + `getSmoothStepPath`/`getBezierPath`/`getStraightPath`), rebuilt at most once per animation frame from a `store.subscribe`. Custom node types are rasterized from their DOM into a `CanvasTexture` (one at a time, only when a node's `data` object or measured size changes) and set on `Box.top`. Core changes: `SceneView` gets `live` (fit the camera once, keep 3D drag overrides across data changes unless the source moved that node) and `trayLabel: 'inside' | 'above'`; `Box.top` (texture) and `Route.labelAt` are optional.
+
+**Consequences.** Core stays free of React Flow (it only learned about an optional texture and label point). The origin and extent are frozen on the first build so the 3D world does not shift as nodes are dragged; remount (`key`) to re-frame. The 2D canvas must be mounted and measured (`visibility: hidden` works, `display: none` never measures).
