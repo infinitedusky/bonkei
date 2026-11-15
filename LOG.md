@@ -73,3 +73,11 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - Two Pages deployments: Pages serves one artifact per repository.
 
 **Consequences.** One artifact, the same URLs, no workflow change. In dev both servers must run (`pnpm dev` starts them together); the viewer's port 5174 is fixed (`strictPort`) because the proxy points at it.
+
+## 2026-11-15 — Public API (BON-51, prototype)
+
+**Decision.** `bonkei` exports `Bonkei`, `render`, `parse`, `layout` and the types for options, handles, errors, the model and `Mode`/`LabelMode`. Everything else (SceneView, SeqScene, shapes, the camera, sequence parsing, `prepare`) is in `bonkei/internal`.
+- Options live under `config.bonkei` in Mermaid frontmatter, read with `js-yaml` (what Mermaid uses, same frontmatter pattern). `config.theme`/`themeVariables` are never read. Props override frontmatter per top-level key; `controls` as an object replaces the frontmatter's `controls` whole.
+- `controls`: `true` | `false` | `{ zoom, pan, move, drillIn }` (left out = on). Replaces `wheelZoom`. The component never shows a hint.
+- Errors: the parser reports dropped lines (`Graph.dropped`, `SeqDoc.dropped`: line, text, reason). Nothing read, or layout failed → error (inline card first time, "Not updated" strip when a good diagram exists, `onError` with severity `error`). Dropped lines or bad frontmatter values → `onError` with severity `warning`, drawn anyway, nothing on screen.
+- The `%%{arch: ...}%%` directive is dropped from the samples and no longer parsed (`Graph.arch` is gone); it is an ordinary `%%` comment.

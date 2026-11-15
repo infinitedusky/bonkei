@@ -8,7 +8,8 @@ Map of the code (a pnpm workspace; see the README's Packages list):
 - `packages/core/src/parser.ts`, `packages/core/src/seq.ts`: Mermaid flowchart and sequence parsing (+ sequence layout)
 - `packages/core/src/layout.ts`: ELK behind `layout(graph)`; `reroute()` is the cheap drag-time router
 - `packages/core/src/SceneView.tsx`, `packages/core/src/SeqScene.tsx`, `packages/core/src/shapes.tsx`, `packages/core/src/camera.ts`: the r3f scene and camera rig
-- `packages/core/src/model.ts`, `packages/core/src/index.ts`: the model types and the public surface of `bonkei`
+- `packages/core/src/Bonkei.tsx`, `render.tsx`, `options.ts` (frontmatter + options), `diagram.ts` (source → drawable, never throws): the public API
+- `packages/core/src/model.ts`, `packages/core/src/index.ts`: the model types and the public surface of `bonkei`; `internal.ts` is `bonkei/internal`, not public
 - `apps/playground/src/samples.ts`: built-in diagrams (add one when you fix a bug it exposes)
 - `apps/playground/src/main.tsx`, `apps/playground/src/App.tsx` (mounted by `apps/playground/index.html`): the viewer, served at `/app/`
 - `apps/site/src/` (mounted by `apps/site/index.html`): the marketing page. The hero loads the scene lazily, so keep `bonkei` out of `Home` and the site's `main.tsx`; a static import of it puts the whole scene chunk on first paint and on phones. Asset URLs and links in its JSX go through `import.meta.env.BASE_URL`.
@@ -16,7 +17,7 @@ Map of the code (a pnpm workspace; see the README's Packages list):
 
 Rules:
 - Core never imports from an app. Apps import the engine only as `bonkei`, and never import each other (the site keeps its own copies of what it needs from the playground).
-- Pass a `camera` (from `createCamera()`) to `SceneView` only when you drive the view from outside; otherwise let `SceneView` own its camera and drive it with the `mode` prop.
+- Apps import only what `packages/core/src/index.ts` exports. `bonkei/internal` (SceneView, camera, scene constants) is for stories and tooling in this repo.
 
 ## Good starting points
 1. **Subgraph-crossing edges** on the large sample loop around the outer tray. Try ELK ports on subgraph borders, or bundled summary edges that expand on drill.
