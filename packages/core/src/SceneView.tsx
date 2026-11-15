@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Line, Text } from '@react-three/drei'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute } from './layout'
-import { cam, focusOn, fitH, type Mode } from './camera'
+import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, S, TRAY, NODE_H, baseOf, type LabelMode } from './shapes'
@@ -19,7 +19,7 @@ function effective(data: LayoutResult, ovr: Ovr) {
   return { boxes, routes }
 }
 
-function Rig({ fpsRef }: { fpsRef: React.RefObject<HTMLDivElement> }) {
+function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElement> }) {
   const acc = useRef({ t: 0, n: 0 })
   useFrame(({ camera, size }, dt) => {
     cam.aspect = size.width / size.height
@@ -70,7 +70,7 @@ function Edge({ r, boxes, labelMode }: { r: Route; boxes: Map<string, Box>; labe
   )
 }
 
-function Env({ children, wheelZoom = true }: { children: React.ReactNode; wheelZoom?: boolean }) {
+function Env({ cam, children, wheelZoom = true }: { cam: Camera; children: React.ReactNode; wheelZoom?: boolean }) {
   const { gl } = useThree()
   const startCamDrag = (e: ThreeEvent<PointerEvent>) => {
     let lx = e.nativeEvent.clientX, ly = e.nativeEvent.clientY
@@ -99,7 +99,7 @@ function Env({ children, wheelZoom = true }: { children: React.ReactNode; wheelZ
     const wheel = (e: WheelEvent) => { if (!wheelZoom) return; e.preventDefault(); cam.goal.H = Math.min(200, Math.max(3, cam.goal.H * Math.exp(e.deltaY * 0.001))) }
     el.addEventListener('wheel', wheel, { passive: false })
     return () => el.removeEventListener('wheel', wheel)
-  }, [gl, wheelZoom])
+  }, [cam, gl, wheelZoom])
 
 
   return (
@@ -118,7 +118,7 @@ function Env({ children, wheelZoom = true }: { children: React.ReactNode; wheelZ
   )
 }
 
-function Scene({ data, labelMode, onDrill, wheelZoom }: { data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void; wheelZoom: boolean }) {
+function Scene({ cam, data, labelMode, onDrill, wheelZoom }: { cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void; wheelZoom: boolean }) {
   const { camera, gl, raycaster } = useThree()
   const [ver, setVer] = useState(0)
   const ovr = useRef<Ovr>({})
@@ -161,7 +161,7 @@ function Scene({ data, labelMode, onDrill, wheelZoom }: { data: LayoutResult; la
 
   return (
     <>
-      <Env wheelZoom={wheelZoom}>
+      <Env cam={cam} wheelZoom={wheelZoom}>
       {[...boxes.values()].map(b => {
         const w = b.w * S, h = b.h * S
         const pos: [number, number, number] = [wx(b.x) + w / 2, baseOf(b), wz(b.y) + h / 2]
@@ -202,25 +202,29 @@ function NodeLift({ pos, hover, children, onDown, onOver, onOut }: { pos: [numbe
   )
 }
 
-export function SceneView({ data, labelMode, mode, showFps = true, wheelZoom = true }: {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, wheelZoom = true }: {
   data: LayoutResult | SeqLayout | null; labelMode: LabelMode; mode: Mode
+  /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
+  camera?: Camera
   /** Show the fps counter bottom-right. Default true. */
   showFps?: boolean
   /** Zoom on mouse wheel (and stop page scroll). False lets the page scroll over the scene. Default true. */
   wheelZoom?: boolean
 }) {
   const fpsRef = useRef<HTMLDivElement>(null)
+  const [own] = useState(createCamera)
+  const c = camera ?? own
   useEffect(() => {
     if (!data) return
-    focusOn(0, 0, data.width * S, data.height * S)
-  }, [data])
-  void mode; void fitH
+    c.focusOn(0, 0, data.width * S, data.height * S)
+  }, [c, data])
+  useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
   return (
     <>
       <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true }}>
         <color attach="background" args={['#0f1218']} />
-        <Rig fpsRef={fpsRef} />
-        {data && ('kind' in data ? <Env wheelZoom={wheelZoom}><SeqScene data={data} labelMode={labelMode} /></Env> : <Scene data={data} labelMode={labelMode} onDrill={focusOn} wheelZoom={wheelZoom} />)}
+        <Rig cam={c} fpsRef={fpsRef} />
+        {data && ('kind' in data ? <Env cam={c} wheelZoom={wheelZoom}><SeqScene data={data} labelMode={labelMode} /></Env> : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} wheelZoom={wheelZoom} />)}
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

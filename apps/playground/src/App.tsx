@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { SAMPLES } from './samples'
-import { isSeq, parseSeq, layoutSeq } from './seq'
-import type { SeqLayout } from './seq'
-import { parse } from './parser'
-import { layout } from './layout'
-import type { LayoutResult } from './model'
-import { SceneView } from './SceneView'
-import { setMode, focusOn, cam, type Mode } from './camera'
-import { S } from './shapes'
-import type { LabelMode } from './shapes'
+import { isSeq, parseSeq, layoutSeq } from 'bonkei'
+import type { SeqLayout } from 'bonkei'
+import { parse } from 'bonkei'
+import { layout } from 'bonkei'
+import type { LayoutResult } from 'bonkei'
+import { SceneView } from 'bonkei'
+import { createCamera, type Mode } from 'bonkei'
+import { S } from 'bonkei'
+import type { LabelMode } from 'bonkei'
 
 const btn = (on: boolean): React.CSSProperties => ({ padding: '5px 12px', border: '1px solid #3a4560', background: on ? '#4b6bdc' : '#1a2030', color: '#fff', borderRadius: 5, cursor: 'pointer' })
 
@@ -21,6 +21,7 @@ export default function App() {
   const [labelMode, setLabelMode] = useState<LabelMode>('top')
   const [edit, setEdit] = useState(false)
   const [ms, setMs] = useState(0)
+  const [camera] = useState(createCamera)
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -33,12 +34,12 @@ export default function App() {
     return () => clearTimeout(t)
   }, [src])
 
-  const pick = (m: Mode) => { setM(m); setMode(m) }
-  const fit = () => data && focusOn(0, 0, data.width * S, data.height * S)
-  void cam
+  // Calls setMode even when m is already the mode, so re-clicking it resets the view.
+  const pick = (m: Mode) => { setM(m); camera.setMode(m) }
+  const fit = () => data && camera.focusOn(0, 0, data.width * S, data.height * S)
   return (
     <div style={{ position: 'relative', height: '100%' }}>
-      <SceneView data={data} labelMode={labelMode} mode={mode} />
+      <SceneView camera={camera} data={data} labelMode={labelMode} mode={mode} />
       <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6, alignItems: 'center', color: '#9aa6c0' }}>
         {(['flat', 'iso', '3d'] as Mode[]).map(m => <button key={m} style={btn(mode === m)} onClick={() => pick(m)}>{m}</button>)}
         <span style={{ width: 8 }} />

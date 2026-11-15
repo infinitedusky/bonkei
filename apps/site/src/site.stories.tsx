@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-// Sample data: the repo's demo flowchart (src/sample.mmd) and the made-up 'seq: login flow' sample.
-import sample from '../sample.mmd?raw'
-import { SAMPLES } from '../samples'
+// Sample data: the repo's demo flowchart (sample.mmd) and the made-up 'seq: login flow' sample (login.ts).
+import sample from './sample.mmd?raw'
+import { login } from './login'
 import { Home } from './Home'
 import { Hero } from './Hero'
 import './site.css'
@@ -34,5 +34,5 @@ export const HeroPicked3D: StoryObj<typeof Hero> = {
   render: () => <Wrap label="small flowchart (sample.mmd)"><Hero live source={sample} start="3d" autoplay={false} /></Wrap>,
 }
 export const HeroSequence: StoryObj<typeof Hero> = {
-  render: () => <Wrap label="login sequence (made up, samples.ts 'seq: login flow')"><Hero live source={SAMPLES['seq: login flow']} /></Wrap>,
+  render: () => <Wrap label="login sequence (made up, login.ts 'seq: login flow')"><Hero live source={login} /></Wrap>,
 }

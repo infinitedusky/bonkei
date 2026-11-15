@@ -1,36 +1,15 @@
 {
-  "name": "merman",
+  "name": "bonkei-workspace",
   "private": true,
   "license": "MIT",
-  "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@10.12.4",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "storybook": "storybook dev -p 6006",
-    "capture": "node scripts/capture-stills.mjs"
-  },
-  "dependencies": {
-    "@react-three/drei": "^9.121.0",
-    "@react-three/fiber": "^8.17.10",
-    "elkjs": "^0.9.3",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "three": "^0.170.0"
-  },
-  "devDependencies": {
-    "@storybook/addon-docs": "^10.6.7",
-    "@storybook/addon-mcp": "^10.6.7",
-    "@storybook/react-vite": "^10.6.7",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@types/three": "^0.170.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "@zigbang/storybook-addon-story-flow": "^0.10.0",
-    "playwright-core": "^1.65.0",
-    "storybook": "^10.6.7",
-    "typescript": "^5.7.2",
-    "vite": "^5.4.11"
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm -r typecheck && pnpm --filter \"./apps/*\" build && node scripts/assemble-pages.mjs",
+    "preview": "pnpm --filter @bonkei/site exec vite preview --outDir ../../dist",
+    "storybook": "pnpm --filter @bonkei/playground storybook",
+    "capture": "pnpm --filter @bonkei/site capture",
+    "test": "pnpm -r test"
   }
 }

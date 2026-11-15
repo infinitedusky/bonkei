@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import sample from '../sample.mmd?raw'
+import sample from './sample.mmd?raw'
 import { Hero } from './Hero'
 import './site.css'
 
