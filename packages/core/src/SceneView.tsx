@@ -52,6 +52,9 @@ const surfaceAt = (rects: Rect[], x: number, z: number) => {
   return h
 }
 
+// how far from a tray's border (horizontally) the vertical kink sits, in world units
+const STEP_OFF = 0.4
+
 // the polyline as 3D points at mid-height of whatever it runs over, with a vertical kink where it crosses a tray border
 function stepped(pts: [number, number][], rects: Rect[], lift: number): THREE.Vector3[] {
   const out: THREE.Vector3[] = []
@@ -77,9 +80,16 @@ function stepped(pts: [number, number][], rects: Rect[], lift: number): THREE.Ve
       const tm = (ta + tb) / 2
       const h = surfaceAt(rects, x0 + (x1 - x0) * tm, z0 + (z1 - z0) * tm) + lift
       const px = x0 + (x1 - x0) * ta, pz = z0 + (z1 - z0) * ta
-      const pa = (hh: number) => new THREE.Vector3(px, hh, pz)
+      const segLen = Math.hypot(x1 - x0, z1 - z0)
+      // keep the step off the tray's side face: on the lower (outside) side of the border, STEP_OFF away from it
+      let tp = ta
+      if (out.length && h !== prevH) {
+        const off = Math.min(STEP_OFF, (h > prevH ? ta - ts[k - 1] : tb - ta) * segLen / 2)
+        tp = h > prevH ? ta - off / segLen : ta + off / segLen
+      }
+      const pa = (hh: number) => new THREE.Vector3(x0 + (x1 - x0) * tp, hh, z0 + (z1 - z0) * tp)
       if (!out.length) out.push(pa(h))
-      else if (h !== prevH) { out.push(pa(prevH)); out.push(pa(h)) } // the vertical kink at a tray border
+      else if (h !== prevH) { out.push(pa(prevH)); out.push(pa(h)) } // the vertical kink near a tray border
       else if (ta === 0) out.push(pa(h))
       prevH = h
     }
