@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { addAfterEffect } from '@react-three/fiber'
-import { parse } from '../parser'
-import { layout } from '../layout'
-import { isSeq, parseSeq, layoutSeq, type SeqLayout } from '../seq'
-import type { LayoutResult } from '../model'
-import { SceneView } from '../SceneView'
-import type { Mode } from '../camera'
+import { parse } from 'bonkei'
+import { layout } from 'bonkei'
+import { isSeq, parseSeq, layoutSeq, type SeqLayout } from 'bonkei'
+import type { LayoutResult } from 'bonkei'
+import { SceneView } from 'bonkei'
+import type { Mode } from 'bonkei'
 
 const ORDER: Mode[] = ['flat', 'iso', '3d']
 

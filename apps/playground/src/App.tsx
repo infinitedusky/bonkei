@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { SAMPLES } from './samples'
-import { isSeq, parseSeq, layoutSeq } from './seq'
-import type { SeqLayout } from './seq'
-import { parse } from './parser'
-import { layout } from './layout'
-import type { LayoutResult } from './model'
-import { SceneView } from './SceneView'
-import { createCamera, type Mode } from './camera'
-import { S } from './shapes'
-import type { LabelMode } from './shapes'
+import { isSeq, parseSeq, layoutSeq } from 'bonkei'
+import type { SeqLayout } from 'bonkei'
+import { parse } from 'bonkei'
+import { layout } from 'bonkei'
+import type { LayoutResult } from 'bonkei'
+import { SceneView } from 'bonkei'
+import { createCamera, type Mode } from 'bonkei'
+import { S } from 'bonkei'
+import type { LabelMode } from 'bonkei'
 
 const btn = (on: boolean): React.CSSProperties => ({ padding: '5px 12px', border: '1px solid #3a4560', background: on ? '#4b6bdc' : '#1a2030', color: '#fff', borderRadius: 5, cursor: 'pointer' })
 

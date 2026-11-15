@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { addAfterEffect } from '@react-three/fiber'
 import flowSrc from '../src/sample.mmd?raw'
-import { SAMPLES } from '../src/samples'
-import { isSeq, parseSeq, layoutSeq, type SeqLayout } from '../src/seq'
-import { parse } from '../src/parser'
-import { layout } from '../src/layout'
-import type { LayoutResult } from '../src/model'
-import { SceneView } from '../src/SceneView'
-import { createCamera, type Mode } from '../src/camera'
+import { login } from '../src/login'
+import { isSeq, parseSeq, layoutSeq, type SeqLayout } from 'bonkei'
+import { parse } from 'bonkei'
+import { layout } from 'bonkei'
+import type { LayoutResult } from 'bonkei'
+import { SceneView } from 'bonkei'
+import { createCamera, type Mode } from 'bonkei'
 
 // Keep WebGL frames readable by the screenshot without a SceneView prop.
 const getContext = HTMLCanvasElement.prototype.getContext
@@ -20,7 +20,7 @@ HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type
 } as typeof getContext
 
 const q = new URLSearchParams(location.search)
-const src = q.get('sample') === 'seq' ? SAMPLES['seq: login flow'] : flowSrc
+const src = q.get('sample') === 'seq' ? login : flowSrc
 const m = q.get('mode')
 const mode: Mode = m === 'flat' || m === '3d' ? m : 'iso'
 const SETTLE_FRAMES = 60

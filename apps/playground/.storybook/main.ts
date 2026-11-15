@@ -1,8 +1,8 @@
 import type { StorybookConfig } from '@storybook/react-vite'
 const config: StorybookConfig = {
-  stories: ['../src/**/*.stories.tsx'],
+  stories: ['../src/**/*.stories.tsx', '../../site/src/**/*.stories.tsx'],
   framework: '@storybook/react-vite',
-  staticDirs: ['../public'],
+  staticDirs: ['../../site/public'],
   addons: [
     { name: '@zigbang/storybook-addon-story-flow', options: { flowGlob: '../src/**/*.flow.json' } },
     '@storybook/addon-docs',
