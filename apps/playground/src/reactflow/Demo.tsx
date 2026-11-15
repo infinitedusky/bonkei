@@ -32,7 +32,8 @@ function Inner() {
     const fb = [...events.current].reverse().find(x => x.type === 'fallback-count') as Extract<Bonkei3DEvent, { type: 'fallback-count' }> | undefined
     const ff = events.current.find(x => x.type === 'first-frame') as Extract<Bonkei3DEvent, { type: 'first-frame' }> | undefined
     const fail = events.current.filter(x => x.type === 'rasterize-failed').length
-    setLog(`first 3D frame ${ff ? Math.round(ff.ms) + 'ms' : '…'} · rasterized ${r.length} (last ${r.length ? r[r.length - 1].ms.toFixed(0) : '-'}ms, mean ${r.length ? (r.reduce((a, x) => a + x.ms, 0) / r.length).toFixed(0) : '-'}ms) · failed ${fail} · plain-box fallbacks ${fb ? fb.count + '/' + fb.custom : '-'}`)
+    const lay = [...events.current].reverse().find(x => x.type === 'layout') as Extract<Bonkei3DEvent, { type: 'layout' }> | undefined
+    setLog(`${lay ? 'layout ' + lay.meanMs.toFixed(1) + 'ms/build · ' : ''}first 3D frame ${ff ? Math.round(ff.ms) + 'ms' : '…'} · rasterized ${r.length} (last ${r.length ? r[r.length - 1].ms.toFixed(0) : '-'}ms, mean ${r.length ? (r.reduce((a, x) => a + x.ms, 0) / r.length).toFixed(0) : '-'}ms) · failed ${fail} · plain-box fallbacks ${fb ? fb.count + '/' + fb.custom : '-'}`)
   }, [])
 
   // moves one node in a circle through the same onNodesChange path a real drag uses
@@ -67,7 +68,7 @@ function Inner() {
         </ReactFlow>
       </div>
       <div style={{ flex: 1, position: 'relative' }}>
-        <Bonkei3D key={seed} mode={mode} rasterize={raster} onEvent={onEvent} />
+        <Bonkei3D key={seed} mode={mode} rasterize={raster} onEvent={onEvent} onLayout={l => { (window as unknown as { __layout: unknown }).__layout = l }} />
         <div style={{ position: 'absolute', top: 8, left: 8, right: 8, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {(['flat', 'iso', '3d'] as Mode[]).map(m => <button key={m} style={btn(mode === m)} onClick={() => setMode(m)}>{m}</button>)}
           <button style={btn(big)} onClick={() => load(!big)}>200 nodes</button>

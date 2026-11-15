@@ -7,6 +7,7 @@ import { Rasterizer, type RasterEvent } from './rasterize'
 export type Bonkei3DEvent =
   | RasterEvent
   | { type: 'first-frame'; ms: number }
+  | { type: 'layout'; meanMs: number; builds: number }
   | { type: 'fallback-count'; count: number; custom: number }
 
 export interface Bonkei3DProps {
@@ -16,25 +17,32 @@ export interface Bonkei3DProps {
   rasterize?: boolean
   /** Telemetry hook: the library never sends anything itself. */
   onEvent?: (e: Bonkei3DEvent) => void
+  /** Called with each layout handed to the 3D scene (for tests and debugging). */
+  onLayout?: (l: LayoutResult) => void
   style?: React.CSSProperties
 }
 
-export function Bonkei3D({ mode = 'iso', labelMode = 'top', rasterize = true, onEvent, style }: Bonkei3DProps) {
+export function Bonkei3D({ mode = 'iso', labelMode = 'top', rasterize = true, onEvent, onLayout, style }: Bonkei3DProps) {
   const store = useStoreApi()
-  const initialized = useNodesInitialized()
+  // latch: nodes flip back to uninitialized for a moment whenever one is added; the feed must not restart
+  const measured = useNodesInitialized()
+  const [ready, setReady] = useState(false)
+  useEffect(() => { if (measured) setReady(true) }, [measured])
   const [data, setData] = useState<LayoutResult | null>(null)
   const emit = useRef(onEvent); emit.current = onEvent
+  const lay = useRef(onLayout); lay.current = onLayout
   const t0 = useRef(performance.now())
 
   useEffect(() => {
-    if (!initialized && !data) return
+    if (!ready) return
     let frame: Frame | null = null
-    let raf = 0, dirty = true, lastFallback = -1
+    let raf = 0, dirty = true, lastFallback = -1, acc = 0, cnt = 0
     const rz = new Rasterizer(() => store.getState().domNode, () => { dirty = true; schedule() }, e => emit.current?.(e))
     const build = () => {
       raf = 0
       if (!dirty) return
       dirty = false
+      const tb = performance.now()
       const s = store.getState()
       const nodes = s.nodeLookup as Map<string, InternalNode>
       if (rasterize) {
@@ -45,13 +53,14 @@ export function Bonkei3D({ mode = 'iso', labelMode = 'top', rasterize = true, on
       const r = toLayout(nodes, s.edges, s.connectionMode, rz.textures, frame)
       frame = r.frame
       if (r.fallback !== lastFallback) { lastFallback = r.fallback; emit.current?.({ type: 'fallback-count', count: r.fallback, custom: [...nodes.values()].filter(n => isCustom(n.type)).length }) }
-      setData(r.layout)
+      setData(r.layout); lay.current?.(r.layout)
+      acc += performance.now() - tb; if (++cnt === 60) { emit.current?.({ type: 'layout', meanMs: acc / cnt, builds: cnt }); acc = 0; cnt = 0 }
     }
     function schedule() { if (!raf) raf = requestAnimationFrame(build) }
     const unsub = store.subscribe(() => { dirty = true; schedule() })
     build()
     return () => { unsub(); cancelAnimationFrame(raf); rz.dispose() }
-  }, [store, initialized && true, rasterize]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [store, ready, rasterize]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const first = useRef(false)
   useEffect(() => {
