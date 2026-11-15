@@ -117,7 +117,7 @@ export const ParseError: StoryObj = {
     return (
       <Page title="A broken diagram">
         <Code>{`<Bonkei source={diagram} onError={e => console.warn(e.line, e.message)} />`}</Code>
-        <Frame><Bonkei source={'flowchart TD\n  this is not a diagram\n  ???'} onError={e => setLog(l => [...l, `${e.severity} line ${e.line}: ${e.message}`])} /></Frame>
+        <Frame><Bonkei source={'flowchart TD\n  ???\n  !!!'} onError={e => setLog(l => [...l, `${e.severity} line ${e.line}: ${e.message}`])} /></Frame>
         <Spy log={log} />
         <p>The rest of the page still renders.</p>
       </Page>
