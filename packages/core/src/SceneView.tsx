@@ -43,22 +43,59 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
   return null
 }
 
-function Edge({ r, boxes, labelMode, middle }: { r: Route; boxes: Map<string, Box>; labelMode: LabelMode; middle: boolean }) {
+type Rect = { x0: number; x1: number; z0: number; z1: number; top: number }
+
+// height of the surface under a point: the highest tray containing it, else the ground
+const surfaceAt = (rects: Rect[], x: number, z: number) => {
+  let h = 0
+  for (const r of rects) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1 && r.top > h) h = r.top
+  return h
+}
+
+// the polyline as 3D points at mid-height of whatever it runs over, with a vertical kink where it crosses a tray border
+function stepped(pts: [number, number][], rects: Rect[], lift: number): THREE.Vector3[] {
+  const out: THREE.Vector3[] = []
+  let prevH = 0
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, z0] = pts[i], [x1, z1] = pts[i + 1]
+    const ts = [0, 1]
+    const cross = (c: number, a: number, b: number, lo: number, hi: number, other0: number, other1: number) => {
+      if (a === b) return
+      const t = (c - a) / (b - a)
+      if (t <= 1e-4 || t >= 1 - 1e-4) return
+      const o = other0 + (other1 - other0) * t
+      if (o >= lo && o <= hi) ts.push(t)
+    }
+    for (const r of rects) {
+      cross(r.x0, x0, x1, r.z0, r.z1, z0, z1); cross(r.x1, x0, x1, r.z0, r.z1, z0, z1)
+      cross(r.z0, z0, z1, r.x0, r.x1, x0, x1); cross(r.z1, z0, z1, r.x0, r.x1, x0, x1)
+    }
+    ts.sort((a, b) => a - b)
+    for (let k = 0; k < ts.length - 1; k++) {
+      const ta = ts[k], tb = ts[k + 1]
+      if (tb - ta < 1e-6) continue
+      const tm = (ta + tb) / 2
+      const h = surfaceAt(rects, x0 + (x1 - x0) * tm, z0 + (z1 - z0) * tm) + lift
+      const px = x0 + (x1 - x0) * ta, pz = z0 + (z1 - z0) * ta
+      const pa = (hh: number) => new THREE.Vector3(px, hh, pz)
+      if (!out.length) out.push(pa(h))
+      else if (h !== prevH) { out.push(pa(prevH)); out.push(pa(h)) } // the vertical kink at a tray border
+      else if (ta === 0) out.push(pa(h))
+      prevH = h
+    }
+  }
+  const [lx, lz] = pts[pts.length - 1]
+  out.push(new THREE.Vector3(lx, prevH, lz))
+  return out
+}
+
+function Edge({ r, boxes, labelMode, middle, rects }: { r: Route; boxes: Map<string, Box>; labelMode: LabelMode; middle: boolean; rects: Rect[] }) {
   const a = boxes.get(r.from)!, b = boxes.get(r.to)!
   const ba = baseOf(a) + (a.kind === 'group' ? TRAY : 0), bb = baseOf(b) + (b.kind === 'group' ? TRAY : 0)
-  // middle: each end meets its own node at mid-height, so the edge slopes between tray levels
-  const ya = middle ? ba + NODE_H / 2 : Math.max(ba, bb) + 0.06, yb = middle ? bb + NODE_H / 2 : ya
-  const y = (ya + yb) / 2
+  const flat = Math.max(ba, bb) + 0.06
+  const y = middle ? Math.max(ba, bb) + NODE_H / 2 : flat
   const pts = r.points
-  const v = useMemo(() => {
-    let total = 0
-    for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])
-    let run = 0
-    return pts.map(([x, z], i) => {
-      if (i) run += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1])
-      return new THREE.Vector3(x, ya + (yb - ya) * (total ? run / total : 0), z)
-    })
-  }, [pts, ya, yb])
+  const v = useMemo(() => middle ? stepped(pts, rects, NODE_H / 2) : pts.map(([x, z]) => new THREE.Vector3(x, flat, z)), [pts, middle, rects, flat])
   const n = v.length
   const dir = new THREE.Vector3().subVectors(v[n - 1], v[n - 2]).normalize()
   const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
@@ -145,6 +182,7 @@ function Scene({ cam, data, labelMode, onDrill, wheelZoom, live, trayLabel, edge
     return effective(data, ovr.current)
   }, [data, ver, live])
   const W = data.width, H = data.height
+  const rects = useMemo(() => [...boxes.values()].filter(b => b.kind === 'group').map(b => ({ x0: (b.x - W / 2) * S, x1: (b.x + b.w - W / 2) * S, z0: (b.y - H / 2) * S, z1: (b.y + b.h - H / 2) * S, top: b.level * TRAY + TRAY })), [boxes, W, H])
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
 
   const groundPoint = (cx: number, cy: number, planeY: number) => {
@@ -202,7 +240,7 @@ function Scene({ cam, data, labelMode, onDrill, wheelZoom, live, trayLabel, edge
           <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
         </NodeLift>
       })}
-      {routes.map(r => (boxes.get(r.from) && boxes.get(r.to)) ? <Edge key={r.id} r={{ ...r, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) }} boxes={boxes} labelMode={labelMode} middle={edgeHeight === 'middle'} /> : null)}
+      {routes.map(r => (boxes.get(r.from) && boxes.get(r.to)) ? <Edge key={r.id} r={{ ...r, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) }} boxes={boxes} labelMode={labelMode} middle={edgeHeight === 'middle'} rects={rects} /> : null)}
       </Env>
     </>
   )
