@@ -99,7 +99,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
       {!prepared && !error && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: C.dim, font: '12px system-ui', pointerEvents: 'none' }}>Laying out…</div>}
       {failedFirst && <ErrorCard error={error} />}
       {error && prepared && <ErrorStrip error={error} />}
-      {opts.toolbar && !failedFirst && <Toolbar mode={mode} pick={pick} fit={fit} />}
+      {opts.toolbar && prepared && <Toolbar mode={mode} pick={pick} fit={fit} />}
     </div>
   )
 })
