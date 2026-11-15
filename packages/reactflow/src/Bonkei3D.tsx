@@ -46,8 +46,8 @@ export function Bonkei3D({ mode = 'iso', labelMode = 'top', rasterize = true, on
       const s = store.getState()
       const nodes = s.nodeLookup as Map<string, InternalNode>
       if (rasterize) {
-        const custom: { id: string; data: unknown; w: number; h: number }[] = []
-        for (const n of nodes.values()) if (isCustom(n.type) && !n.hidden && n.measured?.width) custom.push({ id: n.id, data: n.data, w: n.measured.width, h: n.measured.height ?? 0 })
+        const custom: { id: string; data: unknown; w: number; h: number; hold?: boolean }[] = []
+        for (const n of nodes.values()) if (isCustom(n.type) && !n.hidden && n.measured?.width) custom.push({ id: n.id, data: n.data, w: n.measured.width, h: n.measured.height ?? 0, hold: !!n.internals.userNode.resizing })
         rz.sync(custom)
       }
       const r = toLayout(nodes, s.edges, s.connectionMode, rz.textures, frame)

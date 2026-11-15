@@ -1,0 +1,45 @@
+import { createRequire } from 'module'
+const { chromium } = createRequire(import.meta.url)('/Users/the_dusky/code/bonkei-worktrees/prototype--react-flow-adapter-bonkei3d-fast-rough-z4fh/node_modules/.pnpm/playwright-core@1.65.0/node_modules/playwright-core')
+const b = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: ['--use-angle=metal'], headless: false })
+const p = await b.newPage({ viewport: { width: 1600, height: 900 } })
+p.on('pageerror', e => console.log('pageerror', e.message.slice(0, 200)))
+await p.goto('http://localhost:60878/app/reactflow.html'); await p.waitForTimeout(3500)
+const box = id => p.evaluate(id => { const l = window.__layout, b = l.boxes.find(x => x.id === id); return b && { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), hasTop: !!b.top } }, id)
+const rast = () => p.evaluate(() => window.__bonkei.events.filter(e => e.type === 'rasterized').length)
+const drag = async (sel, dx, dy, steps = 20, onMid) => {
+  const h = p.locator(sel).first(); const bb = await h.boundingBox(); const x = bb.x + bb.width / 2, y = bb.y + bb.height / 2
+  await p.mouse.move(x, y); await p.mouse.down()
+  for (let i = 1; i <= steps; i++) { await p.mouse.move(x + dx * i / steps, y + dy * i / steps); await p.waitForTimeout(16); if (onMid && i === steps / 2) await onMid() }
+  return async () => { await p.mouse.up() }
+}
+// ---- custom node c3 (Publish): bigger
+await p.screenshot({ path: '/tmp/rfshots/resize-before.png' })
+console.log('c3 before', JSON.stringify(await box('c3')), 'rasters', await rast())
+await p.locator('.react-flow__node[data-id="c3"]').click({ position: { x: 100, y: 40 } })
+const up = await drag('.react-flow__node[data-id="c3"] .react-flow__resize-control.handle.bottom.right', 110, 90, 20, async () => {
+  console.log('c3 MID-resize', JSON.stringify(await box('c3')), 'rasters', await rast())
+  await p.screenshot({ path: '/tmp/rfshots/resize-mid.png' })
+})
+console.log('c3 end of drag (mouse still down)', JSON.stringify(await box('c3')), 'rasters', await rast())
+await up(); await p.waitForTimeout(800)
+console.log('c3 after release', JSON.stringify(await box('c3')), 'rasters', await rast())
+const ev = await p.evaluate(() => window.__bonkei.events.filter(e => e.type === 'rasterized').slice(-1))
+console.log('last raster', JSON.stringify(ev))
+await p.screenshot({ path: '/tmp/rfshots/resize-after-card.png' })
+// ---- group g1 shrinks from bottom-right (fresh page: the enlarged card would sit over the group's handle)
+await p.reload(); await p.waitForTimeout(3500)
+await p.screenshot({ path: '/tmp/rfshots/resize-group-before.png' })
+const routeEnd = id => p.evaluate(id => { const r = window.__layout.routes.find(x => x.id === id); return r && r.points[r.points.length - 1].map(Math.round) }, id)
+const inside = () => p.evaluate(() => { const l = window.__layout, g = l.boxes.find(b => b.id === 'g1'); return l.boxes.filter(b => b.parent === 'g1').map(b => b.id + ':' + (b.x >= g.x && b.y >= g.y && b.x + b.w <= g.x + g.w && b.y + b.h <= g.y + g.h ? 'in' : 'OUT')).join(' ') })
+console.log('g1 before', JSON.stringify(await box('g1')), await inside(), 'e6 end', await routeEnd('e6'))
+await p.locator('.react-flow__node[data-id="g1"]').click({ position: { x: 5, y: 5 } })
+const up2 = await drag('.react-flow__node[data-id="g1"] .react-flow__resize-control.handle.bottom.right', -200, -150, 20)
+await up2(); await p.waitForTimeout(800)
+console.log('g1 after shrink BR', JSON.stringify(await box('g1')), await inside(), 'e6 end', await routeEnd('e6'))
+await p.screenshot({ path: '/tmp/rfshots/resize-after-group.png' })
+// shrink from top-left (children shift)
+const up3 = await drag('.react-flow__node[data-id="g1"] .react-flow__resize-control.handle.top.left', 120, 100)
+await up3(); await p.waitForTimeout(800)
+console.log('g1 after shrink TL', JSON.stringify(await box('g1')), await inside())
+await p.screenshot({ path: '/tmp/rfshots/resize-after-group2.png' })
+await b.close()

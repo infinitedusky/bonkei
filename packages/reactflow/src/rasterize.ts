@@ -22,11 +22,12 @@ export class Rasterizer {
   constructor(private getDom: () => HTMLElement | null | undefined, private onChange: () => void, private onEvent: (e: RasterEvent) => void) {}
 
   /** Tell it which custom nodes exist now. */
-  sync(nodes: { id: string; data: unknown; w: number; h: number }[]) {
+  sync(nodes: { id: string; data: unknown; w: number; h: number; hold?: boolean }[]) {
     const live = new Set(nodes.map(n => n.id))
     for (const [id, e] of this.entries) if (!live.has(id)) { e.texture.dispose(); this.entries.delete(id); this.textures.delete(id) }
     for (const id of this.pending.keys()) if (!live.has(id)) this.pending.delete(id)
     for (const n of nodes) {
+      if (n.hold) { this.pending.delete(n.id); continue } // being resized: keep the old picture, redo when it stops
       const e = this.entries.get(n.id), p = this.pending.get(n.id)
       if (p && p.data === n.data && p.w === n.w && p.h === n.h) continue
       if (!p && e && e.data === n.data && e.w === n.w && e.h === n.h) continue
