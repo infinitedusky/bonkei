@@ -7,13 +7,13 @@ import { reroute } from './layout'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
-import { NodeBody, Tray, S, TRAY, NODE_H, baseOf, type LabelMode } from './shapes'
+import { NodeBody, Tray, S, TRAY, NODE_H, baseOf, type LabelMode, type TrayLabel } from './shapes'
 
-type Ovr = Record<string, { x: number; y: number }>
+type Ovr = Record<string, { x: number; y: number; bx: number; by: number }>
 
 function effective(data: LayoutResult, ovr: Ovr) {
   const boxes = new Map<string, Box>()
-  for (const b of data.boxes) boxes.set(b.id, ovr[b.id] ? { ...b, ...ovr[b.id] } : b)
+  for (const b of data.boxes) boxes.set(b.id, ovr[b.id] ? { ...b, x: ovr[b.id].x, y: ovr[b.id].y } : b)
   const routes: Route[] = data.routes.map(r =>
     ovr[r.from] || ovr[r.to] ? { ...r, points: reroute(boxes.get(r.from)!, boxes.get(r.to)!) } : r)
   return { boxes, routes }
@@ -55,7 +55,7 @@ function Edge({ r, boxes, labelMode }: { r: Route; boxes: Map<string, Box>; labe
   // label on the longest segment
   let best = 0, bi = 0
   for (let i = 0; i < n - 1; i++) { const l = v[i].distanceTo(v[i + 1]); if (l > best) { best = l; bi = i } }
-  const mid = v[bi].clone().add(v[bi + 1]).multiplyScalar(0.5)
+  const mid = r.labelAt ? new THREE.Vector3(r.labelAt[0], y, r.labelAt[1]) : v[bi].clone().add(v[bi + 1]).multiplyScalar(0.5)
   return (
     <group>
       <Line points={line.map(p => p.toArray() as [number, number, number])} color="#e8edf7" lineWidth={2} />
@@ -118,13 +118,20 @@ function Env({ cam, children, wheelZoom = true }: { cam: Camera; children: React
   )
 }
 
-function Scene({ cam, data, labelMode, onDrill, wheelZoom }: { cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void; wheelZoom: boolean }) {
+function Scene({ cam, data, labelMode, onDrill, wheelZoom, live, trayLabel }: { cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void; wheelZoom: boolean; live: boolean; trayLabel: TrayLabel }) {
   const { camera, gl, raycaster } = useThree()
   const [ver, setVer] = useState(0)
   const ovr = useRef<Ovr>({})
   const [hover, setHover] = useState<string | null>(null)
-  useEffect(() => { ovr.current = {}; setVer(v => v + 1) }, [data])
-  const { boxes, routes } = useMemo(() => effective(data, ovr.current), [data, ver])
+  useEffect(() => { if (!live) { ovr.current = {}; setVer(v => v + 1) } }, [data, live])
+  const { boxes, routes } = useMemo(() => {
+    if (live) { // keep 3D drags across data changes, unless the source moved that node itself
+      const next: Ovr = {}
+      for (const b of data.boxes) { const o = ovr.current[b.id]; if (o && o.bx === b.x && o.by === b.y) next[b.id] = o }
+      ovr.current = next
+    }
+    return effective(data, ovr.current)
+  }, [data, ver, live])
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
 
@@ -138,6 +145,7 @@ function Scene({ cam, data, labelMode, onDrill, wheelZoom }: { cam: Camera; data
   const startNodeDrag = (e: ThreeEvent<PointerEvent>, id: string) => {
     e.stopPropagation()
     const b = boxes.get(id)!
+    const b0 = data.boxes.find(x => x.id === id)!
     const planeY = baseOf(b) + NODE_H
     const p0 = groundPoint(e.nativeEvent.clientX, e.nativeEvent.clientY, planeY)
     if (!p0) return
@@ -152,7 +160,7 @@ function Scene({ cam, data, labelMode, onDrill, wheelZoom }: { cam: Camera; data
         x = Math.min(Math.max(x, parent.x + 10), parent.x + parent.w - b.w - 10)
         y = Math.min(Math.max(y, parent.y + 40), parent.y + parent.h - b.h - 10)
       }
-      ovr.current = { ...ovr.current, [id]: { x, y } }
+      ovr.current = { ...ovr.current, [id]: { x, y, bx: b0.x, by: b0.y } }
       setVer(v => v + 1)
     }
     const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); document.body.style.cursor = '' }
@@ -171,7 +179,7 @@ function Scene({ cam, data, labelMode, onDrill, wheelZoom }: { cam: Camera; data
               onClick={e => { if (e.delta < 4) { e.stopPropagation(); onDrill(pos[0], pos[2], w, h) } }}
               onPointerOver={e => { e.stopPropagation(); setHover(b.id); document.body.style.cursor = 'zoom-in' }}
               onPointerOut={() => { setHover(null); document.body.style.cursor = '' }}>
-              <Tray b={b} labelMode={labelMode} hover={hover === b.id} />
+              <Tray b={b} labelMode={labelMode} hover={hover === b.id} trayLabel={trayLabel} />
             </group>
           )
         }
@@ -202,7 +210,7 @@ function NodeLift({ pos, hover, children, onDown, onOver, onOut }: { pos: [numbe
   )
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, wheelZoom = true }: {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, wheelZoom = true, live = false, trayLabel = 'inside' }: {
   data: LayoutResult | SeqLayout | null; labelMode: LabelMode; mode: Mode
   /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
   camera?: Camera
@@ -210,21 +218,28 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, wheel
   showFps?: boolean
   /** Zoom on mouse wheel (and stop page scroll). False lets the page scroll over the scene. Default true. */
   wheelZoom?: boolean
+  /** Data is a live feed: fit the camera once (first data) and keep 3D drag overrides across data changes. Default false. */
+  live?: boolean
+  /** Where a group's label goes: inside the tray's top padding, or above the tray's edge. Default inside. */
+  trayLabel?: TrayLabel
 }) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
   const c = camera ?? own
+  const fitted = useRef(false)
   useEffect(() => {
     if (!data) return
+    if (live && fitted.current) return
+    fitted.current = true
     c.focusOn(0, 0, data.width * S, data.height * S)
-  }, [c, data])
+  }, [c, data, live])
   useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
   return (
     <>
       <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true }}>
         <color attach="background" args={['#0f1218']} />
         <Rig cam={c} fpsRef={fpsRef} />
-        {data && ('kind' in data ? <Env cam={c} wheelZoom={wheelZoom}><SeqScene data={data} labelMode={labelMode} /></Env> : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} wheelZoom={wheelZoom} />)}
+        {data && ('kind' in data ? <Env cam={c} wheelZoom={wheelZoom}><SeqScene data={data} labelMode={labelMode} /></Env> : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} wheelZoom={wheelZoom} live={live} trayLabel={trayLabel} />)}
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

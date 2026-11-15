@@ -38,6 +38,19 @@ export type LabelMode = 'top' | 'billboard'
 export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
   const w = b.w * S, h = b.h * S
   const geo = useMemo(() => geometry(b.shape, w, h), [b.shape, w, h])
+  if (b.top) {
+    return (
+      <mesh position={[0, NODE_H / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[w, NODE_H, h]} />
+        <meshStandardMaterial attach="material-0" color="#2a3350" roughness={0.6} />
+        <meshStandardMaterial attach="material-1" color="#2a3350" roughness={0.6} />
+        <meshStandardMaterial attach="material-2" map={b.top} roughness={0.7} emissive={hover ? '#ffffff' : '#000000'} emissiveIntensity={hover ? 0.12 : 0} />
+        <meshStandardMaterial attach="material-3" color="#2a3350" roughness={0.6} />
+        <meshStandardMaterial attach="material-4" color="#2a3350" roughness={0.6} />
+        <meshStandardMaterial attach="material-5" color="#2a3350" roughness={0.6} />
+      </mesh>
+    )
+  }
   return (
     <>
       <mesh geometry={geo} castShadow receiveShadow>
@@ -58,7 +71,9 @@ export function Label({ text, mode, y, size, maxWidth, left = false, color = '#f
   )
 }
 
-export function Tray({ b, labelMode, hover = false }: { b: Box; labelMode: LabelMode; hover?: boolean }) {
+export type TrayLabel = 'inside' | 'above'
+
+export function Tray({ b, labelMode, hover = false, trayLabel = 'inside' }: { b: Box; labelMode: LabelMode; hover?: boolean; trayLabel?: TrayLabel }) {
   const w = b.w * S, h = b.h * S
   return (
     <>
@@ -66,8 +81,8 @@ export function Tray({ b, labelMode, hover = false }: { b: Box; labelMode: Label
         <boxGeometry args={[w, TRAY, h]} />
         <meshStandardMaterial color={trayColor(b.level)} roughness={0.9} emissive={hover ? '#8fb0ff' : '#000'} emissiveIntensity={hover ? 0.15 : 0} />
       </mesh>
-      <group position={[-w / 2 + 0.25, 0, -h / 2 + 0.5]}>
-        <Label text={b.label} mode={labelMode} y={TRAY + 0.01} size={0.4} maxWidth={w - 0.5} left color="#cfd8ea" />
+      <group position={trayLabel === 'above' ? [-w / 2, 0, -h / 2 - 0.3] : [-w / 2 + 0.25, 0, -h / 2 + 0.5]}>
+        <Label text={b.label} mode={labelMode} y={trayLabel === 'above' ? 0.01 : TRAY + 0.01} size={0.4} maxWidth={w - 0.5} left color="#cfd8ea" />
       </group>
     </>
   )

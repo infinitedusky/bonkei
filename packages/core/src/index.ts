@@ -13,7 +13,7 @@ export { isSeq, parseSeq, layoutSeq, type SPart, type SItem, type SeqDoc, type S
 // Renderer
 export { SceneView } from './SceneView'
 export { SeqScene } from './SeqScene'
-export { S, TRAY, NODE_H, trayColor, NodeBody, Label, Tray, baseOf, type LabelMode } from './shapes'
+export { S, TRAY, NODE_H, trayColor, NodeBody, Label, Tray, baseOf, type LabelMode, type TrayLabel } from './shapes'
 
 // Camera (one per diagram view)
 export { createCamera, PRESET, type Camera, type Mode, type Pose } from './camera'
