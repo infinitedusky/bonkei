@@ -60,3 +60,10 @@ test('two instances share no state: options, cameras and prepared data are indep
   const [pa, pb] = await Promise.all([prepare('flowchart TD\nA-->B'), prepare('flowchart TD\nA-->B')])
   assert.notEqual(pa.data, pb.data)
 })
+
+test('prepare accepts a hand-built graph, and rejects a dangling edge', async () => {
+  const g = { direction: 'TD' as const, nodes: [{ id: 'a', label: 'A', shape: 'rect' as const }, { id: 'b', label: 'B', shape: 'round' as const }], groups: [], edges: [{ id: 'e0', from: 'a', to: 'b' }], dropped: [] }
+  const p = await prepare(g)
+  assert.equal(p.ready.nodes, 2)
+  await assert.rejects(prepare({ ...g, edges: [{ id: 'e1', from: 'a', to: 'zzz' }] }), (e: any) => e.severity === 'error')
+})

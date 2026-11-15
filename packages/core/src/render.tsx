@@ -3,10 +3,11 @@ import { createRef } from 'react'
 import { Bonkei, type BonkeiViewHandle } from './Bonkei'
 import type { BonkeiOptions } from './options'
 import type { Mode } from './camera'
+import type { Graph } from './model'
 
 export interface BonkeiHandle {
   /** Draw a new source. If it cannot be drawn the last good diagram stays. */
-  update(source: string): void
+  update(source: string | Graph): void
   setMode(mode: Mode): void
   fit(): void
   /** Unmount and remove the canvas. Calls after this do nothing. */
@@ -14,10 +15,10 @@ export interface BonkeiHandle {
 }
 
 /** Draw `source` into `element` with no React in your code. The element needs a size; the diagram fills it. */
-export function render(element: HTMLElement, source: string, options: BonkeiOptions = {}): BonkeiHandle {
+export function render(element: HTMLElement, source: string | Graph, options: BonkeiOptions = {}): BonkeiHandle {
   const root = createRoot(element)
   const view = createRef<BonkeiViewHandle>()
-  let src = source, opts = options, alive = true
+  let src: string | Graph = source, opts = options, alive = true
   const paint = () => root.render(<Bonkei ref={view} source={src} {...opts} />)
   paint()
   return {

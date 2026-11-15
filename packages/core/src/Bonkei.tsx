@@ -3,11 +3,12 @@ import { SceneView } from './SceneView'
 import { createCamera, type Mode } from './camera'
 import { S } from './shapes'
 import { prepare, type Prepared } from './diagram'
+import type { Graph } from './model'
 import { mergeOptions, readFrontmatter, type BonkeiError, type BonkeiOptions } from './options'
 
 export interface BonkeiProps extends BonkeiOptions {
-  /** Mermaid source, with optional frontmatter. */
-  source: string
+  /** Mermaid source with optional frontmatter, or an already-built graph (then there is no frontmatter; use props). */
+  source: string | Graph
 }
 /** What a mounted diagram lets you do from outside. */
 export interface BonkeiViewHandle {
@@ -61,7 +62,7 @@ function ErrorStrip({ error }: { error: BonkeiError }) {
  */
 export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei({ source, mode: modeProp, labels, toolbar, controls, onError, onModeChange, onNodeClick, onReady }, ref) {
   const [camera] = useState(createCamera)
-  const fm = useMemo(() => readFrontmatter(source).options, [source])
+  const fm = useMemo(() => (typeof source === 'string' ? readFrontmatter(source).options : {}), [source])
   const opts = mergeOptions(fm, { mode: modeProp, labels, toolbar, controls })
   const [prepared, setPrepared] = useState<Prepared | null>(null)
   const [error, setError] = useState<BonkeiError | null>(null)

@@ -1,7 +1,7 @@
 import { parse } from './parser.ts'
 import { layout } from './layout.ts'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from './seq.ts'
-import type { Dropped, LayoutResult } from './model.ts'
+import type { Dropped, Graph, LayoutResult } from './model.ts'
 import { readFrontmatter, type BonkeiError, type DiagramOptions, type BonkeiReady } from './options.ts'
 
 export interface Prepared {
@@ -19,8 +19,9 @@ const dropWarnings = (dropped: Dropped[], offset: number): BonkeiError[] =>
  * Source text -> something the scene can draw. Never throws: rejects with a BonkeiError.
  * "Cannot be drawn" means: no nodes (or participants) were read, or layout failed. Dropped lines are warnings.
  */
-export async function prepare(source: string): Promise<Prepared> {
+export async function prepare(source: string | Graph): Promise<Prepared> {
   const t0 = performance.now()
+  if (typeof source !== 'string') return prepareGraph(source, t0)
   const fm = readFrontmatter(source)
   const off = fm.lineOffset
   try {
@@ -47,3 +48,20 @@ const nothing = (dropped: Dropped[], off: number, what: string): BonkeiError => 
   return { severity: 'error', kind: 'parse', message: d ? `no ${what} found; first unreadable line: ${d.reason}` : `no ${what} found`, line: d ? d.line + off : undefined, text: d?.text }
 }
 const isBonkeiError = (e: unknown): e is BonkeiError => !!e && typeof e === 'object' && 'severity' in e && 'kind' in e
+
+/** A graph built by the caller (no Mermaid): validated, then laid out. */
+async function prepareGraph(g: Graph, t0: number): Promise<Prepared> {
+  try {
+    if (!g || !Array.isArray(g.nodes) || !Array.isArray(g.edges)) throw { severity: 'error', kind: 'parse', message: 'graph needs nodes and edges' } satisfies BonkeiError
+    if (!g.nodes.length) throw { severity: 'error', kind: 'parse', message: 'graph has no nodes' } satisfies BonkeiError
+    const ids = new Set([...g.nodes.map(n => n.id), ...(g.groups ?? []).map(x => x.id)])
+    const bad = g.edges.find(e => !ids.has(e.from) || !ids.has(e.to))
+    if (bad) throw { severity: 'error', kind: 'parse', message: `edge ${bad.id} points at a node that is not in the graph` } satisfies BonkeiError
+    const full: Graph = { direction: g.direction ?? 'TD', nodes: g.nodes, groups: g.groups ?? [], edges: g.edges, dropped: [] }
+    const data = await layout(full)
+    return { data, options: {}, warnings: [], ready: { layoutMs: Math.round(performance.now() - t0), nodes: full.nodes.length, edges: full.edges.length, dropped: 0 } }
+  } catch (e) {
+    if (isBonkeiError(e)) throw e
+    throw { severity: 'error', kind: 'layout', message: e instanceof Error ? e.message : String(e) } satisfies BonkeiError
+  }
+}
