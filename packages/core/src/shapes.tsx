@@ -37,26 +37,21 @@ export type LabelMode = 'top' | 'billboard'
 
 export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
   const w = b.w * S, h = b.h * S
-  const geo = useMemo(() => geometry(b.shape, w, h), [b.shape, w, h])
-  if (b.top) {
-    return (
-      <mesh position={[0, NODE_H / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[w, NODE_H, h]} />
-        <meshStandardMaterial attach="material-0" color="#2a3350" roughness={0.6} />
-        <meshStandardMaterial attach="material-1" color="#2a3350" roughness={0.6} />
-        <meshStandardMaterial attach="material-2" map={b.top} roughness={0.7} emissive={hover ? '#ffffff' : '#000000'} emissiveIntensity={hover ? 0.12 : 0} />
-        <meshStandardMaterial attach="material-3" color="#2a3350" roughness={0.6} />
-        <meshStandardMaterial attach="material-4" color="#2a3350" roughness={0.6} />
-        <meshStandardMaterial attach="material-5" color="#2a3350" roughness={0.6} />
-      </mesh>
-    )
-  }
+  const geo = useMemo(() => (b.top ? new THREE.BoxGeometry(w, NODE_H, h).translate(0, NODE_H / 2, 0) : geometry(b.shape, w, h)), [b.shape, w, h, !!b.top])
+  // same mesh whether or not there is a picture: swapping the element type made r3f drop the node
+  const mats = useMemo(() => {
+    if (!b.top) return null
+    const side = new THREE.MeshStandardMaterial({ color: '#2a3350', roughness: 0.6 })
+    return [side, side, new THREE.MeshStandardMaterial({ map: b.top, emissiveMap: b.top, roughness: 0.8 }), side, side, side]
+  }, [b.top])
+  const em = hover ? '#ffffff' : '#000000'
+  if (mats) { const t = mats[2] as THREE.MeshStandardMaterial; t.emissive.set('#ffffff'); t.emissiveIntensity = hover ? 0.85 : 0.6 }
   return (
     <>
-      <mesh geometry={geo} castShadow receiveShadow>
-        <meshStandardMaterial color={COLORS[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? '#ffffff' : '#000000'} emissiveIntensity={hover ? 0.18 : 0} />
+      <mesh geometry={geo} castShadow receiveShadow material={mats ?? undefined}>
+        {!mats && <meshStandardMaterial color={COLORS[b.shape]} roughness={0.5} metalness={0.05} emissive={em} emissiveIntensity={hover ? 0.18 : 0} />}
       </mesh>
-      <Label text={b.label} mode={labelMode} y={NODE_H + 0.08} size={0.36} maxWidth={w - 0.3} />
+      {!mats && <Label text={b.label} mode={labelMode} y={NODE_H + 0.08} size={0.36} maxWidth={w - 0.3} />}
     </>
   )
 }
