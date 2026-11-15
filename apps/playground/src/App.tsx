@@ -48,6 +48,7 @@ export default function App() {
         <select value={sel} onChange={e => { setSel(e.target.value); setSrc(SAMPLES[e.target.value]) }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{Object.keys(SAMPLES).map(k => <option key={k}>{k}</option>)}</select>
         <button style={btn(edit)} onClick={() => setEdit(e => !e)}>source</button>
         <span>ELK {ms}ms</span>
+        <a href="reactflow.html" style={{ color: '#9aa6c0' }}>React Flow demo</a>
       </div>
       {edit && <textarea value={src} onChange={e => setSrc(e.target.value)} spellCheck={false}
         style={{ position: 'absolute', top: 48, left: 10, width: 360, height: '60%', background: '#10151f', color: '#cfd8ea', border: '1px solid #3a4560', font: '12px monospace' }} />}
