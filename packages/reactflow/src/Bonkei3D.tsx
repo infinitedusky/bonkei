@@ -69,7 +69,7 @@ export function Bonkei3D({ mode = 'iso', labelMode = 'top', rasterize = true, on
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', ...style }}>
-      <SceneView data={data} labelMode={labelMode} mode={mode} live trayLabel="above" />
+      <SceneView data={data} labelMode={labelMode} mode={mode} live trayLabel="above" edgeHeight="middle" />
       {!data && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#7f8aa3', font: '13px system-ui' }}>waiting for React Flow to measure nodes…</div>}
     </div>
   )

@@ -9,6 +9,7 @@ import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, S, TRAY, NODE_H, baseOf, type LabelMode, type TrayLabel } from './shapes'
 
+export type EdgeHeight = 'ground' | 'middle'
 type Ovr = Record<string, { x: number; y: number; bx: number; by: number }>
 
 function effective(data: LayoutResult, ovr: Ovr) {
@@ -42,9 +43,9 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
   return null
 }
 
-function Edge({ r, boxes, labelMode }: { r: Route; boxes: Map<string, Box>; labelMode: LabelMode }) {
+function Edge({ r, boxes, labelMode, middle }: { r: Route; boxes: Map<string, Box>; labelMode: LabelMode; middle: boolean }) {
   const a = boxes.get(r.from)!, b = boxes.get(r.to)!
-  const y = Math.max(baseOf(a) + (a.kind === 'group' ? TRAY : 0), baseOf(b) + (b.kind === 'group' ? TRAY : 0)) + 0.06
+  const y = Math.max(baseOf(a) + (a.kind === 'group' ? TRAY : 0), baseOf(b) + (b.kind === 'group' ? TRAY : 0)) + (middle ? NODE_H / 2 : 0.06)
   const pts = r.points
   const v = useMemo(() => pts.map(([x, z]) => new THREE.Vector3(x, y, z)), [pts, y])
   const n = v.length
@@ -118,7 +119,7 @@ function Env({ cam, children, wheelZoom = true }: { cam: Camera; children: React
   )
 }
 
-function Scene({ cam, data, labelMode, onDrill, wheelZoom, live, trayLabel }: { cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void; wheelZoom: boolean; live: boolean; trayLabel: TrayLabel }) {
+function Scene({ cam, data, labelMode, onDrill, wheelZoom, live, trayLabel, edgeHeight }: { cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void; wheelZoom: boolean; live: boolean; trayLabel: TrayLabel; edgeHeight: EdgeHeight }) {
   const { camera, gl, raycaster } = useThree()
   const [ver, setVer] = useState(0)
   const ovr = useRef<Ovr>({})
@@ -190,7 +191,7 @@ function Scene({ cam, data, labelMode, onDrill, wheelZoom, live, trayLabel }: { 
           <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
         </NodeLift>
       })}
-      {routes.map(r => (boxes.get(r.from) && boxes.get(r.to)) ? <Edge key={r.id} r={{ ...r, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) }} boxes={boxes} labelMode={labelMode} /> : null)}
+      {routes.map(r => (boxes.get(r.from) && boxes.get(r.to)) ? <Edge key={r.id} r={{ ...r, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) }} boxes={boxes} labelMode={labelMode} middle={edgeHeight === 'middle'} /> : null)}
       </Env>
     </>
   )
@@ -210,7 +211,7 @@ function NodeLift({ pos, hover, children, onDown, onOver, onOut }: { pos: [numbe
   )
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, wheelZoom = true, live = false, trayLabel = 'inside' }: {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, wheelZoom = true, live = false, trayLabel = 'inside', edgeHeight = 'ground' }: {
   data: LayoutResult | SeqLayout | null; labelMode: LabelMode; mode: Mode
   /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
   camera?: Camera
@@ -222,6 +223,8 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, wheel
   live?: boolean
   /** Where a group's label goes: inside the tray's top padding, or above the tray's edge. Default inside. */
   trayLabel?: TrayLabel
+  /** Height edges are drawn at: on the ground (default), or at half a node's thickness so they run into the nodes' sides. */
+  edgeHeight?: EdgeHeight
 }) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
@@ -239,7 +242,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, wheel
       <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true }}>
         <color attach="background" args={['#0f1218']} />
         <Rig cam={c} fpsRef={fpsRef} />
-        {data && ('kind' in data ? <Env cam={c} wheelZoom={wheelZoom}><SeqScene data={data} labelMode={labelMode} /></Env> : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} wheelZoom={wheelZoom} live={live} trayLabel={trayLabel} />)}
+        {data && ('kind' in data ? <Env cam={c} wheelZoom={wheelZoom}><SeqScene data={data} labelMode={labelMode} /></Env> : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} wheelZoom={wheelZoom} live={live} trayLabel={trayLabel} edgeHeight={edgeHeight} />)}
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

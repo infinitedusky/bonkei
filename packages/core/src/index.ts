@@ -11,7 +11,7 @@ export { layout, reroute, type LayoutEngine } from './layout'
 export { isSeq, parseSeq, layoutSeq, type SPart, type SItem, type SeqDoc, type SeqLayout } from './seq'
 
 // Renderer
-export { SceneView } from './SceneView'
+export { SceneView, type EdgeHeight } from './SceneView'
 export { SeqScene } from './SeqScene'
 export { S, TRAY, NODE_H, trayColor, NodeBody, Label, Tray, baseOf, type LabelMode, type TrayLabel } from './shapes'
 
