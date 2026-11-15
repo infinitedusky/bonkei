@@ -5,7 +5,7 @@ import { layout } from '../layout'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from '../seq'
 import type { LayoutResult } from '../model'
 import { SceneView } from '../SceneView'
-import { setMode, type Mode } from '../camera'
+import type { Mode } from '../camera'
 
 const ORDER: Mode[] = ['flat', 'iso', '3d']
 
@@ -37,8 +37,6 @@ export default function HeroScene({ source, start = 'iso', autoplay = true, ever
     })()
     return () => { alive = false }
   }, [source])
-
-  useEffect(() => { setMode(mode) }, [mode, data])
 
   // Ready = the first frame rendered after the data is set.
   useEffect(() => {
