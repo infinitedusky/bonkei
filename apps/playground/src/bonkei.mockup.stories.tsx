@@ -1,114 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useEffect, useState } from 'react'
-import { isSeq, parse, layout, parseSeq, layoutSeq, SceneView, createCamera, S } from 'bonkei'
-import type { LayoutResult, SeqLayout, Mode, LabelMode } from 'bonkei'
+import { useState } from 'react'
+import { Bonkei } from 'bonkei'
 import { SAMPLES } from './samples'
 
-// Mockups for BON-51: what <Bonkei /> looks like inside someone else's page.
-// `Mock` stands in for the real component until it exists. The scene is the real SceneView; the toolbar, the
-// error and the loading state are drawn here. Every diagram and page text below is sample data.
+// BON-51: <Bonkei /> inside someone else's page. Every diagram and page text below is sample data.
 
-/** The reader's controls. `true` (the default): all on. `false`: none, the diagram is a picture and the page scrolls
- *  over it. An object turns single controls off; anything left out stays on. */
-type Controls = boolean | { zoom?: boolean; pan?: boolean; move?: boolean; drillIn?: boolean }
-type Opts = { mode?: Mode; labels?: LabelMode; toolbar?: boolean; controls?: Controls }
-
-/** Splits Mermaid frontmatter off the source and reads `config.bonkei` (mockup only: flat keys, no YAML library). */
-function frontmatter(src: string): { body: string; opts: Opts } {
-  const m = src.match(/^---\n([\s\S]*?)\n---\n/)
-  if (!m) return { body: src, opts: {} }
-  const opts: Opts = {}
-  const block = m[1].split('bonkei:')[1] ?? ''
-  for (const line of block.split('\n')) {
-    const kv = line.trim().match(/^(\w+):\s*(\S*)/)
-    if (!kv) continue
-    if (kv[1] === 'mode') opts.mode = kv[2] as Mode
-    if (kv[1] === 'labels') opts.labels = kv[2] as LabelMode
-    if (kv[1] === 'toolbar') opts.toolbar = kv[2] === 'true'
-    if (kv[1] === 'controls') opts.controls = kv[2] === 'true'
-    if (['zoom', 'pan', 'move', 'drillIn'].includes(kv[1])) opts.controls = { ...(typeof opts.controls === 'object' ? opts.controls : {}), [kv[1]]: kv[2] === 'true' }
-  }
-  return { body: src.slice(m[0].length), opts }
-}
-
-const C = { bg: '#0f1218', line: '#2a3348', text: '#cfd8ea', dim: '#7f8aa3', blue: '#4b6bdc', red: '#ff8a8a' }
-
-function Toolbar({ mode, pick, fit }: { mode: Mode; pick: (m: Mode) => void; fit: () => void }) {
-  const seg = (on: boolean): React.CSSProperties => ({
-    padding: '3px 9px', border: 0, background: on ? C.blue : 'transparent', color: on ? '#fff' : C.text,
-    font: '600 11px system-ui', borderRadius: 4, cursor: 'pointer',
-  })
-  return (
-    <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
-      <div role="radiogroup" aria-label="View" style={{ display: 'flex', padding: 2, background: 'rgba(16,21,31,.85)', border: `1px solid ${C.line}`, borderRadius: 6 }}>
-        {(['flat', 'iso', '3d'] as Mode[]).map(m => <button key={m} role="radio" aria-checked={mode === m} style={seg(mode === m)} onClick={() => pick(m)}>{m}</button>)}
-      </div>
-      <button title="Fit to view" aria-label="Fit to view" onClick={fit}
-        style={{ ...seg(false), background: 'rgba(16,21,31,.85)', border: `1px solid ${C.line}`, borderRadius: 6, padding: '3px 8px' }}>⤢</button>
-    </div>
-  )
-}
-
-function ErrorCard({ message, line }: { message: string; line?: number }) {
-  return (
-    <div role="alert" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 20 }}>
-      <div style={{ maxWidth: 420, border: `1px solid #5a2f36`, background: '#1a1216', borderRadius: 8, padding: '12px 14px', color: C.text, font: '13px system-ui' }}>
-        <div style={{ color: C.red, fontWeight: 600, marginBottom: 4 }}>This diagram couldn't be drawn</div>
-        <div style={{ font: '12px ui-monospace, monospace', color: C.text }}>{line !== undefined && <span style={{ color: C.dim }}>line {line}: </span>}{message}</div>
-      </div>
-    </div>
-  )
-}
-
-function ErrorStrip({ message, line }: { message: string; line?: number }) {
-  return (
-    <div role="alert" style={{ position: 'absolute', left: 8, right: 8, bottom: 8, padding: '6px 10px', background: 'rgba(26,18,22,.92)', border: '1px solid #5a2f36', borderRadius: 6, color: C.text, font: '12px ui-monospace, monospace' }}>
-      <span style={{ color: C.red }}>Not updated · </span>{line !== undefined && <span style={{ color: C.dim }}>line {line}: </span>}{message}
-    </div>
-  )
-}
-
-function Mock({ source, mode: modeProp, labels: labelsProp, toolbar: toolbarProp, controls, error, staleError, loading }: {
-  source: string
-  /** Props override frontmatter. */
-  mode?: Mode; labels?: LabelMode; toolbar?: boolean
-  /** The reader's controls. Mocked here: all on, all off, and zoom off. pan/move/drillIn off need SceneView changes. */
-  controls?: Controls
-  /** A source that could not be drawn at all: the inline message, nothing else. */
-  error?: { message: string; line?: number }
-  /** An update that could not be drawn: the last good diagram stays, with a strip. */
-  staleError?: { message: string; line?: number }
-  loading?: boolean
-}) {
-  const { body, opts } = frontmatter(source)
-  const mode0 = modeProp ?? opts.mode ?? 'iso'
-  const labels = labelsProp ?? opts.labels ?? 'top'
-  const toolbar = toolbarProp ?? opts.toolbar ?? true
-  const ctl = controls ?? opts.controls ?? true
-  const on = (k: 'zoom' | 'pan' | 'move' | 'drillIn') => ctl === true || (typeof ctl === 'object' && ctl[k] !== false)
-  const [data, setData] = useState<LayoutResult | SeqLayout | null>(null)
-  const [camera] = useState(createCamera)
-  const [mode, setMode] = useState<Mode>(mode0)
-  useEffect(() => { setMode(mode0) }, [mode0])
-  useEffect(() => {
-    if (error || loading) return
-    if (isSeq(body)) setData(layoutSeq(parseSeq(body)))
-    else layout(parse(body)).then(setData)
-  }, [body, error, loading])
-  const pick = (m: Mode) => { setMode(m); camera.setMode(m) }
-  const fit = () => data && camera.focusOn(0, 0, data.width * S, data.height * S)
-  return (
-    // Fills its container: the container decides the size, the diagram takes all of it.
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0, background: C.bg, borderRadius: 'inherit', overflow: 'hidden' }}>
-      {!error && !loading && <SceneView data={data} camera={camera} mode={mode} labelMode={labels} showFps={false} wheelZoom={on('zoom')} />}
-      {ctl === false && <div aria-hidden style={{ position: 'absolute', inset: 0 }} /> /* catches pointer events; the wheel scrolls the page */}
-      {loading && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: C.dim, font: '12px system-ui' }}>Laying out…</div>}
-      {error && <ErrorCard {...error} />}
-      {staleError && <ErrorStrip {...staleError} />}
-      {toolbar && !error && !loading && <Toolbar mode={mode} pick={pick} fit={fit} />}
-    </div>
-  )
-}
+const Spy = ({ log }: { log: string[] }) => <pre style={{ font: '11px ui-monospace, monospace', color: '#555', margin: '4px 0 0' }}>{log.length ? log.join('\n') : 'onError: not called'}</pre>
 
 // A made-up docs page the diagram sits in.
 const Page = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -136,7 +33,7 @@ config:
     labels: billboard
     toolbar: false
 ---
-${small.replace(/^%%.*\n/, '')}`
+${small}`
 
 const meta: Meta = { title: 'Mockups/Bonkei' }
 export default meta
@@ -151,7 +48,7 @@ export const InADocsPage: StoryObj = {
 <div style={{ height: 380 }}>
   <Bonkei source={diagram} />
 </div>`}</Code>
-      <Frame><Mock source={small} /></Frame>
+      <Frame><Bonkei source={small} /></Frame>
       <p>The rest of the page carries on below. With the pointer over the diagram the wheel zooms it, as dragging pans it.</p>
     </Page>
   ),
@@ -167,7 +64,7 @@ const view = render(document.getElementById('arch'), diagram, { mode: '3d' })
 view.update(newDiagram)
 view.setMode('flat')
 view.destroy()`}</Code>
-      <Frame><Mock source={small} mode="3d" /></Frame>
+      <Frame><Bonkei source={small} mode="3d" /></Frame>
     </Page>
   ),
 }
@@ -178,7 +75,7 @@ export const OptionsInFrontmatter: StoryObj = {
     <Page title="Options in the diagram">
       <p>The author sets the view in the diagram's own frontmatter, so it looks the same everywhere it is pasted. Props on the component win over these.</p>
       <Code>{withFrontmatter.split('\n').slice(0, 8).join('\n') + '\n    …'}</Code>
-      <Frame><Mock source={withFrontmatter} /></Frame>
+      <Frame><Bonkei source={withFrontmatter} /></Frame>
     </Page>
   ),
 }
@@ -189,14 +86,14 @@ export const ControlsSetting: StoryObj = {
     <Page title="Controls">
       <p><b>controls on</b> (default): wheel or pinch zooms, drag pans (orbits in 3d), nodes can be moved, a tray click flies in.</p>
       <Code>{`<Bonkei source={diagram} />`}</Code>
-      <Frame height={260}><Mock source={small} /></Frame>
+      <Frame height={260}><Bonkei source={small} /></Frame>
       <p><b>controls off</b>: a picture. Nothing moves; the wheel scrolls the page. The toolbar is its own setting and still works.</p>
       <Code>{`<Bonkei source={diagram} controls={false} />`}</Code>
-      <Frame height={260}><Mock source={small} controls={false} /></Frame>
+      <Frame height={260}><Bonkei source={small} controls={false} /></Frame>
       <p><b>some off</b>: name the ones to turn off; the rest stay on. Here zoom is off, so the wheel scrolls the page but dragging still pans.</p>
       <Code>{`<Bonkei source={diagram} controls={{ zoom: false }} />
 // also: pan, move, drillIn`}</Code>
-      <Frame height={260}><Mock source={small} controls={{ zoom: false }} /></Frame>
+      <Frame height={260}><Bonkei source={small} controls={{ zoom: false }} /></Frame>
       <p>The same in the diagram's frontmatter:</p>
       <Code>{`config:
   bonkei:
@@ -210,28 +107,42 @@ export const ControlsSetting: StoryObj = {
 
 /** Toolbar off, by prop: a fixed picture with nothing on top of it. */
 export const NoToolbar: StoryObj = {
-  render: () => <Page title="Toolbar off"><Code>{`<Bonkei source={diagram} toolbar={false} />`}</Code><Frame><Mock source={small} toolbar={false} /></Frame></Page>,
+  render: () => <Page title="Toolbar off"><Code>{`<Bonkei source={diagram} toolbar={false} />`}</Code><Frame><Bonkei source={small} toolbar={false} /></Frame></Page>,
 }
 
 /** A source that cannot be drawn: an inline message where the diagram would be, and onError is called. No throw. */
 export const ParseError: StoryObj = {
-  render: () => (
-    <Page title="A broken diagram">
-      <Code>{`<Bonkei source={diagram} onError={e => console.warn(e.line, e.message)} />`}</Code>
-      <Frame><Mock source={small} error={{ line: 4, message: "expected a node after '-->'" }} /></Frame>
-      <p>The rest of the page still renders.</p>
-    </Page>
-  ),
+  render: () => {
+    const [log, setLog] = useState<string[]>([])
+    return (
+      <Page title="A broken diagram">
+        <Code>{`<Bonkei source={diagram} onError={e => console.warn(e.line, e.message)} />`}</Code>
+        <Frame><Bonkei source={'flowchart TD\n  this is not a diagram\n  ???'} onError={e => setLog(l => [...l, `${e.severity} line ${e.line}: ${e.message}`])} /></Frame>
+        <Spy log={log} />
+        <p>The rest of the page still renders.</p>
+      </Page>
+    )
+  },
 }
 
 /** An update that cannot be drawn (someone typing in an editor): the last good diagram stays, with a strip. */
 export const UpdateError: StoryObj = {
-  render: () => <Page title="While editing"><Frame><Mock source={small} staleError={{ line: 7, message: "unclosed subgraph 'CDN'" }} /></Frame></Page>,
+  render: () => {
+    const [broken, setBroken] = useState(false)
+    const [log, setLog] = useState<string[]>([])
+    return (
+      <Page title="While editing">
+        <button onClick={() => setBroken(b => !b)}>{broken ? 'Fix the source' : 'Edit the source so it breaks'}</button>
+        <Frame><Bonkei source={broken ? 'flowchart TD\n  ???' : small} onError={e => setLog(l => [...l, `${e.severity} line ${e.line}: ${e.message}`])} /></Frame>
+        <Spy log={log} />
+      </Page>
+    )
+  },
 }
 
-/** Before layout finishes. */
+/** Before layout finishes: the big sample takes a moment. Reload the story to see it. */
 export const Loading: StoryObj = {
-  render: () => <Page title="Loading"><Frame><Mock source={small} loading /></Frame></Page>,
+  render: () => <Page title="Loading"><Frame><Bonkei source={SAMPLES[Object.keys(SAMPLES).find(k => k.includes('large')) ?? Object.keys(SAMPLES)[0]]} /></Frame></Page>,
 }
 
 /** Two diagrams on one page: each has its own camera and toolbar; changing one leaves the other still. */
@@ -239,13 +150,13 @@ export const TwoOnOnePage: StoryObj = {
   render: () => (
     <Page title="Two diagrams">
       <p>A flowchart (sample.mmd) and a sequence (the made-up login flow), one under the other.</p>
-      <Frame height={320}><Mock source={small} /></Frame>
-      <Frame height={320}><Mock source={login} mode="flat" /></Frame>
+      <Frame height={320}><Bonkei source={small} /></Frame>
+      <Frame height={320}><Bonkei source={login} mode="flat" /></Frame>
     </Page>
   ),
 }
 
 /** Full window: the component in a container that is the whole viewport, as the playground uses it */
 export const FullWindow: StoryObj = {
-  render: () => <div style={{ width: '100vw', height: '100vh' }}><Mock source={small} /></div>,
+  render: () => <div style={{ width: '100vw', height: '100vh' }}><Bonkei source={small} /></div>,
 }
