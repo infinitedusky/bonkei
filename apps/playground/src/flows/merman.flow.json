@@ -68,6 +68,10 @@
             "label": "no toolbar"
           },
           {
+            "id": "mockups-bonkei--wheel-setting",
+            "label": "wheel setting"
+          },
+          {
             "id": "mockups-bonkei--parse-error",
             "label": "parse error"
           },

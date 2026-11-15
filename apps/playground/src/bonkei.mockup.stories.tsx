@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isSeq, parse, layout, parseSeq, layoutSeq, SceneView, createCamera, S } from 'bonkei'
 import type { LayoutResult, SeqLayout, Mode, LabelMode } from 'bonkei'
 import { SAMPLES } from './samples'
@@ -8,7 +8,9 @@ import { SAMPLES } from './samples'
 // `Mock` stands in for the real component until it exists. The scene is the real SceneView; the toolbar, the
 // error and the loading state are drawn here. Every diagram and page text below is sample data.
 
-type Opts = { mode?: Mode; labels?: LabelMode; toolbar?: boolean }
+/** What the mouse wheel does over the diagram: zoom it, scroll the page, or zoom only with Ctrl/⌘ held. */
+type Wheel = 'zoom' | 'page' | 'modifier'
+type Opts = { mode?: Mode; labels?: LabelMode; toolbar?: boolean; wheel?: Wheel }
 
 /** Splits Mermaid frontmatter off the source and reads `config.bonkei` (mockup only: flat keys, no YAML library). */
 function frontmatter(src: string): { body: string; opts: Opts } {
@@ -22,6 +24,7 @@ function frontmatter(src: string): { body: string; opts: Opts } {
     if (kv[1] === 'mode') opts.mode = kv[2] as Mode
     if (kv[1] === 'labels') opts.labels = kv[2] as LabelMode
     if (kv[1] === 'toolbar') opts.toolbar = kv[2] === 'true'
+    if (kv[1] === 'wheel') opts.wheel = kv[2] as Wheel
   }
   return { body: src.slice(m[0].length), opts }
 }
@@ -63,10 +66,12 @@ function ErrorStrip({ message, line }: { message: string; line?: number }) {
   )
 }
 
-function Mock({ source, mode: modeProp, labels: labelsProp, toolbar: toolbarProp, error, staleError, loading }: {
+function Mock({ source, mode: modeProp, labels: labelsProp, toolbar: toolbarProp, controls, error, staleError, loading }: {
   source: string
   /** Props override frontmatter. */
   mode?: Mode; labels?: LabelMode; toolbar?: boolean
+  /** How the reader can move the diagram. Only `wheel` is mocked; drag and drill-in would sit here too. */
+  controls?: { wheel?: Wheel }
   /** A source that could not be drawn at all: the inline message, nothing else. */
   error?: { message: string; line?: number }
   /** An update that could not be drawn: the last good diagram stays, with a strip. */
@@ -77,6 +82,9 @@ function Mock({ source, mode: modeProp, labels: labelsProp, toolbar: toolbarProp
   const mode0 = modeProp ?? opts.mode ?? 'iso'
   const labels = labelsProp ?? opts.labels ?? 'top'
   const toolbar = toolbarProp ?? opts.toolbar ?? true
+  const wheel = controls?.wheel ?? opts.wheel ?? 'modifier'
+  const box = useRef<HTMLDivElement>(null)
+  const [hint, setHint] = useState(false)
   const [data, setData] = useState<LayoutResult | SeqLayout | null>(null)
   const [camera] = useState(createCamera)
   const [mode, setMode] = useState<Mode>(mode0)
@@ -86,12 +94,25 @@ function Mock({ source, mode: modeProp, labels: labelsProp, toolbar: toolbarProp
     if (isSeq(body)) setData(layoutSeq(parseSeq(body)))
     else layout(parse(body)).then(setData)
   }, [body, error, loading])
+  // 'modifier': Ctrl/⌘ + wheel zooms; a plain wheel scrolls the page and shows a hint for a moment.
+  useEffect(() => {
+    const el = box.current
+    if (!el || wheel !== 'modifier') return
+    let t: ReturnType<typeof setTimeout>
+    const on = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) { e.preventDefault(); camera.goal.H = Math.min(200, Math.max(3, camera.goal.H * Math.exp(e.deltaY * 0.01))); return }
+      setHint(true); clearTimeout(t); t = setTimeout(() => setHint(false), 1200)
+    }
+    el.addEventListener('wheel', on, { passive: false })
+    return () => { el.removeEventListener('wheel', on); clearTimeout(t) }
+  }, [wheel, camera])
   const pick = (m: Mode) => { setMode(m); camera.setMode(m) }
   const fit = () => data && camera.focusOn(0, 0, data.width * S, data.height * S)
   return (
     // Fills its container: the container decides the size, the diagram takes all of it.
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0, background: C.bg, borderRadius: 'inherit', overflow: 'hidden' }}>
-      {!error && !loading && <SceneView data={data} camera={camera} mode={mode} labelMode={labels} showFps={false} wheelZoom={false} />}
+    <div ref={box} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0, background: C.bg, borderRadius: 'inherit', overflow: 'hidden' }}>
+      {!error && !loading && <SceneView data={data} camera={camera} mode={mode} labelMode={labels} showFps={false} wheelZoom={wheel === 'zoom'} />}
+      {hint && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(15,18,24,.55)', color: '#fff', font: '600 14px system-ui', pointerEvents: 'none' }}>Hold Ctrl or ⌘ and scroll to zoom</div>}
       {loading && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: C.dim, font: '12px system-ui' }}>Laying out…</div>}
       {error && <ErrorCard {...error} />}
       {staleError && <ErrorStrip {...staleError} />}
@@ -142,7 +163,7 @@ export const InADocsPage: StoryObj = {
   <Bonkei source={diagram} />
 </div>`}</Code>
       <Frame><Mock source={small} /></Frame>
-      <p>The rest of the page carries on below, and the mouse wheel scrolls the page, not the diagram.</p>
+      <p>The rest of the page carries on below. Scrolling over the diagram scrolls the page; hold Ctrl or ⌘ to zoom it instead.</p>
     </Page>
   ),
 }
@@ -169,6 +190,30 @@ export const OptionsInFrontmatter: StoryObj = {
       <p>The author sets the view in the diagram's own frontmatter, so it looks the same everywhere it is pasted. Props on the component win over these.</p>
       <Code>{withFrontmatter.split('\n').slice(0, 8).join('\n') + '\n    …'}</Code>
       <Frame><Mock source={withFrontmatter} /></Frame>
+    </Page>
+  ),
+}
+
+/** The wheel setting, side by side: zoom on hover, page scroll only, or Ctrl/⌘ to zoom (the default). Scroll over each. */
+export const WheelSetting: StoryObj = {
+  render: () => (
+    <Page title="Scrolling over a diagram">
+      <p>Scroll the page with the pointer over each diagram.</p>
+      <Code>{`<Bonkei source={diagram} controls={{ wheel: 'zoom' }} />`}</Code>
+      <p><b>wheel: 'zoom'</b>: the wheel zooms the diagram while the pointer is over it; the page stops scrolling there.</p>
+      <Frame height={260}><Mock source={small} controls={{ wheel: 'zoom' }} /></Frame>
+      <p><b>wheel: 'modifier'</b> (default): the page scrolls; Ctrl or ⌘ + wheel zooms, and a plain scroll shows that hint.</p>
+      <Frame height={260}><Mock source={small} /></Frame>
+      <p><b>wheel: 'page'</b>: the wheel always scrolls the page; the diagram does not zoom with the wheel at all.</p>
+      <Frame height={260}><Mock source={small} controls={{ wheel: 'page' }} /></Frame>
+      <p>The same in the diagram's frontmatter:</p>
+      <Code>{`---
+config:
+  bonkei:
+    controls:
+      wheel: zoom
+---`}</Code>
+      <div style={{ height: 400 }} />
     </Page>
   ),
 }
@@ -210,7 +255,7 @@ export const TwoOnOnePage: StoryObj = {
   ),
 }
 
-/** Full window: the component in a container that is the whole viewport, as the playground uses it. */
+/** Full window: the component in a container that is the whole viewport, as the playground uses it, with wheel: 'zoom'. */
 export const FullWindow: StoryObj = {
-  render: () => <div style={{ width: '100vw', height: '100vh' }}><Mock source={small} /></div>,
+  render: () => <div style={{ width: '100vw', height: '100vh' }}><Mock source={small} controls={{ wheel: 'zoom' }} /></div>,
 }
