@@ -5,16 +5,18 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./internal": "./src/internal.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types src/camera.test.ts"
+    "test": "node --test --experimental-strip-types src/*.test.ts"
   },
   "dependencies": {
     "@react-three/drei": "^9.121.0",
     "@react-three/fiber": "^8.17.10",
-    "elkjs": "^0.9.3"
+    "elkjs": "^0.9.3",
+    "js-yaml": "^4.3.2"
   },
   "peerDependencies": {
     "react": "^18.3.1",
@@ -22,6 +24,7 @@
     "three": "^0.170.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.170.0",

@@ -41,6 +41,58 @@
           }
         ]
       }
+    },
+    {
+      "id": "component",
+      "data": {
+        "label": "<Bonkei /> (mockup, BON-51)",
+        "coverage": "modified",
+        "tags": [
+          "embedded"
+        ],
+        "stories": [
+          {
+            "id": "mockups-bonkei--in-a-docs-page",
+            "label": "in a docs page"
+          },
+          {
+            "id": "mockups-bonkei--from-plain-java-script",
+            "label": "from plain java script"
+          },
+          {
+            "id": "mockups-bonkei--options-in-frontmatter",
+            "label": "options in frontmatter"
+          },
+          {
+            "id": "mockups-bonkei--no-toolbar",
+            "label": "no toolbar"
+          },
+          {
+            "id": "mockups-bonkei--controls-setting",
+            "label": "controls setting"
+          },
+          {
+            "id": "mockups-bonkei--parse-error",
+            "label": "parse error"
+          },
+          {
+            "id": "mockups-bonkei--update-error",
+            "label": "update error"
+          },
+          {
+            "id": "mockups-bonkei--loading",
+            "label": "loading"
+          },
+          {
+            "id": "mockups-bonkei--two-on-one-page",
+            "label": "two on one page"
+          },
+          {
+            "id": "mockups-bonkei--full-window",
+            "label": "full window"
+          }
+        ]
+      }
     }
   ],
   "edges": [

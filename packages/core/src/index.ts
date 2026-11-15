@@ -1,19 +1,13 @@
-// The public surface of bonkei: parse Mermaid, lay it out, render it as a 3D scene.
+// The public surface of bonkei. Everything the apps and the docs need; nothing else.
+// Renderer pieces, the camera and the scene constants live in 'bonkei/internal'.
 
-// Model
-export type { Shape, GNode, GGroup, GEdge, Graph, Box, Route, LayoutResult } from './model'
+export { Bonkei, type BonkeiProps, type BonkeiViewHandle } from './Bonkei'
+export { render, type BonkeiHandle } from './render'
+export type { BonkeiOptions, DiagramOptions, Controls, BonkeiError, BonkeiReady } from './options'
+export type { Mode } from './camera'
+export type { LabelMode } from './shapes'
 
-// Flowchart parser and layout (`layout` is a LayoutEngine; pass your own to swap it)
+// Advanced: use the parser and layout without the renderer, or swap the layout engine.
 export { parse } from './parser'
-export { layout, reroute, type LayoutEngine } from './layout'
-
-// Sequence diagrams
-export { isSeq, parseSeq, layoutSeq, type SPart, type SItem, type SeqDoc, type SeqLayout } from './seq'
-
-// Renderer
-export { SceneView } from './SceneView'
-export { SeqScene } from './SeqScene'
-export { S, TRAY, NODE_H, trayColor, NodeBody, Label, Tray, baseOf, type LabelMode } from './shapes'
-
-// Camera (one per diagram view)
-export { createCamera, PRESET, type Camera, type Mode, type Pose } from './camera'
+export { layout, type LayoutEngine } from './layout'
+export type { Graph, GNode, GGroup, GEdge, Dropped, LayoutResult, Box, Route, Shape } from './model'

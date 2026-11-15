@@ -2,12 +2,14 @@ export type Shape = 'rect' | 'round' | 'cylinder' | 'diamond'
 export interface GNode { id: string; label: string; shape: Shape; parent?: string }
 export interface GGroup { id: string; label: string; parent?: string }
 export interface GEdge { id: string; from: string; to: string; label?: string }
+export interface Dropped { line: number; text: string; reason: string }
 export interface Graph {
   direction: 'TD' | 'LR'
   nodes: GNode[]
   groups: GGroup[]
   edges: GEdge[]
-  arch: Record<string, unknown>
+  /** Lines the parser could not read, with their 1-based line number in the source it was given. */
+  dropped: Dropped[]
 }
 
 // layout output (layout plane = x, y in px; scene maps y -> world z)

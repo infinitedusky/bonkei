@@ -1,0 +1,10 @@
+// NOT public API. For stories and tooling inside this repo; may change without notice.
+export * from './index'
+export { reroute } from './layout'
+export { isSeq, parseSeq, layoutSeq, type SPart, type SItem, type SeqDoc, type SeqLayout } from './seq'
+export { SceneView } from './SceneView'
+export { SeqScene } from './SeqScene'
+export { S, TRAY, NODE_H, trayColor, NodeBody, Label, Tray, baseOf } from './shapes'
+export { createCamera, PRESET, type Camera, type Pose } from './camera'
+export { prepare } from './diagram'
+export { readFrontmatter, mergeOptions, resolveControls, type ResolvedControls } from './options'

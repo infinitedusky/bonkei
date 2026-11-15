@@ -1,3 +1,4 @@
+import type { Dropped } from './model.ts'
 // Mermaid sequenceDiagram: parse + our own layout (no ELK). Layout plane: x = participants, y = time (down).
 export interface SPart { id: string; label: string; actor: boolean }
 export type SItem =
@@ -5,15 +6,16 @@ export type SItem =
   | { t: 'act'; id: string } | { t: 'deact'; id: string }
   | { t: 'note'; over: string[]; side: 'over' | 'left' | 'right'; text: string }
   | { t: 'open'; kind: string; label: string } | { t: 'else'; label: string } | { t: 'end' }
-export interface SeqDoc { parts: SPart[]; items: SItem[] }
+export interface SeqDoc { parts: SPart[]; items: SItem[]; dropped: Dropped[] }
 
 export const isSeq = (src: string) => /^\s*sequenceDiagram/m.test(src)
 
 export function parseSeq(src: string): SeqDoc {
-  const parts = new Map<string, SPart>(), items: SItem[] = []
+  const parts = new Map<string, SPart>(), items: SItem[] = [], dropped: Dropped[] = []
   const ensure = (id: string) => { if (!parts.has(id)) parts.set(id, { id, label: id, actor: false }) }
-  for (const raw of src.split('\n')) {
-    const l = raw.trim()
+  const lines = src.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i].trim()
     if (!l || l.startsWith('%%') || l.startsWith('sequenceDiagram') || l.startsWith('autonumber') || l.startsWith('title')) continue
     let m = l.match(/^(participant|actor)\s+(\w+)(?:\s+as\s+(.+))?$/)
     if (m) { parts.set(m[2], { id: m[2], label: (m[3] ?? m[2]).trim(), actor: m[1] === 'actor' }); continue }
@@ -35,9 +37,9 @@ export function parseSeq(src: string): SeqDoc {
       const a = m[2]
       items.push({ t: 'msg', from: m[1], to: m[4], label: m[5], dashed: a.startsWith('--'),
         head: a.endsWith('x') ? 'cross' : a.endsWith('>') && !a.endsWith('>>') ? 'open' : 'arrow', actTo: m[3] === '+', deactFrom: m[3] === '-' })
-    }
+    } else dropped.push({ line: i + 1, text: l, reason: 'not a message, note or block' })
   }
-  return { parts: [...parts.values()], items }
+  return { parts: [...parts.values()], items, dropped }
 }
 
 export interface SeqLayout {

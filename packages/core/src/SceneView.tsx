@@ -7,8 +7,10 @@ import { reroute } from './layout'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
+import type { ResolvedControls } from './options'
 import { NodeBody, Tray, S, TRAY, NODE_H, baseOf, type LabelMode } from './shapes'
 
+export type NodeClick = (n: { id: string; label: string; kind: 'node' | 'group' }) => void
 type Ovr = Record<string, { x: number; y: number }>
 
 function effective(data: LayoutResult, ovr: Ovr) {
@@ -70,7 +72,7 @@ function Edge({ r, boxes, labelMode }: { r: Route; boxes: Map<string, Box>; labe
   )
 }
 
-function Env({ cam, children, wheelZoom = true }: { cam: Camera; children: React.ReactNode; wheelZoom?: boolean }) {
+function Env({ cam, children, controls }: { cam: Camera; children: React.ReactNode; controls: ResolvedControls }) {
   const { gl } = useThree()
   const startCamDrag = (e: ThreeEvent<PointerEvent>) => {
     let lx = e.nativeEvent.clientX, ly = e.nativeEvent.clientY
@@ -95,11 +97,11 @@ function Env({ cam, children, wheelZoom = true }: { cam: Camera; children: React
 
   useEffect(() => {
     const el = gl.domElement
-    // wheelZoom=false: leave the event alone so an embedding page scrolls over the scene
-    const wheel = (e: WheelEvent) => { if (!wheelZoom) return; e.preventDefault(); cam.goal.H = Math.min(200, Math.max(3, cam.goal.H * Math.exp(e.deltaY * 0.001))) }
+    // controls.zoom off: leave the event alone so an embedding page scrolls over the scene
+    const wheel = (e: WheelEvent) => { if (!controls.zoom) return; e.preventDefault(); cam.goal.H = Math.min(200, Math.max(3, cam.goal.H * Math.exp(e.deltaY * 0.001))) }
     el.addEventListener('wheel', wheel, { passive: false })
     return () => el.removeEventListener('wheel', wheel)
-  }, [cam, gl, wheelZoom])
+  }, [cam, gl, controls.zoom])
 
 
   return (
@@ -108,7 +110,7 @@ function Env({ cam, children, wheelZoom = true }: { cam: Camera; children: React
       <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
       <directionalLight position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30} shadow-camera-near={1} shadow-camera-far={80} shadow-bias={-0.0004} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={controls.pan ? startCamDrag : undefined} receiveShadow>
         <planeGeometry args={[400, 400]} />
         <meshStandardMaterial color="#0f1218" roughness={1} />
       </mesh>
@@ -118,7 +120,7 @@ function Env({ cam, children, wheelZoom = true }: { cam: Camera; children: React
   )
 }
 
-function Scene({ cam, data, labelMode, onDrill, wheelZoom }: { cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void; wheelZoom: boolean }) {
+function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick }: { cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void; controls: ResolvedControls; onNodeClick?: NodeClick }) {
   const { camera, gl, raycaster } = useThree()
   const [ver, setVer] = useState(0)
   const ovr = useRef<Ovr>({})
@@ -161,23 +163,24 @@ function Scene({ cam, data, labelMode, onDrill, wheelZoom }: { cam: Camera; data
 
   return (
     <>
-      <Env cam={cam} wheelZoom={wheelZoom}>
+      <Env cam={cam} controls={controls}>
       {[...boxes.values()].map(b => {
         const w = b.w * S, h = b.h * S
         const pos: [number, number, number] = [wx(b.x) + w / 2, baseOf(b), wz(b.y) + h / 2]
         if (b.kind === 'group') {
           return (
             <group key={b.id} position={pos}
-              onClick={e => { if (e.delta < 4) { e.stopPropagation(); onDrill(pos[0], pos[2], w, h) } }}
-              onPointerOver={e => { e.stopPropagation(); setHover(b.id); document.body.style.cursor = 'zoom-in' }}
+              onClick={e => { if (e.delta < 4) { e.stopPropagation(); onNodeClick?.({ id: b.id, label: b.label, kind: 'group' }); if (controls.drillIn) onDrill(pos[0], pos[2], w, h) } }}
+              onPointerOver={e => { e.stopPropagation(); setHover(b.id); document.body.style.cursor = controls.drillIn ? 'zoom-in' : '' }}
               onPointerOut={() => { setHover(null); document.body.style.cursor = '' }}>
               <Tray b={b} labelMode={labelMode} hover={hover === b.id} />
             </group>
           )
         }
         return <NodeLift key={b.id} pos={pos} hover={hover === b.id}
-          onDown={e => startNodeDrag(e, b.id)}
-          onOver={() => { setHover(b.id); document.body.style.cursor = 'grab' }}
+          onDown={e => { if (controls.move) startNodeDrag(e, b.id) }}
+          onClick={e => { if (e.delta < 4) { e.stopPropagation(); onNodeClick?.({ id: b.id, label: b.label, kind: 'node' }) } }}
+          onOver={() => { setHover(b.id); document.body.style.cursor = controls.move ? 'grab' : '' }}
           onOut={() => { setHover(null); document.body.style.cursor = '' }}>
           <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
         </NodeLift>
@@ -188,7 +191,7 @@ function Scene({ cam, data, labelMode, onDrill, wheelZoom }: { cam: Camera; data
   )
 }
 
-function NodeLift({ pos, hover, children, onDown, onOver, onOut }: { pos: [number, number, number]; hover: boolean; children: React.ReactNode; onDown: (e: ThreeEvent<PointerEvent>) => void; onOver: () => void; onOut: () => void }) {
+function NodeLift({ pos, hover, children, onDown, onClick, onOver, onOut }: { pos: [number, number, number]; hover: boolean; children: React.ReactNode; onDown: (e: ThreeEvent<PointerEvent>) => void; onClick: (e: ThreeEvent<MouseEvent>) => void; onOver: () => void; onOut: () => void }) {
   const ref = useRef<THREE.Group>(null!)
   const lift = useRef(0)
   useFrame((_, dt) => {
@@ -196,20 +199,23 @@ function NodeLift({ pos, hover, children, onDown, onOver, onOut }: { pos: [numbe
     ref.current.position.set(pos[0], pos[1] + lift.current, pos[2])
   })
   return (
-    <group ref={ref} onPointerDown={onDown} onPointerOver={e => { e.stopPropagation(); onOver() }} onPointerOut={onOut}>
+    <group ref={ref} onPointerDown={onDown} onClick={onClick} onPointerOver={e => { e.stopPropagation(); onOver() }} onPointerOut={onOut}>
       {children}
     </group>
   )
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, wheelZoom = true }: {
+const ALL_ON: ResolvedControls = { zoom: true, pan: true, move: true, drillIn: true }
+
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls = ALL_ON, onNodeClick }: {
   data: LayoutResult | SeqLayout | null; labelMode: LabelMode; mode: Mode
   /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
   camera?: Camera
   /** Show the fps counter bottom-right. Default true. */
   showFps?: boolean
-  /** Zoom on mouse wheel (and stop page scroll). False lets the page scroll over the scene. Default true. */
-  wheelZoom?: boolean
+  /** Which reader controls are on. With zoom off the wheel is left alone, so the page scrolls over the scene. */
+  controls?: ResolvedControls
+  onNodeClick?: NodeClick
 }) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
@@ -224,7 +230,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, wheel
       <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true }}>
         <color attach="background" args={['#0f1218']} />
         <Rig cam={c} fpsRef={fpsRef} />
-        {data && ('kind' in data ? <Env cam={c} wheelZoom={wheelZoom}><SeqScene data={data} labelMode={labelMode} /></Env> : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} wheelZoom={wheelZoom} />)}
+        {data && ('kind' in data ? <Env cam={c} controls={controls}><SeqScene data={data} labelMode={labelMode} /></Env> : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={controls} onNodeClick={onNodeClick} />)}
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>
