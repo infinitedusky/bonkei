@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Bonkei } from 'bonkei'
+import { Bonkei, type Graph } from 'bonkei'
 import { SAMPLES } from './samples'
 
 // BON-51: <Bonkei /> inside someone else's page. Every diagram and page text below is sample data.
@@ -43,7 +43,7 @@ export const InADocsPage: StoryObj = {
   render: () => (
     <Page title="Architecture">
       <p>Our services, as a diagram readers can turn and fly into. Click a tray to fly in; drag to pan.</p>
-      <Code>{`import { Bonkei } from 'bonkei'
+      <Code>{`import { Bonkei, type Graph } from 'bonkei'
 
 <div style={{ height: 380 }}>
   <Bonkei source={diagram} />
@@ -137,6 +137,19 @@ export const UpdateError: StoryObj = {
         <Spy log={log} />
       </Page>
     )
+  },
+}
+
+/** A graph built in code, no Mermaid text: <Bonkei source={graph} /> and render(el, graph) take it as is. */
+export const FromAGraph: StoryObj = {
+  render: () => {
+    const graph: Graph = {
+      direction: 'LR', dropped: [],
+      groups: [{ id: 'svc', label: 'Services' }],
+      nodes: [{ id: 'web', label: 'Web', shape: 'round' }, { id: 'api', label: 'API', shape: 'rect', parent: 'svc' }, { id: 'db', label: 'DB', shape: 'cylinder', parent: 'svc' }],
+      edges: [{ id: 'e0', from: 'web', to: 'api', label: 'HTTPS' }, { id: 'e1', from: 'api', to: 'db' }],
+    }
+    return <Page title="From a graph"><Code>{`<Bonkei source={graph} />`}</Code><Frame><Bonkei source={graph} /></Frame></Page>
   },
 }
 
