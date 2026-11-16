@@ -80,7 +80,7 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 
 **Decision.**
 - An edge meets a node at the middle of a side, **halfway up the block** (centred vertically), not on the surface it stands on.
-- When the two ends are at different heights, the line makes **one** vertical step, straight to the other end's height (never a staircase). It stands just outside the outermost tray rim the line crosses, or, if it crosses none, a short way out from the higher end (the taller block, or a block above a subgraph's rim). The same rule covers any two ends of different height.
+- The line makes **one vertical step at each tray edge it crosses**, a short way outside that edge, to the height of the level it enters: the usual mid-block height of that tray, or the end's own height after the last edge. A taller block's extra height goes into the step at the edge next to it, not into a step of its own. So Pay API → Fraud Check (one edge) climbs once, and Fraud Check → Ledger (two edges) drops twice. If the line crosses no edge but its ends differ in height (a tall block beside a short one, or a block beside a subgraph's rim), it makes one step a short way out from the higher end.
 - Where lines cross, the horizontal one (in plan) hops over the vertical one with a small vertical bridge. Steps and bridges lie in the line's own vertical plane, so flat view is unchanged.
 
 **Alternatives considered.**
