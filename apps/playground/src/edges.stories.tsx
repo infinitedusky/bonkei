@@ -46,7 +46,8 @@ const edges: { id: string; today: number; pts: P[]; bridge?: P[]; tunnel?: P[]; 
     id: 'client-audit', today: 0, pts: [[-5, 2.4, .35], [-5, -2, .35], [13, -2, .35]],
     bridge: [[-5, 2.4, .35], [-5, -2, .35], [3.7, -2, .35], [3.7, -2, .35 + B], [4.3, -2, .35 + B], [4.3, -2, .35], [13, -2, .35]],
     tunnel: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35], [3.6, -2, -.25], [4.4, -2, -.25], [4.4, -2, .35], [13, -2, .35]], holes: [[3.6, -2], [4.4, -2]],
-    portals: { before: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35]], after: [[4.4, -2, .35], [13, -2, .35]], at: [3.6, 4.4] },
+    // the line stops just short of each portal so its rounded end never shows behind one
+    portals: { before: [[-5, 2.4, .35], [-5, -2, .35], [3.55, -2, .35]], after: [[4.45, -2, .35], [13, -2, .35]], at: [3.6, 4.4] },
   },
   { id: 'notifier-pay', today: TRAY, pts: [[4, -3.8, .35], [4, -1.2, .35], [2, -1.2, .35], [2, -0.5, .35], [2, -0.5, .6], [2, 2.4, .6]] },
   { id: 'ledger-payments', today: TRAY, pts: [[14, 3.6, .35], [14, 4.1, .35], [14, 4.1, .125], [14, 7.5, .125], [5.5, 7.5, .125], [5.5, 6, .125]] },
@@ -114,7 +115,7 @@ function PortalPair({ ax, bx, z, y }: { ax: number; bx: number; z: number; y: nu
     <group position={[x, y, z]} scale={[1, 1.5, 1]}>
       <mesh rotation={[0, Math.PI / 2, 0]}><torusGeometry args={[0.2, 0.03, 10, 40]} /><meshBasicMaterial color={PORTAL} /></mesh>
       <mesh ref={mouth} material={mat} position={[facing * 0.002, 0, 0]} rotation={[0, facing * Math.PI / 2, 0]}><circleGeometry args={[0.2, 40]} /></mesh>
-      <mesh position={[-facing * 0.002, 0, 0]} rotation={[0, -facing * Math.PI / 2, 0]}><circleGeometry args={[0.2, 40]} /><meshStandardMaterial color="#8a93a8" roughness={0.9} /></mesh>
+      <mesh position={[-facing * 0.002, 0, 0]} rotation={[0, -facing * Math.PI / 2, 0]}><circleGeometry args={[0.2, 40]} /><meshBasicMaterial color={PORTAL} /></mesh>
     </group>
   )
   return <>{one(ax, -1, mouthA, ma)}{one(bx, 1, mouthB, mb)}</>
@@ -199,5 +200,5 @@ export const Steps: Story = { args: { crossing: 'none' } }
 export const Bridge: Story = { args: { crossing: 'bridge' } }
 /** Crossing style: tunnel. Down through a hole, up through another; in flat, a break between two holes. */
 export const Tunnel: Story = { args: { crossing: 'tunnel' } }
-/** Crossing style: portal. Look into one and you see out of the other; opaque from behind. Try 3D. */
+/** Crossing style: portal. Look into one and you see out of the other; solid blue from behind, like the ring. Try 3D. */
 export const Portal: Story = { args: { crossing: 'portal', mode: '3d' } }

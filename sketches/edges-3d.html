@@ -165,7 +165,7 @@ function portal(x, z, y, facing, color, group) { // facing: +1 mouth towards +x,
     vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   })))
   mouth.position.x += facing * 0.002
-  const back = oval(new THREE.Mesh(new THREE.CircleGeometry(0.2, 40), new THREE.MeshStandardMaterial({ color: '#8a93a8', roughness: 0.9 })))
+  const back = oval(new THREE.Mesh(new THREE.CircleGeometry(0.2, 40), new THREE.MeshBasicMaterial({ color })))
   back.rotation.y = -facing * Math.PI / 2; back.position.x -= facing * 0.002
   group.add(ring, mouth, back)
   const p = { x, facing, rt, mouth }; portals.push(p); return p
