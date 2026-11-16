@@ -86,17 +86,28 @@ function ShadowTubes({ v }: { v: THREE.Vector3[] }) {
   })}</>
 }
 
+// Line's worldUnits only comes out right with a perspective camera. With the orthographic flat/iso camera
+// a world unit is camera.zoom pixels, so the width is set in pixels from the zoom, every frame (zooming changes it).
+function WLine({ points, color }: { points: THREE.Vector3[]; color: string }) {
+  const { w, world } = useContext(EdgeWidth)
+  const camera = useThree(st => st.camera)
+  const ref = useRef<any>(null)
+  const ortho = (camera as THREE.OrthographicCamera).isOrthographicCamera
+  useFrame(() => { if (world && ortho && ref.current) ref.current.material.linewidth = w * (camera as THREE.OrthographicCamera).zoom })
+  if (world && !ortho) return <Line points={points} color={color} lineWidth={w} worldUnits />
+  return <Line ref={ref} points={points} color={color} lineWidth={world ? w * (camera as THREE.OrthographicCamera).zoom : px(w)} />
+}
+
 function EdgeLine({ pts, arrow = true }: { pts: P[]; arrow?: boolean }) {
-  const LINE = useContext(LineColor), { w, world } = useContext(EdgeWidth)
-  const lw = world ? { lineWidth: w, worldUnits: true } : { lineWidth: px(w) }
+  const LINE = useContext(LineColor), { w } = useContext(EdgeWidth)
   const v = pts.map(v3)
-  if (!arrow) return <><Line points={v} color={LINE} {...lw} /><ShadowTubes v={v} /></>
+  if (!arrow) return <><WLine points={v} color={LINE} /><ShadowTubes v={v} /></>
   const k = Math.max(0.75, w / 0.06) // the arrowhead grows with thick lines
   const n = v.length, dir = v[n - 1].clone().sub(v[n - 2]).normalize()
   const tip = v[n - 1].clone().addScaledVector(dir, -0.3 * k)
   return (
     <group>
-      <Line points={[...v.slice(0, n - 1), tip]} color={LINE} {...lw} />
+      <WLine points={[...v.slice(0, n - 1), tip]} color={LINE} />
       <ShadowTubes v={[...v.slice(0, n - 1), tip]} />
       <mesh castShadow scale={k} position={tip.clone().addScaledVector(dir, 0.15 * k)} quaternion={new THREE.Quaternion().setFromUnitVectors(UP, dir)}>
         <coneGeometry args={[0.13, 0.35, 16]} />
