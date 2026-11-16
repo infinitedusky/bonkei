@@ -28,8 +28,8 @@ export interface AvoidTune {
   gate: number
   /** Thickness of a tray's wall obstacle. */
   wall: number
-  /** How trays are closed: 'walls' = closed walls with gates (shipped); 'none' = trays do not block (comparison). */
-  trays: 'walls' | 'none'
+  /** How trays are closed: 'walls' = walls with an opening where a line enters (shipped); 'gates' = walls closed but for gate shapes, lines routed gate to gate; 'none' = trays do not block (comparison). */
+  trays: 'walls' | 'gates' | 'none'
   /** Let the router nudge the stub at a pin sideways (ends then leave the side midpoint). */
   nudgeEnds: boolean
   /** libavoid's nudgeSharedPathsWithCommonEndPoint and performUnifyingNudgingPreprocessingStep options. */
@@ -130,7 +130,7 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
   const gates = new Map<string, Gate>()
   const gatesOf = new Map<string, { exit: Gate[]; enter: Gate[] }>() // edge -> gates left through (inner first) and entered through (outer first)
   const dockSide = new Map<string, Side>() // `${edge}:${end}` -> side of the tray that the edge docks at
-  const Q = 12 // gates whose lines are this close share one
+  const Q = tune.trays === 'gates' ? 12 : 1 // gates whose lines are this close share one (openings stay where the line's own end is)
   for (const e of edges) {
     const mine = { exit: [] as Gate[], enter: [] as Gate[] }
     for (const [end, other, list] of [[e.from, e.to, mine.exit], [e.to, e.from, mine.enter]] as const) {
@@ -153,11 +153,11 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
     mine.enter.reverse()
     gatesOf.set(e.id, mine)
   }
-  // walls: four thin rects per tray, closed except where a gate sits
+  // walls: four thin rects per tray. 'walls': broken where a line enters (an opening `gap` wide); 'gates': closed but for gate shapes
   const gateShape = new Map<string, ShapeRef>()
   const OUT = 2, IN = 3 // pin classes of a gate: facing out of the tray, facing into it
   const gw = tune.gate
-  if (tune.trays === 'walls') for (const t of byId.values()) {
+  if (tune.trays !== 'none') for (const t of byId.values()) {
     if (t.kind !== 'group') continue
     const th = tune.wall
     for (const side of ['N', 'S', 'E', 'W'] as Side[]) {
@@ -165,8 +165,15 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
       const lo = horiz ? t.x : t.y, hi = lo + (horiz ? t.w : t.h)
       const fixed = side === 'N' ? t.y : side === 'S' ? t.y + t.h : side === 'W' ? t.x : t.x + t.w
       const here = [...gates.values()].filter(g => g.tray === t.id && g.side === side).sort((a, b) => a.at - b.at)
-      let at = lo
       const wall = (a: number, b: number) => { if (b - a > 1) router.addShape(horiz ? rect(a, fixed - th / 2, b - a, th) : rect(fixed - th / 2, a, th, b - a)) }
+      let at = lo
+      if (tune.trays === 'walls') {
+        const merged: [number, number][] = []
+        for (const g of here) { const iv: [number, number] = [g.at - tune.gap / 2, g.at + tune.gap / 2]; const l = merged[merged.length - 1]; if (l && iv[0] <= l[1]) l[1] = Math.max(l[1], iv[1]); else merged.push(iv) }
+        for (const iv of merged) { wall(at, iv[0]); at = iv[1] }
+        wall(at, hi)
+        continue
+      }
       for (const g of here) {
         wall(at, g.at - gw / 2 - tune.buffer) // the wall stops a buffer short, so the gate's pins are not inside its buffer; the gate's own buffer closes the gap
         const gs = router.addShape(horiz ? rect(g.at - gw / 2, fixed - th / 2, gw, th) : rect(fixed - th / 2, g.at - gw / 2, th, gw))
@@ -205,10 +212,11 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
     const end = (id: string) => byId.get(id)!.kind === 'group' ? dockFor(id, dockSide.get(`${e.id}:${id}`)!) : shapes.get(id)!
     const g = gatesOf.get(e.id)!
     // waypoints: the pin a hop leaves from and the pin the next one arrives at
+    const gated = tune.trays === 'gates'
     const hops: { shape: ShapeRef; leave: number; arrive: number }[] = [
       { shape: end(e.from), leave: PIN, arrive: PIN },
-      ...g.exit.map(x => ({ shape: gateShape.get(x.key)!, leave: OUT, arrive: IN })), // coming from inside: arrive at the inner face, leave by the outer
-      ...g.enter.map(x => ({ shape: gateShape.get(x.key)!, leave: IN, arrive: OUT })), // coming from outside: arrive at the outer face, leave by the inner
+      ...(gated ? g.exit : []).map(x => ({ shape: gateShape.get(x.key)!, leave: OUT, arrive: IN })), // coming from inside: arrive at the inner face, leave by the outer
+      ...(gated ? g.enter : []).map(x => ({ shape: gateShape.get(x.key)!, leave: IN, arrive: OUT })), // coming from outside: arrive at the outer face, leave by the inner
       { shape: end(e.to), leave: PIN, arrive: PIN },
     ]
     const list: ConnRef[] = []

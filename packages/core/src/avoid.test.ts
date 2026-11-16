@@ -41,16 +41,35 @@ test('a line goes around a block that stands in its way', () => {
   r.dispose()
 })
 
-test('a tray is closed to a line that does not go into it, and open to one that does', () => {
+test('a tray nobody enters is closed: a line between nodes outside goes around it', () => {
   const T = tray('T', 400, 200, 300, 400)
-  const d = lay([T, node('in', 480, 380, 'T', 1), node('l', 100, 380), node('r', 900, 380), node('far', 900, 100)], [edge('across', 'l', 'r'), edge('into', 'l', 'in'), edge('out', 'in', 'far')])
+  const d = lay([T, node('in', 480, 380, 'T', 1), node('l', 100, 380), node('r', 900, 380)], [edge('across', 'l', 'r')])
   const r = createRouter(A, d)
-  const [across, into, out] = r.routes
-  assert.ok(!hits(across, T, 1), 'the line past the tray stays outside it')
-  assert.ok(hits(into, T, 1) && hits(out, T, 1), 'lines that belong to the tray enter and leave it')
-  assert.ok(!hits(into, d.boxes[2]) && !hits(across, d.boxes[1]), 'and none crosses a node it does not end at')
+  assert.ok(!hits(r.routes[0], T, 1), 'stays outside the tray')
   assert.deepEqual(r.stats.failed, [])
   r.dispose()
+})
+
+test('lines that belong to a tray enter and leave it, ending at side midpoints, crossing no node', () => {
+  const T = tray('T', 400, 200, 300, 400)
+  const d = lay([T, node('in', 480, 380, 'T', 1), node('l', 100, 380), node('far', 900, 100)], [edge('into', 'l', 'in'), edge('out', 'in', 'far')])
+  const r = createRouter(A, d)
+  const [into, out] = r.routes
+  assert.ok(hits(into, T, 1) && hits(out, T, 1))
+  assert.ok(onMid(into.points.at(-1)!, d.boxes[1]) && onMid(out.points[0], d.boxes[1]))
+  assert.deepEqual(r.stats.failed, [])
+  r.dispose()
+})
+
+test('openings leak, gates do not: a line aligned with another line\'s opening may pass through the tray; with gates it never does', () => {
+  const T = tray('T', 400, 200, 300, 400)
+  const boxes = () => [T, node('in', 480, 380, 'T', 1), node('l', 100, 380), node('r', 900, 380), node('far', 900, 100)]
+  const routes = () => [edge('across', 'l', 'r'), edge('into', 'l', 'in'), edge('out', 'in', 'far')]
+  const gated = createRouter(A, lay(boxes(), routes()), { ...TUNE, trays: 'gates' })
+  assert.ok(!hits(gated.routes[0], T, 1), 'with gates the line past stays outside')
+  assert.ok(hits(gated.routes[1], T, 1) && hits(gated.routes[2], T, 1), 'and the lines that belong enter and leave')
+  assert.deepEqual(gated.stats.failed, [])
+  gated.dispose()
 })
 
 test('an edge to a tray itself ends at a side midpoint of the tray', () => {
