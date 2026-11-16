@@ -260,3 +260,16 @@ test('routes of edges against the flow are direct, and every end still sits on a
     e.points.slice(1).forEach((p, i) => assert.ok(Math.abs(p[0] - e.points[i][0]) < 1e-6 || Math.abs(p[1] - e.points[i][1]) < 1e-6))
   }
 })
+
+test('one line crossing four others is the one that gets past: the four stay straight', () => {
+  const y = 0.35
+  const lines: P3[][] = [
+    [[0, 0, y], [8, 0, y]], [[0, 1.5, y], [8, 1.5, y]], [[0, 3, y], [8, 3, y]], [[0, 4.5, y], [8, 4.5, y]], // four along x
+    [[4, -2, y], [4, 7, y]], // one along z crossing all four
+  ]
+  const { plans, stats } = applyCrossings(lines, 'bridge', [])
+  assert.equal(stats.touching, 4)
+  for (let i = 0; i < 4; i++) assert.deepEqual(plans[i].parts, [lines[i]], `line ${i} stays straight`)
+  assert.ok(plans[4].parts[0].length > 2, 'the crosser hops')
+  assert.equal(stats.bridge, 4)
+})

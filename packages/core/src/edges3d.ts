@@ -211,8 +211,8 @@ export function surfaceAt(x: number, z: number, bodies: Body[]): { top: number; 
 export interface Stats { crossings: number; touching: number; bridge: number; tunnel: number; portal: number; skipped: number }
 
 /**
- * Draws each crossing in the chosen style on the line that runs along x. Where that line has no room at the crossing (libavoid's
- * nudged lines often cross close to a bend) the other line, the one running along z, gets past instead. Pure: returns new lines.
+ * Draws each crossing in the chosen style on the line with the most crossings (a tie: the one along x). Where that line has no room at the
+ * crossing (libavoid's nudged lines often cross close to a bend) the other line gets past instead. Pure: returns new lines.
  */
 export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body[]): { plans: EdgePlan[]; stats: Stats; slots: Slot[] } {
   const all = findCrossings(lines)
@@ -228,10 +228,14 @@ export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body
     const a = lines[edge][seg], b = lines[edge][seg + 1], last = seg === lines[edge].length - 2
     return Math.min(Math.abs(along - a[axis]), Math.abs(b[axis] - along) - (last ? 0.35 : 0)) - 0.05
   }
+  // the line with the most crossings is the one that gets past them (one dip under four lines, not four hops over one); a tie goes to the line along x
+  const count = new Map<number, number>()
+  for (const c of todo) for (const e of [c.h.edge, c.v.edge]) count.set(e, (count.get(e) ?? 0) + 1)
   const chg: Ch[] = todo.map(c => {
     const h: Ch = { edge: c.h.edge, seg: c.h.seg, axis: 0, along: c.x, cross: c.z, hh: c.hh, hv: c.hv }
     const v: Ch = { edge: c.v.edge, seg: c.v.seg, axis: 1, along: c.z, cross: c.x, hh: c.hh, hv: c.hv }
-    return roomOf(h.edge, h.seg, 0, c.x) >= need || roomOf(v.edge, v.seg, 1, c.z) < need ? h : v
+    const [first, second] = count.get(v.edge)! > count.get(h.edge)! ? [v, h] : [h, v]
+    return roomOf(first.edge, first.seg, first.axis, first.along) >= need || roomOf(second.edge, second.seg, second.axis, second.along) < need ? first : second
   })
 
   const byEdge = new Map<number, Ch[]>()
