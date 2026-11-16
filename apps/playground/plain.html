@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>bonkei · plain page (render, no React)</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  html,body{margin:0;background:#0f1218;color:#cfd8ea;font:14px system-ui,sans-serif}
+  main{padding:24px}
+  button{padding:5px 12px;margin-right:6px;border:1px solid #3a4560;background:#1a2030;color:#fff;border-radius:5px;cursor:pointer}
+  #box{width:760px;height:380px;outline:1px solid #3a4560;margin:8px 0 16px}
+  #log{max-width:760px;padding:8px;background:#161c28;border:1px solid #3a4560;border-radius:4px;font:12px ui-monospace,monospace;white-space:pre-wrap;margin:0}
+  .tag{color:#7f8aa3;font:11px ui-monospace,monospace;margin:4px 0}
+</style></head>
+<body><main>
+  <h1 style="margin:0 0 8px">render() on a page without React</h1>
+  <p>Dev-only page. It imports only <code>render</code> from <code>bonkei</code>.</p>
+  <div>
+    <button id="flat">setMode('flat')</button>
+    <button id="sequence">update(sequence)</button>
+    <button id="broken">update(broken)</button>
+    <button id="destroy">destroy()</button>
+  </div>
+  <div class="tag" id="label">sample data: flowchart · src/sample.mmd</div>
+  <div id="box"></div>
+  <pre id="log"></pre>
+</main><script type="module" src="/src/plain.ts"></script></body></html>

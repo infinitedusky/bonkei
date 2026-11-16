@@ -1,11 +1,12 @@
 import * as THREE from 'three'
 import { useMemo } from 'react'
 import { Text, Billboard } from '@react-three/drei'
-import type { Box } from './model'
+import type { Box, LabelMode } from './model'
 
-export const S = 1 / 40 // px -> world
-export const TRAY = 0.25 // tray thickness (one level)
-export const NODE_H = 0.7
+export type { LabelMode }
+
+import { S, TRAY, NODE_H } from './scale.ts'
+export { S, TRAY, NODE_H }
 
 const COLORS: Record<string, string> = { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' }
 export const trayColor = (level: number) => ['#243044', '#2d3b52', '#374862'][Math.min(level, 2)]
@@ -32,8 +33,6 @@ function geometry(shape: Box['shape'], w: number, h: number) {
   g.rotateX(-Math.PI / 2)
   return g
 }
-
-export type LabelMode = 'top' | 'billboard'
 
 export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
   const w = b.w * S, h = b.h * S

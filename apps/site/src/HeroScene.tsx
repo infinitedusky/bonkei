@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { addAfterEffect } from '@react-three/fiber'
-import { parse } from 'bonkei'
-import { layout } from 'bonkei'
-import { isSeq, parseSeq, layoutSeq, type SeqLayout } from 'bonkei'
-import type { LayoutResult } from 'bonkei'
-import { SceneView } from 'bonkei'
-import type { Mode } from 'bonkei'
+import { Bonkei, type Mode } from 'bonkei'
 
 const ORDER: Mode[] = ['flat', 'iso', '3d']
 
@@ -13,12 +7,12 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 
 // The live hero scene only (the poster, gate and fade live in Hero.tsx, which lazy-loads this file).
 // Cycles flat -> iso -> 3d until the visitor picks a view; no cycling under reduced motion, and the
-// cycle pauses while the stage is off-screen or the tab is hidden. `onReady` fires once, after the
-// first frame rendered with layout data.
+// cycle pauses while the stage is off-screen or the tab is hidden. `onReady` is the component's own:
+// it fires on the first frame drawn with the diagram. On `onError` nothing is drawn, `onReady`
+// never fires, and Hero.tsx keeps the poster up.
 export default function HeroScene({ source, start = 'iso', autoplay = true, every = 3500, onReady, onSource }: {
   source: string; start?: Mode; autoplay?: boolean; every?: number; onReady?: () => void; onSource?: () => void
 }) {
-  const [data, setData] = useState<LayoutResult | SeqLayout | null>(null)
   const [mode, setM] = useState<Mode>(start)
   const [playing, setPlaying] = useState(() => autoplay && !reducedMotion())
   const [onScreen, setOnScreen] = useState(true)
@@ -27,28 +21,6 @@ export default function HeroScene({ source, start = 'iso', autoplay = true, ever
   const root = useRef<HTMLDivElement>(null)
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
-  const readied = useRef(false)
-
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const r = isSeq(source) ? layoutSeq(parseSeq(source)) : await layout(parse(source))
-      if (alive) setData(r)
-    })()
-    return () => { alive = false }
-  }, [source])
-
-  // Ready = the first frame rendered after the data is set.
-  useEffect(() => {
-    if (!data || readied.current) return
-    const off = addAfterEffect(() => {
-      off()
-      if (readied.current) return
-      readied.current = true
-      onReadyRef.current?.()
-    })
-    return off
-  }, [data])
 
   useEffect(() => {
     const el = root.current
@@ -74,7 +46,10 @@ export default function HeroScene({ source, start = 'iso', autoplay = true, ever
 
   return (
     <div ref={root} className="site-live-scene">
-      <SceneView data={data} labelMode="top" mode={mode} showFps={false} wheelZoom={false} />
+      <Bonkei source={source} mode={mode} labels="top" toolbar={false} controls={{ zoom: false }}
+        onReady={() => onReadyRef.current?.()}
+        onError={e => { if (import.meta.env.DEV) console.warn('[bonkei] error', e) }}
+        onWarning={w => { if (import.meta.env.DEV) console.warn('[bonkei] warning', w) }} />
       <div className="site-modes" role="group" aria-label="View">
         {ORDER.map(m => <button key={m} className={m === mode ? 'on' : ''} aria-pressed={m === mode} onClick={() => pick(m)}>{m}</button>)}
       </div>
