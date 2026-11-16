@@ -119,34 +119,48 @@ function EdgeLine({ pts, arrow = true }: { pts: P[]; arrow?: boolean }) {
 
 // Tunnel: an open slot cut in the ground along the stretch that dips, so from above you still see the line
 // running through it under the other one. The ground has a matching hole (see Ground); this is the trench.
-const SLOT_W = 0.3, SLOT_D = 0.4
-function Slot({ x0, x1, z, color }: { x0: number; x1: number; z: number; color: string }) {
-  const len = x1 - x0, cx = (x0 + x1) / 2, wall = shade(color, -0.12), floor = shade(color, -0.2)
+const SLOT_W = 0.3, SLOT_D = 0.4, SLOT_R = SLOT_W / 2 // rounded ends: the radius is half the width
+type SlotAt = { x0: number; x1: number; z: number }
+// the slot's outline in plan, a stadium (straight sides, round ends), drawn in shape space (x, y = -z)
+function stadium(sl: SlotAt, p: THREE.Path = new THREE.Path()) {
+  const y = -sl.z, a = sl.x0 + SLOT_R, b = sl.x1 - SLOT_R
+  p.moveTo(a, y - SLOT_R); p.lineTo(b, y - SLOT_R)
+  p.absarc(b, y, SLOT_R, -Math.PI / 2, Math.PI / 2, false)
+  p.lineTo(a, y + SLOT_R)
+  p.absarc(a, y, SLOT_R, Math.PI / 2, Math.PI * 1.5, false)
+  return p
+}
+// Tunnel: an open trough with rounded ends cut in the ground along the stretch that dips, outlined at its lip,
+// so from any view you see the line go down into it, under the other one, and back up.
+function Slot({ sl, color }: { sl: SlotAt; color: string }) {
+  const wall = shade(color, -0.12), floor = shade(color, -0.2), rim = shade(color, -0.35)
+  const shape = useMemo(() => { const sh = new THREE.Shape(); stadium(sl, sh); return sh }, [sl.x0, sl.x1, sl.z])
+  const walls = useMemo(() => new THREE.ExtrudeGeometry(shape, { depth: SLOT_D, bevelEnabled: false, curveSegments: 16 }), [shape])
+  const flat = useMemo(() => new THREE.ShapeGeometry(shape, 16), [shape])
+  const outline = useMemo(() => shape.getPoints(16).map(p => new THREE.Vector3(p.x, 0.005, -p.y)), [shape])
   return (
-    <group position={[cx, -SLOT_D / 2, z]}>
-      <mesh position={[0, -SLOT_D / 2 + 0.005, 0]} receiveShadow><boxGeometry args={[len, 0.01, SLOT_W]} /><meshStandardMaterial color={floor} /></mesh>
-      {[-1, 1].map(k => <mesh key={k} position={[0, 0, k * SLOT_W / 2]} receiveShadow><boxGeometry args={[len, SLOT_D, 0.01]} /><meshStandardMaterial color={wall} /></mesh>)}
-      {[-1, 1].map(k => <mesh key={'e' + k} position={[k * len / 2, 0, 0]} receiveShadow><boxGeometry args={[0.01, SLOT_D, SLOT_W]} /><meshStandardMaterial color={wall} /></mesh>)}
-    </group>
+    <>
+      {/* extruded from the trough's floor up to the ground, caps hidden, so it reads as the trough's walls */}
+      <mesh geometry={walls} rotation={[-Math.PI / 2, 0, 0]} position={[0, -SLOT_D, 0]} receiveShadow material={[new THREE.MeshBasicMaterial({ visible: false }), new THREE.MeshStandardMaterial({ color: wall, side: THREE.DoubleSide })]} />
+      <mesh geometry={flat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -SLOT_D, 0]} receiveShadow><meshStandardMaterial color={floor} /></mesh>
+      <Line points={[...outline, outline[0]]} color={rim} lineWidth={1.5} />
+    </>
   )
 }
 // the ground, with the slot cut out of it when a tunnel shows; the grid is masked out over the slot (stencil)
-function Ground({ bg, grid, slot }: { bg: string; grid: string[]; slot?: { x0: number; x1: number; z: number } }) {
+function Ground({ bg, grid, slot }: { bg: string; grid: string[]; slot?: SlotAt }) {
   const geo = useMemo(() => {
     const sh = new THREE.Shape(); sh.moveTo(-36, -41); sh.lineTo(44, -41); sh.lineTo(44, 39); sh.lineTo(-36, 39); sh.closePath()
-    if (slot) { // shape y is world -z once laid flat
-      const h = new THREE.Path(); h.moveTo(slot.x0, -slot.z - SLOT_W / 2); h.lineTo(slot.x1, -slot.z - SLOT_W / 2); h.lineTo(slot.x1, -slot.z + SLOT_W / 2); h.lineTo(slot.x0, -slot.z + SLOT_W / 2); h.closePath()
-      sh.holes.push(h)
-    }
-    return new THREE.ShapeGeometry(sh)
+    if (slot) sh.holes.push(stadium(slot))
+    return new THREE.ShapeGeometry(sh, 16)
   }, [slot?.x0, slot?.x1, slot?.z])
+  const mask = useMemo(() => slot ? new THREE.ShapeGeometry(stadium(slot, new THREE.Shape()) as THREE.Shape, 16) : null, [slot?.x0, slot?.x1, slot?.z])
   return (
     <>
       <mesh geometry={geo} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><meshStandardMaterial color={bg} roughness={1} /></mesh>
-      {slot && <>
-        <Slot {...slot} color={bg} />
-        <mesh position={[(slot.x0 + slot.x1) / 2, 0.003, slot.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
-          <planeGeometry args={[slot.x1 - slot.x0, SLOT_W]} />
+      {slot && mask && <>
+        <Slot sl={slot} color={bg} />
+        <mesh geometry={mask} position={[0, 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
           <meshBasicMaterial colorWrite={false} depthWrite={false} stencilWrite stencilRef={1} stencilFunc={THREE.AlwaysStencilFunc} stencilZPass={THREE.ReplaceStencilOp} />
         </mesh>
       </>}
