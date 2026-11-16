@@ -88,6 +88,9 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - Steps lie in the line's own vertical plane, so flat view shows no steps.
 - **More room in the layout**: ELK's node spacing, layer spacing and tray padding go up, so nodes sit further apart and from their tray's edges, and trays come out bigger. Steps outside a rim and tunnel troughs need that room.
 - **Flat view lights from almost overhead** (5° off), so shadows are short; iso and 3D keep today's light.
+- **Direct routes**: lines take the most direct route ELK can give; none heads off and doubles back. Fixed flow sides (out the bottom, in the top) force U-turns when the target is not downstream, so each end's side is chosen from where the nodes land, as React Flow's floating edges do. Flat view may differ from main wherever ports, spacing and routing change the layout.
+- **Portal performance** is accepted as "not measurably slower" than no crossing style; a 10% bound cannot be measured on this machine (±30% run to run).
+- BON-85 stays in the Library foundation project.
 
 **Alternatives considered.**
 - The line lying on the surface (side midpoint seen from above only): rejected by the person.
