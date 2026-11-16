@@ -46,7 +46,7 @@ const nodes = [
 // One step per edge, straight to where it is headed: just outside the outermost tray edge crossed,
 // or a short way (0.5) out from the higher end.
 const B = 0.35
-const edges: { id: string; today: number; pts: P[]; bridge?: P[]; tunnel?: P[]; holes?: [number, number][]; portals?: { before: P[]; after: P[]; at: [number, number] } }[] = [
+const edges: { id: string; today: number; pts: P[]; bridge?: P[]; tunnel?: P[]; slot?: { x0: number; x1: number; z: number }; portals?: { before: P[]; after: P[]; at: [number, number] } }[] = [
   { id: 'client-pay', today: TRAY, pts: [[-4, 3, .35], [-0.5, 3, .35], [-0.5, 3, .6], [1, 3, .6]] },
   { id: 'pay-fraud', today: 2 * TRAY, pts: [[3, 3, .6], [4.5, 3, .6], [4.5, 2.1, .6], [5, 2.1, .6], [5, 2.1, 1.4], [6.5, 2.1, 1.4]] },
   { id: 'fraud-review', today: 2 * TRAY, pts: [[7.5, 2.7, 1.4], [7.5, 3.2, 1.4], [7.5, 3.2, .85], [7.5, 3.8, .85]] },
@@ -54,7 +54,7 @@ const edges: { id: string; today: number; pts: P[]; bridge?: P[]; tunnel?: P[]; 
   {
     id: 'client-audit', today: 0, pts: [[-5, 2.4, .35], [-5, -2, .35], [13, -2, .35]],
     bridge: [[-5, 2.4, .35], [-5, -2, .35], [3.7, -2, .35], [3.7, -2, .35 + B], [4.3, -2, .35 + B], [4.3, -2, .35], [13, -2, .35]],
-    tunnel: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35], [3.6, -2, -.25], [4.4, -2, -.25], [4.4, -2, .35], [13, -2, .35]], holes: [[3.6, -2], [4.4, -2]],
+    tunnel: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35], [3.6, -2, -.25], [4.4, -2, -.25], [4.4, -2, .35], [13, -2, .35]], slot: { x0: 3.5, x1: 4.5, z: -2 },
     // the line meets each portal's face; the portal's back sits a little behind it, so the line's rounded end never shows from behind
     portals: { before: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35]], after: [[4.4, -2, .35], [13, -2, .35]], at: [3.6, 4.4] },
   },
@@ -117,12 +117,42 @@ function EdgeLine({ pts, arrow = true }: { pts: P[]; arrow?: boolean }) {
   )
 }
 
-function Hole({ x, z }: { x: number; z: number }) {
+// Tunnel: an open slot cut in the ground along the stretch that dips, so from above you still see the line
+// running through it under the other one. The ground has a matching hole (see Ground); this is the trench.
+const SLOT_W = 0.3, SLOT_D = 0.4
+function Slot({ x0, x1, z, color }: { x0: number; x1: number; z: number; color: string }) {
+  const len = x1 - x0, cx = (x0 + x1) / 2, wall = shade(color, -0.12), floor = shade(color, -0.2)
   return (
-    <group position={[x, 0.004, z]} rotation={[-Math.PI / 2, 0, 0]}>
-      <mesh><circleGeometry args={[0.13, 24]} /><meshBasicMaterial color="#000" /></mesh>
-      <mesh><ringGeometry args={[0.13, 0.17, 24]} /><meshBasicMaterial color="#7f8aa3" /></mesh>
+    <group position={[cx, -SLOT_D / 2, z]}>
+      <mesh position={[0, -SLOT_D / 2 + 0.005, 0]} receiveShadow><boxGeometry args={[len, 0.01, SLOT_W]} /><meshStandardMaterial color={floor} /></mesh>
+      {[-1, 1].map(k => <mesh key={k} position={[0, 0, k * SLOT_W / 2]} receiveShadow><boxGeometry args={[len, SLOT_D, 0.01]} /><meshStandardMaterial color={wall} /></mesh>)}
+      {[-1, 1].map(k => <mesh key={'e' + k} position={[k * len / 2, 0, 0]} receiveShadow><boxGeometry args={[0.01, SLOT_D, SLOT_W]} /><meshStandardMaterial color={wall} /></mesh>)}
     </group>
+  )
+}
+// the ground, with the slot cut out of it when a tunnel shows; the grid is masked out over the slot (stencil)
+function Ground({ bg, grid, slot }: { bg: string; grid: string[]; slot?: { x0: number; x1: number; z: number } }) {
+  const geo = useMemo(() => {
+    const sh = new THREE.Shape(); sh.moveTo(-36, -41); sh.lineTo(44, -41); sh.lineTo(44, 39); sh.lineTo(-36, 39); sh.closePath()
+    if (slot) { // shape y is world -z once laid flat
+      const h = new THREE.Path(); h.moveTo(slot.x0, -slot.z - SLOT_W / 2); h.lineTo(slot.x1, -slot.z - SLOT_W / 2); h.lineTo(slot.x1, -slot.z + SLOT_W / 2); h.lineTo(slot.x0, -slot.z + SLOT_W / 2); h.closePath()
+      sh.holes.push(h)
+    }
+    return new THREE.ShapeGeometry(sh)
+  }, [slot?.x0, slot?.x1, slot?.z])
+  return (
+    <>
+      <mesh geometry={geo} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><meshStandardMaterial color={bg} roughness={1} /></mesh>
+      {slot && <>
+        <Slot {...slot} color={bg} />
+        <mesh position={[(slot.x0 + slot.x1) / 2, 0.003, slot.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
+          <planeGeometry args={[slot.x1 - slot.x0, SLOT_W]} />
+          <meshBasicMaterial colorWrite={false} depthWrite={false} stencilWrite stencilRef={1} stencilFunc={THREE.AlwaysStencilFunc} stencilZPass={THREE.ReplaceStencilOp} />
+        </mesh>
+      </>}
+      <gridHelper key={bg + !!slot} args={[80, 80, grid[0], grid[1]]} position={[4, 0.002, 1]} renderOrder={1}
+        material-stencilWrite={!!slot} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />
+    </>
   )
 }
 
@@ -176,7 +206,7 @@ function Edges({ crossing }: { crossing: Crossing }) {
       {edges.map(e => {
         if (crossing === 'today') return <EdgeLine key={e.id} pts={e.pts.map(([x, z]) => [x, z, e.today + 0.06] as P)} />
         if (crossing === 'bridge' && e.bridge) return <EdgeLine key={e.id} pts={e.bridge} />
-        if (crossing === 'tunnel' && e.tunnel) return <group key={e.id}><EdgeLine pts={e.tunnel} />{e.holes!.map(([x, z]) => <Hole key={x} x={x} z={z} />)}</group>
+        if (crossing === 'tunnel' && e.tunnel) return <EdgeLine key={e.id} pts={e.tunnel} />
         if (crossing === 'portal' && e.portals) {
           const p = e.portals
           return <group key={e.id}><EdgeLine pts={p.before} arrow={false} /><EdgeLine pts={p.after} /><PortalPair ax={p.at[0]} bx={p.at[1]} z={-2} y={.35} /></group>
@@ -242,11 +272,7 @@ function EdgesScene(initial: Args) {
         <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
         <directionalLight position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[4096, 4096]} shadow-bias={-0.0004}
           shadow-camera-left={-18} shadow-camera-right={18} shadow-camera-top={18} shadow-camera-bottom={-18} shadow-camera-far={80} />
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[4, 0, 1]} receiveShadow>
-          <planeGeometry args={[80, 80]} />
-          <meshStandardMaterial color={bg} roughness={1} />
-        </mesh>
-        <gridHelper key={bg} args={[80, 80, grid[0], grid[1]]} position={[4, 0.002, 1]} />
+        <Ground bg={bg} grid={grid} slot={crossing === 'tunnel' ? edges.find(e => e.slot)?.slot : undefined} />
         {trays.map(t => (
           <group key={t.id} position={[(t.r[0] + t.r[2]) / 2, t.level * TRAY, (t.r[1] + t.r[3]) / 2]}>
             <Tray b={t} labelMode="top" />
@@ -291,7 +317,7 @@ export const Today: Story = { args: { crossing: 'today' } }
 export const Steps: Story = { args: { crossing: 'none' } }
 /** Crossing style: bridge. Client → Audit hops over Notifier → Pay API. */
 export const Bridge: Story = { args: { crossing: 'bridge' } }
-/** Crossing style: tunnel. Down through a hole, up through another; in flat, a break between two holes. */
+/** Crossing style: tunnel. Down into an open slot cut in the ground and up again; from above you still see the line in the slot. */
 export const Tunnel: Story = { args: { crossing: 'tunnel' } }
 /** Crossing style: portal. Look into one and you see out of the other; solid blue from behind, like the ring. Try 3D. */
 export const Portal: Story = { args: { crossing: 'portal', mode: '3d' } }
