@@ -59,9 +59,6 @@ importers:
 
   apps/site:
     dependencies:
-      '@react-three/fiber':
-        specifier: ^8.17.10
-        version: 8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0)
       bonkei:
         specifier: workspace:*
         version: link:../../packages/core
