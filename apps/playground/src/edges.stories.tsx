@@ -238,6 +238,9 @@ function Cam({ mode }: { mode: Mode }) {
   return <><OrthographicCamera makeDefault position={pos} zoom={36} near={-200} far={200} /><OrbitControls makeDefault target={T} enableRotate={false} /></>
 }
 
+// The sun. In flat view it is almost straight overhead (5° off), so shadows fall short and barely to one side.
+const SUN: [number, number, number] = [10, 18, 7]
+const FLAT_SUN: [number, number, number] = [21.8 * Math.sin(5 * Math.PI / 180), 21.8 * Math.cos(5 * Math.PI / 180), 0]
 type Args = { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: string; edgeColor: string; edgeWidth: number; worldWidth: boolean } // edgeColor 'auto': dark on a light ground, light on a dark one
 const EDGE_PRESETS = { light: LINE, dark: LINE_ON_WHITE, amber: '#ffb347', cyan: '#3fd6e8' }
 
@@ -284,7 +287,7 @@ function EdgesScene(initial: Args) {
         <Cam key={mode} mode={mode} />
         <ambientLight intensity={0.55} />
         <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
-        <directionalLight position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[4096, 4096]} shadow-bias={-0.0004}
+        <directionalLight position={mode === 'flat' ? FLAT_SUN : SUN} intensity={1.6} castShadow shadow-mapSize={[4096, 4096]} shadow-bias={-0.0004}
           shadow-camera-left={-18} shadow-camera-right={18} shadow-camera-top={18} shadow-camera-bottom={-18} shadow-camera-far={80} />
         <Ground bg={bg} grid={grid} slot={crossing === 'tunnel' ? edges.find(e => e.slot)?.slot : undefined} />
         {trays.map(t => (
