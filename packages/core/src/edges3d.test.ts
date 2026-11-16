@@ -171,7 +171,7 @@ test('dock puts a stray end on the side midpoint with an orthogonal dogleg', () 
   r.slice(1).forEach((p, i) => assert.ok(Math.abs(p[0] - r[i][0]) < 1e-9 || Math.abs(p[1] - r[i][1]) < 1e-9))
 })
 
-test('ELK ports: every route of a nested sample meets its node boxes at side midpoints, flow sides', async () => {
+test('every route of a nested sample meets its boxes at a side midpoint (libavoid picks the side; ELK was placed with flow-side ports)', async () => {
   const src = `flowchart TD
   subgraph P["Payments"]
     subgraph R["Risk"]
@@ -191,10 +191,10 @@ test('ELK ports: every route of a nested sample meets its node boxes at side mid
     assert.equal(r.stats?.portFallbacks, 0)
     for (const e of r.routes) {
       const a = by.get(e.from)!, b = by.get(e.to)!
-      const out = dir === 'TD' ? 'S' : 'E', inn = dir === 'TD' ? 'N' : 'W'
       const near = (p: number[], q: number[]) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.5
-      assert.ok(near(e.points[0], sideMid(a, out)), `${dir} ${e.id} start`)
-      assert.ok(near(e.points.at(-1)!, sideMid(b, inn)), `${dir} ${e.id} end`)
+      const any = (p: number[], bx: Box) => (['N', 'S', 'E', 'W'] as const).some(sd => near(p, sideMid(bx, sd)))
+      assert.ok(any(e.points[0], a), `${dir} ${e.id} start`)
+      assert.ok(any(e.points.at(-1)!, b), `${dir} ${e.id} end`)
     }
   }
 })

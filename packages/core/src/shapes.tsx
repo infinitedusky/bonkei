@@ -68,7 +68,7 @@ export function Tray({ b, labelMode, hover = false, slots = [] }: { b: Box; labe
   }, [w, h, JSON.stringify(slots)])
   return (
     <>
-      <mesh position={[0, cut ? 0 : TRAY / 2, 0]} receiveShadow geometry={cut ?? undefined}>
+      <mesh key={cut ? 'cut' : 'box'} position={[0, cut ? 0 : TRAY / 2, 0]} receiveShadow geometry={cut ?? undefined}>
         {!cut && <boxGeometry args={[w, TRAY, h]} />}
         <meshStandardMaterial color={trayColor(b.level)} roughness={0.9} emissive={hover ? '#8fb0ff' : '#000'} emissiveIntensity={hover ? 0.15 : 0} />
       </mesh>

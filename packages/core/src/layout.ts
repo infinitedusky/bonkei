@@ -1,6 +1,6 @@
 import ELK from 'elkjs/lib/elk.bundled.js'
 import type { Graph, Box, Route, LayoutResult } from './model.ts'
-import { loadAvoid, createRouter, TUNE as AVOID } from './avoid.ts'
+import { loadAvoid, createRouter, keepRouter } from './avoid.ts'
 
 // Swap-friendly interface: layout(graph) -> { boxes, routes }.
 export type LayoutEngine = (g: Graph) => Promise<LayoutResult>
@@ -39,15 +39,13 @@ export const layout: LayoutEngine = async (g) => {
   try {
     const A = await loadAvoid()
     const r = createRouter(A, placed)
-    const routes = r.routes
-    r.dispose()
-    return { ...placed, routes, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: r.stats.buildMs, failed: r.stats.failed, error: null } } }
+    const out = { ...placed, routes: r.routes, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: r.stats.buildMs, failed: r.stats.failed, error: null, level: r.level } } }
+    keepRouter(out, r) // the scene drags on the same router
+    return out
   } catch (e) {
-    return { ...placed, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: 0, failed: [], error: e instanceof Error ? e.message : String(e) } } }
+    return { ...placed, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: 0, failed: [], error: e instanceof Error ? e.message : String(e), level: 'off' } } }
   }
 }
-void AVOID
-
 async function place(g: Graph): Promise<LayoutResult> {
   const first = await run(g)
   if (TUNE.sides === 'flow') return first

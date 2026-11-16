@@ -3,6 +3,7 @@ import { Component, forwardRef, useCallback, useEffect, useImperativeHandle, use
 import { SpanStatusCode } from '@opentelemetry/api'
 import { SceneView, type EdgeStats } from './SceneView'
 import { CROSSING_STYLES, type CrossingStyle } from './edges3d.ts'
+import { AVOID_CROSSINGS, type AvoidCrossings } from './avoid.ts'
 import { createCamera, type Mode } from './camera'
 import { prepare, isBonkeiError, type Prepared, type PrepareError } from './diagram'
 import { DEFAULTS, mergeOptions, resolveControls, type BonkeiError, type BonkeiOptions, type BonkeiWarning, type ModeChange, type NodeClick } from './options'
@@ -69,7 +70,7 @@ export function ErrorStrip({ error }: { error: BonkeiError }) {
 }
 
 /** Flat / iso / 3D as a radiogroup, plus fit. */
-export function Toolbar({ mode, onPick, onFit, crossings, onCrossings }: { mode: Mode; onPick: (m: Mode) => void; onFit: () => void; crossings?: CrossingStyle; onCrossings?: (c: CrossingStyle) => void }) {
+export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, onAvoid }: { mode: Mode; onPick: (m: Mode) => void; onFit: () => void; crossings?: CrossingStyle; onCrossings?: (c: CrossingStyle) => void; avoid?: AvoidCrossings; onAvoid?: (a: AvoidCrossings) => void }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
   const btn = (on: boolean): CSSProperties => ({
     padding: '4px 10px', border: 0, borderRadius: 4, cursor: 'pointer', font: '13px system-ui, sans-serif',
@@ -95,6 +96,14 @@ export function Toolbar({ mode, onPick, onFit, crossings, onCrossings }: { mode:
         <div role="radiogroup" aria-label="Crossings" style={{ ...panel, display: 'flex', padding: 2 }}>
           {CROSSING_STYLES.map(c => (
             <button key={c} type="button" role="radio" aria-checked={c === crossings} onClick={() => onCrossings(c)} style={btn(c === crossings)}>{c === 'none' ? 'No hop' : c[0].toUpperCase() + c.slice(1)}</button>
+          ))}
+        </div>
+      )}
+      {avoid && onAvoid && (
+        <div role="radiogroup" aria-label="Avoid crossings" style={{ ...panel, display: 'flex', padding: 2, alignItems: 'center' }}>
+          <span style={{ padding: '0 6px', font: '12px system-ui, sans-serif', color: UI.text, opacity: 0.6 }}>Avoid crossings</span>
+          {AVOID_CROSSINGS.map(a => (
+            <button key={a} type="button" role="radio" aria-checked={a === avoid} onClick={() => onAvoid(a)} style={btn(a === avoid)}>{a[0].toUpperCase() + a.slice(1)}</button>
           ))}
         </div>
       )}
@@ -186,9 +195,9 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   // Props over frontmatter; the frontmatter is read once per prepared source.
   const ctlKey = JSON.stringify(props.controls ?? null)
   const opts = useMemo(
-    () => mergeOptions({ mode: props.mode, labels: props.labels, toolbar: props.toolbar, controls: props.controls, crossings: props.crossings }, prepared?.options),
+    () => mergeOptions({ mode: props.mode, labels: props.labels, toolbar: props.toolbar, controls: props.controls, crossings: props.crossings, avoidCrossings: props.avoidCrossings }, prepared?.options),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [props.mode, props.labels, props.toolbar, props.crossings, ctlKey, prepared])
+    [props.mode, props.labels, props.toolbar, props.crossings, props.avoidCrossings, ctlKey, prepared])
   const resolvedKey = JSON.stringify(resolveControls(opts.controls))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const controls = useMemo(() => resolveControls(opts.controls), [resolvedKey])
@@ -196,6 +205,8 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   // Crossing style: the declared one is the start; the toolbar pick stays until the declared one changes.
   const [crossings, setCrossings] = useState<CrossingStyle>(opts.crossings)
   useEffect(() => { setCrossings(opts.crossings) }, [opts.crossings])
+  const [avoid, setAvoid] = useState<AvoidCrossings>(opts.avoidCrossings)
+  useEffect(() => { setAvoid(opts.avoidCrossings) }, [opts.avoidCrossings])
 
   const picked = useRef(false) // a toolbar or handle pick has been made
   const pick = useCallback((m: Mode, from: ModeChange['source']) => {
@@ -257,8 +268,8 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     <div data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <SceneBoundary resetKey={prepared?.key ?? ''} onError={onRenderError}>
         <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false}
-          controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} onEdgeStats={props.onEdgeStats} />
-        {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit} crossings={crossings} onCrossings={setCrossings} />}
+          controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} />
+        {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit} crossings={crossings} onCrossings={setCrossings} avoid={avoid} onAvoid={setAvoid} />}
       </SceneBoundary>
       {!prepared && !error && <Loading />}
       {!prepared && error && <ErrorCard error={error} />}

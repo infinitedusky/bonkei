@@ -51,6 +51,11 @@ export function loadAvoid(): Promise<Avoid> {
 /** The loaded module, or null while it has not loaded. */
 export function avoidLoaded(): Avoid | null { try { return AvoidLib.getInstance() } catch { return null } }
 
+/** How hard the router tries not to cross lines: off, some, strong. The cost is paid when the lines are routed (about 0.8 s on 50 nodes); a drag frame always routes without it. */
+export const AVOID_CROSSINGS = ['off', 'some', 'strong'] as const
+export type AvoidCrossings = typeof AVOID_CROSSINGS[number]
+export const CROSSING_COST: Record<AvoidCrossings, number> = { off: 0, some: 1000, strong: 3000 }
+
 export interface RouterStats {
   /** Time to build the router and route every line, ms. */
   buildMs: number
@@ -60,10 +65,16 @@ export interface RouterStats {
   moveMs: number
 }
 export interface EdgeRouter {
+  /** The crossing-avoidance level the lines were routed with. */
+  level: AvoidCrossings
   routes: Route[]
   stats: RouterStats
   /** Moves a node by (dx, dy) and re-routes; the router stays alive. Returns all routes. */
   move(id: string, dx: number, dy: number): Route[]
+  /** Where the router has a node now. */
+  at(id: string): { x: number; y: number }
+  /** Puts every moved node back where the layout had it and re-routes. */
+  reset(): Route[]
   dispose(): void
 }
 
@@ -82,8 +93,11 @@ function exitSide(t: Box, from: [number, number], to: [number, number]): Side {
 const centre = (b: Box): [number, number] => [b.x + b.w / 2, b.y + b.h / 2]
 const sideMid = (b: Box, s: Side): [number, number] => s === 'N' ? [b.x + b.w / 2, b.y] : s === 'S' ? [b.x + b.w / 2, b.y + b.h] : s === 'E' ? [b.x + b.w, b.y + b.h / 2] : [b.x, b.y + b.h / 2]
 
-export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUNE): EdgeRouter {
+export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUNE, level: AvoidCrossings = 'some'): EdgeRouter {
+  tune = { ...tune, crossing: tune === TUNE ? CROSSING_COST[level] : tune.crossing }
   const t0 = performance.now()
+  const base = data.routes
+  const home = new Map(data.boxes.map(b => [b.id, { x: b.x, y: b.y }]))
   const byId = new Map(data.boxes.map(b => [b.id, { ...b }]))
   const ancestors = (id: string) => { const l: string[] = []; for (let p = byId.get(id)?.parent; p; p = byId.get(p)?.parent) l.push(p); return l }
   const router: Router = new A.Router(A.RouterFlag.OrthogonalRouting)
@@ -191,7 +205,7 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
   router.setRoutingParameter(P.crossingPenalty, tune.dragCrossing)
 
   const out: EdgeRouter = {
-    routes: [], stats: { buildMs: 0, failed: [], moveMs: 0 },
+    level, routes: [], stats: { buildMs: 0, failed: [], moveMs: 0 },
     move(id, dx, dy) {
       const t1 = performance.now()
       const b = byId.get(id)!
@@ -203,11 +217,18 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
       out.stats.moveMs = performance.now() - t1
       return out.routes
     },
+    at(id) { const b = byId.get(id)!; return { x: b.x, y: b.y } },
+    reset() {
+      let moved = false
+      for (const [id, h] of home) { const b = byId.get(id)!; if (shapes.has(id) && (b.x !== h.x || b.y !== h.y)) { router.moveShape(shapes.get(id)!, h.x - b.x, h.y - b.y); b.x = h.x; b.y = h.y; moved = true } }
+      if (moved) { router.processTransaction(); read() }
+      return out.routes
+    },
     dispose() { router.delete() },
   }
   const read = () => {
     const failed: string[] = []
-    out.routes = data.routes.map(r => {
+    out.routes = base.map(r => {
       const c = conns.get(r.id)
       if (!c) return r
       if (!c.hasValidRoute() || c.hasCrossingObstacles()) failed.push(r.id)
@@ -239,4 +260,24 @@ export function tidy(p: [number, number][]): [number, number][] {
     out.push(b)
   }
   return out
+}
+
+// ---- the router a layout leaves behind, for dragging
+// layout() routes with a router and keeps it for the scene that draws the result; it is freed when the result is collected.
+const kept = new WeakMap<object, EdgeRouter>()
+const freed = new FinalizationRegistry<EdgeRouter>(r => r.dispose())
+export function keepRouter(result: object, r: EdgeRouter) { kept.set(result, r); freed.register(result, r) }
+/**
+ * The router for `result` at `level`: the one layout() kept if it has that level, else a new one (which replaces it; the old one is freed).
+ * Null until the wasm has loaded. A result made by hand is routed here as laid out.
+ */
+export function routerFor(result: LayoutResult, level: AvoidCrossings = 'some'): EdgeRouter | null {
+  const k = kept.get(result)
+  if (k && k.level === level) return k
+  const A = avoidLoaded()
+  if (!A) return null
+  const r = createRouter(A, result, TUNE, level)
+  k?.dispose()
+  keepRouter(result, r)
+  return r
 }

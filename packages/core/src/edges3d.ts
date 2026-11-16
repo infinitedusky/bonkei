@@ -209,7 +209,10 @@ export function surfaceAt(x: number, z: number, bodies: Body[]): { top: number; 
 
 export interface Stats { crossings: number; touching: number; bridge: number; tunnel: number; portal: number; skipped: number }
 
-/** Draws each crossing in the chosen style on the line that runs along x. Pure: returns new lines. */
+/**
+ * Draws each crossing in the chosen style on the line that runs along x. Where that line has no room at the crossing (libavoid's
+ * nudged lines often cross close to a bend) the other line, the one running along z, gets past instead. Pure: returns new lines.
+ */
 export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body[]): { plans: EdgePlan[]; stats: Stats; slots: Slot[] } {
   const all = findCrossings(lines)
   const todo = style === 'none' ? [] : all.filter(c => c.touches)
@@ -217,8 +220,22 @@ export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body
   const plans: EdgePlan[] = lines.map(l => ({ parts: [l], slots: [], portals: [] }))
   if (!todo.length) return { plans, stats, slots: [] }
 
-  const byEdge = new Map<number, Crossing[]>()
-  for (const c of todo) byEdge.set(c.h.edge, [...(byEdge.get(c.h.edge) ?? []), c])
+  const need = style === 'bridge' ? 0.06 : style === 'portal' ? 0.1 : 0.2
+  // who changes: the line along x, unless it cannot (room each side of the crossing along its own segment) and the other can
+  type Ch = { edge: number; seg: number; axis: 0 | 1; along: number; cross: number; hh: number; hv: number }
+  const roomOf = (edge: number, seg: number, axis: 0 | 1, along: number) => {
+    const a = lines[edge][seg], b = lines[edge][seg + 1], last = seg === lines[edge].length - 2
+    return Math.min(Math.abs(along - a[axis]), Math.abs(b[axis] - along) - (last ? 0.35 : 0)) - 0.05
+  }
+  const chg: Ch[] = todo.map(c => {
+    const h: Ch = { edge: c.h.edge, seg: c.h.seg, axis: 0, along: c.x, cross: c.z, hh: c.hh, hv: c.hv }
+    const v: Ch = { edge: c.v.edge, seg: c.v.seg, axis: 1, along: c.z, cross: c.x, hh: c.hh, hv: c.hv }
+    return roomOf(h.edge, h.seg, 0, c.x) >= need || roomOf(v.edge, v.seg, 1, c.z) < need ? h : v
+  })
+
+  const byEdge = new Map<number, Ch[]>()
+  for (const c of chg) byEdge.set(c.edge, [...(byEdge.get(c.edge) ?? []), c])
+  const pt = (axis: 0 | 1, along: number, cross: number, y: number): P3 => axis === 0 ? [along, cross, y] : [cross, along, y]
   for (const [edge, cs] of byEdge) {
     const line = lines[edge]
     const plan = plans[edge]
@@ -228,39 +245,48 @@ export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body
     for (let seg = 0; seg < line.length - 1; seg++) {
       const a = line[seg], b = line[seg + 1]
       emit(a)
-      // lines that share a track cross here at one x: one gap serves them all
-      const here: Crossing[] = []
-      for (const c of cs.filter(c => c.h.seg === seg)) {
-        const same = here.find(q => Math.abs(q.x - c.x) < EPS)
+      const here: Ch[] = []
+      for (const c of cs.filter(c => c.seg === seg)) {
+        const same = here.find(q => q.axis === c.axis && Math.abs(q.along - c.along) < EPS)
         if (same) { same.hv = Math.max(same.hv, c.hv); same.hh = Math.max(same.hh, c.hh) } else here.push({ ...c })
       }
       if (!here.length) continue
-      const d = Math.sign(b[0] - a[0])
-      here.sort((p, q) => d * (p.x - q.x))
+      // a segment runs along one axis; only crossings assigned to that axis belong to it
+      const ax: 0 | 1 = Math.abs(b[0] - a[0]) > EPS ? 0 : 1
+      const mine = here.filter(c => c.axis === ax)
+      stats.skipped += here.length - mine.length
+      if (!mine.length) continue
+      const d = Math.sign(b[ax] - a[ax])
+      mine.sort((p, q) => d * (p.along - q.along))
       const last = seg === line.length - 2
       // room each side of a crossing: the segment's ends and its neighbours; the last segment keeps the arrowhead clear if it can
       const gapAt = (k: number, reserve: number) => {
-        const c = here[k]
-        const before = k === 0 ? Math.abs(c.x - a[0]) : Math.abs(c.x - here[k - 1].x) / 2
-        const after = k === here.length - 1 ? Math.abs(b[0] - c.x) - reserve : Math.abs(here[k + 1].x - c.x) / 2
+        const c = mine[k]
+        const before = k === 0 ? Math.abs(c.along - a[ax]) : Math.abs(c.along - mine[k - 1].along) / 2
+        const after = k === mine.length - 1 ? Math.abs(b[ax] - c.along) - reserve : Math.abs(mine[k + 1].along - c.along) / 2
         return Math.min(HALF_GAP, before - 0.05, after - 0.05)
       }
-      const need = style === 'bridge' ? 0.06 : style === 'portal' ? 0.1 : 0.2
-      const gaps = here.map((_, k) => { const g = gapAt(k, last ? 0.35 : 0); return g >= need ? g : gapAt(k, 0) })
-      here.forEach((c, k) => {
+      const gaps = mine.map((_, k) => { const g = gapAt(k, last ? 0.35 : 0); return g >= need ? g : gapAt(k, 0) })
+      mine.forEach((c, k) => {
         const g = gaps[k]
         if (g < need) { stats.skipped++; return } // no room: left as a plain crossing
-        const xe = c.x - d * g, xx = c.x + d * g, z = c.z, y = a[2]
+        const xe = c.along - d * g, xx = c.along + d * g, z = c.cross, y = a[2]
         if (style === 'bridge') {
           const top = Math.max(c.hh, c.hv) + RISE
-          emit([xe, z, y]); emit([xe, z, top]); emit([xx, z, top]); emit([xx, z, y]); stats.bridge++
+          emit(pt(ax, xe, z, y)); emit(pt(ax, xe, z, top)); emit(pt(ax, xx, z, top)); emit(pt(ax, xx, z, y)); stats.bridge++
         } else if (style === 'tunnel') {
-          const sf = surfaceAt(c.x, z, bodies), k = sf.tray ? 'tray' : 'ground', bottom = sf.top - DIP[k]
-          emit([xe, z, y]); emit([xe, z, bottom]); emit([xx, z, bottom]); emit([xx, z, y])
-          plan.slots.push({ x0: Math.min(xe, xx) - SLOT_MARGIN, x1: Math.max(xe, xx) + SLOT_MARGIN, z0: z, z1: z, top: sf.top, depth: SLOT_DEPTH[k], tray: sf.tray?.id }); stats.tunnel++
+          const [sx, sz] = ax === 0 ? [c.along, z] : [z, c.along]
+          const sf = surfaceAt(sx, sz, bodies), kind = sf.tray ? 'tray' : 'ground', bottom = sf.top - DIP[kind]
+          emit(pt(ax, xe, z, y)); emit(pt(ax, xe, z, bottom)); emit(pt(ax, xx, z, bottom)); emit(pt(ax, xx, z, y))
+          const lo = Math.min(xe, xx) - SLOT_MARGIN, hi = Math.max(xe, xx) + SLOT_MARGIN
+          // a trough along x is x0..x1 at z; one along z is a rectangle SLOT_W wide whose stadium ends sit SLOT_W/2 beyond z0 and z1
+          plan.slots.push(ax === 0
+            ? { x0: lo, x1: hi, z0: z, z1: z, top: sf.top, depth: SLOT_DEPTH[kind], tray: sf.tray?.id }
+            : { x0: z - SLOT_W / 2, x1: z + SLOT_W / 2, z0: lo + SLOT_W / 2, z1: hi - SLOT_W / 2, top: sf.top, depth: SLOT_DEPTH[kind], tray: sf.tray?.id })
+          stats.tunnel++
         } else if (style === 'portal') {
-          emit([xe, z, y]); parts.push(part); part = []; emit([xx, z, y])
-          plan.portals.push({ a: [xe, z, y], b: [xx, z, y], dir: [d, 0] }); stats.portal++
+          emit(pt(ax, xe, z, y)); parts.push(part); part = []; emit(pt(ax, xx, z, y))
+          plan.portals.push({ a: pt(ax, xe, z, y), b: pt(ax, xx, z, y), dir: ax === 0 ? [d, 0] : [0, d] }); stats.portal++
         }
       })
     }
