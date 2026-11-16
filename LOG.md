@@ -86,6 +86,8 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
   - **Tunnel**: down into an open slot cut in the ground (or the tray) along the stretch that dips, under the other line, and back up. The slot is a trough with rounded ends (radius half its width) and an outline at its lip. It is open, so from above you still see the line in it and it is never unclear where it connects. (Two round holes with the line hidden between them were tried first and dropped for that reason.)
   - **Portal**: as in the game Portal, in through one oval and out of another past the crossing, both the same colour (not the game's blue and orange); looking into one you see out of the other, and from behind they are opaque.
 - Steps lie in the line's own vertical plane, so flat view shows no steps.
+- **More room in the layout**: ELK's node spacing, layer spacing and tray padding go up, so nodes sit further apart and from their tray's edges, and trays come out bigger. Steps outside a rim and tunnel troughs need that room.
+- **Flat view lights from almost overhead** (5° off), so shadows are short; iso and 3D keep today's light.
 
 **Alternatives considered.**
 - The line lying on the surface (side midpoint seen from above only): rejected by the person.
