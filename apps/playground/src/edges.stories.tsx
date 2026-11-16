@@ -133,17 +133,20 @@ function PortalPair({ ax, bx, z, y }: { ax: number; bx: number; z: number; y: nu
       gl.clippingPlanes = [plane]
       gl.setRenderTarget(rt); gl.render(scene, v)
     }
+    // reuse the shadow map from the main render: re-rendering it here would apply the portal's clipping plane
+    // to it and drop the shadows (the lines' among them) from the view through the portal
+    const autoShadows = gl.shadowMap.autoUpdate; gl.shadowMap.autoUpdate = false
     mouthA.current.visible = mouthB.current.visible = false
     pass(ra, bx - ax, new THREE.Plane(new THREE.Vector3(1, 0, 0), -bx), ma) // into A, out of B: keep x >= bx
     pass(rb, ax - bx, new THREE.Plane(new THREE.Vector3(-1, 0, 0), ax), mb) // into B, out of A: keep x <= ax
     mouthA.current.visible = mouthB.current.visible = true
-    gl.clippingPlanes = []; gl.setRenderTarget(null)
+    gl.clippingPlanes = []; gl.setRenderTarget(null); gl.shadowMap.autoUpdate = autoShadows
   })
   const one = (x: number, facing: 1 | -1, mouth: React.RefObject<THREE.Mesh>, mat: THREE.ShaderMaterial) => (
     <group position={[x, y, z]} scale={[1, 1.5, 1]}>
-      <mesh rotation={[0, Math.PI / 2, 0]}><torusGeometry args={[0.2, 0.03, 10, 40]} /><meshBasicMaterial color={PORTAL} /></mesh>
+      <mesh castShadow rotation={[0, Math.PI / 2, 0]}><torusGeometry args={[0.2, 0.03, 10, 40]} /><meshBasicMaterial color={PORTAL} /></mesh>
       <mesh ref={mouth} material={mat} position={[facing * 0.002, 0, 0]} rotation={[0, facing * Math.PI / 2, 0]}><circleGeometry args={[0.2, 40]} /></mesh>
-      <mesh position={[-facing * 0.03, 0, 0]} rotation={[0, -facing * Math.PI / 2, 0]}><circleGeometry args={[0.2, 40]} /><meshBasicMaterial color={PORTAL} /></mesh>
+      <mesh castShadow position={[-facing * 0.03, 0, 0]} rotation={[0, -facing * Math.PI / 2, 0]}><circleGeometry args={[0.2, 40]} /><meshBasicMaterial color={PORTAL} /></mesh>
     </group>
   )
   return <>{one(ax, -1, mouthA, ma)}{one(bx, 1, mouthB, mb)}</>
