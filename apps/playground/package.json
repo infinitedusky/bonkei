@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "storybook": "storybook dev -p 6006"
+    "storybook": "storybook dev -p 6006",
+    "measure": "node --experimental-strip-types scripts/measure-edges.ts"
   },
   "dependencies": {
     "@react-three/drei": "^9.121.0",
