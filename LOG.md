@@ -149,3 +149,30 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - A separate, semi-stable `bonkei/advanced` subpath for them: a third tier to document and version, with no user yet to tell us what belongs in it. `bonkei/internal` already serves this repo's stories and tools, and promises nothing.
 
 **Consequences.** `SceneView`, `createCamera`, `parse` and the layout types, which were public on main, are now internal: code importing them from `bonkei` must move to `<Bonkei />` / `render()` or, inside this repo, to `bonkei/internal`. This is a breaking change made before anything is published. `SceneView`'s `wheelZoom` prop is gone (use `controls`). `pnpm -r typecheck` is the guard: an app that imports an internal name from `bonkei` fails it.
+
+## 2026-11-15 — How edges sit in 3D (BON-85)
+
+**Context.** Edges float at the higher of their two ends' heights, so lines between tray levels hang in the air. The person wants React Flow's way of connecting (side midpoints, a turn between levels) applied to every diagram, plus bridges where lines cross.
+
+**Decision.**
+- An edge meets a node at the middle of a side, **halfway up the block** (centred vertically), not on the surface it stands on.
+- When the two ends are at different heights, the line makes **one** vertical step, straight to the other end's height (never a staircase). It stands just outside the outermost tray rim the line crosses, or, if it crosses none, a short way out from the higher end (the taller block, or a block above a subgraph's rim). The same rule covers any two ends of different height.
+- Where lines cross, the horizontal one (in plan) changes; the other stays straight. How it gets past is a **crossing style the viewer selects**, one per diagram. The default is **none**: lines cross flat, as today. Steps are not optional; they are always on. The styles are:
+  - **Bridge**: a small vertical hop over the other line, invisible from above.
+  - **Tunnel**: down into an open slot cut in the ground (or the tray) along the stretch that dips, under the other line, and back up. The slot is a trough with rounded ends (radius half its width) and an outline at its lip. It is open, so from above you still see the line in it and it is never unclear where it connects. (Two round holes with the line hidden between them were tried first and dropped for that reason.)
+  - **Portal**: as in the game Portal, in through one oval and out of another past the crossing, both the same colour (not the game's blue and orange); looking into one you see out of the other, and from behind they are opaque.
+- Steps lie in the line's own vertical plane, so flat view shows no steps.
+- **More room in the layout**: ELK's node spacing, layer spacing and tray padding go up, so nodes sit further apart and from their tray's edges, and trays come out bigger. Steps outside a rim and tunnel troughs need that room.
+- **Flat view lights from almost overhead** (5° off), so shadows are short; iso and 3D keep today's light.
+- **Direct routes**: lines take the most direct route ELK can give; none heads off and doubles back. Fixed flow sides (out the bottom, in the top) force U-turns when the target is not downstream, so each end's side is chosen from where the nodes land, as React Flow's floating edges do. Flat view may differ from main wherever ports, spacing and routing change the layout.
+- **Portal performance** is accepted as "not measurably slower" than no crossing style; a 10% bound cannot be measured on this machine (±30% run to run).
+- BON-85 stays in the Library foundation project.
+
+**Alternatives considered.**
+- The line lying on the surface (side midpoint seen from above only): rejected by the person.
+- A single riser halfway along, like React Flow's `stepPosition = 0.5`: half the line would float over or cut into a tray.
+- A step at every tray edge crossed (a staircase down through nested trays): tried in the sketch, and the person preferred one step straight to the height of where the line is headed.
+- 2D line jumps (Visio, JointJS arcs): sideways bulges. The tunnel's flat look (a break between holes) is the same idea as Visio's "gap" style.
+- One fixed crossing style: the person wants to choose between bridge, tunnel and portal.
+
+**Consequences.** Between two blocks on the same surface the line runs at mid-block height, not on the surface. Routes need a height per point.

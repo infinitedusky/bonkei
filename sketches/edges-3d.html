@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edges in 3D (sketch, BON-85)</title>
+<style>
+  :root { --bg:#0f1218; --panel:#151a24; --line:#2a3246; --text:#e6ebf5; --dim:#9aa6c0; --blue:#4b6bdc }
+  * { box-sizing:border-box }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:14px/1.45 system-ui, sans-serif }
+  .sketch-note { background:#3b2f0b; color:#f5d77a; font-size:12px; text-align:center; padding:6px }
+  .app { display:flex; height:calc(100% - 29px) }
+  #view { flex:1; position:relative }
+  canvas { display:block }
+  aside { width:300px; background:var(--panel); border-left:1px solid var(--line); padding:16px; overflow:auto }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:18px 0 8px }
+  h2:first-child { margin-top:0 }
+  .seg { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden }
+  .seg button { flex:1; background:transparent; color:var(--dim); border:0; padding:8px 0; font:inherit; cursor:pointer }
+  .seg button.on { background:var(--blue); color:#fff }
+  ol { padding-left:20px; margin:0 }
+  li { margin-bottom:8px }
+  li b { color:#ffd479 }
+  .small { color:#6b7690; font-size:12px }
+</style>
+</head>
+<body>
+<div class="sketch-note">Sketch: made-up diagram (a payments flow), not the real renderer. Drag to orbit in 3D, scroll to zoom.</div>
+<div class="app">
+  <div id="view"></div>
+  <aside>
+    <h2>View</h2>
+    <div class="seg" id="modes">
+      <button data-m="flat">Flat</button><button data-m="iso" class="on">Iso</button><button data-m="3d">3D</button>
+    </div>
+    <h2>Edges</h2>
+    <div class="seg" id="kinds">
+      <button data-k="today">Today</button><button data-k="none" class="on">None</button><button data-k="new">Bridge</button><button data-k="tunnel">Tunnel</button><button data-k="portal">Portal</button>
+    </div>
+    <h2>What to look at</h2>
+    <ol>
+      <li><b>Halfway up.</b> Every line meets the middle of a block's side, at mid-height.</li>
+      <li><b>Climb outside the tray.</b> Client → Pay API runs flat at the Client's height, then goes straight up a short way before the tray's edge.</li>
+      <li><b>One step per line.</b> Pay API → Fraud Check climbs once, just outside the Risk tray, straight to Fraud Check's mid-height.</li>
+      <li><b>Two trays deep.</b> Fraud Check → Ledger stays high over both rims and drops once, outside the outer tray.</li>
+      <li><b>Same tray.</b> Fraud Check → Review crosses no rim, so it drops a short way out from the taller block.</li>
+      <li><b>Crossings: None, Bridge, Tunnel or Portal.</b> None (the default) lets the lines cross as today. Otherwise, where Client → Audit crosses Notifier → Pay API it hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end. <b>Portal</b>: it goes into an upright ring and comes out of a second one past the crossing. Like the game: look into one and you see out of the other, with the line carrying on; from behind (between them) they are opaque. From above the line stops at a thin bar.</li>
+      <li><b>Into a subgraph.</b> Ledger → Payments drops to meet the tray's edge halfway up its rim.</li>
+      <li><b>Flat.</b> Switch to Flat: steps and bridges vanish, and the picture matches Today.</li>
+    </ol>
+    <p class="small">Sizes are rough: the step's distance from the tray, the bridge's height and width. Which line goes over is fixed (the one running left–right).</p>
+  </aside>
+</div>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.170.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+const TRAY = 0.25, NODE_H = 0.7
+const el = document.getElementById('view')
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(devicePixelRatio)
+el.appendChild(renderer.domElement)
+const scene = new THREE.Scene()
+scene.background = new THREE.Color('#0f1218')
+scene.add(new THREE.AmbientLight(0xffffff, 0.6))
+scene.add(new THREE.HemisphereLight('#bcd0ff', '#202838', 0.6))
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(10, 18, 7); scene.add(sun)
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: '#11151d', roughness: 1 }))
+ground.rotation.x = -Math.PI / 2; ground.position.set(4, 0, 1); scene.add(ground)
+const grid = new THREE.GridHelper(60, 60, '#1d2433', '#161c28'); grid.position.set(4, 0.002, 1); scene.add(grid)
+
+function label(text, size = 0.32, color = '#fff') {
+  const c = document.createElement('canvas'), g = c.getContext('2d'), f = 64
+  g.font = `600 ${f}px system-ui`; c.width = Math.ceil(g.measureText(text).width) + 16; c.height = f + 16
+  g.font = `600 ${f}px system-ui`; g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(text, 8, c.height / 2)
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 8
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size * c.width / c.height, size), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }))
+  m.rotation.x = -Math.PI / 2
+  return m
+}
+
+// trays: plan rect [x0, z0, x1, z1], level
+const trays = [
+  { name: 'Payments', r: [0, 0, 11, 6], level: 0, color: '#243044' },
+  { name: 'Risk', r: [5.5, 0.8, 9.5, 5.4], level: 1, color: '#2d3b52' },
+]
+for (const t of trays) {
+  const [x0, z0, x1, z1] = t.r, base = t.level * TRAY
+  const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, TRAY, z1 - z0), new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.9 }))
+  m.position.set((x0 + x1) / 2, base + TRAY / 2, (z0 + z1) / 2); scene.add(m)
+  const l = label(t.name, 0.34, '#9aa6c0'); l.position.set(x0 + 0.2 + l.geometry.parameters.width / 2, base + TRAY + 0.01, z0 + 0.35); scene.add(l)
+}
+
+// nodes: plan rect, base height
+const nodes = [
+  { name: 'Client', r: [-6, 2.4, -4, 3.6], base: 0, color: '#3fbf9b' },
+  { name: 'Notifier', r: [3, -5, 5, -3.8], base: 0, color: '#5b8def' },
+  { name: 'Pay API', r: [1, 2.4, 3, 3.6], base: TRAY, color: '#5b8def' },
+  { name: 'Fraud Check', r: [6.5, 1.5, 8.5, 2.7], base: 2 * TRAY, h: 1.8, color: '#d96c8a' }, // tall block: mid-height 1.4
+  { name: 'Review', r: [6.5, 3.8, 8.5, 5.0], base: 2 * TRAY, color: '#5b8def' },
+  { name: 'Ledger', r: [13, 2.4, 15, 3.6], base: 0, color: '#e0a458' },
+  { name: 'Audit', r: [13, -2.6, 15, -1.4], base: 0, color: '#5b8def' },
+]
+for (const n of nodes) {
+  const [x0, z0, x1, z1] = n.r, h = n.h ?? NODE_H
+  const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, h, z1 - z0), new THREE.MeshStandardMaterial({ color: n.color, roughness: 0.6 }))
+  m.position.set((x0 + x1) / 2, n.base + h / 2, (z0 + z1) / 2); scene.add(m)
+  const l = label(n.name, 0.3); l.position.set((x0 + x1) / 2, n.base + h + 0.01, (z0 + z1) / 2); scene.add(l)
+}
+
+// Proposed routes: [x, z, height]. A riser is two points at the same (x, z).
+// One riser per edge, straight to the other end's height: just outside the outermost tray rim the line crosses,
+// or, if it crosses none, a short way out from the higher end.
+// Heights: ground block mid .35, block on Payments .6, block on Risk .85, Fraud Check (tall) 1.4, Payments rim mid .125.
+const B = 0.35 // bridge rise
+const edges = [
+  { name: 'Client → Pay API', today: TRAY, pts: [[-4, 3, .35], [-0.5, 3, .35], [-0.5, 3, .6], [1, 3, .6]] },
+  { name: 'Pay API → Fraud', today: 2 * TRAY, pts: [[3, 3, .6], [4.5, 3, .6], [4.5, 2.1, .6], [5, 2.1, .6], [5, 2.1, 1.4], [6.5, 2.1, 1.4]] },
+  { name: 'Fraud → Review', today: 2 * TRAY, pts: [[7.5, 2.7, 1.4], [7.5, 3.2, 1.4], [7.5, 3.2, .85], [7.5, 3.8, .85]] },
+  { name: 'Fraud → Ledger', today: 2 * TRAY, pts: [[8.5, 2.1, 1.4], [11.5, 2.1, 1.4], [11.5, 2.1, .35], [12.2, 2.1, .35], [12.2, 3, .35], [13, 3, .35]] },
+  { name: 'Client → Audit', today: 0, pts: [[-5, 2.4, .35], [-5, -2, .35], [3.7, -2, .35], [3.7, -2, .35 + B], [4.3, -2, .35 + B], [4.3, -2, .35], [13, -2, .35]],
+    // tunnel: straight down through a hole in the ground, under the other line, back up
+    tunnel: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35], [3.6, -2, -.25], [4.4, -2, -.25], [4.4, -2, .35], [13, -2, .35]], plain: [[-5, 2.4, .35], [-5, -2, .35], [13, -2, .35]], holes: [[3.6, -2], [4.4, -2]], portals: [[3.6, -2], [4.4, -2]] },
+  { name: 'Notifier → Pay API', today: TRAY, pts: [[4, -3.8, .35], [4, -1.2, .35], [2, -1.2, .35], [2, -0.5, .35], [2, -0.5, .6], [2, 2.4, .6]] },
+  { name: 'Ledger → Payments', today: TRAY, pts: [[14, 3.6, .35], [14, 4.1, .35], [14, 4.1, .125], [14, 7.5, .125], [5.5, 7.5, .125], [5.5, 6, .125]] },
+]
+
+const lineMat = new THREE.MeshBasicMaterial({ color: '#e8edf7' })
+const R = 0.035
+function tube(a, b, group) {
+  const len = a.distanceTo(b); if (len < 1e-6) return
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, len, 10), lineMat)
+  m.position.copy(a).add(b).multiplyScalar(0.5)
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize())
+  group.add(m)
+}
+function drawEdge(pts, group, arrow = true) {
+  const v = pts.map(([x, z, y]) => new THREE.Vector3(x, y, z))
+  if (!arrow) { for (let i = 0; i < v.length - 1; i++) tube(v[i], v[i + 1], group); return }
+  const n = v.length, dir = v[n - 1].clone().sub(v[n - 2]).normalize()
+  const tipBase = v[n - 1].clone().addScaledVector(dir, -0.35)
+  for (let i = 0; i < n - 2; i++) tube(v[i], v[i + 1], group)
+  tube(v[n - 2], tipBase, group)
+  // joints only: no ball at the start, so nothing pokes out behind a portal
+  for (const p of v.slice(1, n - 1)) { const s = new THREE.Mesh(new THREE.SphereGeometry(R, 10, 8), lineMat); s.position.copy(p); group.add(s) }
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.35, 16), lineMat)
+  cone.position.copy(tipBase).addScaledVector(dir, 0.175)
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); group.add(cone)
+}
+const groups = { new: new THREE.Group(), today: new THREE.Group(), tunnel: new THREE.Group(), portal: new THREE.Group(), none: new THREE.Group() }
+// Portal, as in the game: two oval portals, both blue (one colour, unlike the game), in at one and out of the other.
+// Looking into either mouth you see through it, out of the other one (rendered from a camera shifted
+// by the gap between them). From behind, each is an opaque disc.
+const portals = []
+function portal(x, z, y, facing, color, group) { // facing: +1 mouth towards +x, -1 towards -x
+  const oval = (m) => { m.rotation.y = facing * Math.PI / 2; m.scale.set(1, 1.5, 1); m.position.set(x, y, z); return m }
+  const ring = oval(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.03, 10, 40), new THREE.MeshBasicMaterial({ color })))
+  const rt = new THREE.WebGLRenderTarget(1, 1); rt.texture.colorSpace = THREE.SRGBColorSpace
+  const mouth = oval(new THREE.Mesh(new THREE.CircleGeometry(0.2, 40), new THREE.ShaderMaterial({
+    uniforms: { tex: { value: rt.texture }, res: { value: new THREE.Vector2(1, 1) } },
+    fragmentShader: 'uniform sampler2D tex; uniform vec2 res; void main() { gl_FragColor = texture2D(tex, gl_FragCoord.xy / res); }',
+    vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  })))
+  mouth.position.x += facing * 0.002
+  const back = oval(new THREE.Mesh(new THREE.CircleGeometry(0.2, 40), new THREE.MeshBasicMaterial({ color })))
+  back.rotation.y = -facing * Math.PI / 2; back.position.x -= facing * 0.002
+  group.add(ring, mouth, back)
+  const p = { x, facing, rt, mouth }; portals.push(p); return p
+}
+for (const e of edges) {
+  drawEdge(e.pts, groups.new)
+  drawEdge(e.plain ?? e.pts, groups.none)
+  drawEdge(e.tunnel ?? e.pts, groups.tunnel)
+  if (e.portals) {
+    const [[ax, az], [bx, bz]] = e.portals, i = e.pts.findIndex(([x, z]) => x === 3.7 && z === -2)
+    drawEdge([...e.pts.slice(0, i), [ax, az, .35]], groups.portal, false)
+    drawEdge([[bx, bz, .35], ...e.pts.slice(i + 4)], groups.portal)
+    const pa = portal(ax, az, .35, -1, '#3fa7ff', groups.portal), pb = portal(bx, bz, .35, 1, '#3fa7ff', groups.portal); pa.other = pb; pb.other = pa
+  } else drawEdge(e.pts, groups.portal)
+  for (const [x, z] of e.holes ?? []) {
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), new THREE.MeshBasicMaterial({ color: '#000' }))
+    const rim = new THREE.Mesh(new THREE.RingGeometry(0.13, 0.17, 24), new THREE.MeshBasicMaterial({ color: '#7f8aa3' }))
+    for (const m of [hole, rim]) { m.rotation.x = -Math.PI / 2; m.position.set(x, 0.004, z); groups.tunnel.add(m) }
+  }
+  // Today: one height for the whole line, the higher end's surface + .06, no steps, no bridges
+  drawEdge(e.pts.map(([x, z]) => [x, z, e.today + 0.06]), groups.today)
+}
+for (const k in groups) { scene.add(groups[k]); groups[k].visible = k === 'none' }
+
+// cameras
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 200)
+const persp = new THREE.PerspectiveCamera(45, 1, 0.1, 500)
+const target = new THREE.Vector3(4.5, 0, 1)
+let cam = ortho, mode = 'iso'
+const controls = { ortho: new OrbitControls(ortho, renderer.domElement), persp: new OrbitControls(persp, renderer.domElement) }
+for (const c of Object.values(controls)) { c.target.copy(target); c.enableDamping = true }
+function setMode(m) {
+  mode = m
+  controls.ortho.enabled = m !== '3d'; controls.persp.enabled = m === '3d'
+  if (m === '3d') { cam = persp; persp.position.set(target.x + 7, 9, target.z + 15); controls.persp.target.copy(target) }
+  else {
+    cam = ortho; ortho.zoom = 1
+    const d = 40
+    if (m === 'flat') ortho.position.set(target.x, d, target.z + 0.0001)
+    else ortho.position.set(target.x + d * 0.577, d * 0.577, target.z + d * 0.577)
+    controls.ortho.target.copy(target); controls.ortho.enableRotate = false
+  }
+  cam.updateProjectionMatrix(); resize()
+}
+function resize() {
+  const w = el.clientWidth, h = el.clientHeight
+  renderer.setSize(w, h)
+  const half = 11, a = w / h
+  ortho.left = -half * a; ortho.right = half * a; ortho.top = half; ortho.bottom = -half; ortho.updateProjectionMatrix()
+  persp.aspect = a; persp.updateProjectionMatrix()
+}
+addEventListener('resize', resize)
+const seg = (id, fn) => document.getElementById(id).addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return
+  for (const x of e.currentTarget.children) x.classList.toggle('on', x === b); fn(b.dataset)
+})
+seg('modes', d => setMode(d.m))
+seg('kinds', d => { for (const k in groups) groups[k].visible = d.k === k })
+setMode('iso')
+renderer.localClippingEnabled = true
+const size = new THREE.Vector2()
+function renderPortals() {
+  if (!groups.portal.visible) return
+  renderer.getDrawingBufferSize(size)
+  for (const p of portals) {
+    const o = p.other
+    if (p.rt.width !== size.x || p.rt.height !== size.y) p.rt.setSize(size.x, size.y)
+    p.mouth.material.uniforms.res.value.copy(size)
+    // through p, the camera comes out of o: same view, shifted by the gap; clip away everything on the near side of o
+    const v = cam.clone(); v.position.x += o.x - p.x; v.updateMatrixWorld()
+    renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(o.facing, 0, 0), -o.facing * o.x)]
+    p.mouth.visible = false; o.mouth.visible = false
+    renderer.setRenderTarget(p.rt); renderer.render(scene, v)
+    p.mouth.visible = true; o.mouth.visible = true
+  }
+  renderer.clippingPlanes = []; renderer.setRenderTarget(null)
+}
+renderer.setAnimationLoop(() => { (cam === ortho ? controls.ortho : controls.persp).update(); renderPortals(); renderer.render(scene, cam) })
+</script>
+</body>
