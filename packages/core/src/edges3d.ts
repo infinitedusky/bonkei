@@ -86,6 +86,21 @@ function paramAtDistance(pts: [number, number][], d: number, fromEnd: boolean): 
   return fromEnd ? 0 : seg.length
 }
 
+// The parameter `d` of arc length further along the polyline from parameter `p` (negative: back), clamped to its ends.
+function paramMove(pts: [number, number][], p: number, d: number): number {
+  const seg = pts.slice(1).map((q, i) => Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]))
+  const total = seg.reduce((a, x) => a + x, 0)
+  const i0 = Math.min(Math.floor(p + EPS), seg.length - 1)
+  let s0 = seg.slice(0, i0).reduce((a, x) => a + x, 0) + (p - i0) * seg[i0]
+  s0 = Math.min(total, Math.max(0, s0 + d))
+  let acc = 0
+  for (let i = 0; i < seg.length; i++) {
+    if (s0 <= acc + seg[i] + EPS) return i + (seg[i] < EPS ? 0 : (s0 - acc) / seg[i])
+    acc += seg[i]
+  }
+  return seg.length
+}
+
 /**
  * Adds the heights to an edge's plan route: it runs at one end's height, makes exactly one vertical step, and
  * runs on at the other's. The step stands `offset` outside the outermost tray rim the line crosses; if it crosses
@@ -115,12 +130,14 @@ export function stepRoute(pts: [number, number][], a: Body, b: Body, bodies: Map
     return lo === Infinity ? null : { lo, hi }
   }
 
+  // The step stands `offset` of line before the line first crosses the rim (going in), or after it last crosses it (coming out): the line stays at
+  // its own height, even if it runs along the side of the tray, until it is about to cross.
   let p: number | null = null
   const first = cands[0]
   if (first) {
-    const s = span(grow(first.t, offset))
-    if (s) {
-      p = first.side === 'a' ? s.hi : s.lo
+    const rim = span(grow(first.t, 0))
+    if (rim) {
+      p = first.side === 'a' ? paramMove(pts, rim.hi, offset) : paramMove(pts, rim.lo, -offset)
       // two trays side by side: stay clear of the other one's grown rim too
       const other = cands.find(c => c.side !== first.side)
       const so = other && span(grow(other.t, offset))

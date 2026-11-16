@@ -273,3 +273,17 @@ test('one line crossing four others is the one that gets past: the four stay str
   assert.ok(plans[4].parts[0].length > 2, 'the crosser hops')
   assert.equal(stats.bridge, 4)
 })
+
+test('a line that runs along the side of a tray stays at its own height until it is about to enter, then steps', () => {
+  const t = tray('t', 0, 0, 10, 4)
+  const a = body('a', -3, 3.8, -1, 4.8), b = body('b', 7, 1, 9, 2, 1, { parent: 't' })
+  // along the rim, 0.3 outside it (closer than the step offset), then in at x = 8 through the bottom rim (z = 4)
+  const pts: [number, number][] = [[-1, 4.3], [8, 4.3], [8, 2]]
+  const l = stepRoute(pts, a, b, map(t, a, b))
+  assert.equal(steps(l).length, 1)
+  const i = l.findIndex((p, k) => k > 0 && p[2] !== l[k - 1][2])
+  const up = l[i]
+  // it crosses the rim at (8, 4): the step is STEP_OFFSET of line before that, so on the run just before the turn, not at the first x within STEP_OFFSET of the tray
+  assert.ok(Math.abs((8 - up[0]) + 0.3 - STEP_OFFSET) < 1e-9, `step at x ${up[0]}`)
+  for (let k = 0; k < i; k++) assert.equal(l[k][2], endHeight(a), 'low until the step')
+})
