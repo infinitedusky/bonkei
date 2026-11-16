@@ -4,6 +4,7 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute, PAD } from './layout'
 import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
+import type { Routing } from './layout'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
@@ -22,10 +23,10 @@ const LIGHT_FLAT = new THREE.Vector3(21.8 * Math.sin(Math.PI / 36), 21.8 * Math.
 type Ovr = Record<string, { x: number; y: number }>
 
 // `live` are the router's routes while a node is dragged; without a router (the wasm did not load) a moved node's lines take the cheap Manhattan route.
-function effective(data: LayoutResult, ovr: Ovr, live: Route[] | null) {
+function effective(data: LayoutResult, ovr: Ovr, live: Route[] | null, basic: boolean) {
   const boxes = new Map<string, Box>()
   for (const b of data.boxes) boxes.set(b.id, ovr[b.id] ? { ...b, ...ovr[b.id] } : b)
-  const routes: Route[] = live ?? data.routes.map(r =>
+  const routes: Route[] = live ?? (basic ? data.elkRoutes ?? data.routes : data.routes).map(r =>
     ovr[r.from] || ovr[r.to] ? { ...r, points: reroute(boxes.get(r.from)!, boxes.get(r.to)!) } : r)
   return { boxes, routes }
 }
@@ -128,10 +129,10 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   )
 }
 
-function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick, crossings, avoidCrossings, onEdgeStats }: {
+function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick, crossings, avoidCrossings, routing, onEdgeStats }: {
   cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void
   controls: ResolvedControls; onNodeClick?: (n: NodeClick) => void; hasClick: boolean
-  crossings: CrossingStyle; avoidCrossings: AvoidCrossings; onEdgeStats?: (s: EdgeStats) => void
+  crossings: CrossingStyle; avoidCrossings: AvoidCrossings; routing: Routing; onEdgeStats?: (s: EdgeStats) => void
 }) {
   const { camera, gl, raycaster } = useThree()
   // per canvas, so instances on one page never touch each other's cursor
@@ -144,15 +145,16 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const live = useRef<Route[] | null>(null)
   const moveMs = useRef(0)
   const [wasm, setWasm] = useState(0)
-  useEffect(() => { loadAvoid().then(() => setWasm(v => v + 1), () => {}) }, [])
+  useEffect(() => { if (routing === 'advanced') loadAvoid().then(() => setWasm(v => v + 1), () => {}) }, [routing])
   useEffect(() => {
     router.current?.reset()
-    const r = routerFor(data, avoidCrossings) // the layout's own router when its level matches; else the lines are routed again at this level
+    // basic: ELK's routes, no router. advanced: the layout's own router when its level matches, else the lines are routed again at this level
+    const r = routing === 'advanced' ? routerFor(data, avoidCrossings) : null
     router.current = r
-    live.current = r && r.level !== data.stats?.route?.level ? r.routes : null
+    live.current = r && !(data.elkRoutes && r.level === data.stats?.route?.level) ? r.routes : null
     ovr.current = {}; setVer(v => v + 1)
-  }, [data, wasm, avoidCrossings])
-  const { boxes, routes } = useMemo(() => effective(data, ovr.current, live.current), [data, ver])
+  }, [data, wasm, avoidCrossings, routing])
+  const { boxes, routes } = useMemo(() => effective(data, ovr.current, live.current, routing === 'basic'), [data, ver, routing])
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
@@ -169,10 +171,10 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const statsCb = useRef(onEdgeStats)
   statsCb.current = onEdgeStats
   useEffect(() => {
-    const rs = data.stats?.route
+    const rs = routing === 'advanced' ? data.stats?.route : undefined
     statsCb.current?.({
       ...stats, fallbacks: data.stats?.portFallbacks ?? 0, trayDocks: data.stats?.trayDocks ?? 0, recomputeMs: ms,
-      routeMs: rs?.ms ?? 0, routerBuildMs: rs?.buildMs ?? 0, unroutable: rs?.failed.length ?? 0, routingError: rs?.error ?? null, dragMs: moveMs.current, avoidCrossings: router.current?.level ?? 'off', quality,
+      routeMs: rs?.ms ?? 0, routerBuildMs: rs?.buildMs ?? 0, unroutable: rs?.failed.length ?? 0, routingError: rs?.error ?? null, dragMs: moveMs.current, avoidCrossings: router.current?.level ?? 'off', routing, quality,
     })
   }, [stats, ms, data, quality])
 
@@ -286,7 +288,7 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
  * `routingError` (why the lines fell back to ELK's routes, e.g. the wasm failed to load; null otherwise), `recomputeMs` (steps and crossings),
  * and the crossings found (`crossings`, `touching`) and drawn per style (`bridge`, `tunnel`, `portal`; `skipped` had no room).
  */
-export interface EdgeStats extends Stats { fallbacks: number; trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; quality: RouteQuality }
+export interface EdgeStats extends Stats { fallbacks: number; trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; routing: Routing; quality: RouteQuality }
 
 export interface SceneViewProps {
   data: LayoutResult | SeqLayout | null
@@ -308,11 +310,13 @@ export interface SceneViewProps {
   crossings?: CrossingStyle
   /** How hard the router tries to keep lines from crossing (off, some, strong). Changing it routes the lines again. Default some. */
   avoidCrossings?: AvoidCrossings
+  /** 'advanced' (default): libavoid routes the lines around blocks and trays, also while dragging. 'basic': ELK's own routes; dragging takes the straight route. Switching re-routes at once. */
+  routing?: Routing
   /** Called whenever the edges are planned (a new layout, a drag frame, a new style) with counts and the time it took. */
   onEdgeStats?: (s: EdgeStats) => void
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats }: SceneViewProps) {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', routing = 'advanced', onEdgeStats }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
   const c = camera ?? own
@@ -326,7 +330,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
         <Rig cam={c} fpsRef={fpsRef} />
         {data && ('kind' in data
           ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
-          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
+          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} routing={routing} onEdgeStats={onEdgeStats} />)}
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

@@ -128,3 +128,31 @@ test('layout routes with libavoid: no line through a block or a tray it does not
 test('the tuning keeps the router fast to move: no crossing cost while dragging', () => {
   assert.equal(TUNE.dragCrossing, 0)
 })
+
+test('routing basic: ELK\'s own routes, no libavoid; advanced keeps ELK\'s routes beside the new ones', async () => {
+  const g = parse(`flowchart TD
+  subgraph T["T"]
+    A --> B
+  end
+  C --> B
+  A --> C`)
+  const basic = await layout(g, { routing: 'basic' })
+  assert.equal(basic.stats?.route, undefined)
+  assert.equal(basic.elkRoutes, undefined)
+  const adv = await layout(g, { routing: 'advanced' })
+  assert.equal(adv.stats?.route?.error, null)
+  assert.deepEqual(adv.elkRoutes, basic.routes)
+  assert.equal(adv.routes.length, basic.routes.length)
+})
+
+test('the routing option reads from frontmatter and props override it', async () => {
+  const { prepare } = await import('./diagram.ts')
+  const { mergeOptions } = await import('./options.ts')
+  const src = '---\nconfig:\n  bonkei:\n    routing: basic\n---\nflowchart TD\nA --> B'
+  const p = await prepare(src)
+  assert.equal(p.options.routing, 'basic')
+  assert.equal(p.data && 'elkRoutes' in p.data, false, 'basic from frontmatter: not routed by libavoid')
+  assert.equal(mergeOptions({}, p.options).routing, 'basic')
+  assert.equal(mergeOptions({ routing: 'advanced' }, p.options).routing, 'advanced')
+  assert.equal(mergeOptions().routing, 'advanced')
+})

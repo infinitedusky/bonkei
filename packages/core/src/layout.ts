@@ -1,9 +1,12 @@
 import ELK from 'elkjs/lib/elk.bundled.js'
 import type { Graph, Box, Route, LayoutResult } from './model.ts'
-import { loadAvoid, createRouter, keepRouter } from './avoid.ts'
+import { loadAvoid, createRouter, keepRouter, type AvoidCrossings } from './avoid.ts'
 
 // Swap-friendly interface: layout(graph) -> { boxes, routes }.
-export type LayoutEngine = (g: Graph) => Promise<LayoutResult>
+/** 'advanced': libavoid routes the lines around blocks and trays (loads a wasm); 'basic': ELK's own routes, nothing loaded. */
+export type Routing = 'basic' | 'advanced'
+export interface LayoutOptions { routing?: Routing; avoidCrossings?: AvoidCrossings }
+export type LayoutEngine = (g: Graph, o?: LayoutOptions) => Promise<LayoutResult>
 
 const elk = new ELK()
 
@@ -33,13 +36,14 @@ export const TUNE: { sides: 'flow' | 'floating' | 'back'; options: Record<string
 
 // ELK places the boxes; libavoid routes the lines (BON-99). If the wasm cannot load or routing throws, ELK's own routes stay and
 // `stats.route.error` says why (the embedding app sees it in onEdgeStats).
-export const layout: LayoutEngine = async (g) => {
+export const layout: LayoutEngine = async (g, o = {}) => {
   const placed = await place(g)
+  if (o.routing === 'basic') return placed // ELK's routes, and the wasm is never loaded
   const t0 = performance.now()
   try {
     const A = await loadAvoid()
-    const r = createRouter(A, placed)
-    const out = { ...placed, routes: r.routes, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: r.stats.buildMs, failed: r.stats.failed, error: null, level: r.level } } }
+    const r = createRouter(A, placed, undefined, o.avoidCrossings)
+    const out = { ...placed, routes: r.routes, elkRoutes: placed.routes, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: r.stats.buildMs, failed: r.stats.failed, error: null, level: r.level } } }
     keepRouter(out, r) // the scene drags on the same router
     return out
   } catch (e) {

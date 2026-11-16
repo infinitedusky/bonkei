@@ -15,7 +15,7 @@ export { S, TRAY, NODE_H } from './scale'
 
 // Parsing and layout
 export { parse } from './parser'
-export { layout, reroute, type LayoutEngine } from './layout'
+export { layout, reroute, type LayoutEngine, type LayoutOptions, type Routing } from './layout'
 export { isSeq, parseSeq, layoutSeq, type SPart, type SItem, type SeqDoc, type SeqLayout } from './seq'
 export { prepare, type Prepared, type PrepareError } from './diagram'
 export { readFrontmatter, mergeOptions, resolveControls, DEFAULTS, type ResolvedOptions, type ResolvedControls, type ControlName, type Frontmatter } from './options'

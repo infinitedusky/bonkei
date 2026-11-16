@@ -32,6 +32,7 @@ export interface Box {
 }
 export interface Route { id: string; from: string; to: string; label?: string; points: [number, number][] }
 // stats: routes whose ends ELK did not put at a side midpoint (docked afterwards), and edges to a tray itself (always docked)
-export interface LayoutResult { boxes: Box[]; routes: Route[]; width: number; height: number; stats?: { portFallbacks: number; trayDocks: number; route?: RouteStats } }
+// elkRoutes: ELK's own routes, kept when the lines were routed by libavoid, so a viewer can switch back to basic routing
+export interface LayoutResult { boxes: Box[]; routes: Route[]; elkRoutes?: Route[]; width: number; height: number; stats?: { portFallbacks: number; trayDocks: number; route?: RouteStats } }
 // How the lines were routed: total ms (wasm load included), router build ms, lines libavoid could not route, and why it fell back to ELK's routes (null: it did not)
 export interface RouteStats { ms: number; buildMs: number; failed: string[]; error: string | null; level: 'off' | 'some' | 'strong' }
