@@ -188,39 +188,32 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
       wall(at, hi)
     }
   }
-  // docks: a small shape just outside a tray's rim midpoint, for the edges that end at the tray itself
-  const DOCK_OUT = 12, DOCK = 6
-  const docks = new Map<string, ShapeRef>()
-  const dockFor = (tray: string, side: Side) => {
-    const key = `${tray}:${side}`
-    let s = docks.get(key)
-    if (!s) {
-      const T = byId.get(tray)!
-      const [mx, my] = sideMid(T, side)
-      const n = side === 'N' ? [0, -1] : side === 'S' ? [0, 1] : side === 'E' ? [1, 0] : [-1, 0]
-      const cx = mx + n[0] * DOCK_OUT, cy = my + n[1] * DOCK_OUT
-      s = router.addShape(rect(cx - DOCK / 2, cy - DOCK / 2, DOCK, DOCK))
-      s.addPin({ classId: PIN, x: 0.5, y: 0.5, directions: DIR[side] }).setExclusive(false)
-      docks.set(key, s)
-    }
-    return s
+  // an edge to a tray itself ends at a free point just outside the rim's midpoint on the side facing the other end (no obstacle: a shape there would block the narrow room between nested trays)
+  const DOCK_OUT = 14 // clear of the rim wall and its buffer
+  const dockPoint = (tray: string, side: Side) => {
+    const T = byId.get(tray)!
+    const [mx, my] = sideMid(T, side)
+    const n = side === 'N' ? [0, -1] : side === 'S' ? [0, 1] : side === 'E' ? [1, 0] : [-1, 0]
+    return { x: mx + n[0] * DOCK_OUT, y: my + n[1] * DOCK_OUT, directions: DIR[side] }
   }
 
   // one connector per hop of each edge
   const conns = new Map<string, ConnRef[]>()
   for (const e of edges) {
-    const end = (id: string) => byId.get(id)!.kind === 'group' ? dockFor(id, dockSide.get(`${e.id}:${id}`)!) : shapes.get(id)!
+    const end = (id: string) => byId.get(id)!.kind === 'group' ? { point: dockPoint(id, dockSide.get(`${e.id}:${id}`)!) } : { shape: shapes.get(id)! }
     const g = gatesOf.get(e.id)!
     // waypoints: the pin a hop leaves from and the pin the next one arrives at
     const gated = tune.trays === 'gates'
-    const hops: { shape: ShapeRef; leave: number; arrive: number }[] = [
-      { shape: end(e.from), leave: PIN, arrive: PIN },
+    type Hop = { shape?: ShapeRef; point?: { x: number; y: number; directions: number }; leave: number; arrive: number }
+    const hops: Hop[] = [
+      { ...end(e.from), leave: PIN, arrive: PIN },
       ...(gated ? g.exit : []).map(x => ({ shape: gateShape.get(x.key)!, leave: OUT, arrive: IN })), // coming from inside: arrive at the inner face, leave by the outer
       ...(gated ? g.enter : []).map(x => ({ shape: gateShape.get(x.key)!, leave: IN, arrive: OUT })), // coming from outside: arrive at the outer face, leave by the inner
-      { shape: end(e.to), leave: PIN, arrive: PIN },
+      { ...end(e.to), leave: PIN, arrive: PIN },
     ]
     const list: ConnRef[] = []
-    for (let i = 0; i + 1 < hops.length; i++) list.push(router.addConnector({ shape: hops[i].shape, pin: hops[i].leave }, { shape: hops[i + 1].shape, pin: hops[i + 1].arrive }))
+    const at = (h: Hop, pin: number) => h.point ?? { shape: h.shape!, pin }
+    for (let i = 0; i + 1 < hops.length; i++) list.push(router.addConnector(at(hops[i], hops[i].leave), at(hops[i + 1], hops[i + 1].arrive)))
     conns.set(e.id, list)
   }
   router.processTransaction()
