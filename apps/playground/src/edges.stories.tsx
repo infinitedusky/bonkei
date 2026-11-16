@@ -6,8 +6,8 @@ import * as THREE from 'three'
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Line, OrbitControls, OrthographicCamera, PerspectiveCamera, useFBO } from '@react-three/drei'
-import { NodeBody, Tray, TRAY, NODE_H, S } from 'bonkei'
-import type { Box, Mode } from 'bonkei'
+import { NodeBody, Tray, TRAY, NODE_H, S } from 'bonkei/internal'
+import type { Box, Mode } from 'bonkei/internal'
 
 type Crossing = 'today' | 'none' | 'bridge' | 'tunnel' | 'portal'
 type P = [number, number, number] // x, z (plan, world units), height
