@@ -50,6 +50,9 @@ importers:
       '@zigbang/storybook-addon-story-flow':
         specifier: ^0.10.0
         version: 0.10.0(@storybook/addon-docs@10.6.7(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(storybook@10.6.7(@types/react@18.3.31)(react@18.3.1)))(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.6.7(@types/react@18.3.31)(react@18.3.1))
+      libavoid-js:
+        specifier: 0.5.0-beta.6
+        version: 0.5.0-beta.6
       storybook:
         specifier: ^10.6.7
         version: 10.6.7(@types/react@18.3.31)(react@18.3.1)
@@ -1643,6 +1646,9 @@ packages:
 
   jsonc-parser@3.3.1:
     resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
+
+  libavoid-js@0.5.0-beta.6:
+    resolution: {integrity: sha512-VUmKt4YvKyMELnfw5rsYgaJGmWvCVjdAkQ3q9X3n6g93LDu8vMxGios8KY/ABl8pbJp5YA29u7Ibvfjeae3LGA==}
 
   lie@3.3.0:
     resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
@@ -3423,6 +3429,8 @@ snapshots:
   json5@2.2.3: {}
 
   jsonc-parser@3.3.1: {}
+
+  libavoid-js@0.5.0-beta.6: {}
 
   lie@3.3.0:
     dependencies:

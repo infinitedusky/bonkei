@@ -165,3 +165,42 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 **Alternatives considered.** Snapping ELK's routes to the midpoints afterwards (rejected: ports worked). A step at every tray rim (rejected on the sketch). Rendering every portal full-screen every frame (the mockup: halved the frame rate on the large sample).
 
 **Consequences.** ELK's layout of the large sample changes with ports (node order and some routes move), so flat view is not pixel-identical to main there; the small sample is identical. Text is raycast-invisible (layer 1). Telemetry hooks for an embedding app are `onEdgeStats` (crossings, drawn per style, docked ends, planning ms per frame).
+
+## 2026-11-15 — How edges sit in 3D (BON-85)
+
+**Context.** Edges float at the higher of their two ends' heights, so lines between tray levels hang in the air. The person wants React Flow's way of connecting (side midpoints, a turn between levels) applied to every diagram, plus bridges where lines cross.
+
+**Decision.**
+- An edge meets a node at the middle of a side, **halfway up the block** (centred vertically), not on the surface it stands on.
+- When the two ends are at different heights, the line makes **one** vertical step, straight to the other end's height (never a staircase). It stands just outside the outermost tray rim the line crosses, or, if it crosses none, a short way out from the higher end (the taller block, or a block above a subgraph's rim). The same rule covers any two ends of different height.
+- Where lines cross, the horizontal one (in plan) changes; the other stays straight. How it gets past is a **crossing style the viewer selects**, one per diagram. The default is **none**: lines cross flat, as today. Steps are not optional; they are always on. The styles are:
+  - **Bridge**: a small vertical hop over the other line, invisible from above.
+  - **Tunnel**: down into an open slot cut in the ground (or the tray) along the stretch that dips, under the other line, and back up. The slot is a trough with rounded ends (radius half its width) and an outline at its lip. It is open, so from above you still see the line in it and it is never unclear where it connects. (Two round holes with the line hidden between them were tried first and dropped for that reason.)
+  - **Portal**: as in the game Portal, in through one oval and out of another past the crossing, both the same colour (not the game's blue and orange); looking into one you see out of the other, and from behind they are opaque.
+- Steps lie in the line's own vertical plane, so flat view shows no steps.
+- **More room in the layout**: ELK's node spacing, layer spacing and tray padding go up, so nodes sit further apart and from their tray's edges, and trays come out bigger. Steps outside a rim and tunnel troughs need that room.
+- **Flat view lights from almost overhead** (5° off), so shadows are short; iso and 3D keep today's light.
+- **Direct routes**: lines take the most direct route ELK can give; none heads off and doubles back. Fixed flow sides (out the bottom, in the top) force U-turns when the target is not downstream, so each end's side is chosen from where the nodes land, as React Flow's floating edges do. Flat view may differ from main wherever ports, spacing and routing change the layout.
+- **Portal performance** is accepted as "not measurably slower" than no crossing style; a 10% bound cannot be measured on this machine (±30% run to run).
+- BON-85 stays in the Library foundation project.
+
+**Alternatives considered.**
+- The line lying on the surface (side midpoint seen from above only): rejected by the person.
+- A single riser halfway along, like React Flow's `stepPosition = 0.5`: half the line would float over or cut into a tray.
+- A step at every tray edge crossed (a staircase down through nested trays): tried in the sketch, and the person preferred one step straight to the height of where the line is headed.
+- 2D line jumps (Visio, JointJS arcs): sideways bulges. The tunnel's flat look (a break between holes) is the same idea as Visio's "gap" style.
+- One fixed crossing style: the person wants to choose between bridge, tunnel and portal.
+
+**Consequences.** Between two blocks on the same surface the line runs at mid-block height, not on the surface. Routes need a height per point.
+
+## 2026-11-16 — Lines routed by libavoid (BON-99)
+
+**Context.** BON-85's prototype kept ELK's routes: on the 50-node sample 14 lines still head off and double back (main also has 14), and dragging re-routes straight through nodes. ELK's options (favorStraightEdges, NETWORK_SIMPLEX, cycle breaking, model order, compaction) and choosing sides after a first pass did not fix it.
+
+**Decision.** ELK keeps placing the boxes; **libavoid** (the `libavoid-js` wasm port) routes the lines, orthogonally, around blocks and around trays a line does not go into, from pins at the middle of each side (the router picks the side). Dragging re-routes with libavoid too. The person accepted libavoid-js's licence, LGPL-2.1-or-later: it ships as its own wasm file beside Bonkei.
+
+**Alternatives considered.**
+- ELK alone, tuned: tried in BON-85, did not stop the doubling back.
+- `@mr_mint/elkjs-libavoid`, JointJS's `@joint/router-avoid`, draw.io's copy: wrappers or tied to another editor; libavoid-js is the plain port.
+
+**Consequences.** A mockup on the 50-node sample (`apps/playground/scripts/avoid-metrics.ts`): length over straight distance 1.03 against ELK's 1.12, a quarter less line, fewer bends, nothing through a block, ~5 ms per drag re-route. libavoid-js has no clusters, so the mockup ran one router per set of trays a line may enter; lines in different routers then overlap (31) and cross more (60 against ELK's 19), and the crossing penalty cannot help across routers. One router for every line, with trays kept closed some other way, is the prototype's question.
