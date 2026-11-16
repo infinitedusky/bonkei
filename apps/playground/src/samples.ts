@@ -187,6 +187,23 @@ const checkout = `sequenceDiagram
   Fraud-xPayments: late chargeback signal
 `
 
+// the checkout sequence diagram's calls as a flowchart: Orders is the node with many lines
+const checkoutFlow = `flowchart LR
+  Shopper([Shopper]) --> Web[Web]
+  Web --> Cart[Cart]
+  Cart --> Catalog[(Catalog)]
+  Cart --> Pricing[Pricing]
+  Web --> Orders[Orders]
+  Orders --> Catalog
+  Orders --> Pricing
+  Orders --> Payments[Payments]
+  Payments --> Fraud{Fraud}
+  Orders --> Warehouse[Warehouse]
+  Orders --> Notify[Notify]
+  Payments --> Notify
+  Warehouse --> Notify
+  Orders --> Shopper
+  Orders --> Web`
 // one node with ten lines: with 'Ends: Spread' each line meets the hub at its own point
 const hub = `flowchart LR
   Hub[Hub]
@@ -196,6 +213,7 @@ export const SAMPLES: Record<string, string> = {
   'flow: large (~50 nodes)': large,
   'flow: wide (30 → 5)': wide,
   'flow: hub (1 → 10)': hub,
+  'flow: checkout flow': checkoutFlow,
   'seq: login flow': login,
   'seq: checkout flow': checkout,
 }

@@ -116,3 +116,5 @@ export const LargeSample: Story = { ...story(Object.values(SAMPLES)[1]), args: {
 /** BON-99: one node with ten lines. Midpoint: they leave the same point and fan out. Spread: each line meets the hub at its own point around it. */
 export const HubSpread: Story = { ...story(hub), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'spread' } }
 export const HubMidpoint: Story = { ...story(hub), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'midpoint' } }
+/** BON-99: the checkout flow as a flowchart. Orders connects to eight nodes; with Ends: Spread each line meets it at its own point. */
+export const CheckoutFlow: Story = { ...story(SAMPLES['flow: checkout flow']), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'spread' } }
