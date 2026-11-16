@@ -1,0 +1,181 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { stepRoute, findCrossings, applyCrossings, endHeight, surfaceAt, STEP_OFFSET, RISE, type Body, type P3 } from './edges3d.ts'
+import { TRAY, NODE_H } from './scale.ts'
+import { reroute, dock, layout, sideMid } from './layout.ts'
+import { parse } from './parser.ts'
+import type { Box } from './model.ts'
+
+const body = (id: string, x0: number, z0: number, x1: number, z1: number, level = 0, over: Partial<Body> = {}): Body =>
+  ({ id, kind: 'node', x0, z0, x1, z1, level, ...over })
+const tray = (id: string, x0: number, z0: number, x1: number, z1: number, level = 0, parent?: string): Body =>
+  ({ id, kind: 'group', x0, z0, x1, z1, level, parent })
+const map = (...b: Body[]) => new Map(b.map(x => [x.id, x]))
+const steps = (l: P3[]) => l.slice(1).filter((p, i) => Math.abs(p[2] - l[i][2]) > 1e-9)
+
+test('end height is halfway up the block, per node height', () => {
+  assert.equal(endHeight(body('a', 0, 0, 1, 1)), NODE_H / 2)
+  assert.equal(endHeight(body('a', 0, 0, 1, 1, 2)), 2 * TRAY + NODE_H / 2)
+  assert.equal(endHeight(body('a', 0, 0, 1, 1, 0, { height: 2 })), 1)
+  assert.equal(endHeight(tray('t', 0, 0, 5, 5, 1)), TRAY + TRAY / 2)
+})
+
+test('same-height ends: no step', () => {
+  const a = body('a', 0, 0, 2, 1), b = body('b', 6, 0, 8, 1)
+  const l = stepRoute([[2, .5], [6, .5]], a, b, map(a, b))
+  assert.deepEqual(l, [[2, .5, NODE_H / 2], [6, .5, NODE_H / 2]])
+})
+
+test('sibling trays at the same height: the line stays level', () => {
+  const t1 = tray('t1', 0, 0, 4, 4), t2 = tray('t2', 8, 0, 12, 4)
+  const a = body('a', 1, 1, 3, 2, 1, { parent: 't1' }), b = body('b', 9, 1, 11, 2, 1, { parent: 't2' })
+  const l = stepRoute([[3, 1.5], [9, 1.5]], a, b, map(t1, t2, a, b))
+  assert.equal(steps(l).length, 0)
+})
+
+test('climbing into a tray: one step, OFFSET outside its rim', () => {
+  const t = tray('t', 4, 0, 10, 4)
+  const a = body('a', 0, 1, 2, 2), b = body('b', 6, 1, 8, 2, 1, { parent: 't' })
+  const l = stepRoute([[2, 1.5], [6, 1.5]], a, b, map(t, a, b))
+  assert.equal(steps(l).length, 1)
+  const up = l.find((p, i) => i > 0 && p[2] !== l[i - 1][2])!
+  assert.ok(Math.abs(up[0] - (4 - STEP_OFFSET)) < 1e-9)
+  assert.equal(l[0][2], endHeight(a)); assert.equal(l[l.length - 1][2], endHeight(b))
+})
+
+test('leaving nested trays: one step, outside the outermost, staying high until then', () => {
+  const t0 = tray('t0', 0, 0, 12, 6), t1 = tray('t1', 2, 1, 8, 5, 1, 't0')
+  const a = body('a', 3, 2, 5, 3, 2, { parent: 't1', height: 1.8 }), b = body('b', 16, 2, 18, 3)
+  const l = stepRoute([[5, 2.5], [16, 2.5]], a, b, map(t0, t1, a, b))
+  assert.equal(steps(l).length, 1)
+  const down = l.find((p, i) => i > 0 && p[2] !== l[i - 1][2])!
+  assert.ok(Math.abs(down[0] - (12 + STEP_OFFSET)) < 1e-9)
+  assert.ok(down[0] > t0.x1) // never inside a tray
+})
+
+test('crosses no tray: the step stands OFFSET out from the higher end', () => {
+  const a = body('a', 0, 0, 2, 1, 0, { height: 2 }), b = body('b', 8, 0, 10, 1)
+  const l = stepRoute([[2, .5], [8, .5]], a, b, map(a, b))
+  assert.equal(steps(l).length, 1)
+  assert.ok(Math.abs(l.find((p, i) => i > 0 && p[2] !== l[i - 1][2])![0] - (2 + STEP_OFFSET)) < 1e-9)
+  // reversed: the higher end is the last
+  const r = stepRoute([[8, .5], [2, .5]], b, a, map(a, b))
+  assert.ok(Math.abs(r.find((p, i) => i > 0 && p[2] !== r[i - 1][2])![0] - (2 + STEP_OFFSET)) < 1e-9)
+})
+
+test('edge to a tray itself steps like any other', () => {
+  const t = tray('t', 6, 0, 12, 4)
+  const a = body('a', 0, 1, 2, 2, 0, { height: 1.2 })
+  const l = stepRoute([[2, 1.5], [6, 1.5]], a, t, map(t, a))
+  assert.equal(steps(l).length, 1)
+  assert.equal(l[l.length - 1][2], endHeight(t))
+})
+
+const L = (...p: P3[]): P3[] => p
+test('crossings: horizontal against vertical, not shared endpoints or overlaps', () => {
+  const h = L([0, 0, .35], [10, 0, .35]), v = L([5, -3, .35], [5, 3, .35])
+  assert.equal(findCrossings([h, v]).length, 1)
+  assert.equal(findCrossings([h, L([5, 0, .35], [5, 3, .35])]).length, 0) // T-join
+  assert.equal(findCrossings([h, L([10, -3, .35], [10, 3, .35])]).length, 0) // at an endpoint
+  assert.equal(findCrossings([h, L([2, 0, .35], [6, 0, .35])]).length, 0) // overlap
+  assert.equal(findCrossings([h, L([3, 1, 0], [3, 1, .5])]).length, 0) // a step has no plan length
+  const c = findCrossings([h, v])[0]
+  assert.deepEqual([c.h.edge, c.v.edge], [0, 1]) // the one along x changes
+})
+
+test('lines at clearly different heights are found but do not touch', () => {
+  const [c] = findCrossings([L([0, 0, 1.4], [10, 0, 1.4]), L([5, -3, .35], [5, 3, .35])])
+  assert.equal(c.touches, false)
+  assert.equal(applyCrossings([L([0, 0, 1.4], [10, 0, 1.4]), L([5, -3, .35], [5, 3, .35])], 'bridge', []).stats.bridge, 0)
+})
+
+const X = (): P3[][] => [L([0, 0, .35], [10, 0, .35]), L([5, -3, .35], [5, 3, .35])]
+test('style none leaves the lines alone', () => {
+  const { plans } = applyCrossings(X(), 'none', [])
+  assert.deepEqual(plans[0].parts, [X()[0]]); assert.deepEqual(plans[1].parts, [X()[1]])
+})
+test('bridge: only the horizontal line changes, hopping over by RISE; same plan footprint', () => {
+  const { plans, stats } = applyCrossings(X(), 'bridge', [])
+  assert.equal(stats.bridge, 1)
+  assert.deepEqual(plans[1].parts, [X()[1]])
+  const top = Math.max(...plans[0].parts[0].map(p => p[2]))
+  assert.ok(Math.abs(top - (.35 + RISE)) < 1e-9)
+  // the plan route is unchanged (flat view matches)
+  assert.deepEqual([...new Set(plans[0].parts[0].map(p => p[1]))], [0])
+  // never touches: at the crossing x the hop is above the other line
+  assert.ok(plans[0].parts[0].filter(p => Math.abs(p[0] - 5) < .5 && p[0] !== 5).every(p => p[2] === .35 || p[2] >= .35 + RISE))
+})
+test('tunnel dives below the surface with a hole each side; on a tray the surface is the tray top', () => {
+  const t = tray('t', -1, -5, 12, 5, 0)
+  const { plans } = applyCrossings(X(), 'tunnel', [t])
+  assert.equal(plans[0].holes.length, 2)
+  assert.ok(plans[0].holes.every(h => h[2] === TRAY))
+  assert.ok(Math.min(...plans[0].parts[0].map(p => p[2])) < TRAY && Math.min(...plans[0].parts[0].map(p => p[2])) > 0) // inside the tray, above the ground
+  assert.equal(applyCrossings(X(), 'tunnel', []).plans[0].holes[0][2], 0)
+  assert.equal(surfaceAt(5, 0, [t]), TRAY)
+})
+test('portal: the line is cut in two, a pair faces apart along the line, either direction', () => {
+  const { plans } = applyCrossings(X(), 'portal', [])
+  assert.equal(plans[0].parts.length, 2); assert.equal(plans[0].portals.length, 1)
+  const p = plans[0].portals[0]
+  assert.ok(p.a[0] < 5 && p.b[0] > 5 && p.dir[0] === 1)
+  assert.deepEqual(plans[0].parts[0].at(-1), p.a); assert.deepEqual(plans[0].parts[1][0], p.b)
+  const rev = applyCrossings([L([10, 0, .35], [0, 0, .35]), L([5, -3, .35], [5, 3, .35])], 'portal', []).plans[0].portals[0]
+  assert.ok(rev.a[0] > 5 && rev.b[0] < 5 && rev.dir[0] === -1)
+})
+test('two crossings on one segment share the room', () => {
+  const lines: P3[][] = [L([0, 0, .35], [10, 0, .35]), L([4, -3, .35], [4, 3, .35]), L([5, -3, .35], [5, 3, .35])]
+  const { plans, stats } = applyCrossings(lines, 'portal', [])
+  assert.equal(stats.portal, 2)
+  const xs = plans[0].portals.flatMap(q => [q.a[0], q.b[0]])
+  assert.deepEqual([...xs].sort((a, b) => a - b), xs)
+})
+
+const bx = (id: string, x: number, y: number, w = 100, h = 50, over: Partial<Box> = {}): Box => ({ id, label: id, kind: 'node', shape: 'rect', x, y, w, h, level: 0, ...over })
+test('reroute ends at side midpoints in every case', () => {
+  const cases: [Box, Box][] = [
+    [bx('a', 0, 0), bx('b', 0, 200)], [bx('a', 0, 0), bx('b', 30, 200)], [bx('a', 0, 200), bx('b', 0, 0)],
+    [bx('a', 0, 0), bx('b', 300, 0)], [bx('a', 0, 0), bx('b', 300, 20)], [bx('a', 300, 0), bx('b', 0, 10)],
+    [bx('a', 0, 0), bx('b', 200, 300, 400, 300, { kind: 'group' })],
+  ]
+  for (const [a, b] of cases) {
+    const r = reroute(a, b)
+    const onMid = (p: [number, number], x: Box) => (['N', 'S', 'E', 'W'] as const).some(s => { const m = sideMid(x, s); return Math.abs(m[0] - p[0]) < 1e-9 && Math.abs(m[1] - p[1]) < 1e-9 })
+    assert.ok(onMid(r[0], a) && onMid(r.at(-1)!, b), JSON.stringify([a, b, r]))
+    r.slice(1).forEach((p, i) => assert.ok(Math.abs(p[0] - r[i][0]) < 1e-9 || Math.abs(p[1] - r[i][1]) < 1e-9)) // orthogonal
+  }
+})
+test('dock puts a stray end on the side midpoint with an orthogonal dogleg', () => {
+  const b = bx('b', 100, 100)
+  const r = dock([[0, 0], [0, 60], [120, 60], [120, 100]], b, 'N', true)
+  assert.deepEqual(r.at(-1), [150, 100])
+  r.slice(1).forEach((p, i) => assert.ok(Math.abs(p[0] - r[i][0]) < 1e-9 || Math.abs(p[1] - r[i][1]) < 1e-9))
+})
+
+test('ELK ports: every route of a nested sample meets its node boxes at side midpoints, flow sides', async () => {
+  const src = `flowchart TD
+  subgraph P["Payments"]
+    subgraph R["Risk"]
+      F{Fraud} -->|flag| V[Review]
+    end
+    A[Pay API] --> F
+    V -->|approve| C[Charge]
+    C --> V
+  end
+  Client --> A
+  C --> L[(Ledger)]
+  R --> Audit`
+  for (const dir of ['TD', 'LR']) {
+    const g = parse(src.replace('flowchart TD', 'flowchart ' + dir))
+    const r = await layout(g)
+    const by = new Map(r.boxes.map(b => [b.id, b]))
+    assert.equal(r.stats?.portFallbacks, 0)
+    for (const e of r.routes) {
+      const a = by.get(e.from)!, b = by.get(e.to)!
+      const out = dir === 'TD' ? 'S' : 'E', inn = dir === 'TD' ? 'N' : 'W'
+      const near = (p: number[], q: number[]) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.5
+      assert.ok(near(e.points[0], sideMid(a, out)), `${dir} ${e.id} start`)
+      assert.ok(near(e.points.at(-1)!, sideMid(b, inn)), `${dir} ${e.id} end`)
+    }
+  }
+})

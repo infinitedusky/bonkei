@@ -68,9 +68,9 @@ test('props override frontmatter key by key', () => {
   assert.equal(mergeOptions({ toolbar: true }, fm).toolbar, true)
   assert.equal(mergeOptions({ controls: true }, fm).controls, true)
   // a prop for one key leaves the others to the frontmatter
-  assert.deepEqual(mergeOptions({ mode: '3d' }, fm), { mode: '3d', labels: 'top', toolbar: false, controls: false })
+  assert.deepEqual(mergeOptions({ mode: '3d' }, fm), { mode: '3d', labels: 'top', toolbar: false, controls: false, crossings: 'none' })
   // nothing set anywhere: the defaults
-  assert.deepEqual(mergeOptions(), { mode: 'iso', labels: 'top', toolbar: true, controls: true })
+  assert.deepEqual(mergeOptions(), { mode: 'iso', labels: 'top', toolbar: true, controls: true, crossings: 'none' })
 })
 
 test('a controls object in props replaces the frontmatter one whole', () => {

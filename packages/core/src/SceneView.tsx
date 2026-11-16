@@ -1,13 +1,14 @@
 import * as THREE from 'three'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
-import { Line, Text } from '@react-three/drei'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute } from './layout'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, type LabelMode } from './shapes'
+import { Edge, Hole, Portals } from './EdgeScene'
+import { planEdges, type Body, type CrossingStyle, type Stats } from './edges3d.ts'
 import { S, TRAY, NODE_H } from './scale'
 import { SCENE } from './palette'
 import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
@@ -44,34 +45,6 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
     }
   })
   return null
-}
-
-function Edge({ r, boxes, labelMode }: { r: Route; boxes: Map<string, Box>; labelMode: LabelMode }) {
-  const a = boxes.get(r.from)!, b = boxes.get(r.to)!
-  const y = Math.max(baseOf(a) + (a.kind === 'group' ? TRAY : 0), baseOf(b) + (b.kind === 'group' ? TRAY : 0)) + 0.06
-  const pts = r.points
-  const v = useMemo(() => pts.map(([x, z]) => new THREE.Vector3(x, y, z)), [pts, y])
-  const n = v.length
-  const dir = new THREE.Vector3().subVectors(v[n - 1], v[n - 2]).normalize()
-  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
-  const tip = v[n - 1].clone().multiplyScalar(0).add(v[n - 1])
-  const line = [...v.slice(0, n - 1), tip.clone().addScaledVector(dir, -0.3)]
-  // label on the longest segment
-  let best = 0, bi = 0
-  for (let i = 0; i < n - 1; i++) { const l = v[i].distanceTo(v[i + 1]); if (l > best) { best = l; bi = i } }
-  const mid = v[bi].clone().add(v[bi + 1]).multiplyScalar(0.5)
-  return (
-    <group>
-      <Line points={line.map(p => p.toArray() as [number, number, number])} color={SCENE.edge} lineWidth={2} />
-      <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
-        <coneGeometry args={[0.13, 0.4, 16]} />
-        <meshBasicMaterial color={SCENE.edge} />
-      </mesh>
-      {r.label && (
-        <Text position={[mid.x, y + (labelMode === 'top' ? 0.02 : 0.4), mid.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} fontSize={0.22} color={SCENE.label} outlineWidth={0.02} outlineColor="#000">{r.label}</Text>
-      )}
-    </group>
-  )
 }
 
 function Env({ cam, children, controls }: { cam: Camera; children: React.ReactNode; controls: ResolvedControls }) {
@@ -132,9 +105,10 @@ function Env({ cam, children, controls }: { cam: Camera; children: React.ReactNo
   )
 }
 
-function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick }: {
+function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick, crossings, onEdgeStats }: {
   cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void
   controls: ResolvedControls; onNodeClick?: (n: NodeClick) => void; hasClick: boolean
+  crossings: CrossingStyle; onEdgeStats?: (s: EdgeStats) => void
 }) {
   const { camera, gl, raycaster } = useThree()
   // per canvas, so instances on one page never touch each other's cursor
@@ -146,6 +120,16 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
   const { boxes, routes } = useMemo(() => effective(data, ovr.current), [data, ver])
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
+  // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
+  const { plans, stats, ms } = useMemo(() => {
+    const t0 = performance.now()
+    const bodies: Body[] = [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.height }))
+    const r = planEdges(bodies, routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) })), crossings)
+    return { ...r, ms: performance.now() - t0 }
+  }, [boxes, routes, crossings, W, H])
+  const statsCb = useRef(onEdgeStats)
+  statsCb.current = onEdgeStats
+  useEffect(() => { statsCb.current?.({ ...stats, fallbacks: data.stats?.portFallbacks ?? 0, trayDocks: data.stats?.trayDocks ?? 0, recomputeMs: ms }) }, [stats, ms, data])
 
   const groundPoint = (cx: number, cy: number, planeY: number) => {
     const r = gl.domElement.getBoundingClientRect()
@@ -157,7 +141,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
   const startNodeDrag = (e: ThreeEvent<PointerEvent>, id: string) => {
     e.stopPropagation()
     const b = boxes.get(id)!
-    const planeY = baseOf(b) + NODE_H
+    const planeY = baseOf(b) + (b.height ?? NODE_H)
     const p0 = groundPoint(e.nativeEvent.clientX, e.nativeEvent.clientY, planeY)
     if (!p0) return
     const gx = p0.x / S + W / 2 - b.x, gy = p0.z / S + H / 2 - b.y
@@ -209,7 +193,9 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
           <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
         </NodeLift>
       })}
-      {routes.map(r => (boxes.get(r.from) && boxes.get(r.to)) ? <Edge key={r.id} r={{ ...r, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) }} boxes={boxes} labelMode={labelMode} /> : null)}
+      {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} /> : null)}
+      {[...plans.values()].map(p => p.holes.map((h, i) => <Hole key={`${h[0]},${h[1]},${i}`} p={h} />))}
+      {[...plans.entries()].map(([id, p]) => p.portals.map((pp, i) => <Portals key={`${id}:${i}`} pair={pp} />))}
       </Env>
     </>
   )
@@ -247,6 +233,8 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
   return null
 }
 
+export interface EdgeStats extends Stats { fallbacks: number; trayDocks: number; recomputeMs: number }
+
 export interface SceneViewProps {
   data: LayoutResult | SeqLayout | null
   labelMode: LabelMode
@@ -263,9 +251,13 @@ export interface SceneViewProps {
   hasClick?: boolean
   /** Called once per `data`, on the first frame drawn with it (after the fit). */
   onFirstFrame?: () => void
+  /** How crossing lines get past each other: not at all (default), by a bridge, a tunnel or portals. Steps between heights are always on. */
+  crossings?: CrossingStyle
+  /** Called whenever the edges are planned (a new layout, a drag frame, a new style) with counts and the time it took. */
+  onEdgeStats?: (s: EdgeStats) => void
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame }: SceneViewProps) {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', onEdgeStats }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
   const c = camera ?? own
@@ -279,7 +271,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
         <Rig cam={c} fpsRef={fpsRef} />
         {data && ('kind' in data
           ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
-          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} />)}
+          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} onEdgeStats={onEdgeStats} />)}
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

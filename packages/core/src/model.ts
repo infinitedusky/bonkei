@@ -27,7 +27,9 @@ export interface Box {
   id: string; label: string; kind: 'node' | 'group'; shape: Shape
   x: number; y: number; w: number; h: number
   level: number // number of ancestor groups
+  height?: number // a node's block height in world units (default NODE_H); set by a custom layout
   parent?: string
 }
 export interface Route { id: string; from: string; to: string; label?: string; points: [number, number][] }
-export interface LayoutResult { boxes: Box[]; routes: Route[]; width: number; height: number }
+// stats: routes whose ends ELK did not put at a side midpoint (docked afterwards), and edges to a tray itself (always docked)
+export interface LayoutResult { boxes: Box[]; routes: Route[]; width: number; height: number; stats?: { portFallbacks: number; trayDocks: number } }

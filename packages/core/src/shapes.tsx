@@ -19,30 +19,31 @@ function rounded(w: number, h: number, r: number) {
   s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y)
   return s
 }
-function geometry(shape: Box['shape'], w: number, h: number) {
+function geometry(shape: Box['shape'], w: number, h: number, height: number) {
   let g: THREE.BufferGeometry
   if (shape === 'cylinder') {
-    g = new THREE.CylinderGeometry(0.5, 0.5, 1, 48).translate(0, 0.5, 0).scale(w, NODE_H, h)
+    g = new THREE.CylinderGeometry(0.5, 0.5, 1, 48).translate(0, 0.5, 0).scale(w, height, h)
     return g
   }
   let sh: THREE.Shape
   if (shape === 'diamond') {
     sh = new THREE.Shape(); sh.moveTo(-w / 2, 0); sh.lineTo(0, -h / 2); sh.lineTo(w / 2, 0); sh.lineTo(0, h / 2); sh.closePath()
   } else sh = rounded(w, h, shape === 'round' ? Math.min(w, h) / 2 * 0.95 : 0.12)
-  g = new THREE.ExtrudeGeometry(sh, { depth: NODE_H, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2, curveSegments: 16 })
+  g = new THREE.ExtrudeGeometry(sh, { depth: height, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2, curveSegments: 16 })
   g.rotateX(-Math.PI / 2)
   return g
 }
 
 export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
   const w = b.w * S, h = b.h * S
-  const geo = useMemo(() => geometry(b.shape, w, h), [b.shape, w, h])
+  const height = b.height ?? NODE_H
+  const geo = useMemo(() => geometry(b.shape, w, h, height), [b.shape, w, h, height])
   return (
     <>
       <mesh geometry={geo} castShadow receiveShadow>
         <meshStandardMaterial color={COLORS[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? '#ffffff' : '#000000'} emissiveIntensity={hover ? 0.18 : 0} />
       </mesh>
-      <Label text={b.label} mode={labelMode} y={NODE_H + 0.08} size={0.36} maxWidth={w - 0.3} />
+      <Label text={b.label} mode={labelMode} y={height + 0.08} size={0.36} maxWidth={w - 0.3} />
     </>
   )
 }
