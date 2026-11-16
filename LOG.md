@@ -128,3 +128,24 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - Removing `wheelZoom` now: see above; it breaks the workspace or mixes an app change into a core commit.
 
 **Consequences.** One component and one function cover React and non-React pages, with failures reported rather than thrown. The barrel is temporarily larger than the intended public surface; the curation sub-task trims it and removes `wheelZoom`. The playground's own `fit` still calls `focusOn` directly until it moves to `bonkei/internal` or the public API. In development React also reports errors caught by the boundary to the console; production builds do not.
+
+## 2026-11-xx — Public surface (BON-51)
+
+**Context.** MER-50's barrel (`packages/core/src/index.ts`) exported everything the engine had: the parser, the ELK layout, the layout output types, the renderer, the camera. The entry above added `<Bonkei />`, `render()` and their types next to that and kept the rest until the apps moved. Both the playground (BON-82) and the site (BON-83) now run on the public API, so the barrel can shrink to what embedders are meant to use before BON-52 publishes it. Anything public then is a promise; anything left out can be added later without breaking anyone.
+
+**Decision.**
+- **`bonkei` exports exactly this list**, and nothing else:
+  - `Bonkei` and `render`;
+  - the types `BonkeiProps`, `BonkeiOptions`, `DiagramOptions`, `Controls`, `BonkeiHandle`, `BonkeiViewHandle`, `BonkeiError`, `BonkeiWarning`, `NodeClick`, `ReadyInfo`, `Mode`, `LabelMode`, `Graph`, `GraphInput`, `GNode`, `GGroup`, `GEdge`, `Shape` and `Dropped`;
+  - `isBonkeiError`.
+  `Dropped` and `GraphInput` are on it because public types refer to them (`Graph.dropped`, `ReadyInfo`'s count of dropped lines, the `source` prop). Each export carries a one-line comment in `index.ts`.
+- **`bonkei/internal` is an unstable subpath** (`packages/core/src/internal.ts`, the package's `./internal` export). It re-exports everything else (renderer, camera, scale, palette, controls, parser, layout, sequence functions, `prepare`, the resolved option types, the layout types) under the header "Internal and unstable: for this repo's stories and tools; may change in any release." Apps use only `bonkei`; stories may use `bonkei/internal` (today only `scene.stories.tsx` does).
+- **`parse`, `layout`, `LayoutEngine` and the layout output types (`Box`, `Route`, `LayoutResult`) stay internal.** Exporting them would freeze the layout's internals (box levels, route points, the ELK-shaped engine signature) before themes (MER-32) and the docs plugins exist and tell us what they need from it. Adding them later is not a breaking change; removing them would be.
+- **Passing a custom `LayoutEngine` through options is deferred again**, for the same reason: its signature is not settled.
+- **`SceneView.wheelZoom` is removed.** It was a deprecated alias kept so each earlier sub-task type-checked on its own; the site no longer passes it.
+
+**Alternatives considered.**
+- Exporting `parse`, `layout` and the layout types from `bonkei`: useful to tools that want the layout without the scene, but every field becomes a compatibility promise while the layout is still changing, and no embedder has asked for it.
+- A separate, semi-stable `bonkei/advanced` subpath for them: a third tier to document and version, with no user yet to tell us what belongs in it. `bonkei/internal` already serves this repo's stories and tools, and promises nothing.
+
+**Consequences.** `SceneView`, `createCamera`, `parse` and the layout types, which were public on main, are now internal: code importing them from `bonkei` must move to `<Bonkei />` / `render()` or, inside this repo, to `bonkei/internal`. This is a breaking change made before anything is published. `SceneView`'s `wheelZoom` prop is gone (use `controls`). `pnpm -r typecheck` is the guard: an app that imports an internal name from `bonkei` fails it.
