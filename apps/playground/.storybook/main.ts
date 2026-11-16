@@ -3,6 +3,7 @@ const config: StorybookConfig = {
   stories: ['../src/**/*.stories.tsx', '../../site/src/**/*.stories.tsx'],
   framework: '@storybook/react-vite',
   staticDirs: ['../../site/public'],
+  viteFinal: async c => ({ ...c, optimizeDeps: { ...c.optimizeDeps, exclude: [...(c.optimizeDeps?.exclude ?? []), 'libavoid-js'] } }), // keep libavoid.wasm beside the module that loads it
   addons: [
     { name: '@zigbang/storybook-addon-story-flow', options: { flowGlob: '../src/**/*.flow.json' } },
     '@storybook/addon-docs',

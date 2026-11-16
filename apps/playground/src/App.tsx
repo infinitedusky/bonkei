@@ -33,10 +33,12 @@ export default function App() {
         <button style={btn(false)} onClick={() => setLabelMode(l => l === 'top' ? 'billboard' : 'top')}>labels: {labelMode}</button>
         <select value={sel} onChange={e => { setSel(e.target.value); setSrc(SAMPLES[e.target.value]) }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{Object.keys(SAMPLES).map(k => <option key={k}>{k}</option>)}</select>
         <button style={btn(edit)} onClick={() => setEdit(e => !e)}>source</button>
-        <span>layout {ms === null ? '–' : Math.round(ms)} ms · {dropped} lines dropped{edges && ` · ${edges.crossings} crossings (${edges.bridge}/${edges.tunnel}/${edges.portal} drawn, ${edges.skipped} no room) · ${edges.fallbacks + edges.trayDocks} docked · edges ${edges.recomputeMs.toFixed(1)} ms`}</span>
+      </div>
+      <div style={{ position: 'absolute', top: 48, left: 10, color: '#9aa6c0', font: '12px monospace', pointerEvents: 'none', whiteSpace: 'pre' }}>
+        <span>layout {ms === null ? '–' : Math.round(ms)} ms · {dropped} lines dropped{edges && ` · ${edges.crossings} crossings (${edges.bridge}/${edges.tunnel}/${edges.portal} drawn, ${edges.skipped} no room) · ${edges.fallbacks + edges.trayDocks} docked · steps+crossings ${edges.recomputeMs.toFixed(1)} ms · routed in ${Math.round(edges.routeMs)} ms (router ${Math.round(edges.routerBuildMs)}) · drag frame ${edges.dragMs.toFixed(1)} ms · ${edges.unroutable} unroutable\n[avoid ${edges.avoidCrossings}] crossings ${edges.quality.crossings} · overlapping ${edges.quality.overlaps} · doubling back ${edges.quality.doublingBack} · length/direct ${edges.quality.lengthRatio} · through blocks ${edges.quality.throughBlocks} / foreign trays ${edges.quality.throughTrays}${edges.routingError ? ` · ROUTING FELL BACK TO ELK: ${edges.routingError}` : ''}`}</span>
       </div>
       {edit && <textarea value={src} onChange={e => setSrc(e.target.value)} spellCheck={false}
-        style={{ position: 'absolute', top: 48, left: 10, width: 360, height: '60%', background: '#10151f', color: '#cfd8ea', border: '1px solid #3a4560', font: '12px monospace' }} />}
+        style={{ position: 'absolute', top: 72, left: 10, width: 360, height: '60%', background: '#10151f', color: '#cfd8ea', border: '1px solid #3a4560', font: '12px monospace' }} />}
       <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#556', fontSize: 11, pointerEvents: 'none' }}>drag node · drag bg pan (3d: orbit) · wheel zoom · click tray to fly in</div>
     </div>
   )
