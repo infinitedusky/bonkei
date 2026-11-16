@@ -80,7 +80,7 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 
 **Decision.**
 - An edge meets a node at the middle of a side, **halfway up the block** (centred vertically), not on the surface it stands on.
-- When the two ends are at different heights, the line runs flat from each end and **turns straight up or down a short way out from the higher end**: just outside the tray's rim, or outside the taller block. The same rule covers any two ends of different height (a node and a subgraph's tray, or blocks of different heights).
+- When the two ends are at different heights, the line makes **one** vertical step, straight to the other end's height (never a staircase). It stands just outside the outermost tray rim the line crosses, or, if it crosses none, a short way out from the higher end (the taller block, or a block above a subgraph's rim). The same rule covers any two ends of different height.
 - Where lines cross, the horizontal one (in plan) hops over the vertical one with a small vertical bridge. Steps and bridges lie in the line's own vertical plane, so flat view is unchanged.
 
 **Alternatives considered.**
