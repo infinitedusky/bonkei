@@ -44,7 +44,7 @@
       <li><b>One step per line.</b> Pay API → Fraud Check climbs once, just outside the Risk tray, straight to Fraud Check's mid-height.</li>
       <li><b>Two trays deep.</b> Fraud Check → Ledger stays high over both rims and drops once, outside the outer tray.</li>
       <li><b>Same tray.</b> Fraud Check → Review crosses no rim, so it drops a short way out from the taller block.</li>
-      <li><b>Bridge, tunnel or portal.</b> Where Client → Audit crosses Notifier → Pay API it either hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end. <b>Portal</b>: it goes into an upright ring and comes out of a second one past the crossing. From outside, each ring's mouth looks like a tunnel the line goes into; from between the rings (the inside) their backs are opaque. From above the line stops at a thin bar.</li>
+      <li><b>Bridge, tunnel or portal.</b> Where Client → Audit crosses Notifier → Pay API it either hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end. <b>Portal</b>: it goes into an upright ring and comes out of a second one past the crossing. Like the game: look into the blue one and you see out of the orange one, with the line carrying on; from behind (between them) they are opaque. From above the line stops at a thin bar.</li>
       <li><b>Into a subgraph.</b> Ledger → Payments drops to meet the tray's edge halfway up its rim.</li>
       <li><b>Flat.</b> Switch to Flat: steps and bridges vanish, and the picture matches Today.</li>
     </ol>
@@ -150,26 +150,24 @@ function drawEdge(pts, group, arrow = true) {
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); group.add(cone)
 }
 const groups = { new: new THREE.Group(), today: new THREE.Group(), tunnel: new THREE.Group(), portal: new THREE.Group() }
-// Portal: the line goes into an upright ring before the crossing and comes out of a second ring after it.
-// Each ring has a mouth on the side the line enters or leaves by, drawn as a tunnel receding into the dark;
-// seen from between the two rings (from the inside), each ring's back is an opaque disc.
-const tunnelTex = (() => {
-  const c = document.createElement('canvas'); c.width = c.height = 256
-  const g = c.getContext('2d')
-  const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128)
-  grad.addColorStop(0, '#000'); grad.addColorStop(0.55, '#140c2e'); grad.addColorStop(1, '#6a4bd0')
-  g.fillStyle = grad; g.fillRect(0, 0, 256, 256)
-  g.strokeStyle = 'rgba(190,160,255,.35)'; g.lineWidth = 3
-  for (let r = 118; r > 8; r *= 0.72) { g.beginPath(); g.arc(128, 128, r, 0, Math.PI * 2); g.stroke() }
-  return new THREE.CanvasTexture(c)
-})()
-function portal(x, z, y, facing, group) { // facing: +1 mouth towards +x, -1 towards -x
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.035, 10, 32), new THREE.MeshBasicMaterial({ color: '#b48cff' }))
-  ring.rotation.y = Math.PI / 2; ring.position.set(x, y, z); group.add(ring)
-  const mouth = new THREE.Mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshBasicMaterial({ map: tunnelTex }))
-  mouth.rotation.y = facing * Math.PI / 2; mouth.position.set(x + facing * 0.003, y, z); group.add(mouth)
-  const back = new THREE.Mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshStandardMaterial({ color: '#3a2a6e', roughness: 0.8 }))
-  back.rotation.y = -facing * Math.PI / 2; back.position.set(x - facing * 0.003, y, z); group.add(back)
+// Portal, as in the game: two oval portals, blue where the line goes in, orange where it comes out.
+// Looking into either mouth you see through it, out of the other one (rendered from a camera shifted
+// by the gap between them). From behind, each is an opaque disc.
+const portals = []
+function portal(x, z, y, facing, color, group) { // facing: +1 mouth towards +x, -1 towards -x
+  const oval = (m) => { m.rotation.y = facing * Math.PI / 2; m.scale.set(1, 1.5, 1); m.position.set(x, y, z); return m }
+  const ring = oval(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.03, 10, 40), new THREE.MeshBasicMaterial({ color })))
+  const rt = new THREE.WebGLRenderTarget(1, 1); rt.texture.colorSpace = THREE.SRGBColorSpace
+  const mouth = oval(new THREE.Mesh(new THREE.CircleGeometry(0.2, 40), new THREE.ShaderMaterial({
+    uniforms: { tex: { value: rt.texture }, res: { value: new THREE.Vector2(1, 1) } },
+    fragmentShader: 'uniform sampler2D tex; uniform vec2 res; void main() { gl_FragColor = texture2D(tex, gl_FragCoord.xy / res); }',
+    vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  })))
+  mouth.position.x += facing * 0.002
+  const back = oval(new THREE.Mesh(new THREE.CircleGeometry(0.2, 40), new THREE.MeshStandardMaterial({ color: '#8a93a8', roughness: 0.9 })))
+  back.rotation.y = -facing * Math.PI / 2; back.position.x -= facing * 0.002
+  group.add(ring, mouth, back)
+  const p = { x, facing, rt, mouth }; portals.push(p); return p
 }
 for (const e of edges) {
   drawEdge(e.pts, groups.new)
@@ -178,7 +176,7 @@ for (const e of edges) {
     const [[ax, az], [bx, bz]] = e.portals, i = e.pts.findIndex(([x, z]) => x === 3.7 && z === -2)
     drawEdge([...e.pts.slice(0, i), [ax, az, .35]], groups.portal, false)
     drawEdge([[bx, bz, .35], ...e.pts.slice(i + 4)], groups.portal)
-    portal(ax, az, .35, -1, groups.portal); portal(bx, bz, .35, 1, groups.portal)
+    const pa = portal(ax, az, .35, -1, '#3fa7ff', groups.portal), pb = portal(bx, bz, .35, 1, '#ff8a2a', groups.portal); pa.other = pb; pb.other = pa
   } else drawEdge(e.pts, groups.portal)
   for (const [x, z] of e.holes ?? []) {
     const hole = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), new THREE.MeshBasicMaterial({ color: '#000' }))
@@ -225,6 +223,24 @@ const seg = (id, fn) => document.getElementById(id).addEventListener('click', e 
 seg('modes', d => setMode(d.m))
 seg('kinds', d => { for (const k in groups) groups[k].visible = d.k === k })
 setMode('iso')
-renderer.setAnimationLoop(() => { (cam === ortho ? controls.ortho : controls.persp).update(); renderer.render(scene, cam) })
+renderer.localClippingEnabled = true
+const size = new THREE.Vector2()
+function renderPortals() {
+  if (!groups.portal.visible) return
+  renderer.getDrawingBufferSize(size)
+  for (const p of portals) {
+    const o = p.other
+    if (p.rt.width !== size.x || p.rt.height !== size.y) p.rt.setSize(size.x, size.y)
+    p.mouth.material.uniforms.res.value.copy(size)
+    // through p, the camera comes out of o: same view, shifted by the gap; clip away everything on the near side of o
+    const v = cam.clone(); v.position.x += o.x - p.x; v.updateMatrixWorld()
+    renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(o.facing, 0, 0), -o.facing * o.x)]
+    p.mouth.visible = false; o.mouth.visible = false
+    renderer.setRenderTarget(p.rt); renderer.render(scene, v)
+    p.mouth.visible = true; o.mouth.visible = true
+  }
+  renderer.clippingPlanes = []; renderer.setRenderTarget(null)
+}
+renderer.setAnimationLoop(() => { (cam === ortho ? controls.ortho : controls.persp).update(); renderPortals(); renderer.render(scene, cam) })
 </script>
 </body>
