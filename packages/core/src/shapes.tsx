@@ -5,9 +5,8 @@ import type { Box, LabelMode } from './model'
 
 export type { LabelMode }
 
-export const S = 1 / 40 // px -> world
-export const TRAY = 0.25 // tray thickness (one level)
-export const NODE_H = 0.7
+import { S, TRAY, NODE_H } from './scale.ts'
+export { S, TRAY, NODE_H }
 
 const COLORS: Record<string, string> = { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' }
 export const trayColor = (level: number) => ['#243044', '#2d3b52', '#374862'][Math.min(level, 2)]

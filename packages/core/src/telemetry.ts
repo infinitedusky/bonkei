@@ -20,3 +20,11 @@ export async function withSpan<T>(name: string, attrs: Attributes, fn: (span: Sp
     span.end()
   }
 }
+
+// A span for something that happened at one moment (a click, a mode change). `startTime` lets a
+// span cover a stretch that began earlier (e.g. from source accepted to first frame).
+export function instant(name: string, attrs: Attributes, startTime?: number): Span {
+  const span = tracer.startSpan(name, startTime === undefined ? { attributes: attrs } : { attributes: attrs, startTime })
+  span.end()
+  return span
+}

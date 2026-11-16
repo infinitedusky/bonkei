@@ -1,8 +1,13 @@
 import * as THREE from 'three'
 import { Line, Text } from '@react-three/drei'
+import { useThree } from '@react-three/fiber'
 import type { SeqLayout } from './seq'
 import type { Box } from './model'
-import { NodeBody, S, type LabelMode } from './shapes'
+import { NodeBody, type LabelMode } from './shapes'
+import { S } from './scale'
+import { SCENE } from './palette'
+import { cursorFor, ALL_ON } from './controls'
+import type { NodeClick } from './options'
 
 const BLOCK_COL: Record<string, string> = { loop: '#3b6ea8', alt: '#a86b3b', opt: '#4f9a6a', par: '#8a5aa8' }
 const LINE_Y = 0.42
@@ -26,7 +31,14 @@ function Arrow({ from, to, color, cross }: { from: THREE.Vector3; to: THREE.Vect
   )
 }
 
-export function SeqScene({ data, labelMode }: { data: SeqLayout; labelMode: LabelMode }) {
+export function SeqScene({ data, labelMode, onNodeClick, hasClick = !!onNodeClick }: {
+  data: SeqLayout; labelMode: LabelMode
+  /** Called on a click (not a drag) on a participant box. */
+  onNodeClick?: (node: NodeClick) => void
+  /** Whether to show the pointer cursor over participants. Default: whether `onNodeClick` is given. */
+  hasClick?: boolean
+}) {
+  const { gl } = useThree()
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   const top = labelMode === 'top'
@@ -36,7 +48,10 @@ export function SeqScene({ data, labelMode }: { data: SeqLayout; labelMode: Labe
       {data.parts.map(p => {
         const b: Box = { id: p.id, label: p.label, kind: 'node', shape: p.actor ? 'round' : 'rect', x: p.x, y: p.y, w: p.w, h: p.h, level: 0 }
         return (
-          <group key={p.id} position={[wx(p.x) + (p.w * S) / 2, 0, wz(p.y) + (p.h * S) / 2]}>
+          <group key={p.id} position={[wx(p.x) + (p.w * S) / 2, 0, wz(p.y) + (p.h * S) / 2]}
+            onClick={e => { if (e.delta < 4) { e.stopPropagation(); onNodeClick?.({ id: p.id, label: p.label, kind: 'participant' }) } }}
+            onPointerOver={e => { e.stopPropagation(); gl.domElement.style.cursor = cursorFor('participant', ALL_ON, hasClick) }}
+            onPointerOut={() => { gl.domElement.style.cursor = '' }}>
             <NodeBody b={b} labelMode={labelMode} />
           </group>
         )
@@ -86,9 +101,9 @@ export function SeqScene({ data, labelMode }: { data: SeqLayout; labelMode: Labe
         const pts = [...v.slice(0, n - 1), end].map(p => p.toArray() as [number, number, number])
         return (
           <group key={'m' + i}>
-            <Line points={pts} color={m.head === 'cross' ? '#ff9b9b' : '#e8edf7'} lineWidth={2} dashed={m.dashed} dashSize={0.25} gapSize={0.15} />
-            <Arrow from={v[n - 2]} to={v[n - 1]} color="#e8edf7" cross={m.head === 'cross'} />
-            <Text {...txt({ position: [wx(m.lx), LINE_Y + (top ? 0.02 : 0.35), wz(m.ly) + (top ? 0 : 0.3)] })} fontSize={0.24} color="#ffd479" anchorX={m.pts.length > 2 ? 'left' : 'center'} anchorY="middle" outlineWidth={0.015} outlineColor="#000">{m.label}</Text>
+            <Line points={pts} color={m.head === 'cross' ? '#ff9b9b' : SCENE.edge} lineWidth={2} dashed={m.dashed} dashSize={0.25} gapSize={0.15} />
+            <Arrow from={v[n - 2]} to={v[n - 1]} color={SCENE.edge} cross={m.head === 'cross'} />
+            <Text {...txt({ position: [wx(m.lx), LINE_Y + (top ? 0.02 : 0.35), wz(m.ly) + (top ? 0 : 0.3)] })} fontSize={0.24} color={SCENE.label} anchorX={m.pts.length > 2 ? 'left' : 'center'} anchorY="middle" outlineWidth={0.015} outlineColor="#000">{m.label}</Text>
           </group>
         )
       })}

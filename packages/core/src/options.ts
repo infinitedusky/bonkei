@@ -32,15 +32,22 @@ export interface BonkeiWarning {
   line: number
   text?: string
 }
-// Reported to `onReady` once a diagram is laid out.
-export interface Ready { layoutMs: number; nodes: number; edges: number; dropped: number }
+// Reported to `onReady` on the first frame drawn with a diagram's data.
+export interface ReadyInfo { layoutMs: number; nodes: number; edges: number; dropped: number }
+/** @deprecated use ReadyInfo */
+export type Ready = ReadyInfo
+
+// What was clicked: a flowchart node or group, or a sequence participant.
+export interface NodeClick { id: string; label: string; kind: 'node' | 'group' | 'participant' }
+// Who moved the view: the built-in toolbar, the imperative handle, or a changed `mode` option.
+export interface ModeChange { source: 'toolbar' | 'handle' | 'prop' }
 
 export type BonkeiOptions = DiagramOptions & {
   onError?: (error: BonkeiError) => void
   onWarning?: (warning: BonkeiWarning) => void
-  onModeChange?: (mode: Mode) => void
-  onNodeClick?: (node: { id: string; label: string }) => void
-  onReady?: (ready: Ready) => void
+  onModeChange?: (mode: Mode, change: ModeChange) => void
+  onNodeClick?: (node: NodeClick) => void
+  onReady?: (ready: ReadyInfo) => void
 }
 
 export const DEFAULTS: Readonly<ResolvedOptions> = Object.freeze({ mode: 'iso', labels: 'top', toolbar: true, controls: true })

@@ -1,3 +1,5 @@
+import { S } from './scale.ts'
+
 export type Mode = 'flat' | 'iso' | '3d'
 const D = Math.PI / 180
 // One perspective camera for every view. "Flat" and "iso" use a ~1deg fov (visually orthographic,
@@ -19,6 +21,10 @@ export interface Camera {
   setMode(m: Mode): void
   focusOn(cx: number, cz: number, X: number, Z: number): void
   fitH(m: Mode): number
+  /** Frame the whole diagram (layout px, centred on the origin), in the current mode. */
+  fit(width: number, height: number): void
+  /** Jump `cur` to `goal` now, skipping the tween. */
+  snap(): void
 }
 
 /** A camera state for one diagram view. Starts in iso, H 30. */
@@ -43,6 +49,12 @@ export function createCamera(): Camera {
     focusOn(cx, cz, X, Z) {
       cam.focus = { cx, cz, X, Z }
       cam.goal.tx = cx; cam.goal.tz = cz; cam.goal.H = cam.fitH(cam.mode)
+    },
+    fit(width, height) {
+      cam.focusOn(0, 0, width * S, height * S)
+    },
+    snap() {
+      Object.assign(cam.cur, cam.goal)
     },
   }
   return cam
