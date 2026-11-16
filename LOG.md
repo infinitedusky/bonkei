@@ -73,3 +73,19 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - Two Pages deployments: Pages serves one artifact per repository.
 
 **Consequences.** One artifact, the same URLs, no workflow change. In dev both servers must run (`pnpm dev` starts them together); the viewer's port 5174 is fixed (`strictPort`) because the proxy points at it.
+
+## 2026-11-15 — How edges sit in 3D (BON-85)
+
+**Context.** Edges float at the higher of their two ends' heights, so lines between tray levels hang in the air. The person wants React Flow's way of connecting (side midpoints, a turn between levels) applied to every diagram, plus bridges where lines cross.
+
+**Decision.**
+- An edge meets a node at the middle of a side, **halfway up the block** (centred vertically), not on the surface it stands on.
+- When the two ends are at different heights, the line runs flat from each end and **turns straight up or down a short way out from the higher end**: just outside the tray's rim, or outside the taller block. The same rule covers any two ends of different height (a node and a subgraph's tray, or blocks of different heights).
+- Where lines cross, the horizontal one (in plan) hops over the vertical one with a small vertical bridge. Steps and bridges lie in the line's own vertical plane, so flat view is unchanged.
+
+**Alternatives considered.**
+- The line lying on the surface (side midpoint seen from above only): rejected by the person.
+- A single riser halfway along, like React Flow's `stepPosition = 0.5`: half the line would float over or cut into a tray.
+- 2D line jumps (Visio, JointJS arcs): they would show in flat view.
+
+**Consequences.** Between two blocks on the same surface the line runs at mid-block height, not on the surface. Routes need a height per point.
