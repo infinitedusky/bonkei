@@ -13,6 +13,9 @@ type Crossing = 'today' | 'none' | 'bridge' | 'tunnel' | 'portal'
 type P = [number, number, number] // x, z (plan, world units), height
 
 const LINE = '#e8edf7'
+const LINE_ON_WHITE = '#2b3445' // white lines vanish on a white ground
+type Ground = 'dark' | 'white'
+const LineColor = createContext(LINE)
 const PORTAL = '#3fa7ff'
 const TALL = 1.8 // Fraud Check's height, to show blocks of different heights
 const box = (o: Partial<Box> & { r: [number, number, number, number] }): Box & { r: [number, number, number, number] } =>
@@ -73,6 +76,7 @@ function ShadowTubes({ v }: { v: THREE.Vector3[] }) {
 }
 
 function EdgeLine({ pts, arrow = true }: { pts: P[]; arrow?: boolean }) {
+  const LINE = useContext(LineColor)
   const v = pts.map(v3)
   if (!arrow) return <><Line points={v} color={LINE} lineWidth={2} /><ShadowTubes v={v} /></>
   const n = v.length, dir = v[n - 1].clone().sub(v[n - 2]).normalize()
@@ -162,11 +166,12 @@ function Cam({ mode }: { mode: Mode }) {
   return <><OrthographicCamera makeDefault position={pos} zoom={36} near={-200} far={200} /><OrbitControls makeDefault target={T} enableRotate={false} /></>
 }
 
-function EdgesScene({ mode, crossing, edgeShadows }: { mode: Mode; crossing: Crossing; edgeShadows: boolean }) {
+function EdgesScene({ mode, crossing, edgeShadows, ground }: { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: Ground }) {
+  const white = ground === 'white', bg = white ? '#ffffff' : '#0f1218'
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0f1218', position: 'relative' }}>
+    <div style={{ width: '100vw', height: '100vh', background: bg, position: 'relative' }}>
       <Canvas shadows dpr={[1, 2]}>
-        <color attach="background" args={['#0f1218']} />
+        <color attach="background" args={[bg]} />
         <Cam key={mode} mode={mode} />
         <ambientLight intensity={0.55} />
         <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
@@ -174,9 +179,9 @@ function EdgesScene({ mode, crossing, edgeShadows }: { mode: Mode; crossing: Cro
           shadow-camera-left={-18} shadow-camera-right={18} shadow-camera-top={18} shadow-camera-bottom={-18} shadow-camera-far={80} />
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[4, 0, 1]} receiveShadow>
           <planeGeometry args={[80, 80]} />
-          <meshStandardMaterial color="#0f1218" roughness={1} />
+          <meshStandardMaterial color={bg} roughness={1} />
         </mesh>
-        <gridHelper args={[80, 80, '#1d2433', '#161c28']} position={[4, 0.002, 1]} />
+        <gridHelper key={ground} args={[80, 80, white ? '#d5dae3' : '#1d2433', white ? '#e6e9ef' : '#161c28']} position={[4, 0.002, 1]} />
         {trays.map(t => (
           <group key={t.id} position={[(t.r[0] + t.r[2]) / 2, t.level * TRAY, (t.r[1] + t.r[3]) / 2]}>
             <Tray b={t} labelMode="top" />
@@ -188,7 +193,7 @@ function EdgesScene({ mode, crossing, edgeShadows }: { mode: Mode; crossing: Cro
             <NodeBody b={n} labelMode="top" />
           </group>
         ))}
-        <EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider>
+        <LineColor.Provider value={white ? LINE_ON_WHITE : LINE}><EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider></LineColor.Provider>
       </Canvas>
       <div style={{ position: 'absolute', top: 10, left: 12, color: '#9aa6c0', font: '12px monospace', pointerEvents: 'none' }}>
         mockup · made-up data (a payments flow), hand-placed · crossings: {crossing}
@@ -197,15 +202,16 @@ function EdgesScene({ mode, crossing, edgeShadows }: { mode: Mode; crossing: Cro
   )
 }
 
-const meta: Meta<{ mode: Mode; crossing: Crossing; edgeShadows: boolean }> = {
+const meta: Meta<{ mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: Ground }> = {
   title: 'Mockups/Edges in 3D',
-  args: { mode: 'iso', edgeShadows: false },
+  args: { mode: 'iso', edgeShadows: false, ground: 'white' },
   argTypes: {
     mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] },
     crossing: { control: 'inline-radio', options: ['today', 'none', 'bridge', 'tunnel', 'portal'] },
     edgeShadows: { control: 'boolean' },
+    ground: { control: 'inline-radio', options: ['dark', 'white'] },
   },
-  render: ({ mode, crossing, edgeShadows }) => <EdgesScene mode={mode} crossing={crossing} edgeShadows={edgeShadows} />,
+  render: ({ mode, crossing, edgeShadows, ground }) => <EdgesScene mode={mode} crossing={crossing} edgeShadows={edgeShadows} ground={ground} />,
 }
 export default meta
 type Story = StoryObj<typeof meta>
