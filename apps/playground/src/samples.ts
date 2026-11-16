@@ -1,7 +1,6 @@
 import small from './sample.mmd?raw'
 
-const large = `%%{arch: {view: "iso", nav: "drill"}}%%
-flowchart TD
+const large = `flowchart TD
   Client((Browser)) -->|HTTPS| WAF
   Mobile((Mobile App)) -->|HTTPS| WAF
   subgraph Platform["Platform"]

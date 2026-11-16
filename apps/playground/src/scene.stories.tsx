@@ -3,14 +3,9 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useEffect, useState } from 'react'
 import sample from './sample.mmd?raw'
-import { parse } from 'bonkei'
-import { layout } from 'bonkei'
-import type { Box, LayoutResult } from 'bonkei'
-import { NodeBody, Tray, S } from 'bonkei'
-import { SceneView } from 'bonkei'
-import type { Mode } from 'bonkei'
+import { parse, layout, NodeBody, Tray, SceneView, parseSeq, layoutSeq } from 'bonkei/internal'
+import type { Box, LayoutResult, Mode, SeqLayout } from 'bonkei/internal'
 import { SAMPLES } from './samples'
-import { parseSeq, layoutSeq, type SeqLayout } from 'bonkei'
 
 const Stage = ({ children }: { children: React.ReactNode }) => (
   <div style={{ width: '100vw', height: '100vh', background: '#0f1218', position: 'relative' }}>
@@ -88,4 +83,3 @@ export const TwoDiagrams: StoryObj<{ leftMode: Mode; rightMode: Mode }> = {
     )
   },
 }
-void S
