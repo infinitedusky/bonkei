@@ -116,5 +116,6 @@ export const LargeSample: Story = { ...story(Object.values(SAMPLES)[1]), args: {
 /** BON-99: one node with ten lines. Midpoint: they leave the same point and fan out. Spread: each line meets the hub at its own point around it. */
 export const HubSpread: Story = { ...story(hub), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'spread' } }
 export const HubMidpoint: Story = { ...story(hub), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'midpoint' } }
-/** BON-99: the checkout flow as a flowchart. Orders connects to eight nodes; with Ends: Spread each line meets it at its own point. */
-export const CheckoutFlow: Story = { ...story(SAMPLES['flow: checkout flow']), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'spread' } }
+/** BON-99: the checkout flow of the Mockups/Edges in 3D stories, on the real layout and libavoid's routes: Payments with Risk nested in it, a tall Fraud Check, an edge to the Payments tray. */
+export const CheckoutMockup: Story = { ...story(SAMPLES['flow: checkout (mockup)'], { Fraud: 1.8 }), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'midpoint' } }
+export const CheckoutMockupSpread: Story = { ...story(SAMPLES['flow: checkout (mockup)'], { Fraud: 1.8 }), args: { mode: 'iso', crossings: 'bridge', avoid: 'some', ends: 'spread' } }

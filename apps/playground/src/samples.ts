@@ -187,23 +187,22 @@ const checkout = `sequenceDiagram
   Fraud-xPayments: late chargeback signal
 `
 
-// the checkout sequence diagram's calls as a flowchart: Orders is the node with many lines
+// the checkout flow of the Mockups/Edges in 3D stories: Payments with Risk nested in it, a tall Fraud Check (the story sets its height)
 const checkoutFlow = `flowchart LR
-  Shopper([Shopper]) --> Web[Web]
-  Web --> Cart[Cart]
-  Cart --> Catalog[(Catalog)]
-  Cart --> Pricing[Pricing]
-  Web --> Orders[Orders]
-  Orders --> Catalog
-  Orders --> Pricing
-  Orders --> Payments[Payments]
-  Payments --> Fraud{Fraud}
-  Orders --> Warehouse[Warehouse]
-  Orders --> Notify[Notify]
-  Payments --> Notify
-  Warehouse --> Notify
-  Orders --> Shopper
-  Orders --> Web`
+  Client([Client]) --> Pay
+  Notifier[Notifier] --> Pay
+  Client --> Audit[Audit]
+  subgraph Payments
+    Pay[Pay API]
+    subgraph Risk
+      Fraud{Fraud Check}
+      Review[Review]
+    end
+    Pay --> Fraud
+  end
+  Fraud --> Review
+  Fraud --> Ledger[(Ledger)]
+  Ledger --> Payments`
 // one node with ten lines: with 'Ends: Spread' each line meets the hub at its own point
 const hub = `flowchart LR
   Hub[Hub]
@@ -213,7 +212,7 @@ export const SAMPLES: Record<string, string> = {
   'flow: large (~50 nodes)': large,
   'flow: wide (30 → 5)': wide,
   'flow: hub (1 → 10)': hub,
-  'flow: checkout flow': checkoutFlow,
+  'flow: checkout (mockup)': checkoutFlow,
   'seq: login flow': login,
   'seq: checkout flow': checkout,
 }
