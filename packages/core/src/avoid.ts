@@ -188,6 +188,9 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
         const [x, y] = p.side === 'N' ? [p.f, 0] : p.side === 'S' ? [p.f, 1] : p.side === 'W' ? [0, p.f] : [1, p.f]
         s.addPin({ classId: p.cls, x, y, directions: DIR[p.side] }).setExclusive(false)
       }
+      // side-midpoint pins too: a line whose tray door moves while a node is dragged falls back to the middle of the side that now faces the door
+      for (const [x, y, d] of [[0.5, 0, 'N'], [1, 0.5, 'E'], [0.5, 1, 'S'], [0, 0.5, 'W']] as [number, number, Side][])
+        s.addPin({ classId: SIDE_PIN[d], x: x + (d === 'N' || d === 'S' ? 0.002 : 0), y: y + (d === 'E' || d === 'W' ? 0.002 : 0), directions: DIR[d] }).setExclusive(false)
     }
     shapes.set(b.id, s)
   }
@@ -303,7 +306,7 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
 
   // After a node moves: the tray doors move to where the lines now go in and out, and a line whose door changed leaves its node by the side that
   // now faces that door (the way a straight re-route picks the facing side), so it does not loop round to a door on the old side.
-  const followDoors = () => {
+  const followDoors = (moved: string) => {
     const prevDoor = new Map(doorOf), prevDock = new Map(dockSide)
     computeGates()
     for (const t of byId.values()) if (t.kind === 'group') { const sig = gateSig(t); if (sig !== wallSig.get(t.id)) { buildWalls(t); wallSig.set(t.id, sig) } }
@@ -314,7 +317,12 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
         const key = `${e.id}:${end}`
         const set = (x: Parameters<ConnRef['setSource']>[0]) => isFrom ? c.setSource(x) : c.setDest(x)
         if (byId.get(end)!.kind === 'group') { if (dockSide.get(key) !== prevDock.get(key)) set(dockPoint(end, dockSide.get(key)!)) }
-        else if (doorOf.get(key) !== prevDoor.get(key)) { const d = doorOf.get(key); set({ shape: shapes.get(end)!, pin: d ? SIDE_PIN[d] : PIN }) }
+        else if (ends === 'spread' && (e.from === moved || e.to === moved) && !doorOf.has(key)) {
+          // spread: the lines of the node being dragged take the side midpoint that faces their other end, at both ends, while it moves
+          const X = byId.get(end)!, O = byId.get(end === e.from ? e.to : e.from)!, [xc, yc] = centre(X), [ox, oy] = centre(O), dx = ox - xc, dy = oy - yc
+          const sd: Side = Math.abs(dy) * X.w > Math.abs(dx) * X.h ? (dy > 0 ? 'S' : 'N') : (dx > 0 ? 'E' : 'W')
+          set({ shape: shapes.get(end)!, pin: SIDE_PIN[sd] })
+        } else if (doorOf.get(key) !== prevDoor.get(key)) { const d = doorOf.get(key); set({ shape: shapes.get(end)!, pin: d ? SIDE_PIN[d] : (spreadClass.get(key) ?? PIN) }) }
       }
     }
   }
@@ -326,7 +334,7 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
       b.x += dx; b.y += dy
       const s = shapes.get(id)
       if (s) router.moveShape(s, dx, dy)
-      if (tune.trays === 'walls' && ends === 'midpoint') followDoors()
+      if (tune.trays === 'walls') followDoors(id)
       router.processTransaction()
       read()
       out.stats.moveMs = performance.now() - t1
@@ -336,7 +344,23 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
     reset() {
       let moved = false
       for (const [id, h] of home) { const b = byId.get(id)!; if (shapes.has(id) && (b.x !== h.x || b.y !== h.y)) { router.moveShape(shapes.get(id)!, h.x - b.x, h.y - b.y); b.x = h.x; b.y = h.y; moved = true } }
-      if (moved) { router.processTransaction(); read() }
+      if (moved) {
+        // back where the layout had everything: doors, walls and line ends as they were
+        if (tune.trays === 'walls') {
+          computeGates()
+          for (const t of byId.values()) if (t.kind === 'group') { const sig = gateSig(t); if (sig !== wallSig.get(t.id)) { buildWalls(t); wallSig.set(t.id, sig) } }
+          for (const e of edges) {
+            const c = conns.get(e.id)?.[0]
+            if (!c) continue
+            for (const [end, isFrom] of [[e.from, true], [e.to, false]] as const) {
+              const key = `${e.id}:${end}`
+              const x = byId.get(end)!.kind === 'group' ? dockPoint(end, dockSide.get(key)!) : { shape: shapes.get(end)!, pin: spreadClass.get(key) ?? PIN }
+              if (isFrom) c.setSource(x); else c.setDest(x)
+            }
+          }
+        }
+        router.processTransaction(); read()
+      }
       return out.routes
     },
     dispose() { router.delete() },

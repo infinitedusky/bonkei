@@ -170,3 +170,31 @@ test('ends spread: a node with ten lines meets them at ten different points; mid
   const hubBox = by.get('H')!
   for (const e of spread.routes) { const p = e.points[0]; assert.ok(p[0] >= hubBox.x - 0.5 && p[0] <= hubBox.x + hubBox.w + 0.5 && p[1] >= hubBox.y - 0.5 && p[1] <= hubBox.y + hubBox.h + 0.5, 'on the hub') }
 })
+
+test('dragging a node out of a tray\'s way: the doors follow and the line goes straight out by the facing side, in midpoint and spread ends, and reset restores', async () => {
+  const data = await layout(parse(`flowchart LR
+  Client([Client]) --> Pay
+  subgraph Payments
+    Pay[Pay API]
+    subgraph Risk
+      Fraud{Fraud Check}
+      Review[Review]
+    end
+    Pay --> Fraud
+  end
+  Fraud --> Review
+  Fraud --> Ledger[(Ledger)]
+  Ledger --> Payments`))
+  for (const ends of ['midpoint', 'spread'] as const) {
+    const r = createRouter(A, data, undefined, 'some', ends)
+    const sig = () => JSON.stringify(r.routes.map(e => e.points.map(p => p.map(Math.round))))
+    const before = sig()
+    r.move('Ledger', -900, 300) // to the left of and below the trays, the other side from where layout put it
+    const line = r.routes.find(e => e.from === 'Fraud' && e.to === 'Ledger')!
+    assert.ok(line.points.length - 1 <= 4, `${ends}: ${line.points.length - 1} segments, not a loop round the tray`)
+    assert.deepEqual(r.stats.failed, [])
+    r.reset()
+    assert.equal(sig(), before, `${ends}: reset restores the routes`)
+    r.dispose()
+  }
+})
