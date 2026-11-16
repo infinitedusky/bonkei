@@ -3,7 +3,7 @@
 // draws them (drei Line, width 2, cone tip), with a height per point.
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import * as THREE from 'three'
-import { createContext, useContext, useMemo, useRef } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Line, OrbitControls, OrthographicCamera, PerspectiveCamera, useFBO } from '@react-three/drei'
 import { NodeBody, Tray, TRAY, NODE_H, S } from 'bonkei'
@@ -14,12 +14,10 @@ type P = [number, number, number] // x, z (plan, world units), height
 
 const LINE = '#e8edf7'
 const LINE_ON_WHITE = '#1f2633' // light lines vanish on a light ground
-type Ground = 'dark' | 'grey' | 'white'
-const GROUND: Record<Ground, { bg: string; grid: [string, string] }> = {
-  dark: { bg: '#0f1218', grid: ['#1d2433', '#161c28'] },
-  grey: { bg: '#a3a9b3', grid: ['#959ba6', '#9ba1ac'] },
-  white: { bg: '#ffffff', grid: ['#d5dae3', '#e6e9ef'] },
-}
+const PRESETS = { dark: '#0f1218', grey: '#a3a9b3', white: '#ffffff' }
+// grid a shade off the ground; lines dark on a light ground, light on a dark one
+const shade = (hex: string, dl: number) => '#' + new THREE.Color(hex).offsetHSL(0, 0, dl).getHexString()
+const isLight = (hex: string) => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).l > 0.45
 const LineColor = createContext(LINE)
 const PORTAL = '#3fa7ff'
 const TALL = 1.8 // Fraud Check's height, to show blocks of different heights
@@ -171,8 +169,33 @@ function Cam({ mode }: { mode: Mode }) {
   return <><OrthographicCamera makeDefault position={pos} zoom={36} near={-200} far={200} /><OrbitControls makeDefault target={T} enableRotate={false} /></>
 }
 
-function EdgesScene({ mode, crossing, edgeShadows, ground }: { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: Ground }) {
-  const light = ground !== 'dark', { bg, grid } = GROUND[ground]
+type Args = { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: string }
+
+// The story's own controls, on the page (the embedded view hides Storybook's Controls panel).
+const btn = (on: boolean): React.CSSProperties => ({ font: '12px system-ui', padding: '4px 8px', border: '1px solid #3a4258', borderRadius: 6, cursor: 'pointer', background: on ? '#4b6bdc' : '#151a24', color: on ? '#fff' : '#9aa6c0' })
+function Panel({ a, set }: { a: Args; set: (p: Partial<Args>) => void }) {
+  const row = (label: string, children: React.ReactNode) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 64, color: '#9aa6c0' }}>{label}</span>{children}</div>
+  )
+  return (
+    <div style={{ position: 'absolute', top: 34, left: 12, display: 'grid', gap: 6, padding: 10, background: 'rgba(15,18,24,.85)', borderRadius: 8, font: '12px system-ui' }}>
+      {row('View', (['flat', 'iso', '3d'] as Mode[]).map(m => <button key={m} style={btn(a.mode === m)} onClick={() => set({ mode: m })}>{m}</button>))}
+      {row('Crossings', (['today', 'none', 'bridge', 'tunnel', 'portal'] as Crossing[]).map(c => <button key={c} style={btn(a.crossing === c)} onClick={() => set({ crossing: c })}>{c}</button>))}
+      {row('Shadows', <button style={btn(a.edgeShadows)} onClick={() => set({ edgeShadows: !a.edgeShadows })}>edges cast shadows</button>)}
+      {row('Ground', <>
+        {Object.entries(PRESETS).map(([k, c]) => <button key={k} style={btn(a.ground === c)} onClick={() => set({ ground: c })}>{k}</button>)}
+        <input type="color" value={a.ground} onChange={e => set({ ground: e.target.value })} style={{ width: 32, height: 24, border: 0, padding: 0, background: 'none', cursor: 'pointer' }} />
+      </>)}
+    </div>
+  )
+}
+
+function EdgesScene(initial: Args) {
+  const [a, setA] = useState(initial)
+  useEffect(() => setA(initial), [initial.mode, initial.crossing, initial.edgeShadows, initial.ground])
+  const set = (p: Partial<Args>) => setA(x => ({ ...x, ...p }))
+  const { mode, crossing, edgeShadows, ground: bg } = a
+  const light = isLight(bg), grid = [shade(bg, light ? -0.06 : 0.05), shade(bg, light ? -0.03 : 0.025)]
   return (
     <div style={{ width: '100vw', height: '100vh', background: bg, position: 'relative' }}>
       <Canvas shadows dpr={[1, 2]}>
@@ -186,7 +209,7 @@ function EdgesScene({ mode, crossing, edgeShadows, ground }: { mode: Mode; cross
           <planeGeometry args={[80, 80]} />
           <meshStandardMaterial color={bg} roughness={1} />
         </mesh>
-        <gridHelper key={ground} args={[80, 80, grid[0], grid[1]]} position={[4, 0.002, 1]} />
+        <gridHelper key={bg} args={[80, 80, grid[0], grid[1]]} position={[4, 0.002, 1]} />
         {trays.map(t => (
           <group key={t.id} position={[(t.r[0] + t.r[2]) / 2, t.level * TRAY, (t.r[1] + t.r[3]) / 2]}>
             <Tray b={t} labelMode="top" />
@@ -200,23 +223,24 @@ function EdgesScene({ mode, crossing, edgeShadows, ground }: { mode: Mode; cross
         ))}
         <LineColor.Provider value={light ? LINE_ON_WHITE : LINE}><EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider></LineColor.Provider>
       </Canvas>
-      <div style={{ position: 'absolute', top: 10, left: 12, color: '#9aa6c0', font: '12px monospace', pointerEvents: 'none' }}>
-        mockup · made-up data (a payments flow), hand-placed · crossings: {crossing}
+      <div style={{ position: 'absolute', top: 10, left: 12, color: light ? '#3a4258' : '#9aa6c0', font: '12px monospace', pointerEvents: 'none' }}>
+        mockup · made-up data (a payments flow), hand-placed
       </div>
+      <Panel a={a} set={set} />
     </div>
   )
 }
 
-const meta: Meta<{ mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: Ground }> = {
+const meta: Meta<Args> = {
   title: 'Mockups/Edges in 3D',
-  args: { mode: 'iso', edgeShadows: false, ground: 'grey' },
+  args: { mode: 'iso', edgeShadows: false, ground: PRESETS.grey },
   argTypes: {
     mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] },
     crossing: { control: 'inline-radio', options: ['today', 'none', 'bridge', 'tunnel', 'portal'] },
     edgeShadows: { control: 'boolean' },
-    ground: { control: 'inline-radio', options: ['dark', 'grey', 'white'] },
+    ground: { control: 'color' },
   },
-  render: ({ mode, crossing, edgeShadows, ground }) => <EdgesScene mode={mode} crossing={crossing} edgeShadows={edgeShadows} ground={ground} />,
+  render: (args) => <EdgesScene {...args} />,
 }
 export default meta
 type Story = StoryObj<typeof meta>
