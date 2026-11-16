@@ -1,5 +1,6 @@
 import ELK from 'elkjs/lib/elk.bundled.js'
 import type { Graph, Box, Route, LayoutResult } from './model.ts'
+import { loadAvoid, createRouter, TUNE as AVOID } from './avoid.ts'
 
 // Swap-friendly interface: layout(graph) -> { boxes, routes }.
 export type LayoutEngine = (g: Graph) => Promise<LayoutResult>
@@ -30,7 +31,24 @@ const ELK_SIDE: Record<Side, string> = { N: 'NORTH', S: 'SOUTH', E: 'EAST', W: '
 // Knobs under test for route directness (BON-85); the shipped values are the defaults.
 export const TUNE: { sides: 'flow' | 'floating' | 'back'; options: Record<string, string>; straighten: boolean } = { sides: 'flow', options: { 'elk.layered.cycleBreaking.strategy': 'DEPTH_FIRST' }, straighten: true }
 
+// ELK places the boxes; libavoid routes the lines (BON-99). If the wasm cannot load or routing throws, ELK's own routes stay and
+// `stats.route.error` says why (the embedding app sees it in onEdgeStats).
 export const layout: LayoutEngine = async (g) => {
+  const placed = await place(g)
+  const t0 = performance.now()
+  try {
+    const A = await loadAvoid()
+    const r = createRouter(A, placed)
+    const routes = r.routes
+    r.dispose()
+    return { ...placed, routes, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: r.stats.buildMs, failed: r.stats.failed, error: null } } }
+  } catch (e) {
+    return { ...placed, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: 0, failed: [], error: e instanceof Error ? e.message : String(e) } } }
+  }
+}
+void AVOID
+
+async function place(g: Graph): Promise<LayoutResult> {
   const first = await run(g)
   if (TUNE.sides === 'flow') return first
   // floating sides, as React Flow does: lay out once, then for each edge pick the sides that face each other
