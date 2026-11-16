@@ -35,7 +35,7 @@
     </div>
     <h2>Edges</h2>
     <div class="seg" id="kinds">
-      <button data-k="today">Today</button><button data-k="new" class="on">Bridge</button><button data-k="tunnel">Tunnel</button><button data-k="portal">Portal</button>
+      <button data-k="today">Today</button><button data-k="none" class="on">None</button><button data-k="new">Bridge</button><button data-k="tunnel">Tunnel</button><button data-k="portal">Portal</button>
     </div>
     <h2>What to look at</h2>
     <ol>
@@ -44,7 +44,7 @@
       <li><b>One step per line.</b> Pay API → Fraud Check climbs once, just outside the Risk tray, straight to Fraud Check's mid-height.</li>
       <li><b>Two trays deep.</b> Fraud Check → Ledger stays high over both rims and drops once, outside the outer tray.</li>
       <li><b>Same tray.</b> Fraud Check → Review crosses no rim, so it drops a short way out from the taller block.</li>
-      <li><b>Bridge, tunnel or portal.</b> Where Client → Audit crosses Notifier → Pay API it either hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end. <b>Portal</b>: it goes into an upright ring and comes out of a second one past the crossing. Like the game: look into the blue one and you see out of the orange one, with the line carrying on; from behind (between them) they are opaque. From above the line stops at a thin bar.</li>
+      <li><b>Crossings: None, Bridge, Tunnel or Portal.</b> None (the default) lets the lines cross as today. Otherwise, where Client → Audit crosses Notifier → Pay API it hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end. <b>Portal</b>: it goes into an upright ring and comes out of a second one past the crossing. Like the game: look into one and you see out of the other, with the line carrying on; from behind (between them) they are opaque. From above the line stops at a thin bar.</li>
       <li><b>Into a subgraph.</b> Ledger → Payments drops to meet the tray's edge halfway up its rim.</li>
       <li><b>Flat.</b> Switch to Flat: steps and bridges vanish, and the picture matches Today.</li>
     </ol>
@@ -123,7 +123,7 @@ const edges = [
   { name: 'Fraud → Ledger', today: 2 * TRAY, pts: [[8.5, 2.1, 1.4], [11.5, 2.1, 1.4], [11.5, 2.1, .35], [12.2, 2.1, .35], [12.2, 3, .35], [13, 3, .35]] },
   { name: 'Client → Audit', today: 0, pts: [[-5, 2.4, .35], [-5, -2, .35], [3.7, -2, .35], [3.7, -2, .35 + B], [4.3, -2, .35 + B], [4.3, -2, .35], [13, -2, .35]],
     // tunnel: straight down through a hole in the ground, under the other line, back up
-    tunnel: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35], [3.6, -2, -.25], [4.4, -2, -.25], [4.4, -2, .35], [13, -2, .35]], holes: [[3.6, -2], [4.4, -2]], portals: [[3.6, -2], [4.4, -2]] },
+    tunnel: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35], [3.6, -2, -.25], [4.4, -2, -.25], [4.4, -2, .35], [13, -2, .35]], plain: [[-5, 2.4, .35], [-5, -2, .35], [13, -2, .35]], holes: [[3.6, -2], [4.4, -2]], portals: [[3.6, -2], [4.4, -2]] },
   { name: 'Notifier → Pay API', today: TRAY, pts: [[4, -3.8, .35], [4, -1.2, .35], [2, -1.2, .35], [2, -0.5, .35], [2, -0.5, .6], [2, 2.4, .6]] },
   { name: 'Ledger → Payments', today: TRAY, pts: [[14, 3.6, .35], [14, 4.1, .35], [14, 4.1, .125], [14, 7.5, .125], [5.5, 7.5, .125], [5.5, 6, .125]] },
 ]
@@ -149,8 +149,8 @@ function drawEdge(pts, group, arrow = true) {
   cone.position.copy(tipBase).addScaledVector(dir, 0.175)
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); group.add(cone)
 }
-const groups = { new: new THREE.Group(), today: new THREE.Group(), tunnel: new THREE.Group(), portal: new THREE.Group() }
-// Portal, as in the game: two oval portals, blue where the line goes in, orange where it comes out.
+const groups = { new: new THREE.Group(), today: new THREE.Group(), tunnel: new THREE.Group(), portal: new THREE.Group(), none: new THREE.Group() }
+// Portal, as in the game: two oval portals, both blue (one colour, unlike the game), in at one and out of the other.
 // Looking into either mouth you see through it, out of the other one (rendered from a camera shifted
 // by the gap between them). From behind, each is an opaque disc.
 const portals = []
@@ -171,12 +171,13 @@ function portal(x, z, y, facing, color, group) { // facing: +1 mouth towards +x,
 }
 for (const e of edges) {
   drawEdge(e.pts, groups.new)
+  drawEdge(e.plain ?? e.pts, groups.none)
   drawEdge(e.tunnel ?? e.pts, groups.tunnel)
   if (e.portals) {
     const [[ax, az], [bx, bz]] = e.portals, i = e.pts.findIndex(([x, z]) => x === 3.7 && z === -2)
     drawEdge([...e.pts.slice(0, i), [ax, az, .35]], groups.portal, false)
     drawEdge([[bx, bz, .35], ...e.pts.slice(i + 4)], groups.portal)
-    const pa = portal(ax, az, .35, -1, '#3fa7ff', groups.portal), pb = portal(bx, bz, .35, 1, '#ff8a2a', groups.portal); pa.other = pb; pb.other = pa
+    const pa = portal(ax, az, .35, -1, '#3fa7ff', groups.portal), pb = portal(bx, bz, .35, 1, '#3fa7ff', groups.portal); pa.other = pb; pb.other = pa
   } else drawEdge(e.pts, groups.portal)
   for (const [x, z] of e.holes ?? []) {
     const hole = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), new THREE.MeshBasicMaterial({ color: '#000' }))
@@ -186,7 +187,7 @@ for (const e of edges) {
   // Today: one height for the whole line, the higher end's surface + .06, no steps, no bridges
   drawEdge(e.pts.map(([x, z]) => [x, z, e.today + 0.06]), groups.today)
 }
-for (const k in groups) { scene.add(groups[k]); groups[k].visible = k === 'new' }
+for (const k in groups) { scene.add(groups[k]); groups[k].visible = k === 'none' }
 
 // cameras
 const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 200)

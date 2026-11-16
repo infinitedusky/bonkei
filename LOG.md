@@ -81,10 +81,10 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 **Decision.**
 - An edge meets a node at the middle of a side, **halfway up the block** (centred vertically), not on the surface it stands on.
 - When the two ends are at different heights, the line makes **one** vertical step, straight to the other end's height (never a staircase). It stands just outside the outermost tray rim the line crosses, or, if it crosses none, a short way out from the higher end (the taller block, or a block above a subgraph's rim). The same rule covers any two ends of different height.
-- Where lines cross, the horizontal one (in plan) changes; the other stays straight. How it gets past is a **crossing style the viewer selects**, one per diagram:
+- Where lines cross, the horizontal one (in plan) changes; the other stays straight. How it gets past is a **crossing style the viewer selects**, one per diagram. The default is **none**: lines cross flat, as today. Steps are not optional; they are always on. The styles are:
   - **Bridge**: a small vertical hop over the other line, invisible from above.
   - **Tunnel**: down through a hole in the ground (or the tray) and back up through a second hole; from above it reads as a break between two holes.
-  - **Portal**: as in the game Portal, in through a blue oval and out of an orange one past the crossing; looking into one you see out of the other, and from behind they are opaque.
+  - **Portal**: as in the game Portal, in through one oval and out of another past the crossing, both the same colour (not the game's blue and orange); looking into one you see out of the other, and from behind they are opaque.
 - Steps lie in the line's own vertical plane, so flat view shows no steps.
 
 **Alternatives considered.**
