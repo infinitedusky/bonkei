@@ -187,10 +187,15 @@ const checkout = `sequenceDiagram
   Fraud-xPayments: late chargeback signal
 `
 
+// one node with ten lines: with 'Ends: Spread' each line meets the hub at its own point
+const hub = `flowchart LR
+  Hub[Hub]
+${Array.from({ length: 10 }, (_, i) => `  Hub --> T${i}[Target ${i}]`).join('\n')}`
 export const SAMPLES: Record<string, string> = {
   'flow: small (sample.mmd)': small,
   'flow: large (~50 nodes)': large,
   'flow: wide (30 → 5)': wide,
+  'flow: hub (1 → 10)': hub,
   'seq: login flow': login,
   'seq: checkout flow': checkout,
 }

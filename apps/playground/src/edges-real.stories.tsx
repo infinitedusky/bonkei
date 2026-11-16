@@ -3,9 +3,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useEffect, useState } from 'react'
 import { parse, layout, SceneView } from 'bonkei/internal'
-import type { LayoutResult, Mode, CrossingStyle, EdgeStats, AvoidCrossings } from 'bonkei/internal'
+import type { LayoutResult, Mode, CrossingStyle, EdgeStats, AvoidCrossings, Ends } from 'bonkei/internal'
 import sample from './sample.mmd?raw'
 import { SAMPLES } from './samples'
+
+const hub = SAMPLES['flow: hub (1 → 10)']
 
 const four = `flowchart TD
   C((Centre))
@@ -59,15 +61,15 @@ const sibling = `flowchart LR
   end
   A --> B`
 
-type Args = { mode: Mode; crossings: CrossingStyle; avoid: AvoidCrossings }
+type Args = { mode: Mode; crossings: CrossingStyle; avoid: AvoidCrossings; ends: Ends }
 
-function Diagram({ src, mode, crossings, avoid = 'some', heights = {}, onStats }: { src: string; mode: Mode; crossings: CrossingStyle; avoid?: AvoidCrossings; heights?: Record<string, number>; onStats?: (s: EdgeStats) => void }) {
+function Diagram({ src, mode, crossings, avoid = 'some', ends = 'midpoint', heights = {}, onStats }: { src: string; mode: Mode; crossings: CrossingStyle; avoid?: AvoidCrossings; ends?: Ends; heights?: Record<string, number>; onStats?: (s: EdgeStats) => void }) {
   const [data, setData] = useState<LayoutResult | null>(null)
   useEffect(() => { layout(parse(src)).then(d => setData({ ...d, boxes: d.boxes.map(b => heights[b.id] ? { ...b, height: heights[b.id] } : b) })) }, [src])
   const [stats, setStats] = useState<EdgeStats | null>(null)
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <SceneView data={data} labelMode="top" mode={mode} crossings={crossings} avoidCrossings={avoid} onEdgeStats={s => { setStats(s); onStats?.(s) }} />
+      <SceneView data={data} labelMode="top" mode={mode} crossings={crossings} avoidCrossings={avoid} ends={ends} onEdgeStats={s => { setStats(s); onStats?.(s) }} />
       {stats && <div style={{ position: 'absolute', left: 12, top: 10, color: '#9aa6c0', font: '12px monospace' }}>
         crossings {stats.crossings} · bridge {stats.bridge} · tunnel {stats.tunnel} · portal {stats.portal} · no room {stats.skipped} · docked {stats.fallbacks + stats.trayDocks} · plan {stats.recomputeMs.toFixed(1)} ms · routed {Math.round(stats.routeMs)} ms · unroutable {stats.unroutable}
         <br />[avoid {stats.avoidCrossings}] plan crossings {stats.quality.crossings} · overlapping {stats.quality.overlaps} · doubling back {stats.quality.doublingBack} · length/direct {stats.quality.lengthRatio} · through blocks {stats.quality.throughBlocks} / foreign trays {stats.quality.throughTrays}</div>}
@@ -77,16 +79,17 @@ function Diagram({ src, mode, crossings, avoid = 'some', heights = {}, onStats }
 
 const meta: Meta<Args> = {
   title: 'Edges in 3D (real layout)',
-  args: { mode: 'iso', crossings: 'none', avoid: 'some' },
+  args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'midpoint' },
   argTypes: {
     mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] },
     crossings: { control: 'inline-radio', options: ['none', 'bridge', 'tunnel', 'portal'] },
     avoid: { control: 'inline-radio', options: ['off', 'some', 'strong'] },
+    ends: { control: 'inline-radio', options: ['midpoint', 'spread'] },
   },
 }
 export default meta
 type Story = StoryObj<Args>
-const story = (src: string, heights?: Record<string, number>): Story => ({ render: a => <Diagram src={src} mode={a.mode} crossings={a.crossings} avoid={a.avoid} heights={heights} /> })
+const story = (src: string, heights?: Record<string, number>): Story => ({ render: a => <Diagram src={src} mode={a.mode} crossings={a.crossings} avoid={a.avoid} ends={a.ends} heights={heights} /> })
 
 /** Req 1: top-down, every line leaves the bottom and arrives at the top, at the middle of the side, halfway up. */
 export const FourDirectionsTD: Story = story(four)
@@ -110,3 +113,6 @@ export const EdgeToSubgraph: Story = story(toTray)
 export const Sample: Story = story(sample)
 /** BON-99: the 50-node sample in iso, routed by libavoid. Pick a crossing style and how hard the router avoids crossings; the readout shows the quality. */
 export const LargeSample: Story = { ...story(Object.values(SAMPLES)[1]), args: { mode: 'iso', crossings: 'bridge', avoid: 'some' } }
+/** BON-99: one node with ten lines. Midpoint: they leave the same point and fan out. Spread: each line meets the hub at its own point around it. */
+export const HubSpread: Story = { ...story(hub), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'spread' } }
+export const HubMidpoint: Story = { ...story(hub), args: { mode: 'iso', crossings: 'none', avoid: 'some', ends: 'midpoint' } }
