@@ -174,7 +174,7 @@ for (const e of edges) {
   // Today: one height for the whole line, the higher end's surface + .06, no steps, no bridges
   drawEdge(e.pts.map(([x, z]) => [x, z, e.today + 0.06]), groups.today)
 }
-scene.add(groups.new, groups.today, groups.tunnel); groups.today.visible = false; groups.tunnel.visible = false
+for (const k in groups) { scene.add(groups[k]); groups[k].visible = k === 'new' }
 
 // cameras
 const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 200)
