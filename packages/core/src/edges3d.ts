@@ -17,6 +17,7 @@ export const SLOT_MARGIN = 0.1 // and runs this far past the dipped stretch each
 export const DIP = { ground: 0.25, tray: 0.1 }
 export const SLOT_DEPTH = { ground: 0.4, tray: 0.18 } // a tray is TRAY (0.25) thick: its trough stays inside it
 export const SLOT_GAP = 0.25 // troughs closer than this are merged into one
+const CLUSTER = 0.45 // crossings closer than this along a line share one bridge / trough / portal pair
 const TOUCH = 0.2 // lines whose heights differ by less than this at a crossing would touch
 const EPS = 1e-6
 
@@ -220,7 +221,7 @@ export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body
   const plans: EdgePlan[] = lines.map(l => ({ parts: [l], slots: [], portals: [] }))
   if (!todo.length) return { plans, stats, slots: [] }
 
-  const need = style === 'bridge' ? 0.06 : style === 'portal' ? 0.1 : 0.2
+  const need = style === 'bridge' ? 0.06 : style === 'portal' ? 0.1 : 0.12
   // who changes: the line along x, unless it cannot (room each side of the crossing along its own segment) and the other can
   type Ch = { edge: number; seg: number; axis: 0 | 1; along: number; cross: number; hh: number; hv: number }
   const roomOf = (edge: number, seg: number, axis: 0 | 1, along: number) => {
@@ -259,23 +260,31 @@ export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body
       const d = Math.sign(b[ax] - a[ax])
       mine.sort((p, q) => d * (p.along - q.along))
       const last = seg === line.length - 2
-      // room each side of a crossing: the segment's ends and its neighbours; the last segment keeps the arrowhead clear if it can
+      // crossings closer than CLUSTER along the line (a bundle of nudged parallel lines) get one gap together; t is the distance along the segment's own direction
+      type Cl = { t0: number; t1: number; cross: number; hh: number; hv: number }
+      const cls: Cl[] = []
+      for (const c of mine) {
+        const t = d * c.along, l = cls[cls.length - 1]
+        if (l && t - l.t1 < CLUSTER) { l.t1 = t; l.hh = Math.max(l.hh, c.hh); l.hv = Math.max(l.hv, c.hv) } else cls.push({ t0: t, t1: t, cross: c.cross, hh: c.hh, hv: c.hv })
+      }
+      const ta = d * a[ax], tb = d * b[ax]
+      // room each side of a gap: the segment's ends and its neighbours; the last segment keeps the arrowhead clear if it can
       const gapAt = (k: number, reserve: number) => {
-        const c = mine[k]
-        const before = k === 0 ? Math.abs(c.along - a[ax]) : Math.abs(c.along - mine[k - 1].along) / 2
-        const after = k === mine.length - 1 ? Math.abs(b[ax] - c.along) - reserve : Math.abs(mine[k + 1].along - c.along) / 2
+        const c = cls[k]
+        const before = k === 0 ? c.t0 - ta : (c.t0 - cls[k - 1].t1) / 2
+        const after = k === cls.length - 1 ? tb - c.t1 - reserve : (cls[k + 1].t0 - c.t1) / 2
         return Math.min(HALF_GAP, before - 0.05, after - 0.05)
       }
-      const gaps = mine.map((_, k) => { const g = gapAt(k, last ? 0.35 : 0); return g >= need ? g : gapAt(k, 0) })
-      mine.forEach((c, k) => {
+      const gaps = cls.map((_, k) => { const g = gapAt(k, last ? 0.35 : 0); return g >= need ? g : gapAt(k, 0) })
+      cls.forEach((c, k) => {
         const g = gaps[k]
-        if (g < need) { stats.skipped++; return } // no room: left as a plain crossing
-        const xe = c.along - d * g, xx = c.along + d * g, z = c.cross, y = a[2]
+        if (g < need) { stats.skipped += mine.filter(m => d * m.along >= c.t0 - EPS && d * m.along <= c.t1 + EPS).length; return } // no room: left as a plain crossing
+        const xe = d * (c.t0 - g), xx = d * (c.t1 + g), mid = d * (c.t0 + c.t1) / 2, z = c.cross, y = a[2]
         if (style === 'bridge') {
           const top = Math.max(c.hh, c.hv) + RISE
           emit(pt(ax, xe, z, y)); emit(pt(ax, xe, z, top)); emit(pt(ax, xx, z, top)); emit(pt(ax, xx, z, y)); stats.bridge++
         } else if (style === 'tunnel') {
-          const [sx, sz] = ax === 0 ? [c.along, z] : [z, c.along]
+          const [sx, sz] = ax === 0 ? [mid, z] : [z, mid]
           const sf = surfaceAt(sx, sz, bodies), kind = sf.tray ? 'tray' : 'ground', bottom = sf.top - DIP[kind]
           emit(pt(ax, xe, z, y)); emit(pt(ax, xe, z, bottom)); emit(pt(ax, xx, z, bottom)); emit(pt(ax, xx, z, y))
           const lo = Math.min(xe, xx) - SLOT_MARGIN, hi = Math.max(xe, xx) + SLOT_MARGIN

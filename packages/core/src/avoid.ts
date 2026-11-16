@@ -41,11 +41,12 @@ export const TUNE: AvoidTune = { buffer: 10, nudge: 10, segment: 10, reverse: 20
 // ---- loading the wasm
 let loading: Promise<Avoid> | null = null
 let wasmUrl: string | undefined
-/** Where the browser finds libavoid.wasm, if the bundler does not find it itself (Vite does). Call before the first layout. */
+/** Where the browser finds libavoid.wasm. By default the file beside this module (`./libavoid.wasm`), which Vite, webpack and Rollup turn into an asset; call this before the first layout to point elsewhere. */
 export function setAvoidWasm(url: string) { wasmUrl = url }
 /** Loads the wasm once. Rejects if it cannot load (the caller falls back to ELK's routes). */
 export function loadAvoid(): Promise<Avoid> {
-  loading ??= AvoidLib.load(wasmUrl).then(() => AvoidLib.getInstance()).catch(e => { loading = null; throw e })
+  // Node loads the wasm from disk itself; a bundled page needs a URL, and libavoid-js's own default does not survive bundling
+  loading ??= AvoidLib.load(wasmUrl ?? (typeof document !== 'undefined' ? new URL('./libavoid.wasm', import.meta.url).href : undefined)).then(() => AvoidLib.getInstance()).catch(e => { loading = null; throw e })
   return loading
 }
 /** The loaded module, or null while it has not loaded. */
