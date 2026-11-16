@@ -13,8 +13,13 @@ type Crossing = 'today' | 'none' | 'bridge' | 'tunnel' | 'portal'
 type P = [number, number, number] // x, z (plan, world units), height
 
 const LINE = '#e8edf7'
-const LINE_ON_WHITE = '#2b3445' // white lines vanish on a white ground
-type Ground = 'dark' | 'white'
+const LINE_ON_WHITE = '#1f2633' // light lines vanish on a light ground
+type Ground = 'dark' | 'grey' | 'white'
+const GROUND: Record<Ground, { bg: string; grid: [string, string] }> = {
+  dark: { bg: '#0f1218', grid: ['#1d2433', '#161c28'] },
+  grey: { bg: '#a3a9b3', grid: ['#959ba6', '#9ba1ac'] },
+  white: { bg: '#ffffff', grid: ['#d5dae3', '#e6e9ef'] },
+}
 const LineColor = createContext(LINE)
 const PORTAL = '#3fa7ff'
 const TALL = 1.8 // Fraud Check's height, to show blocks of different heights
@@ -167,7 +172,7 @@ function Cam({ mode }: { mode: Mode }) {
 }
 
 function EdgesScene({ mode, crossing, edgeShadows, ground }: { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: Ground }) {
-  const white = ground === 'white', bg = white ? '#ffffff' : '#0f1218'
+  const light = ground !== 'dark', { bg, grid } = GROUND[ground]
   return (
     <div style={{ width: '100vw', height: '100vh', background: bg, position: 'relative' }}>
       <Canvas shadows dpr={[1, 2]}>
@@ -181,7 +186,7 @@ function EdgesScene({ mode, crossing, edgeShadows, ground }: { mode: Mode; cross
           <planeGeometry args={[80, 80]} />
           <meshStandardMaterial color={bg} roughness={1} />
         </mesh>
-        <gridHelper key={ground} args={[80, 80, white ? '#d5dae3' : '#1d2433', white ? '#e6e9ef' : '#161c28']} position={[4, 0.002, 1]} />
+        <gridHelper key={ground} args={[80, 80, grid[0], grid[1]]} position={[4, 0.002, 1]} />
         {trays.map(t => (
           <group key={t.id} position={[(t.r[0] + t.r[2]) / 2, t.level * TRAY, (t.r[1] + t.r[3]) / 2]}>
             <Tray b={t} labelMode="top" />
@@ -193,7 +198,7 @@ function EdgesScene({ mode, crossing, edgeShadows, ground }: { mode: Mode; cross
             <NodeBody b={n} labelMode="top" />
           </group>
         ))}
-        <LineColor.Provider value={white ? LINE_ON_WHITE : LINE}><EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider></LineColor.Provider>
+        <LineColor.Provider value={light ? LINE_ON_WHITE : LINE}><EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider></LineColor.Provider>
       </Canvas>
       <div style={{ position: 'absolute', top: 10, left: 12, color: '#9aa6c0', font: '12px monospace', pointerEvents: 'none' }}>
         mockup · made-up data (a payments flow), hand-placed · crossings: {crossing}
@@ -204,12 +209,12 @@ function EdgesScene({ mode, crossing, edgeShadows, ground }: { mode: Mode; cross
 
 const meta: Meta<{ mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: Ground }> = {
   title: 'Mockups/Edges in 3D',
-  args: { mode: 'iso', edgeShadows: false, ground: 'white' },
+  args: { mode: 'iso', edgeShadows: false, ground: 'grey' },
   argTypes: {
     mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] },
     crossing: { control: 'inline-radio', options: ['today', 'none', 'bridge', 'tunnel', 'portal'] },
     edgeShadows: { control: 'boolean' },
-    ground: { control: 'inline-radio', options: ['dark', 'white'] },
+    ground: { control: 'inline-radio', options: ['dark', 'grey', 'white'] },
   },
   render: ({ mode, crossing, edgeShadows, ground }) => <EdgesScene mode={mode} crossing={crossing} edgeShadows={edgeShadows} ground={ground} />,
 }
