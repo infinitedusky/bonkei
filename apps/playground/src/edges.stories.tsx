@@ -16,7 +16,10 @@ const LINE = '#e8edf7'
 const LINE_ON_WHITE = '#1f2633' // light lines vanish on a light ground
 const PRESETS = { dark: '#0f1218', grey: '#a3a9b3', white: '#ffffff' }
 // grid a shade off the ground; lines dark on a light ground, light on a dark one
-const shade = (hex: string, dl: number) => '#' + new THREE.Color(hex).offsetHSL(0, 0, dl).getHexString()
+const shade = (hex: string, dl: number) => {
+  const c = new THREE.Color(hex), hsl = c.getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace)
+  return '#' + c.setHSL(hsl.h, hsl.s, Math.min(1, Math.max(0, hsl.l + dl)), THREE.SRGBColorSpace).getHexString()
+}
 const isLight = (hex: string) => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace).l > 0.45
 const LineColor = createContext(LINE)
 const PORTAL = '#3fa7ff'
@@ -201,7 +204,7 @@ function EdgesScene(initial: Args) {
   useEffect(() => setA(initial), [initial.mode, initial.crossing, initial.edgeShadows, initial.ground, initial.edgeColor])
   const set = (p: Partial<Args>) => setA(x => ({ ...x, ...p }))
   const { mode, crossing, edgeShadows, ground: bg, edgeColor } = a
-  const light = isLight(bg), grid = [shade(bg, light ? -0.06 : 0.05), shade(bg, light ? -0.03 : 0.025)]
+  const light = isLight(bg), grid = [shade(bg, light ? -0.14 : 0.10), shade(bg, light ? -0.08 : 0.06)] // a faint grid on the floor
   return (
     <div style={{ width: '100vw', height: '100vh', background: bg, position: 'relative' }}>
       <Canvas shadows dpr={[1, 2]}>
