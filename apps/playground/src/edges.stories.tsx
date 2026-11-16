@@ -17,7 +17,7 @@ const LINE_ON_WHITE = '#1f2633' // light lines vanish on a light ground
 const PRESETS = { dark: '#0f1218', grey: '#a3a9b3', white: '#ffffff' }
 // grid a shade off the ground; lines dark on a light ground, light on a dark one
 const shade = (hex: string, dl: number) => '#' + new THREE.Color(hex).offsetHSL(0, 0, dl).getHexString()
-const isLight = (hex: string) => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).l > 0.45
+const isLight = (hex: string) => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace).l > 0.45
 const LineColor = createContext(LINE)
 const PORTAL = '#3fa7ff'
 const TALL = 1.8 // Fraud Check's height, to show blocks of different heights
