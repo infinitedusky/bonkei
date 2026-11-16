@@ -1,7 +1,9 @@
 import * as THREE from 'three'
 import { useMemo } from 'react'
 import { Text, Billboard } from '@react-three/drei'
-import type { Box } from './model'
+import type { Box, LabelMode } from './model'
+
+export type { LabelMode }
 
 export const S = 1 / 40 // px -> world
 export const TRAY = 0.25 // tray thickness (one level)
@@ -32,8 +34,6 @@ function geometry(shape: Box['shape'], w: number, h: number) {
   g.rotateX(-Math.PI / 2)
   return g
 }
-
-export type LabelMode = 'top' | 'billboard'
 
 export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
   const w = b.w * S, h = b.h * S

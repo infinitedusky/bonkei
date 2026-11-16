@@ -1,5 +1,5 @@
 import ELK from 'elkjs/lib/elk.bundled.js'
-import type { Graph, Box, Route, LayoutResult } from './model'
+import type { Graph, Box, Route, LayoutResult } from './model.ts'
 
 // Swap-friendly interface: layout(graph) -> { boxes, routes }.
 export type LayoutEngine = (g: Graph) => Promise<LayoutResult>

@@ -1,18 +1,21 @@
 // Mermaid sequenceDiagram: parse + our own layout (no ELK). Layout plane: x = participants, y = time (down).
+import { REASON, type Dropped } from './model.ts'
+
 export interface SPart { id: string; label: string; actor: boolean }
 export type SItem =
   | { t: 'msg'; from: string; to: string; label: string; dashed: boolean; head: 'arrow' | 'cross' | 'open'; actTo: boolean; deactFrom: boolean }
   | { t: 'act'; id: string } | { t: 'deact'; id: string }
   | { t: 'note'; over: string[]; side: 'over' | 'left' | 'right'; text: string }
   | { t: 'open'; kind: string; label: string } | { t: 'else'; label: string } | { t: 'end' }
-export interface SeqDoc { parts: SPart[]; items: SItem[] }
+export interface SeqDoc { parts: SPart[]; items: SItem[]; dropped: Dropped[] }
 
 export const isSeq = (src: string) => /^\s*sequenceDiagram/m.test(src)
 
-export function parseSeq(src: string): SeqDoc {
-  const parts = new Map<string, SPart>(), items: SItem[] = []
+// `lineOffset` is the number of source lines before `src` (a frontmatter block), as in `parse`.
+export function parseSeq(src: string, lineOffset = 0): SeqDoc {
+  const parts = new Map<string, SPart>(), items: SItem[] = [], dropped: Dropped[] = []
   const ensure = (id: string) => { if (!parts.has(id)) parts.set(id, { id, label: id, actor: false }) }
-  for (const raw of src.split('\n')) {
+  for (const [i, raw] of src.split('\n').entries()) {
     const l = raw.trim()
     if (!l || l.startsWith('%%') || l.startsWith('sequenceDiagram') || l.startsWith('autonumber') || l.startsWith('title')) continue
     let m = l.match(/^(participant|actor)\s+(\w+)(?:\s+as\s+(.+))?$/)
@@ -35,9 +38,11 @@ export function parseSeq(src: string): SeqDoc {
       const a = m[2]
       items.push({ t: 'msg', from: m[1], to: m[4], label: m[5], dashed: a.startsWith('--'),
         head: a.endsWith('x') ? 'cross' : a.endsWith('>') && !a.endsWith('>>') ? 'open' : 'arrow', actTo: m[3] === '+', deactFrom: m[3] === '-' })
+      continue
     }
+    dropped.push({ line: i + 1 + lineOffset, text: l, reason: REASON.statement })
   }
-  return { parts: [...parts.values()], items }
+  return { parts: [...parts.values()], items, dropped }
 }
 
 export interface SeqLayout {
