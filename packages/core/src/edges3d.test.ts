@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mergeSlots, stepRoute, findCrossings, applyCrossings, endHeight, surfaceAt, STEP_OFFSET, RISE, DIP, SLOT_W, type Body, type P3 } from './edges3d.ts'
 import { TRAY, NODE_H } from './scale.ts'
-import { reroute, dock, layout, sideMid } from './layout.ts'
+import { reroute, dock, layout, sideMid, PAD, SPACING } from './layout.ts'
 import { parse } from './parser.ts'
 import type { Box } from './model.ts'
 
@@ -196,5 +196,49 @@ test('ELK ports: every route of a nested sample meets its node boxes at side mid
       assert.ok(near(e.points[0], sideMid(a, out)), `${dir} ${e.id} start`)
       assert.ok(near(e.points.at(-1)!, sideMid(b, inn)), `${dir} ${e.id} end`)
     }
+  }
+})
+
+test('spacing holds at every nesting level: siblings are NODE_GAP apart, children are PAD from their tray edge', async () => {
+  const src = `flowchart TD
+  subgraph A["A"]
+    subgraph B["B"]
+      subgraph C["C"]
+        c1[One] --> c2[Two]
+        c1 --> c3[Three]
+      end
+      b1[Four] --> c1
+      b2[Five] --> c3
+    end
+    subgraph D["D"]
+      d1[Six] --> d2[Seven]
+      d1 --> d3[Eight]
+    end
+    a1[Nine] --> b1
+    B --> D
+  end
+  x1[Ten] --> a1
+  x2[Eleven] --> d3
+  subgraph E["E"]
+    e1[Twelve] --> e2[Thirteen]
+  end
+  x1 --> e1`
+  const r = await layout(parse(src))
+  const NODE = Number(SPACING['elk.spacing.nodeNode']), tol = 1.5
+  const gap = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w), b.y - (a.y + a.h), a.y - (b.y + b.h))
+  const byId = new Map(r.boxes.map(b => [b.id, b]))
+  let pairs = 0, levels = new Set<number>()
+  for (const a of r.boxes) for (const b of r.boxes) {
+    if (a.id >= b.id || a.parent !== b.parent) continue
+    pairs++; levels.add(a.level)
+    assert.ok(gap(a, b) >= NODE - tol, `${a.id}/${b.id} at level ${a.level}: gap ${gap(a, b)}`)
+  }
+  assert.ok(levels.size >= 3 && pairs > 10)
+  for (const b of r.boxes) {
+    const p = b.parent && byId.get(b.parent)
+    if (!p) continue
+    assert.ok(b.x - p.x >= PAD.side - tol && p.x + p.w - (b.x + b.w) >= PAD.side - tol && p.y + p.h - (b.y + b.h) >= PAD.side - tol, `${b.id} to ${p.id} edge`)
+    assert.ok(b.y - p.y >= PAD.top - tol, `${b.id} below ${p.id} label`)
   }
 })

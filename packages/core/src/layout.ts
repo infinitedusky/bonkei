@@ -9,6 +9,13 @@ const elk = new ELK()
 // Room inside a tray: the label sits in the top, and a step stands 20 px outside a tray's rim without landing on a node.
 // The drag clamp in SceneView follows it.
 export const PAD = { top: 60, side: 40 }
+// Spacing options, shared by the root and every tray so they cannot drift: ELK applies them to the children of the node they are set on.
+export const SPACING = {
+  'elk.spacing.nodeNode': '56',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '84',
+  'elk.spacing.edgeNode': '32',
+  'elk.layered.spacing.edgeNodeBetweenLayers': '32',
+}
 
 function sizeOf(n: { label: string; shape: string }) {
   const w = Math.min(220, Math.max(110, n.label.length * 9 + 36))
@@ -25,7 +32,7 @@ export const layout: LayoutEngine = async (g) => {
   const chain = (id: string) => { const c: (string | undefined)[] = [undefined]; const l: string[] = []; for (let p: string | undefined = id; p; p = parentOf.get(p)) l.unshift(p); return c.concat(l) }
 
   const eNodes = new Map<string, any>()
-  for (const grp of g.groups) eNodes.set(grp.id, { id: grp.id, children: [], edges: [], layoutOptions: { 'elk.padding': `[top=${PAD.top},left=${PAD.side},bottom=${PAD.side},right=${PAD.side}]` } })
+  for (const grp of g.groups) eNodes.set(grp.id, { id: grp.id, children: [], edges: [], layoutOptions: { ...SPACING, 'elk.padding': `[top=${PAD.top},left=${PAD.side},bottom=${PAD.side},right=${PAD.side}]` } })
   const TD = g.direction !== 'LR'
   for (const n of g.nodes) {
     const s = sizeOf(n)
@@ -43,10 +50,7 @@ export const layout: LayoutEngine = async (g) => {
       'elk.edgeRouting': 'ORTHOGONAL',
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       'elk.json.edgeCoords': 'ROOT',
-      'elk.spacing.nodeNode': '56',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '84',
-      'elk.spacing.edgeNode': '32',
-      'elk.layered.spacing.edgeNodeBetweenLayers': '32',
+      ...SPACING,
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
       'elk.padding': '[top=40,left=40,bottom=40,right=40]',
     },
