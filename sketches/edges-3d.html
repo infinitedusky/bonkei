@@ -44,7 +44,7 @@
       <li><b>One step per line.</b> Pay API → Fraud Check climbs once, just outside the Risk tray, straight to Fraud Check's mid-height.</li>
       <li><b>Two trays deep.</b> Fraud Check → Ledger stays high over both rims and drops once, outside the outer tray.</li>
       <li><b>Same tray.</b> Fraud Check → Review crosses no rim, so it drops a short way out from the taller block.</li>
-      <li><b>Bridge, tunnel or portal.</b> Where Client → Audit crosses Notifier → Pay API it either hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end. <b>Portal</b>: it goes into an upright ring and comes out of a second one past the crossing. From the side you see it pass through the rings; from above the line stops at a thin bar.</li>
+      <li><b>Bridge, tunnel or portal.</b> Where Client → Audit crosses Notifier → Pay API it either hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end. <b>Portal</b>: it goes into an upright ring and comes out of a second one past the crossing. From outside, each ring's mouth looks like a tunnel the line goes into; from between the rings (the inside) their backs are opaque. From above the line stops at a thin bar.</li>
       <li><b>Into a subgraph.</b> Ledger → Payments drops to meet the tray's edge halfway up its rim.</li>
       <li><b>Flat.</b> Switch to Flat: steps and bridges vanish, and the picture matches Today.</li>
     </ol>
@@ -151,11 +151,25 @@ function drawEdge(pts, group, arrow = true) {
 }
 const groups = { new: new THREE.Group(), today: new THREE.Group(), tunnel: new THREE.Group(), portal: new THREE.Group() }
 // Portal: the line goes into an upright ring before the crossing and comes out of a second ring after it.
-// From the side you see it pass straight through the rings; from above the rings are thin bars and the line stops.
-function portal(x, z, y, group) {
+// Each ring has a mouth on the side the line enters or leaves by, drawn as a tunnel receding into the dark;
+// seen from between the two rings (from the inside), each ring's back is an opaque disc.
+const tunnelTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 256
+  const g = c.getContext('2d')
+  const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128)
+  grad.addColorStop(0, '#000'); grad.addColorStop(0.55, '#140c2e'); grad.addColorStop(1, '#6a4bd0')
+  g.fillStyle = grad; g.fillRect(0, 0, 256, 256)
+  g.strokeStyle = 'rgba(190,160,255,.35)'; g.lineWidth = 3
+  for (let r = 118; r > 8; r *= 0.72) { g.beginPath(); g.arc(128, 128, r, 0, Math.PI * 2); g.stroke() }
+  return new THREE.CanvasTexture(c)
+})()
+function portal(x, z, y, facing, group) { // facing: +1 mouth towards +x, -1 towards -x
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.035, 10, 32), new THREE.MeshBasicMaterial({ color: '#b48cff' }))
-  const face = new THREE.Mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshBasicMaterial({ color: '#5b3fa8', transparent: true, opacity: 0.55, side: THREE.DoubleSide }))
-  for (const m of [ring, face]) { m.rotation.y = Math.PI / 2; m.position.set(x, y, z); group.add(m) }
+  ring.rotation.y = Math.PI / 2; ring.position.set(x, y, z); group.add(ring)
+  const mouth = new THREE.Mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshBasicMaterial({ map: tunnelTex }))
+  mouth.rotation.y = facing * Math.PI / 2; mouth.position.set(x + facing * 0.003, y, z); group.add(mouth)
+  const back = new THREE.Mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshStandardMaterial({ color: '#3a2a6e', roughness: 0.8 }))
+  back.rotation.y = -facing * Math.PI / 2; back.position.set(x - facing * 0.003, y, z); group.add(back)
 }
 for (const e of edges) {
   drawEdge(e.pts, groups.new)
@@ -164,7 +178,7 @@ for (const e of edges) {
     const [[ax, az], [bx, bz]] = e.portals, i = e.pts.findIndex(([x, z]) => x === 3.7 && z === -2)
     drawEdge([...e.pts.slice(0, i), [ax, az, .35]], groups.portal, false)
     drawEdge([[bx, bz, .35], ...e.pts.slice(i + 4)], groups.portal)
-    portal(ax, az, .35, groups.portal); portal(bx, bz, .35, groups.portal)
+    portal(ax, az, .35, -1, groups.portal); portal(bx, bz, .35, 1, groups.portal)
   } else drawEdge(e.pts, groups.portal)
   for (const [x, z] of e.holes ?? []) {
     const hole = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), new THREE.MeshBasicMaterial({ color: '#000' }))
