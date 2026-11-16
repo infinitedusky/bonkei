@@ -1,18 +1,12 @@
 // Dev-only page for `pnpm capture` (scripts/capture-stills.mjs). Not a build input, never in dist/.
-// Renders a bare SceneView for ?sample=flow|seq&mode=flat|iso|3d and sets body[data-ready] once settled.
-import { useEffect, useState } from 'react'
+// Renders a bare <Bonkei /> for ?sample=flow|seq&mode=flat|iso|3d and sets body[data-ready] once
+// settled, or body[data-error] with the message if the diagram can't be drawn.
 import { createRoot } from 'react-dom/client'
-import { addAfterEffect } from '@react-three/fiber'
 import flowSrc from '../src/sample.mmd?raw'
 import { login } from '../src/login'
-import { isSeq, parseSeq, layoutSeq, type SeqLayout } from 'bonkei'
-import { parse } from 'bonkei'
-import { layout } from 'bonkei'
-import type { LayoutResult } from 'bonkei'
-import { SceneView } from 'bonkei'
-import { createCamera, type Mode } from 'bonkei'
+import { Bonkei, type BonkeiError, type Mode } from 'bonkei'
 
-// Keep WebGL frames readable by the screenshot without a SceneView prop.
+// Keep WebGL frames readable by the screenshot without a component prop.
 const getContext = HTMLCanvasElement.prototype.getContext
 HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, attrs?: unknown) {
   if (type === 'webgl' || type === 'webgl2') attrs = { ...(attrs as object), preserveDrawingBuffer: true }
@@ -23,30 +17,21 @@ const q = new URLSearchParams(location.search)
 const src = q.get('sample') === 'seq' ? login : flowSrc
 const m = q.get('mode')
 const mode: Mode = m === 'flat' || m === '3d' ? m : 'iso'
-const SETTLE_FRAMES = 60
-const camera = createCamera()
 
-function Capture() {
-  const [data, setData] = useState<LayoutResult | SeqLayout | null>(null)
-  useEffect(() => {
-    camera.setMode(mode)
-    void (async () => setData(isSeq(src) ? layoutSeq(parseSeq(src)) : await layout(parse(src))))()
-  }, [])
-  useEffect(() => {
-    if (!data) return
-    let n = 0
-    const unsub = addAfterEffect(() => {
-      // First frame with data: Rig has set camera.aspect, so refit, then snap (no tween).
-      if (n === 0) { camera.setMode(mode); Object.assign(camera.cur, camera.goal) }
-      if (++n > SETTLE_FRAMES) { document.body.dataset.ready = '1'; unsub() }
-    })
-    return unsub
-  }, [data])
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <SceneView camera={camera} data={data} labelMode="top" mode={mode} showFps={false} />
-    </div>
-  )
+// The first frame snaps the camera, so there is no tween to wait for. But drei <Text> (troika)
+// lays out its fonts asynchronously and shadows take frames to settle, so a still shot a few
+// frames after onReady can miss labels under swiftshader. This is a dev tool: waiting costs nothing.
+const SETTLE_FRAMES = 60
+
+function settle() {
+  let n = 0
+  const tick = () => { if (++n >= SETTLE_FRAMES) document.body.dataset.ready = '1'; else requestAnimationFrame(tick) }
+  requestAnimationFrame(tick)
 }
 
-createRoot(document.getElementById('root')!).render(<Capture />)
+const fmt = (e: BonkeiError) => `${e.kind} error${e.line !== undefined ? ` at line ${e.line}` : ''}: ${e.message}`
+
+createRoot(document.getElementById('root')!).render(
+  <Bonkei source={src} mode={mode} toolbar={false} controls={false}
+    onReady={settle} onError={e => { document.body.dataset.error = fmt(e) }} />,
+)

@@ -9,7 +9,6 @@
     "capture": "node scripts/capture-stills.mjs"
   },
   "dependencies": {
-    "@react-three/fiber": "^8.17.10",
     "bonkei": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

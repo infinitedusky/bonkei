@@ -17,7 +17,7 @@ const SHOTS = [
   { file: 'still-seq.png', sample: 'seq', mode: '3d', width: 800, height: 500, scale: 1 },
 ]
 
-const server = await createServer({ root, logLevel: 'warn', server: { port: 5199, strictPort: false } })
+const server = await createServer({ root, logLevel: 'warn', server: { port: 6231, strictPort: false } })
 let browser
 try {
   await server.listen()
@@ -32,7 +32,10 @@ try {
     const page = await ctx.newPage()
     page.on('pageerror', (e) => console.error(`[${s.file}] ${e.message}`))
     await page.goto(new URL(`dev/capture.html?sample=${s.sample}&mode=${s.mode}`, base).href)
-    await page.waitForSelector('body[data-ready]', { timeout: 60_000 })
+    // Ready after the settle, or failed fast: data-error carries the component's onError message.
+    await page.waitForSelector('body[data-ready], body[data-error]', { timeout: 60_000 })
+    const error = await page.evaluate(() => document.body.dataset.error)
+    if (error !== undefined) throw new Error(`[${s.file}] the diagram could not be drawn: ${error}`)
     await page.screenshot({ path: out(s.file) })
     await ctx.close()
     console.log(`wrote public/${s.file} (${s.width * s.scale}x${s.height * s.scale})`)
