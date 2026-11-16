@@ -8,6 +8,5 @@ const BASE = '/merman/app/' // custom domain: change to '/app/'
 export default defineConfig(({ command, isPreview }) => ({
   base: command === 'build' || isPreview ? BASE : '/app/',
   plugins: [react()],
-  optimizeDeps: { exclude: ['libavoid-js'] }, // dev: keep libavoid.wasm beside the module that loads it
   server: { host: true, allowedHosts: true, port: 5174, strictPort: true },
 }))

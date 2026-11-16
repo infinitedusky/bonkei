@@ -97,13 +97,13 @@ export const NestedWithTallBlock: Story = story(nested, { Fraud: 1.8 })
 /** Req 2: two sibling trays at the same height: the line stays level across the gap (assumed; for the person to confirm). */
 export const SiblingTrays: Story = story(sibling)
 /** Req 3, 4, 8: lines crossing on the ground. Pick bridge, tunnel or portal in the toolbar; try flat and 3D. */
-export const Crossing: Story = { ...story(crossing), args: { mode: 'iso', crossings: 'bridge' } }
-export const CrossingTunnel: Story = { ...story(crossing), args: { mode: 'iso', crossings: 'tunnel' } }
-export const CrossingPortal: Story = { ...story(crossing), args: { mode: '3d', crossings: 'portal' } }
+export const Crossing: Story = { ...story(crossing), args: { mode: 'iso', avoid: 'off', crossings: 'bridge' } }
+export const CrossingTunnel: Story = { ...story(crossing), args: { mode: 'iso', avoid: 'off', crossings: 'tunnel' } }
+export const CrossingPortal: Story = { ...story(crossing), args: { mode: '3d', avoid: 'off', crossings: 'portal' } }
 /** Req 9: the crossings sit on a tray; the tunnel goes down into the tray, with its holes on the tray's surface. */
-export const CrossingOnTray: Story = { ...story(trayCrossing), args: { mode: 'iso', crossings: 'tunnel' } }
+export const CrossingOnTray: Story = { ...story(trayCrossing), args: { mode: 'iso', avoid: 'off', crossings: 'tunnel' } }
 /** Criterion 10: 26 portal pairs. The nearer and bigger portals keep detail and update most; the rest step down. */
-export const ManyCrossings: Story = { ...story(many), args: { mode: '3d', crossings: 'portal' } }
+export const ManyCrossings: Story = { ...story(many), args: { mode: '3d', avoid: 'off', crossings: 'portal' } }
 /** Req 6: edges to and from a subgraph itself meet its rim at the middle of the side and step the same way. */
 export const EdgeToSubgraph: Story = story(toTray)
 /** The repo's small sample in the story viewer. */
