@@ -144,7 +144,8 @@ function drawEdge(pts, group, arrow = true) {
   const tipBase = v[n - 1].clone().addScaledVector(dir, -0.35)
   for (let i = 0; i < n - 2; i++) tube(v[i], v[i + 1], group)
   tube(v[n - 2], tipBase, group)
-  for (const p of v.slice(0, n - 1)) { const s = new THREE.Mesh(new THREE.SphereGeometry(R, 10, 8), lineMat); s.position.copy(p); group.add(s) }
+  // joints only: no ball at the start, so nothing pokes out behind a portal
+  for (const p of v.slice(1, n - 1)) { const s = new THREE.Mesh(new THREE.SphereGeometry(R, 10, 8), lineMat); s.position.copy(p); group.add(s) }
   const cone = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.35, 16), lineMat)
   cone.position.copy(tipBase).addScaledVector(dir, 0.175)
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); group.add(cone)
