@@ -119,6 +119,16 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
   const DIR: Record<Side, number> = { N: D.ConnDirUp, S: D.ConnDirDown, E: D.ConnDirRight, W: D.ConnDirLeft }
   const rect = (x: number, y: number, w: number, h: number) => ({ x, y, width: w, height: h })
 
+  // The side of a node that a line must leave or arrive by when it goes into or out of a tray: the side where the tray's door is cut, so the line
+  // runs straight to the door instead of leaving by another side and looping round to it.
+  const SIDE_PIN: Record<Side, number> = { N: 11, S: 12, E: 13, W: 14 }
+  const doorSide = (from: string, to: string, end: string): Side | null => {
+    const X = byId.get(end), O = byId.get(end === from ? to : from)
+    if (!X || !O || X.kind !== 'node') return null
+    const keep = new Set(ancestors(O.id).concat(O.id))
+    const first = ancestors(end).find(t => !keep.has(t))
+    return first ? exitSide(byId.get(first)!, centre(X), centre(O)) : null
+  }
   // 'spread': every line gets its own pin. Each is put on the side the flow uses for it (or, for a line against the flow, the side that faces its other end); a side that would hold more than a third of the node's lines (at least 3) hands the extras to the neighbouring side; on each
   // side the lines are spaced evenly, in the order of their other ends so they do not cross.
   const spreadClass = new Map<string, number>() // `${edge}:${node}` -> the pin class of that end
@@ -133,7 +143,8 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
       // the flow side (out of the bottom or right, into the top or left) when the other end lies ahead of or behind the node that way, else the side that faces it
       const lr = data.direction === 'LR', leaves = r.from === id
       const ahead = (lr ? dx : dy) > 0
-      const side: Side = leaves === ahead ? (lr ? (leaves ? 'E' : 'W') : (leaves ? 'S' : 'N')) : Math.abs(dy) * X.w > Math.abs(dx) * X.h ? (dy > 0 ? 'S' : 'N') : (dx > 0 ? 'E' : 'W')
+      const door = doorSide(r.from, r.to, id)
+      const side: Side = door ?? (leaves === ahead ? (lr ? (leaves ? 'E' : 'W') : (leaves ? 'S' : 'N')) : Math.abs(dy) * X.w > Math.abs(dx) * X.h ? (dy > 0 ? 'S' : 'N') : (dx > 0 ? 'E' : 'W'))
       ;(at.get(id) ?? at.set(id, []).get(id)!).push({ id: r.id, other: [ox, oy], side })
     }
     let cls = 100
@@ -171,7 +182,7 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
     const s = router.addShape(rect(b.x, b.y, b.w, b.h))
     if (ends === 'midpoint') {
       for (const [x, y, d] of [[0.5, 0, 'N'], [1, 0.5, 'E'], [0.5, 1, 'S'], [0, 0.5, 'W']] as [number, number, Side][])
-        s.addPin({ classId: PIN, x, y, directions: DIR[d] }).setExclusive(false)
+        { s.addPin({ classId: PIN, x, y, directions: DIR[d] }).setExclusive(false); s.addPin({ classId: SIDE_PIN[d], x: x + (d === 'N' || d === 'S' ? 0.002 : 0), y: y + (d === 'E' || d === 'W' ? 0.002 : 0), directions: DIR[d] }).setExclusive(false) }
     } else {
       for (const p of spreadPins.filter(q => q.node === b.id)) {
         const [x, y] = p.side === 'N' ? [p.f, 0] : p.side === 'S' ? [p.f, 1] : p.side === 'W' ? [0, p.f] : [1, p.f]
@@ -189,6 +200,10 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
   const gatesOf = new Map<string, { exit: Gate[]; enter: Gate[] }>() // edge -> gates left through (inner first) and entered through (outer first)
   const dockSide = new Map<string, Side>() // `${edge}:${end}` -> side of the tray that the edge docks at
   const Q = tune.trays === 'gates' ? 12 : 1 // gates whose lines are this close share one (openings stay where the line's own end is)
+  const doorOf = new Map<string, Side>() // `${edge}:${end}` -> side of the first tray door that end goes through
+  // where every door is, from where the nodes are now; called again after a node moves, so the doors follow the lines
+  const computeGates = () => {
+  gates.clear(); gatesOf.clear(); dockSide.clear(); doorOf.clear()
   for (const e of edges) {
     const mine = { exit: [] as Gate[], enter: [] as Gate[] }
     for (const [end, other, list] of [[e.from, e.to, mine.exit], [e.to, e.from, mine.enter]] as const) {
@@ -206,24 +221,30 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
         const key = `${tid}:${side}:${at}`
         const g = gates.get(key) ?? gates.set(key, { tray: tid, side, at, key }).get(key)!
         list.push(g)
+        if (!doorOf.has(`${e.id}:${end}`)) doorOf.set(`${e.id}:${end}`, side)
       }
     }
     mine.enter.reverse()
     gatesOf.set(e.id, mine)
   }
+  }
+  computeGates()
   // walls: four thin rects per tray. 'walls': broken where a line enters (an opening `gap` wide); 'gates': closed but for gate shapes
   const gateShape = new Map<string, ShapeRef>()
   const OUT = 2, IN = 3 // pin classes of a gate: facing out of the tray, facing into it
   const gw = tune.gate
-  if (tune.trays !== 'none') for (const t of byId.values()) {
-    if (t.kind !== 'group') continue
+  const wallShapes = new Map<string, ShapeRef[]>()
+  const buildWalls = (t: Box) => {
+    for (const old of wallShapes.get(t.id) ?? []) router.deleteShape(old)
+    const mine: ShapeRef[] = []
+    wallShapes.set(t.id, mine)
     const th = tune.wall
     for (const side of ['N', 'S', 'E', 'W'] as Side[]) {
       const horiz = side === 'N' || side === 'S'
       const lo = horiz ? t.x : t.y, hi = lo + (horiz ? t.w : t.h)
       const fixed = side === 'N' ? t.y : side === 'S' ? t.y + t.h : side === 'W' ? t.x : t.x + t.w
       const here = [...gates.values()].filter(g => g.tray === t.id && g.side === side).sort((a, b) => a.at - b.at)
-      const wall = (a: number, b: number) => { if (b - a > 1) router.addShape(horiz ? rect(a, fixed - th / 2, b - a, th) : rect(fixed - th / 2, a, th, b - a)) }
+      const wall = (a: number, b: number) => { if (b - a > 1) mine.push(router.addShape(horiz ? rect(a, fixed - th / 2, b - a, th) : rect(fixed - th / 2, a, th, b - a))) }
       let at = lo
       if (tune.trays === 'walls') {
         const merged: [number, number][] = []
@@ -246,6 +267,9 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
       wall(at, hi)
     }
   }
+  const gateSig = (t: Box) => [...gates.values()].filter(g => g.tray === t.id).map(g => g.key).sort().join('|')
+  const wallSig = new Map<string, string>()
+  if (tune.trays !== 'none') for (const t of byId.values()) if (t.kind === 'group') { buildWalls(t); wallSig.set(t.id, gateSig(t)) }
   // an edge to a tray itself ends at a free point just outside the rim's midpoint on the side facing the other end (no obstacle: a shape there would block the narrow room between nested trays)
   const DOCK_OUT = 14 // clear of the rim wall and its buffer
   const dockPoint = (tray: string, side: Side) => {
@@ -277,6 +301,23 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
   router.processTransaction()
   router.setRoutingParameter(P.crossingPenalty, tune.dragCrossing)
 
+  // After a node moves: the tray doors move to where the lines now go in and out, and a line whose door changed leaves its node by the side that
+  // now faces that door (the way a straight re-route picks the facing side), so it does not loop round to a door on the old side.
+  const followDoors = () => {
+    const prevDoor = new Map(doorOf), prevDock = new Map(dockSide)
+    computeGates()
+    for (const t of byId.values()) if (t.kind === 'group') { const sig = gateSig(t); if (sig !== wallSig.get(t.id)) { buildWalls(t); wallSig.set(t.id, sig) } }
+    for (const e of edges) {
+      const c = conns.get(e.id)?.[0]
+      if (!c) continue
+      for (const [end, isFrom] of [[e.from, true], [e.to, false]] as const) {
+        const key = `${e.id}:${end}`
+        const set = (x: Parameters<ConnRef['setSource']>[0]) => isFrom ? c.setSource(x) : c.setDest(x)
+        if (byId.get(end)!.kind === 'group') { if (dockSide.get(key) !== prevDock.get(key)) set(dockPoint(end, dockSide.get(key)!)) }
+        else if (doorOf.get(key) !== prevDoor.get(key)) { const d = doorOf.get(key); set({ shape: shapes.get(end)!, pin: d ? SIDE_PIN[d] : PIN }) }
+      }
+    }
+  }
   const out: EdgeRouter = {
     level, ends, routes: [], stats: { buildMs: 0, failed: [], moveMs: 0 },
     move(id, dx, dy) {
@@ -285,6 +326,7 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
       b.x += dx; b.y += dy
       const s = shapes.get(id)
       if (s) router.moveShape(s, dx, dy)
+      if (tune.trays === 'walls' && ends === 'midpoint') followDoors()
       router.processTransaction()
       read()
       out.stats.moveMs = performance.now() - t1
@@ -329,6 +371,11 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
 export function tidy(p: [number, number][]): [number, number][] {
   const q: [number, number][] = []
   for (const pt of p) if (!q.length || Math.hypot(pt[0] - q[q.length - 1][0], pt[1] - q[q.length - 1][1]) > 0.5) q.push(pt)
+  // pins on the same spot are offset by a fraction of a pixel; make those runs exactly straight
+  for (let i = 1; i < q.length; i++) {
+    if (Math.abs(q[i][0] - q[i - 1][0]) < 0.5) q[i] = [q[i - 1][0], q[i][1]]
+    if (Math.abs(q[i][1] - q[i - 1][1]) < 0.5) q[i] = [q[i][0], q[i - 1][1]]
+  }
   const out: [number, number][] = []
   for (let i = 0; i < q.length; i++) {
     const a = out[out.length - 1], b = q[i], c = q[i + 1]
