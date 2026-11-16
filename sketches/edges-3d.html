@@ -35,7 +35,7 @@
     </div>
     <h2>Edges</h2>
     <div class="seg" id="kinds">
-      <button data-k="today">Today</button><button data-k="new" class="on">Bridge</button><button data-k="tunnel">Tunnel</button>
+      <button data-k="today">Today</button><button data-k="new" class="on">Bridge</button><button data-k="tunnel">Tunnel</button><button data-k="portal">Portal</button>
     </div>
     <h2>What to look at</h2>
     <ol>
@@ -44,7 +44,7 @@
       <li><b>One step per line.</b> Pay API → Fraud Check climbs once, just outside the Risk tray, straight to Fraud Check's mid-height.</li>
       <li><b>Two trays deep.</b> Fraud Check → Ledger stays high over both rims and drops once, outside the outer tray.</li>
       <li><b>Same tray.</b> Fraud Check → Review crosses no rim, so it drops a short way out from the taller block.</li>
-      <li><b>Bridge or tunnel.</b> Where Client → Audit crosses Notifier → Pay API it either hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end.</li>
+      <li><b>Bridge, tunnel or portal.</b> Where Client → Audit crosses Notifier → Pay API it either hops over (Bridge) or dives into the ground through a hole and comes back up (Tunnel). In Flat, the tunnel shows as a break in the line with a hole at each end. <b>Portal</b>: it goes into an upright ring and comes out of a second one past the crossing. From the side you see it pass through the rings; from above the line stops at a thin bar.</li>
       <li><b>Into a subgraph.</b> Ledger → Payments drops to meet the tray's edge halfway up its rim.</li>
       <li><b>Flat.</b> Switch to Flat: steps and bridges vanish, and the picture matches Today.</li>
     </ol>
@@ -123,7 +123,7 @@ const edges = [
   { name: 'Fraud → Ledger', today: 2 * TRAY, pts: [[8.5, 2.1, 1.4], [11.5, 2.1, 1.4], [11.5, 2.1, .35], [12.2, 2.1, .35], [12.2, 3, .35], [13, 3, .35]] },
   { name: 'Client → Audit', today: 0, pts: [[-5, 2.4, .35], [-5, -2, .35], [3.7, -2, .35], [3.7, -2, .35 + B], [4.3, -2, .35 + B], [4.3, -2, .35], [13, -2, .35]],
     // tunnel: straight down through a hole in the ground, under the other line, back up
-    tunnel: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35], [3.6, -2, -.25], [4.4, -2, -.25], [4.4, -2, .35], [13, -2, .35]], holes: [[3.6, -2], [4.4, -2]] },
+    tunnel: [[-5, 2.4, .35], [-5, -2, .35], [3.6, -2, .35], [3.6, -2, -.25], [4.4, -2, -.25], [4.4, -2, .35], [13, -2, .35]], holes: [[3.6, -2], [4.4, -2]], portals: [[3.6, -2], [4.4, -2]] },
   { name: 'Notifier → Pay API', today: TRAY, pts: [[4, -3.8, .35], [4, -1.2, .35], [2, -1.2, .35], [2, -0.5, .35], [2, -0.5, .6], [2, 2.4, .6]] },
   { name: 'Ledger → Payments', today: TRAY, pts: [[14, 3.6, .35], [14, 4.1, .35], [14, 4.1, .125], [14, 7.5, .125], [5.5, 7.5, .125], [5.5, 6, .125]] },
 ]
@@ -137,8 +137,9 @@ function tube(a, b, group) {
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize())
   group.add(m)
 }
-function drawEdge(pts, group) {
+function drawEdge(pts, group, arrow = true) {
   const v = pts.map(([x, z, y]) => new THREE.Vector3(x, y, z))
+  if (!arrow) { for (let i = 0; i < v.length - 1; i++) tube(v[i], v[i + 1], group); return }
   const n = v.length, dir = v[n - 1].clone().sub(v[n - 2]).normalize()
   const tipBase = v[n - 1].clone().addScaledVector(dir, -0.35)
   for (let i = 0; i < n - 2; i++) tube(v[i], v[i + 1], group)
@@ -148,10 +149,23 @@ function drawEdge(pts, group) {
   cone.position.copy(tipBase).addScaledVector(dir, 0.175)
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); group.add(cone)
 }
-const groups = { new: new THREE.Group(), today: new THREE.Group(), tunnel: new THREE.Group() }
+const groups = { new: new THREE.Group(), today: new THREE.Group(), tunnel: new THREE.Group(), portal: new THREE.Group() }
+// Portal: the line goes into an upright ring before the crossing and comes out of a second ring after it.
+// From the side you see it pass straight through the rings; from above the rings are thin bars and the line stops.
+function portal(x, z, y, group) {
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.035, 10, 32), new THREE.MeshBasicMaterial({ color: '#b48cff' }))
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshBasicMaterial({ color: '#5b3fa8', transparent: true, opacity: 0.55, side: THREE.DoubleSide }))
+  for (const m of [ring, face]) { m.rotation.y = Math.PI / 2; m.position.set(x, y, z); group.add(m) }
+}
 for (const e of edges) {
   drawEdge(e.pts, groups.new)
   drawEdge(e.tunnel ?? e.pts, groups.tunnel)
+  if (e.portals) {
+    const [[ax, az], [bx, bz]] = e.portals, i = e.pts.findIndex(([x, z]) => x === 3.7 && z === -2)
+    drawEdge([...e.pts.slice(0, i), [ax, az, .35]], groups.portal, false)
+    drawEdge([[bx, bz, .35], ...e.pts.slice(i + 4)], groups.portal)
+    portal(ax, az, .35, groups.portal); portal(bx, bz, .35, groups.portal)
+  } else drawEdge(e.pts, groups.portal)
   for (const [x, z] of e.holes ?? []) {
     const hole = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), new THREE.MeshBasicMaterial({ color: '#000' }))
     const rim = new THREE.Mesh(new THREE.RingGeometry(0.13, 0.17, 24), new THREE.MeshBasicMaterial({ color: '#7f8aa3' }))
