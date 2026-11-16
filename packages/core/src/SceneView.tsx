@@ -151,7 +151,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     // basic: ELK's routes, no router. advanced: the layout's own router when its level matches, else the lines are routed again at this level
     const r = routing === 'advanced' ? routerFor(data, avoidCrossings, ends) : null
     router.current = r
-    live.current = r && !(data.elkRoutes && r.level === data.stats?.route?.level) ? r.routes : null
+    live.current = r && !(data.elkRoutes && r.level === data.stats?.route?.level && r.ends === data.stats?.route?.ends) ? r.routes : null
     ovr.current = {}; setVer(v => v + 1)
   }, [data, wasm, avoidCrossings, routing, ends])
   const { boxes, routes } = useMemo(() => effective(data, ovr.current, live.current, routing === 'basic'), [data, ver, routing])
@@ -174,7 +174,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     const rs = routing === 'advanced' ? data.stats?.route : undefined
     statsCb.current?.({
       ...stats, fallbacks: data.stats?.portFallbacks ?? 0, trayDocks: data.stats?.trayDocks ?? 0, recomputeMs: ms,
-      routeMs: rs?.ms ?? 0, routerBuildMs: rs?.buildMs ?? 0, unroutable: rs?.failed.length ?? 0, routingError: rs?.error ?? null, dragMs: moveMs.current, avoidCrossings: router.current?.level ?? 'off', routing, quality,
+      routeMs: rs?.ms ?? 0, routerBuildMs: rs?.buildMs ?? 0, unroutable: rs?.failed.length ?? 0, routingError: rs?.error ?? null, dragMs: moveMs.current, avoidCrossings: router.current?.level ?? 'off', ends: router.current?.ends ?? 'midpoint', routing, quality,
     })
   }, [stats, ms, data, quality])
 
@@ -288,7 +288,7 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
  * `routingError` (why the lines fell back to ELK's routes, e.g. the wasm failed to load; null otherwise), `recomputeMs` (steps and crossings),
  * and the crossings found (`crossings`, `touching`) and drawn per style (`bridge`, `tunnel`, `portal`; `skipped` had no room).
  */
-export interface EdgeStats extends Stats { fallbacks: number; trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; routing: Routing; quality: RouteQuality }
+export interface EdgeStats extends Stats { fallbacks: number; trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; ends: Ends; routing: Routing; quality: RouteQuality }
 
 export interface SceneViewProps {
   data: LayoutResult | SeqLayout | null
