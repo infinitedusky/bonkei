@@ -3,7 +3,7 @@
 // draws them (drei Line, width 2, cone tip), with a height per point.
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import * as THREE from 'three'
-import { useMemo, useRef } from 'react'
+import { createContext, useContext, useMemo, useRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Line, OrbitControls, OrthographicCamera, PerspectiveCamera, useFBO } from '@react-three/drei'
 import { NodeBody, Tray, TRAY, NODE_H, S } from 'bonkei'
@@ -56,15 +56,32 @@ const edges: { id: string; today: number; pts: P[]; bridge?: P[]; tunnel?: P[]; 
 const UP = new THREE.Vector3(0, 1, 0)
 const v3 = ([x, z, y]: P) => new THREE.Vector3(x, y, z)
 
+// Edge shadows (to try the look): drei's Line is drawn in screen space and casts none, so each segment
+// gets an invisible thin tube that only writes to the shadow map.
+const EdgeShadows = createContext(false)
+const caster = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
+function ShadowTubes({ v }: { v: THREE.Vector3[] }) {
+  if (!useContext(EdgeShadows)) return null
+  return <>{v.slice(1).map((b, i) => {
+    const a = v[i], len = a.distanceTo(b)
+    if (len < 1e-6) return null
+    return <mesh key={i} castShadow material={caster} position={a.clone().add(b).multiplyScalar(0.5)}
+      quaternion={new THREE.Quaternion().setFromUnitVectors(UP, b.clone().sub(a).normalize())}>
+      <cylinderGeometry args={[0.035, 0.035, len, 6]} />
+    </mesh>
+  })}</>
+}
+
 function EdgeLine({ pts, arrow = true }: { pts: P[]; arrow?: boolean }) {
   const v = pts.map(v3)
-  if (!arrow) return <Line points={v} color={LINE} lineWidth={2} />
+  if (!arrow) return <><Line points={v} color={LINE} lineWidth={2} /><ShadowTubes v={v} /></>
   const n = v.length, dir = v[n - 1].clone().sub(v[n - 2]).normalize()
   const tip = v[n - 1].clone().addScaledVector(dir, -0.3)
   return (
     <group>
       <Line points={[...v.slice(0, n - 1), tip]} color={LINE} lineWidth={2} />
-      <mesh position={tip.clone().addScaledVector(dir, 0.15)} quaternion={new THREE.Quaternion().setFromUnitVectors(UP, dir)}>
+      <ShadowTubes v={[...v.slice(0, n - 1), tip]} />
+      <mesh castShadow position={tip.clone().addScaledVector(dir, 0.15)} quaternion={new THREE.Quaternion().setFromUnitVectors(UP, dir)}>
         <coneGeometry args={[0.13, 0.35, 16]} />
         <meshBasicMaterial color={LINE} />
       </mesh>
@@ -145,7 +162,7 @@ function Cam({ mode }: { mode: Mode }) {
   return <><OrthographicCamera makeDefault position={pos} zoom={36} near={-200} far={200} /><OrbitControls makeDefault target={T} enableRotate={false} /></>
 }
 
-function EdgesScene({ mode, crossing }: { mode: Mode; crossing: Crossing }) {
+function EdgesScene({ mode, crossing, edgeShadows }: { mode: Mode; crossing: Crossing; edgeShadows: boolean }) {
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#0f1218', position: 'relative' }}>
       <Canvas shadows dpr={[1, 2]}>
@@ -153,8 +170,8 @@ function EdgesScene({ mode, crossing }: { mode: Mode; crossing: Crossing }) {
         <Cam key={mode} mode={mode} />
         <ambientLight intensity={0.55} />
         <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
-        <directionalLight position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
-          shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30} />
+        <directionalLight position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[4096, 4096]} shadow-bias={-0.0004}
+          shadow-camera-left={-18} shadow-camera-right={18} shadow-camera-top={18} shadow-camera-bottom={-18} shadow-camera-far={80} />
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[4, 0, 1]} receiveShadow>
           <planeGeometry args={[80, 80]} />
           <meshStandardMaterial color="#0f1218" roughness={1} />
@@ -171,7 +188,7 @@ function EdgesScene({ mode, crossing }: { mode: Mode; crossing: Crossing }) {
             <NodeBody b={n} labelMode="top" />
           </group>
         ))}
-        <Edges crossing={crossing} />
+        <EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider>
       </Canvas>
       <div style={{ position: 'absolute', top: 10, left: 12, color: '#9aa6c0', font: '12px monospace', pointerEvents: 'none' }}>
         mockup · made-up data (a payments flow), hand-placed · crossings: {crossing}
@@ -180,14 +197,15 @@ function EdgesScene({ mode, crossing }: { mode: Mode; crossing: Crossing }) {
   )
 }
 
-const meta: Meta<{ mode: Mode; crossing: Crossing }> = {
+const meta: Meta<{ mode: Mode; crossing: Crossing; edgeShadows: boolean }> = {
   title: 'Mockups/Edges in 3D',
-  args: { mode: 'iso' },
+  args: { mode: 'iso', edgeShadows: false },
   argTypes: {
     mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] },
     crossing: { control: 'inline-radio', options: ['today', 'none', 'bridge', 'tunnel', 'portal'] },
+    edgeShadows: { control: 'boolean' },
   },
-  render: ({ mode, crossing }) => <EdgesScene mode={mode} crossing={crossing} />,
+  render: ({ mode, crossing, edgeShadows }) => <EdgesScene mode={mode} crossing={crossing} edgeShadows={edgeShadows} />,
 }
 export default meta
 type Story = StoryObj<typeof meta>
@@ -202,3 +220,5 @@ export const Bridge: Story = { args: { crossing: 'bridge' } }
 export const Tunnel: Story = { args: { crossing: 'tunnel' } }
 /** Crossing style: portal. Look into one and you see out of the other; solid blue from behind, like the ring. Try 3D. */
 export const Portal: Story = { args: { crossing: 'portal', mode: '3d' } }
+/** Steps with edges casting shadows (a look to try; toggle edgeShadows on any story). Try 3D. */
+export const EdgeShadowsOn: Story = { name: 'Edge shadows', args: { crossing: 'bridge', mode: '3d', edgeShadows: true } }
