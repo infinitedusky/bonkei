@@ -68,30 +68,37 @@ const v3 = ([x, z, y]: P) => new THREE.Vector3(x, y, z)
 // Edge shadows (to try the look): drei's Line is drawn in screen space and casts none, so each segment
 // gets an invisible thin tube that only writes to the shadow map.
 const EdgeShadows = createContext(false)
+// Edge thickness, in world units. world: the line is that thick in the scene, so it and its shadow match at any zoom;
+// screen: the renderer's way today, a fixed width in pixels (0.03 world = 1 px here), so it looks thinner as you zoom in.
+const EdgeWidth = createContext({ w: 0.06, world: true })
+const px = (w: number) => w / 0.03
 const caster = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
 function ShadowTubes({ v }: { v: THREE.Vector3[] }) {
+  const { w } = useContext(EdgeWidth)
   if (!useContext(EdgeShadows)) return null
   return <>{v.slice(1).map((b, i) => {
     const a = v[i], len = a.distanceTo(b)
     if (len < 1e-6) return null
     return <mesh key={i} castShadow material={caster} position={a.clone().add(b).multiplyScalar(0.5)}
       quaternion={new THREE.Quaternion().setFromUnitVectors(UP, b.clone().sub(a).normalize())}>
-      <cylinderGeometry args={[0.035, 0.035, len, 6]} />
+      <cylinderGeometry args={[w / 2, w / 2, len, 8]} />
     </mesh>
   })}</>
 }
 
 function EdgeLine({ pts, arrow = true }: { pts: P[]; arrow?: boolean }) {
-  const LINE = useContext(LineColor)
+  const LINE = useContext(LineColor), { w, world } = useContext(EdgeWidth)
+  const lw = world ? { lineWidth: w, worldUnits: true } : { lineWidth: px(w) }
   const v = pts.map(v3)
-  if (!arrow) return <><Line points={v} color={LINE} lineWidth={2} /><ShadowTubes v={v} /></>
+  if (!arrow) return <><Line points={v} color={LINE} {...lw} /><ShadowTubes v={v} /></>
+  const k = Math.max(0.75, w / 0.06) // the arrowhead grows with thick lines
   const n = v.length, dir = v[n - 1].clone().sub(v[n - 2]).normalize()
-  const tip = v[n - 1].clone().addScaledVector(dir, -0.3)
+  const tip = v[n - 1].clone().addScaledVector(dir, -0.3 * k)
   return (
     <group>
-      <Line points={[...v.slice(0, n - 1), tip]} color={LINE} lineWidth={2} />
+      <Line points={[...v.slice(0, n - 1), tip]} color={LINE} {...lw} />
       <ShadowTubes v={[...v.slice(0, n - 1), tip]} />
-      <mesh castShadow position={tip.clone().addScaledVector(dir, 0.15)} quaternion={new THREE.Quaternion().setFromUnitVectors(UP, dir)}>
+      <mesh castShadow scale={k} position={tip.clone().addScaledVector(dir, 0.15 * k)} quaternion={new THREE.Quaternion().setFromUnitVectors(UP, dir)}>
         <coneGeometry args={[0.13, 0.35, 16]} />
         <meshBasicMaterial color={LINE} />
       </mesh>
@@ -176,7 +183,7 @@ function Cam({ mode }: { mode: Mode }) {
   return <><OrthographicCamera makeDefault position={pos} zoom={36} near={-200} far={200} /><OrbitControls makeDefault target={T} enableRotate={false} /></>
 }
 
-type Args = { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: string; edgeColor: string } // edgeColor 'auto': dark on a light ground, light on a dark one
+type Args = { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: string; edgeColor: string; edgeWidth: number; worldWidth: boolean } // edgeColor 'auto': dark on a light ground, light on a dark one
 const EDGE_PRESETS = { light: LINE, dark: LINE_ON_WHITE, amber: '#ffb347', cyan: '#3fd6e8' }
 
 // The story's own controls, on the page (the embedded view hides Storybook's Controls panel).
@@ -199,15 +206,21 @@ function Panel({ a, set }: { a: Args; set: (p: Partial<Args>) => void }) {
         {Object.entries(EDGE_PRESETS).map(([k, c]) => <button key={k} style={btn(a.edgeColor === c)} onClick={() => set({ edgeColor: c })}>{k}</button>)}
         <input type="color" value={a.edgeColor === 'auto' ? '#888888' : a.edgeColor} onChange={e => set({ edgeColor: e.target.value })} style={{ width: 32, height: 24, border: 0, padding: 0, background: 'none', cursor: 'pointer' }} />
       </>)}
+      {row('Thickness', <>
+        <input type="range" min={0.02} max={0.2} step={0.01} value={a.edgeWidth} onChange={e => set({ edgeWidth: +e.target.value })} />
+        <span style={{ color: '#9aa6c0', width: 36 }}>{a.worldWidth ? a.edgeWidth.toFixed(2) : `${px(a.edgeWidth).toFixed(1)}px`}</span>
+        <button style={btn(a.worldWidth)} onClick={() => set({ worldWidth: true })}>in the scene</button>
+        <button style={btn(!a.worldWidth)} onClick={() => set({ worldWidth: false })}>on screen</button>
+      </>)}
     </div>
   )
 }
 
 function EdgesScene(initial: Args) {
   const [a, setA] = useState(initial)
-  useEffect(() => setA(initial), [initial.mode, initial.crossing, initial.edgeShadows, initial.ground, initial.edgeColor])
+  useEffect(() => setA(initial), [initial.mode, initial.crossing, initial.edgeShadows, initial.ground, initial.edgeColor, initial.edgeWidth, initial.worldWidth])
   const set = (p: Partial<Args>) => setA(x => ({ ...x, ...p }))
-  const { mode, crossing, edgeShadows, ground: bg, edgeColor } = a
+  const { mode, crossing, edgeShadows, ground: bg, edgeColor, edgeWidth, worldWidth } = a
   const light = isLight(bg), grid = [shade(bg, light ? -0.14 : 0.10), shade(bg, light ? -0.08 : 0.06)] // a faint grid on the floor
   return (
     <div style={{ width: '100vw', height: '100vh', background: bg, position: 'relative' }}>
@@ -234,7 +247,7 @@ function EdgesScene(initial: Args) {
             <NodeBody b={n} labelMode="top" />
           </group>
         ))}
-        <LineColor.Provider value={edgeColor !== 'auto' ? edgeColor : light ? LINE_ON_WHITE : LINE}><EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider></LineColor.Provider>
+        <LineColor.Provider value={edgeColor !== 'auto' ? edgeColor : light ? LINE_ON_WHITE : LINE}><EdgeShadows.Provider value={edgeShadows}><EdgeWidth.Provider value={{ w: edgeWidth, world: worldWidth }}><Edges crossing={crossing} /></EdgeWidth.Provider></EdgeShadows.Provider></LineColor.Provider>
       </Canvas>
       <div style={{ position: 'absolute', top: 10, left: 12, color: light ? '#3a4258' : '#9aa6c0', font: '12px monospace', pointerEvents: 'none' }}>
         mockup · made-up data (a payments flow), hand-placed
@@ -246,13 +259,15 @@ function EdgesScene(initial: Args) {
 
 const meta: Meta<Args> = {
   title: 'Mockups/Edges in 3D',
-  args: { mode: 'iso', edgeShadows: false, ground: PRESETS.grey, edgeColor: 'auto' },
+  args: { mode: 'iso', edgeShadows: false, ground: PRESETS.grey, edgeColor: 'auto', edgeWidth: 0.06, worldWidth: true },
   argTypes: {
     mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] },
     crossing: { control: 'inline-radio', options: ['today', 'none', 'bridge', 'tunnel', 'portal'] },
     edgeShadows: { control: 'boolean' },
     ground: { control: 'color' },
     edgeColor: { control: 'color' },
+    edgeWidth: { control: { type: 'range', min: 0.02, max: 0.2, step: 0.01 } },
+    worldWidth: { control: 'boolean' },
   },
   render: (args) => <EdgesScene {...args} />,
 }
