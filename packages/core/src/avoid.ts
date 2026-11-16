@@ -55,6 +55,9 @@ export function avoidLoaded(): Avoid | null { try { return AvoidLib.getInstance(
 /** How hard the router tries not to cross lines: off, some, strong. The cost is paid when the lines are routed (about 0.8 s on 50 nodes); a drag frame always routes without it. */
 export const AVOID_CROSSINGS = ['off', 'some', 'strong'] as const
 export type AvoidCrossings = typeof AVOID_CROSSINGS[number]
+/** Where a line meets a node: all at the middle of a side (lines to the same side share a short stub), or each at its own point along the side. */
+export const ENDS = ['midpoint', 'spread'] as const
+export type Ends = typeof ENDS[number]
 export const CROSSING_COST: Record<AvoidCrossings, number> = { off: 0, some: 1000, strong: 3000 }
 
 export interface RouterStats {
@@ -66,8 +69,9 @@ export interface RouterStats {
   moveMs: number
 }
 export interface EdgeRouter {
-  /** The crossing-avoidance level the lines were routed with. */
+  /** The crossing-avoidance level and the way ends are placed that the lines were routed with. */
   level: AvoidCrossings
+  ends: Ends
   routes: Route[]
   stats: RouterStats
   /** Moves a node by (dx, dy) and re-routes; the router stays alive. Returns all routes. */
@@ -94,7 +98,7 @@ function exitSide(t: Box, from: [number, number], to: [number, number]): Side {
 const centre = (b: Box): [number, number] => [b.x + b.w / 2, b.y + b.h / 2]
 const sideMid = (b: Box, s: Side): [number, number] => s === 'N' ? [b.x + b.w / 2, b.y] : s === 'S' ? [b.x + b.w / 2, b.y + b.h] : s === 'E' ? [b.x + b.w, b.y + b.h / 2] : [b.x, b.y + b.h / 2]
 
-export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUNE, level: AvoidCrossings = 'some'): EdgeRouter {
+export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUNE, level: AvoidCrossings = 'some', ends: Ends = 'midpoint'): EdgeRouter {
   tune = { ...tune, crossing: tune === TUNE ? CROSSING_COST[level] : tune.crossing }
   const t0 = performance.now()
   const base = data.routes
@@ -115,12 +119,65 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
   const DIR: Record<Side, number> = { N: D.ConnDirUp, S: D.ConnDirDown, E: D.ConnDirRight, W: D.ConnDirLeft }
   const rect = (x: number, y: number, w: number, h: number) => ({ x, y, width: w, height: h })
 
+  // 'spread': every line gets its own pin. Each is put on the side the flow uses for it (or, for a line against the flow, the side that faces its other end); a side that would hold more than a third of the node's lines (at least 3) hands the extras to the neighbouring side; on each
+  // side the lines are spaced evenly, in the order of their other ends so they do not cross.
+  const spreadClass = new Map<string, number>() // `${edge}:${node}` -> the pin class of that end
+  const spreadPins: { node: string; cls: number; side: Side; f: number }[] = []
+  if (ends === 'spread') {
+    const at = new Map<string, { id: string; other: [number, number]; side: Side }[]>()
+    for (const r of data.routes) for (const [id, other] of [[r.from, r.to], [r.to, r.from]] as const) {
+      const X = byId.get(id), O = byId.get(other)
+      if (!X || X.kind !== 'node' || !O || r.from === r.to) continue
+      const [xc, yc] = centre(X), [ox, oy] = centre(O)
+      const dx = ox - xc, dy = oy - yc
+      // the flow side (out of the bottom or right, into the top or left) when the other end lies ahead of or behind the node that way, else the side that faces it
+      const lr = data.direction === 'LR', leaves = r.from === id
+      const ahead = (lr ? dx : dy) > 0
+      const side: Side = leaves === ahead ? (lr ? (leaves ? 'E' : 'W') : (leaves ? 'S' : 'N')) : Math.abs(dy) * X.w > Math.abs(dx) * X.h ? (dy > 0 ? 'S' : 'N') : (dx > 0 ? 'E' : 'W')
+      ;(at.get(id) ?? at.set(id, []).get(id)!).push({ id: r.id, other: [ox, oy], side })
+    }
+    let cls = 100
+    for (const [node, list] of at) {
+      const X = byId.get(node)!
+      const cap = Math.max(3, Math.ceil(list.length / 3))
+      const count = (sd: Side) => list.filter(e => e.side === sd).length
+      for (const sd of ['N', 'S', 'E', 'W'] as Side[]) {
+        const mine = list.filter(e => e.side === sd)
+        // the ones that point least along this side's axis move over, to the neighbour they lean towards
+        const lean = (e: { other: [number, number] }): Side => (sd === 'N' || sd === 'S') ? (e.other[0] > X.x + X.w / 2 ? 'E' : 'W') : (e.other[1] > X.y + X.h / 2 ? 'S' : 'N')
+        const slack = (e: { other: [number, number] }) => (sd === 'N' || sd === 'S') ? Math.abs(e.other[0] - (X.x + X.w / 2)) : Math.abs(e.other[1] - (X.y + X.h / 2))
+        mine.sort((p, q) => slack(q) - slack(p))
+        for (const e of mine.slice(0, Math.max(0, count(sd) - cap))) { const to = lean(e); if (count(to) < count(sd)) e.side = to }
+      }
+      for (const sd of ['N', 'S', 'E', 'W'] as Side[]) {
+        // ends along a side in the order that keeps the lines from crossing. Top and bottom: the lines that turn left first, shallowest first, then
+        // those that turn right, deepest first (a line that turns far away leaves furthest out). Left and right: the lines that go up first,
+        // furthest first, then those that go down, nearest first.
+        const vert = sd === 'N' || sd === 'S'
+        const [xc, yc] = centre(X)
+        const dist = (e: { other: [number, number] }) => Math.abs(e.other[1] - yc)
+        const first = (e: { other: [number, number] }) => vert ? e.other[0] < xc : e.other[1] < yc
+        const on = list.filter(e => e.side === sd)
+        const mine = vert
+          ? [...on.filter(first).sort((p, q) => dist(p) - dist(q)), ...on.filter(e => !first(e)).sort((p, q) => dist(q) - dist(p))]
+          : [...on.filter(first).sort((p, q) => dist(q) - dist(p)), ...on.filter(e => !first(e)).sort((p, q) => dist(p) - dist(q))]
+        mine.forEach((e, i) => { const c = cls++; spreadClass.set(`${e.id}:${node}`, c); spreadPins.push({ node, cls: c, side: sd, f: (i + 1) / (mine.length + 1) }) })
+      }
+    }
+  }
   const shapes = new Map<string, ShapeRef>()
   for (const b of byId.values()) {
     if (b.kind !== 'node') continue
     const s = router.addShape(rect(b.x, b.y, b.w, b.h))
-    for (const [x, y, d] of [[0.5, 0, 'N'], [1, 0.5, 'E'], [0.5, 1, 'S'], [0, 0.5, 'W']] as [number, number, Side][])
-      s.addPin({ classId: PIN, x, y, directions: DIR[d] }).setExclusive(false)
+    if (ends === 'midpoint') {
+      for (const [x, y, d] of [[0.5, 0, 'N'], [1, 0.5, 'E'], [0.5, 1, 'S'], [0, 0.5, 'W']] as [number, number, Side][])
+        s.addPin({ classId: PIN, x, y, directions: DIR[d] }).setExclusive(false)
+    } else {
+      for (const p of spreadPins.filter(q => q.node === b.id)) {
+        const [x, y] = p.side === 'N' ? [p.f, 0] : p.side === 'S' ? [p.f, 1] : p.side === 'W' ? [0, p.f] : [1, p.f]
+        s.addPin({ classId: p.cls, x, y, directions: DIR[p.side] }).setExclusive(false)
+      }
+    }
     shapes.set(b.id, s)
   }
 
@@ -207,10 +264,10 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
     const gated = tune.trays === 'gates'
     type Hop = { shape?: ShapeRef; point?: { x: number; y: number; directions: number }; leave: number; arrive: number }
     const hops: Hop[] = [
-      { ...end(e.from), leave: PIN, arrive: PIN },
+      { ...end(e.from), leave: spreadClass.get(`${e.id}:${e.from}`) ?? PIN, arrive: PIN },
       ...(gated ? g.exit : []).map(x => ({ shape: gateShape.get(x.key)!, leave: OUT, arrive: IN })), // coming from inside: arrive at the inner face, leave by the outer
       ...(gated ? g.enter : []).map(x => ({ shape: gateShape.get(x.key)!, leave: IN, arrive: OUT })), // coming from outside: arrive at the outer face, leave by the inner
-      { ...end(e.to), leave: PIN, arrive: PIN },
+      { ...end(e.to), leave: PIN, arrive: spreadClass.get(`${e.id}:${e.to}`) ?? PIN },
     ]
     const list: ConnRef[] = []
     const at = (h: Hop, pin: number) => h.point ?? { shape: h.shape!, pin }
@@ -221,7 +278,7 @@ export function createRouter(A: Avoid, data: LayoutResult, tune: AvoidTune = TUN
   router.setRoutingParameter(P.crossingPenalty, tune.dragCrossing)
 
   const out: EdgeRouter = {
-    level, routes: [], stats: { buildMs: 0, failed: [], moveMs: 0 },
+    level, ends, routes: [], stats: { buildMs: 0, failed: [], moveMs: 0 },
     move(id, dx, dy) {
       const t1 = performance.now()
       const b = byId.get(id)!
@@ -287,15 +344,15 @@ const kept = new WeakMap<object, EdgeRouter>()
 const freed = new FinalizationRegistry<EdgeRouter>(r => r.dispose())
 export function keepRouter(result: object, r: EdgeRouter) { kept.set(result, r); freed.register(result, r) }
 /**
- * The router for `result` at `level`: the one layout() kept if it has that level, else a new one (which replaces it; the old one is freed).
+ * The router for `result` at `level` and `ends`: the one layout() kept if it has them, else a new one (which replaces it; the old one is freed).
  * Null until the wasm has loaded. A result made by hand is routed here as laid out.
  */
-export function routerFor(result: LayoutResult, level: AvoidCrossings = 'some'): EdgeRouter | null {
+export function routerFor(result: LayoutResult, level: AvoidCrossings = 'some', ends: Ends = 'midpoint'): EdgeRouter | null {
   const k = kept.get(result)
-  if (k && k.level === level) return k
+  if (k && k.level === level && k.ends === ends) return k
   const A = avoidLoaded()
   if (!A) return null
-  const r = createRouter(A, result, TUNE, level)
+  const r = createRouter(A, result, TUNE, level, ends)
   k?.dispose()
   keepRouter(result, r)
   return r

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute, PAD } from './layout'
-import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
+import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings, type Ends } from './avoid.ts'
 import type { Routing } from './layout'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { createCamera, type Camera, type Mode } from './camera'
@@ -129,10 +129,10 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   )
 }
 
-function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick, crossings, avoidCrossings, routing, onEdgeStats }: {
+function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick, crossings, avoidCrossings, routing, ends, onEdgeStats }: {
   cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void
   controls: ResolvedControls; onNodeClick?: (n: NodeClick) => void; hasClick: boolean
-  crossings: CrossingStyle; avoidCrossings: AvoidCrossings; routing: Routing; onEdgeStats?: (s: EdgeStats) => void
+  crossings: CrossingStyle; avoidCrossings: AvoidCrossings; routing: Routing; ends: Ends; onEdgeStats?: (s: EdgeStats) => void
 }) {
   const { camera, gl, raycaster } = useThree()
   // per canvas, so instances on one page never touch each other's cursor
@@ -149,11 +149,11 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   useEffect(() => {
     router.current?.reset()
     // basic: ELK's routes, no router. advanced: the layout's own router when its level matches, else the lines are routed again at this level
-    const r = routing === 'advanced' ? routerFor(data, avoidCrossings) : null
+    const r = routing === 'advanced' ? routerFor(data, avoidCrossings, ends) : null
     router.current = r
     live.current = r && !(data.elkRoutes && r.level === data.stats?.route?.level) ? r.routes : null
     ovr.current = {}; setVer(v => v + 1)
-  }, [data, wasm, avoidCrossings, routing])
+  }, [data, wasm, avoidCrossings, routing, ends])
   const { boxes, routes } = useMemo(() => effective(data, ovr.current, live.current, routing === 'basic'), [data, ver, routing])
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
@@ -312,11 +312,13 @@ export interface SceneViewProps {
   avoidCrossings?: AvoidCrossings
   /** 'advanced' (default): libavoid routes the lines around blocks and trays, also while dragging. 'basic': ELK's own routes; dragging takes the straight route. Switching re-routes at once. */
   routing?: Routing
+  /** Where lines meet a node: 'midpoint' (default) or 'spread' (each line at its own point along the side). Advanced routing only. Changing it routes the lines again. */
+  ends?: Ends
   /** Called whenever the edges are planned (a new layout, a drag frame, a new style) with counts and the time it took. */
   onEdgeStats?: (s: EdgeStats) => void
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', routing = 'advanced', onEdgeStats }: SceneViewProps) {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', routing = 'advanced', ends = 'midpoint', onEdgeStats }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
   const c = camera ?? own
@@ -330,7 +332,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
         <Rig cam={c} fpsRef={fpsRef} />
         {data && ('kind' in data
           ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
-          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} routing={routing} onEdgeStats={onEdgeStats} />)}
+          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} routing={routing} ends={ends} onEdgeStats={onEdgeStats} />)}
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

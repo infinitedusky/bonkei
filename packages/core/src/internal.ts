@@ -24,6 +24,6 @@ export { readFrontmatter, mergeOptions, resolveControls, DEFAULTS, type Resolved
 export type { Box, Route, LayoutResult, LabelMode } from './model'
 
 // Lines routed by libavoid (BON-99)
-export { createRouter, loadAvoid, setAvoidWasm, avoidLoaded, routerFor, TUNE as AVOID_TUNE, type EdgeRouter, type AvoidTune, AVOID_CROSSINGS, CROSSING_COST, type AvoidCrossings } from './avoid.ts'
+export { createRouter, loadAvoid, setAvoidWasm, avoidLoaded, routerFor, TUNE as AVOID_TUNE, type EdgeRouter, type AvoidTune, AVOID_CROSSINGS, CROSSING_COST, ENDS, type AvoidCrossings, type Ends } from './avoid.ts'
 export { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 export type { RouteStats } from './model'

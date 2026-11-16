@@ -94,7 +94,7 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   const g = parse(fm.body, fm.lineOffset)
   const dropped = g.dropped ?? []
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
-  const [data, t] = await timedLayout(span, () => layout(g, { routing: lo.routing ?? fm.options.routing, avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings }))
+  const [data, t] = await timedLayout(span, () => layout(g, { routing: lo.routing ?? fm.options.routing, avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, ends: lo.ends ?? fm.options.ends }))
   return [{ data, options: fm.options, nodes: g.nodes.length, edges: g.edges.length, dropped }, t]
 }
 

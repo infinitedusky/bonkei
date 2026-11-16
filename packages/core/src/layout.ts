@@ -1,11 +1,11 @@
 import ELK from 'elkjs/lib/elk.bundled.js'
 import type { Graph, Box, Route, LayoutResult } from './model.ts'
-import { loadAvoid, createRouter, keepRouter, type AvoidCrossings } from './avoid.ts'
+import { loadAvoid, createRouter, keepRouter, type AvoidCrossings, type Ends } from './avoid.ts'
 
 // Swap-friendly interface: layout(graph) -> { boxes, routes }.
 /** 'advanced': libavoid routes the lines around blocks and trays (loads a wasm); 'basic': ELK's own routes, nothing loaded. */
 export type Routing = 'basic' | 'advanced'
-export interface LayoutOptions { routing?: Routing; avoidCrossings?: AvoidCrossings }
+export interface LayoutOptions { routing?: Routing; avoidCrossings?: AvoidCrossings; ends?: Ends }
 export type LayoutEngine = (g: Graph, o?: LayoutOptions) => Promise<LayoutResult>
 
 const elk = new ELK()
@@ -42,12 +42,12 @@ export const layout: LayoutEngine = async (g, o = {}) => {
   const t0 = performance.now()
   try {
     const A = await loadAvoid()
-    const r = createRouter(A, placed, undefined, o.avoidCrossings)
-    const out = { ...placed, routes: r.routes, elkRoutes: placed.routes, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: r.stats.buildMs, failed: r.stats.failed, error: null, level: r.level } } }
+    const r = createRouter(A, placed, undefined, o.avoidCrossings, o.ends)
+    const out = { ...placed, routes: r.routes, elkRoutes: placed.routes, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: r.stats.buildMs, failed: r.stats.failed, error: null, level: r.level, ends: r.ends } } }
     keepRouter(out, r) // the scene drags on the same router
     return out
   } catch (e) {
-    return { ...placed, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: 0, failed: [], error: e instanceof Error ? e.message : String(e), level: 'off' } } }
+    return { ...placed, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: 0, failed: [], error: e instanceof Error ? e.message : String(e), level: 'off', ends: 'midpoint' } } }
   }
 }
 async function place(g: Graph): Promise<LayoutResult> {
@@ -167,7 +167,7 @@ async function run(g: Graph, sides?: EdgeSides): Promise<LayoutResult> {
     if (Math.hypot(p1[0] - mb[0], p1[1] - mb[1]) > 0.5) { r.points = dock(r.points, b, sd.in, true); b.kind === 'group' ? trayDocks++ : portFallbacks++ }
   }
   if (TUNE.straighten) straighten(boxes, routes)
-  return { boxes, routes, width: out.width, height: out.height, stats: { portFallbacks, trayDocks } }
+  return { boxes, routes, direction: g.direction, width: out.width, height: out.height, stats: { portFallbacks, trayDocks } }
 }
 
 type Side = 'N' | 'S' | 'E' | 'W'

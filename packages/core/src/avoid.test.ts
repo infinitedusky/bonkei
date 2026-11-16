@@ -156,3 +156,17 @@ test('the routing option reads from frontmatter and props override it', async ()
   assert.equal(mergeOptions({ routing: 'advanced' }, p.options).routing, 'advanced')
   assert.equal(mergeOptions().routing, 'advanced')
 })
+
+test('ends spread: a node with ten lines meets them at ten different points; midpoint puts them all at one', async () => {
+  const hub = 'flowchart LR\n  H[Hub]\n' + Array.from({ length: 10 }, (_, i) => `  H --> T${i}[Target ${i}]`).join('\n')
+  const g = parse(hub)
+  const ends = (r: LayoutResult) => new Set(r.routes.map(e => e.points[0].map(Math.round).join(',')))
+  const mid = await layout(g, { ends: 'midpoint' })
+  const spread = await layout(g, { ends: 'spread' })
+  assert.equal(ends(mid).size <= 2, true, 'midpoint: the lines share the side midpoint')
+  assert.equal(ends(spread).size, 10, 'spread: ten ends')
+  assert.deepEqual(spread.stats?.route?.failed, [])
+  const by = new Map(spread.boxes.map(b => [b.id, b]))
+  const hubBox = by.get('H')!
+  for (const e of spread.routes) { const p = e.points[0]; assert.ok(p[0] >= hubBox.x - 0.5 && p[0] <= hubBox.x + hubBox.w + 0.5 && p[1] >= hubBox.y - 0.5 && p[1] <= hubBox.y + hubBox.h + 0.5, 'on the hub') }
+})
