@@ -242,3 +242,21 @@ test('spacing holds at every nesting level: siblings are NODE_GAP apart, childre
     assert.ok(b.y - p.y >= PAD.top - tol, `${b.id} below ${p.id} label`)
   }
 })
+
+test('routes of edges against the flow are direct, and every end still sits on a side midpoint', async () => {
+  const r = await layout(parse(`flowchart TD
+  A --> B --> C --> D
+  D --> A
+  C --> A
+  subgraph T["T"]
+    E --> F --> G
+    G --> E
+  end
+  B --> E`))
+  const by = new Map(r.boxes.map(b => [b.id, b]))
+  const onMid = (p: number[], b: typeof r.boxes[0]) => (['N', 'S', 'E', 'W'] as const).some(s => { const m = sideMid(b, s); return Math.hypot(m[0] - p[0], m[1] - p[1]) < 0.5 })
+  for (const e of r.routes) {
+    assert.ok(onMid(e.points[0], by.get(e.from)!) && onMid(e.points.at(-1)!, by.get(e.to)!), e.id)
+    e.points.slice(1).forEach((p, i) => assert.ok(Math.abs(p[0] - e.points[i][0]) < 1e-6 || Math.abs(p[1] - e.points[i][1]) < 1e-6))
+  }
+})

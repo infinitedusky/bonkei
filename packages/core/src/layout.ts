@@ -24,7 +24,29 @@ function sizeOf(n: { label: string; shape: string }) {
   return { w, h: 56 }
 }
 
+type EdgeSides = Map<string, { out: Side; in: Side }>
+const ELK_SIDE: Record<Side, string> = { N: 'NORTH', S: 'SOUTH', E: 'EAST', W: 'WEST' }
+
+// Knobs under test for route directness (BON-85); the shipped values are the defaults.
+export const TUNE: { sides: 'flow' | 'floating' | 'back'; options: Record<string, string>; straighten: boolean } = { sides: 'flow', options: { 'elk.layered.cycleBreaking.strategy': 'DEPTH_FIRST' }, straighten: true }
+
 export const layout: LayoutEngine = async (g) => {
+  const first = await run(g)
+  if (TUNE.sides === 'flow') return first
+  // floating sides, as React Flow does: lay out once, then for each edge pick the sides that face each other
+  // (dominant axis of the centre-to-centre vector), and lay out again with ports on those sides.
+  const by = new Map(first.boxes.map(b => [b.id, b]))
+  const sides: EdgeSides = new Map()
+  for (const r of first.routes) {
+    const a = by.get(r.from)!, b = by.get(r.to)!
+    const dx = b.x + b.w / 2 - (a.x + a.w / 2), dy = b.y + b.h / 2 - (a.y + a.h / 2)
+    if (TUNE.sides === 'back' && (g.direction === 'LR' ? dx : dy) >= 0) continue // only edges against the flow float
+    sides.set(r.id, Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? { out: 'E', in: 'W' } : { out: 'W', in: 'E' }) : (dy > 0 ? { out: 'S', in: 'N' } : { out: 'N', in: 'S' }))
+  }
+  return run(g, sides)
+}
+
+async function run(g: Graph, sides?: EdgeSides): Promise<LayoutResult> {
   const groupIds = new Set(g.groups.map(x => x.id))
   const parentOf = new Map<string, string | undefined>()
   g.groups.forEach(x => parentOf.set(x.id, x.parent))
@@ -33,14 +55,17 @@ export const layout: LayoutEngine = async (g) => {
 
   const eNodes = new Map<string, any>()
   for (const grp of g.groups) eNodes.set(grp.id, { id: grp.id, children: [], edges: [], layoutOptions: { ...SPACING, 'elk.padding': `[top=${PAD.top},left=${PAD.side},bottom=${PAD.side},right=${PAD.side}]` } })
-  const TD = g.direction !== 'LR'
+  const flowOut: Side = g.direction === 'LR' ? 'E' : 'S', flowIn: Side = g.direction === 'LR' ? 'W' : 'N'
+  const sidesOf = (id: string) => sides?.get(id) ?? { out: flowOut, in: flowIn }
+  // one port per side an edge uses, fixed at that side's midpoint
+  const used = new Map<string, Set<Side>>()
+  const use = (n: string, sd: Side) => { if (!groupIds.has(n)) (used.get(n) ?? used.set(n, new Set()).get(n)!).add(sd) }
+  for (const e of g.edges) { const sd = sidesOf(e.id); use(e.from, sd.out); use(e.to, sd.in) }
   for (const n of g.nodes) {
     const s = sizeOf(n)
-    // two ports at side midpoints, fixed: the flow leaves one side and arrives at the opposite one
-    const out = TD ? { x: s.w / 2, y: s.h, side: 'SOUTH' } : { x: s.w, y: s.h / 2, side: 'EAST' }
-    const inn = TD ? { x: s.w / 2, y: 0, side: 'NORTH' } : { x: 0, y: s.h / 2, side: 'WEST' }
-    const port = (id: string, p: { x: number; y: number; side: string }) => ({ id, x: p.x, y: p.y, width: 0, height: 0, layoutOptions: { 'elk.port.side': p.side } })
-    eNodes.set(n.id, { id: n.id, width: s.w, height: s.h, ports: [port(n.id + '__out', out), port(n.id + '__in', inn)], layoutOptions: { 'elk.portConstraints': 'FIXED_POS' } })
+    const at = (sd: Side) => sd === 'N' ? { x: s.w / 2, y: 0 } : sd === 'S' ? { x: s.w / 2, y: s.h } : sd === 'E' ? { x: s.w, y: s.h / 2 } : { x: 0, y: s.h / 2 }
+    const ports = [...(used.get(n.id) ?? [])].map(sd => ({ id: `${n.id}__${sd}`, ...at(sd), width: 0, height: 0, layoutOptions: { 'elk.port.side': ELK_SIDE[sd] } }))
+    eNodes.set(n.id, { id: n.id, width: s.w, height: s.h, ports, layoutOptions: { 'elk.portConstraints': 'FIXED_POS' } })
   }
   const root: any = {
     id: 'root', children: [], edges: [],
@@ -52,6 +77,7 @@ export const layout: LayoutEngine = async (g) => {
       'elk.json.edgeCoords': 'ROOT',
       ...SPACING,
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+      ...TUNE.options,
       'elk.padding': '[top=40,left=40,bottom=40,right=40]',
     },
   }
@@ -65,7 +91,7 @@ export const layout: LayoutEngine = async (g) => {
     let i = 0
     while (a[i + 1] !== undefined && a[i + 1] === b[i + 1]) i++
     const lca = a[i] // container of the edge
-    const ee: any = { id: e.id, sources: [groupIds.has(e.from) ? e.from : e.from + '__out'], targets: [groupIds.has(e.to) ? e.to : e.to + '__in'] }
+    const ee: any = { id: e.id, sources: [groupIds.has(e.from) ? e.from : `${e.from}__${sidesOf(e.id).out}`], targets: [groupIds.has(e.to) ? e.to : `${e.to}__${sidesOf(e.id).in}`] }
     if (e.label) ee.labels = [{ text: e.label, width: e.label.length * 7 + 8, height: 16 }]
     ;(lca ? eNodes.get(lca) : root).edges.push(ee)
   }
@@ -85,6 +111,7 @@ export const layout: LayoutEngine = async (g) => {
     }
   }
   walk(out, 0, 0, 0)
+  const rerouted = new Set<string>()
   const routes: Route[] = []
   const collect = (n: any, ox: number, oy: number) => {
     for (const e of n.edges ?? []) {
@@ -97,18 +124,29 @@ export const layout: LayoutEngine = async (g) => {
     for (const c of n.children ?? []) collect(c, ox + c.x, oy + c.y)
   }
   collect(out, 0, 0)
+  // Edges ELK did not route (across trays when each tray is laid out on its own) take the direct Manhattan route
+  // between the facing side midpoints, as when dragging.
+  const have = new Set(routes.map(r => r.id))
+  const lone = new Map(boxes.map(b => [b.id, b]))
+  for (const e of g.edges) {
+    if (have.has(e.id) || !lone.get(e.from) || !lone.get(e.to)) continue
+    if (chain(e.from).includes(e.to) || chain(e.to).includes(e.from)) continue
+    routes.push({ id: e.id, from: e.from, to: e.to, label: e.label, points: reroute(lone.get(e.from)!, lone.get(e.to)!) })
+    rerouted.add(e.id)
+  }
   // Make sure every route meets its boxes at the side midpoints. ELK does for nodes (fixed ports); where it
   // did not (a tray, or a route it moved), dock the end by a dogleg and count it.
   const byId = new Map(boxes.map(b => [b.id, b]))
-  const flowOut: Side = g.direction === 'LR' ? 'E' : 'S', flowIn: Side = g.direction === 'LR' ? 'W' : 'N'
   let portFallbacks = 0, trayDocks = 0
   for (const r of routes) {
     const a = byId.get(r.from)!, b = byId.get(r.to)!
     const p0 = r.points[0], p1 = r.points[r.points.length - 1]
-    const ma = sideMid(a, flowOut), mb = sideMid(b, flowIn)
-    if (Math.hypot(p0[0] - ma[0], p0[1] - ma[1]) > 0.5) { r.points = dock(r.points, a, flowOut, false); a.kind === 'group' ? trayDocks++ : portFallbacks++ }
-    if (Math.hypot(p1[0] - mb[0], p1[1] - mb[1]) > 0.5) { r.points = dock(r.points, b, flowIn, true); b.kind === 'group' ? trayDocks++ : portFallbacks++ }
+    if (rerouted.has(r.id)) continue
+    const sd = sidesOf(r.id), ma = sideMid(a, sd.out), mb = sideMid(b, sd.in)
+    if (Math.hypot(p0[0] - ma[0], p0[1] - ma[1]) > 0.5) { r.points = dock(r.points, a, sd.out, false); a.kind === 'group' ? trayDocks++ : portFallbacks++ }
+    if (Math.hypot(p1[0] - mb[0], p1[1] - mb[1]) > 0.5) { r.points = dock(r.points, b, sd.in, true); b.kind === 'group' ? trayDocks++ : portFallbacks++ }
   }
+  if (TUNE.straighten) straighten(boxes, routes)
   return { boxes, routes, width: out.width, height: out.height, stats: { portFallbacks, trayDocks } }
 }
 
@@ -150,4 +188,32 @@ export function reroute(a: Box, b: Box): [number, number][] {
   if (Math.abs(acy - bcy) < 1e-6) return [[x1, acy], [x2, bcy]]
   const m = (x1 + x2) / 2
   return [[x1, acy], [m, acy], [m, bcy], [x2, bcy]]
+}
+
+const len = (p: [number, number][]) => p.slice(1).reduce((a, q, i) => a + Math.abs(q[0] - p[i][0]) + Math.abs(q[1] - p[i][1]), 0)
+// A route that reverses along an axis (a U-turn forced by the flow-side ports on an edge that runs against the flow)
+// is replaced by the direct route between the facing side midpoints, if that is shorter and crosses no other block.
+function doublesBack(p: [number, number][]) {
+  const seen = [0, 0]
+  for (let i = 1; i < p.length; i++) for (const a of [0, 1]) {
+    const s = Math.sign(Math.round(p[i][a] - p[i - 1][a]))
+    if (!s) continue
+    if (seen[a] && seen[a] !== s) return true
+    seen[a] = seen[a] || s
+  }
+  return false
+}
+function straighten(boxes: Box[], routes: Route[]) {
+  const by = new Map(boxes.map(b => [b.id, b]))
+  const nodes = boxes.filter(b => b.kind === 'node')
+  for (const r of routes) {
+    if (!doublesBack(r.points)) continue
+    const a = by.get(r.from)!, b = by.get(r.to)!
+    const p = reroute(a, b)
+    const hits = nodes.some(n => n.id !== r.from && n.id !== r.to && p.slice(1).some((q, i) => {
+      const x0 = Math.min(q[0], p[i][0]), x1 = Math.max(q[0], p[i][0]), y0 = Math.min(q[1], p[i][1]), y1 = Math.max(q[1], p[i][1])
+      return x1 > n.x - 8 && x0 < n.x + n.w + 8 && y1 > n.y - 8 && y0 < n.y + n.h + 8
+    }))
+    if (!hits && len(p) < len(r.points)) r.points = p
+  }
 }
