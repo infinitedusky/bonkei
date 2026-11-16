@@ -169,7 +169,8 @@ function Cam({ mode }: { mode: Mode }) {
   return <><OrthographicCamera makeDefault position={pos} zoom={36} near={-200} far={200} /><OrbitControls makeDefault target={T} enableRotate={false} /></>
 }
 
-type Args = { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: string }
+type Args = { mode: Mode; crossing: Crossing; edgeShadows: boolean; ground: string; edgeColor: string } // edgeColor 'auto': dark on a light ground, light on a dark one
+const EDGE_PRESETS = { light: LINE, dark: LINE_ON_WHITE, amber: '#ffb347', cyan: '#3fd6e8' }
 
 // The story's own controls, on the page (the embedded view hides Storybook's Controls panel).
 const btn = (on: boolean): React.CSSProperties => ({ font: '12px system-ui', padding: '4px 8px', border: '1px solid #3a4258', borderRadius: 6, cursor: 'pointer', background: on ? '#4b6bdc' : '#151a24', color: on ? '#fff' : '#9aa6c0' })
@@ -186,15 +187,20 @@ function Panel({ a, set }: { a: Args; set: (p: Partial<Args>) => void }) {
         {Object.entries(PRESETS).map(([k, c]) => <button key={k} style={btn(a.ground === c)} onClick={() => set({ ground: c })}>{k}</button>)}
         <input type="color" value={a.ground} onChange={e => set({ ground: e.target.value })} style={{ width: 32, height: 24, border: 0, padding: 0, background: 'none', cursor: 'pointer' }} />
       </>)}
+      {row('Edges', <>
+        <button style={btn(a.edgeColor === 'auto')} onClick={() => set({ edgeColor: 'auto' })}>auto</button>
+        {Object.entries(EDGE_PRESETS).map(([k, c]) => <button key={k} style={btn(a.edgeColor === c)} onClick={() => set({ edgeColor: c })}>{k}</button>)}
+        <input type="color" value={a.edgeColor === 'auto' ? '#888888' : a.edgeColor} onChange={e => set({ edgeColor: e.target.value })} style={{ width: 32, height: 24, border: 0, padding: 0, background: 'none', cursor: 'pointer' }} />
+      </>)}
     </div>
   )
 }
 
 function EdgesScene(initial: Args) {
   const [a, setA] = useState(initial)
-  useEffect(() => setA(initial), [initial.mode, initial.crossing, initial.edgeShadows, initial.ground])
+  useEffect(() => setA(initial), [initial.mode, initial.crossing, initial.edgeShadows, initial.ground, initial.edgeColor])
   const set = (p: Partial<Args>) => setA(x => ({ ...x, ...p }))
-  const { mode, crossing, edgeShadows, ground: bg } = a
+  const { mode, crossing, edgeShadows, ground: bg, edgeColor } = a
   const light = isLight(bg), grid = [shade(bg, light ? -0.06 : 0.05), shade(bg, light ? -0.03 : 0.025)]
   return (
     <div style={{ width: '100vw', height: '100vh', background: bg, position: 'relative' }}>
@@ -221,7 +227,7 @@ function EdgesScene(initial: Args) {
             <NodeBody b={n} labelMode="top" />
           </group>
         ))}
-        <LineColor.Provider value={light ? LINE_ON_WHITE : LINE}><EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider></LineColor.Provider>
+        <LineColor.Provider value={edgeColor !== 'auto' ? edgeColor : light ? LINE_ON_WHITE : LINE}><EdgeShadows.Provider value={edgeShadows}><Edges crossing={crossing} /></EdgeShadows.Provider></LineColor.Provider>
       </Canvas>
       <div style={{ position: 'absolute', top: 10, left: 12, color: light ? '#3a4258' : '#9aa6c0', font: '12px monospace', pointerEvents: 'none' }}>
         mockup · made-up data (a payments flow), hand-placed
@@ -233,12 +239,13 @@ function EdgesScene(initial: Args) {
 
 const meta: Meta<Args> = {
   title: 'Mockups/Edges in 3D',
-  args: { mode: 'iso', edgeShadows: false, ground: PRESETS.grey },
+  args: { mode: 'iso', edgeShadows: false, ground: PRESETS.grey, edgeColor: 'auto' },
   argTypes: {
     mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] },
     crossing: { control: 'inline-radio', options: ['today', 'none', 'bridge', 'tunnel', 'portal'] },
     edgeShadows: { control: 'boolean' },
     ground: { control: 'color' },
+    edgeColor: { control: 'color' },
   },
   render: (args) => <EdgesScene {...args} />,
 }
