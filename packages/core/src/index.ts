@@ -1,33 +1,56 @@
-// The surface of bonkei: parse Mermaid, lay it out, render it as a 3D scene.
+// The public API of bonkei: draw a Mermaid diagram (or a hand-built graph) as a 3D scene.
+// Everything else lives in 'bonkei/internal', which is internal and unstable.
 
-// ---- Public API (BON-51) ----
-export { Bonkei, type BonkeiProps, type BonkeiViewHandle } from './Bonkei'
-export { render, type BonkeiHandle } from './render'
+// Components and mounting
+/** The diagram as a React component; fills its container. */
+export { Bonkei } from './Bonkei'
+/** Mount a diagram into any DOM element without touching React; returns a handle. */
+export { render } from './render'
+
+// Props, options and handles
+/** The props of <Bonkei />: a source plus BonkeiOptions. */
+export type { BonkeiProps } from './Bonkei'
+/** Methods on a <Bonkei /> ref: setMode() and fit(). */
+export type { BonkeiViewHandle } from './Bonkei'
+/** The handle render() returns: update(source), setMode(), destroy(). */
+export type { BonkeiHandle } from './render'
+/** Everything you can pass to <Bonkei /> or render(): diagram options plus callbacks. */
+export type { BonkeiOptions } from './options'
+/** The options that may also come from the diagram's frontmatter (config.bonkei). */
+export type { DiagramOptions } from './options'
+/** The reader's controls: true/false for all, or one switch per control. */
+export type { Controls } from './options'
+
+// Events
+/** What onError receives when nothing could be drawn (kind: parse, graph, layout or render). */
+export type { BonkeiError } from './options'
+/** What onWarning receives for a dropped line or a bad frontmatter key; the diagram still draws. */
+export type { BonkeiWarning } from './options'
+/** What onNodeClick receives for a node, a group or a sequence participant. */
+export type { NodeClick } from './options'
+/** What onReady receives once a new source's first frame is drawn. */
+export type { ReadyInfo } from './options'
+/** Tells a BonkeiError from any other thrown value. */
 export { isBonkeiError } from './diagram'
-export type {
-  BonkeiOptions, DiagramOptions, Controls, BonkeiError, BonkeiWarning, NodeClick, ReadyInfo,
-} from './options'
+
+// Modes and labels
+/** The camera mode: flat, iso or 3d. */
 export type { Mode } from './camera'
-export type { LabelMode, Graph, GraphInput, GNode, GGroup, GEdge, Shape, Dropped } from './model'
+/** Where labels sit: on top of the shapes, or billboarded towards the camera. */
+export type { LabelMode } from './model'
 
-// ---- Not yet curated ----
-// Everything below stays exported until the apps move to the public API; the curation sub-task
-// (`surface`) then removes it from here. New internal code should import from 'bonkei/internal'.
-
-// Model
-export type { Box, Route, LayoutResult } from './model'
-
-// Flowchart parser and layout (`layout` is a LayoutEngine; pass your own to swap it)
-export { parse } from './parser'
-export { layout, reroute, type LayoutEngine } from './layout'
-
-// Sequence diagrams
-export { isSeq, parseSeq, layoutSeq, type SPart, type SItem, type SeqDoc, type SeqLayout } from './seq'
-
-// Renderer
-export { SceneView } from './SceneView'
-export { SeqScene } from './SeqScene'
-export { S, TRAY, NODE_H, trayColor, NodeBody, Label, Tray, baseOf } from './shapes'
-
-// Camera (one per diagram view)
-export { createCamera, PRESET, type Camera, type Pose } from './camera'
+// Hand-built graphs
+/** A finished graph, as parsed from Mermaid. */
+export type { Graph } from './model'
+/** A graph you build by hand; direction and groups are optional. */
+export type { GraphInput } from './model'
+/** A node in a graph. */
+export type { GNode } from './model'
+/** A group (subgraph) in a graph. */
+export type { GGroup } from './model'
+/** An edge in a graph. */
+export type { GEdge } from './model'
+/** The shape of a node. */
+export type { Shape } from './model'
+/** A source line the parser could not use, with its reason. */
+export type { Dropped } from './model'

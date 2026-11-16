@@ -1,5 +1,5 @@
-// bonkei/internal: the engine's pieces for this workspace's own apps (the playground, the site's
-// capture page). Not part of the public API, and free to change without notice.
+// Internal and unstable: for this repo's stories and tools; may change in any release.
+// bonkei/internal is not part of the public API (see index.ts and LOG.md, "Public surface (BON-51)").
 
 // Renderer
 export { SceneView, type SceneViewProps } from './SceneView'

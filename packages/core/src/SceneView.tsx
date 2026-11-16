@@ -257,11 +257,6 @@ export interface SceneViewProps {
   showFps?: boolean
   /** The reader's controls. Default all on. */
   controls?: ResolvedControls
-  /**
-   * @deprecated Use `controls={{ ...all, zoom: false }}`. Used only when `controls` is absent:
-   * `false` turns zoom off. Removed with the public-surface curation.
-   */
-  wheelZoom?: boolean
   /** Called on a click (not a drag) on a node, a group or a sequence participant, whatever the controls. */
   onNodeClick?: (node: NodeClick) => void
   /** Whether to show the pointer cursor for clicks. Default: whether `onNodeClick` is given. */
@@ -270,13 +265,11 @@ export interface SceneViewProps {
   onFirstFrame?: () => void
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, wheelZoom, onNodeClick, hasClick = !!onNodeClick, onFirstFrame }: SceneViewProps) {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
   const c = camera ?? own
-  const ctl = useMemo<ResolvedControls>(
-    () => controls ?? (wheelZoom === false ? { ...ALL_ON, zoom: false } : ALL_ON),
-    [controls, wheelZoom])
+  const ctl = controls ?? ALL_ON
   useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
   return (
     <>
