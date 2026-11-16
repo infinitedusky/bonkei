@@ -2,7 +2,8 @@
 // bonkei/internal is not part of the public API (see index.ts and LOG.md, "Public surface (BON-51)").
 
 // Renderer
-export { SceneView, type SceneViewProps } from './SceneView'
+export { SceneView, type SceneViewProps, type EdgeStats } from './SceneView'
+export { stepRoute, findCrossings, applyCrossings, planEdges, endHeight, CROSSING_STYLES, type CrossingStyle, type Body, type P3 } from './edges3d.ts'
 export { SeqScene } from './SeqScene'
 export { trayColor, NodeBody, Label, Tray, baseOf } from './shapes'
 export { SCENE, UI } from './palette'

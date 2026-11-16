@@ -5,7 +5,8 @@ import type { Box, LabelMode } from './model'
 
 export type { LabelMode }
 
-import { S, TRAY, NODE_H } from './scale.ts'
+import { S, TRAY, NODE_H, TEXT_LAYER } from './scale.ts'
+import { slotShape } from './EdgeScene'
 export { S, TRAY, NODE_H }
 
 const COLORS: Record<string, string> = { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' }
@@ -50,20 +51,25 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
 
 export function Label({ text, mode, y, size, maxWidth, left = false, color = '#fff' }: { text: string; mode: LabelMode; y: number; size: number; maxWidth: number; left?: boolean; color?: string }) {
   const common = { fontSize: size, maxWidth, color, anchorX: left ? ('left' as const) : ('center' as const), anchorY: 'middle' as const, textAlign: left ? ('left' as const) : ('center' as const) }
-  if (mode === 'top') return <Text {...common} rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>{text}</Text>
+  if (mode === 'top') return <Text {...common} layers={TEXT_LAYER as any} rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>{text}</Text>
   return (
     <Billboard position={[0, y + 0.45, 0]}>
-      <Text {...common} outlineWidth={0.03} outlineColor="#000">{text}</Text>
+      <Text {...common} layers={TEXT_LAYER as any} outlineWidth={0.03} outlineColor="#000">{text}</Text>
     </Billboard>
   )
 }
 
-export function Tray({ b, labelMode, hover = false }: { b: Box; labelMode: LabelMode; hover?: boolean }) {
+export function Tray({ b, labelMode, hover = false, slots = [] }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[] }) {
   const w = b.w * S, h = b.h * S
+  // with tunnel slots (in tray-local x, z) the top is cut open; otherwise a plain box
+  const cut = useMemo(() => {
+    if (!slots.length) return null
+    return new THREE.ExtrudeGeometry(slotShape(-w / 2, -h / 2, w / 2, h / 2, slots), { depth: TRAY, bevelEnabled: false }).rotateX(-Math.PI / 2)
+  }, [w, h, JSON.stringify(slots)])
   return (
     <>
-      <mesh position={[0, TRAY / 2, 0]} receiveShadow>
-        <boxGeometry args={[w, TRAY, h]} />
+      <mesh position={[0, cut ? 0 : TRAY / 2, 0]} receiveShadow geometry={cut ?? undefined}>
+        {!cut && <boxGeometry args={[w, TRAY, h]} />}
         <meshStandardMaterial color={trayColor(b.level)} roughness={0.9} emissive={hover ? '#8fb0ff' : '#000'} emissiveIntensity={hover ? 0.15 : 0} />
       </mesh>
       <group position={[-w / 2 + 0.25, 0, -h / 2 + 0.5]}>

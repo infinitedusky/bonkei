@@ -6,13 +6,16 @@ import { reroute } from './layout'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
-import { NodeBody, Tray, baseOf, type LabelMode } from './shapes'
-import { Edge, Hole, Portals } from './EdgeScene'
-import { planEdges, type Body, type CrossingStyle, type Stats } from './edges3d.ts'
-import { S, TRAY, NODE_H } from './scale'
+import { NodeBody, Tray, baseOf, trayColor, type LabelMode } from './shapes'
+import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
+import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
+import { S, TRAY, NODE_H, TEXT_LAYER } from './scale'
 import { SCENE } from './palette'
 import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
 import type { NodeClick, ResolvedControls } from './options'
+
+const LIGHT_TILTED = new THREE.Vector3(10, 18, 7) // iso and 3D
+const LIGHT_FLAT = new THREE.Vector3(21.8 * Math.sin(Math.PI / 36), 21.8 * Math.cos(Math.PI / 36), 0) // flat: 5 degrees off straight overhead, same distance
 
 type Ovr = Record<string, { x: number; y: number }>
 
@@ -47,8 +50,19 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
   return null
 }
 
-function Env({ cam, children, controls }: { cam: Camera; children: React.ReactNode; controls: ResolvedControls }) {
+const NO_SLOTS: Slot[] = []
+function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; children: React.ReactNode; controls: ResolvedControls; slots?: Slot[] }) {
+  const masks = useMemo(() => slots.map(s => new THREE.ShapeGeometry(stadium(s, new THREE.Shape()) as THREE.Shape, 16)), [slots])
+  const groundGeo = useMemo(() => new THREE.ShapeGeometry(slotShape(-200, -200, 200, 200, slots)), [slots])
   const { gl } = useThree()
+  // Flat view: the light is almost overhead (5 degrees off), so shadows are short. It eases between the two like the camera does.
+  const light = useRef<THREE.DirectionalLight>(null!)
+  const lightAt = useRef(new THREE.Vector3(10, 18, 7))
+  useFrame((_, dt) => {
+    const to = cam.mode === 'flat' ? LIGHT_FLAT : LIGHT_TILTED
+    lightAt.current.lerp(to, 1 - Math.exp(-6 * Math.min(dt, 0.1)))
+    light.current?.position.copy(lightAt.current)
+  })
   const startCamDrag = (e: ThreeEvent<PointerEvent>) => {
     const action = dragAction(controls, cam.mode, e.nativeEvent.button)
     if (action === 'none') return
@@ -93,13 +107,19 @@ function Env({ cam, children, controls }: { cam: Camera; children: React.ReactNo
     <>
       <ambientLight intensity={0.55} />
       <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
-      <directionalLight position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
+      <directionalLight ref={light} position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30} shadow-camera-near={1} shadow-camera-far={80} shadow-bias={-0.0004} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow>
-        <planeGeometry args={[400, 400]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow geometry={groundGeo}>
         <meshStandardMaterial color={SCENE.bg} roughness={1} />
       </mesh>
-      <gridHelper args={[200, 200, ...SCENE.grid]} position={[0, -0.01, 0]} />
+      {/* the grid is masked out over a tunnel's slot (stencil), so no grid line floats across it */}
+      {slots.map((s, i) => (
+        <mesh key={i} geometry={masks[i]} position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
+          <meshBasicMaterial colorWrite={false} depthWrite={false} stencilWrite stencilRef={1} stencilFunc={THREE.AlwaysStencilFunc} stencilZPass={THREE.ReplaceStencilOp} />
+        </mesh>
+      ))}
+      <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...SCENE.grid]} position={[0, -0.01, 0]} renderOrder={1}
+        material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />
       {children}
     </>
   )
@@ -121,12 +141,15 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
-  const { plans, stats, ms } = useMemo(() => {
+  const { plans, stats, slots, ms } = useMemo(() => {
     const t0 = performance.now()
     const bodies: Body[] = [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.height }))
     const r = planEdges(bodies, routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) })), crossings)
     return { ...r, ms: performance.now() - t0 }
   }, [boxes, routes, crossings, W, H])
+  const groundSlots = useMemo(() => slots.filter(s => !s.tray), [slots])
+  const portalList = useMemo(() => [...plans.values()].flatMap(p => p.portals), [plans])
+  useEffect(() => { camera.layers.enable(TEXT_LAYER) }, [camera])
   const statsCb = useRef(onEdgeStats)
   statsCb.current = onEdgeStats
   useEffect(() => { statsCb.current?.({ ...stats, fallbacks: data.stats?.portFallbacks ?? 0, trayDocks: data.stats?.trayDocks ?? 0, recomputeMs: ms }) }, [stats, ms, data])
@@ -166,7 +189,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
 
   return (
     <>
-      <Env cam={cam} controls={controls}>
+      <Env cam={cam} controls={controls} slots={groundSlots}>
       {[...boxes.values()].map(b => {
         const w = b.w * S, h = b.h * S
         const pos: [number, number, number] = [wx(b.x) + w / 2, baseOf(b), wz(b.y) + h / 2]
@@ -181,7 +204,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
               }}
               onPointerOver={e => { e.stopPropagation(); setHover(b.id); setCursor(cursorFor('group', controls, hasClick)) }}
               onPointerOut={() => { setHover(null); setCursor('') }}>
-              <Tray b={b} labelMode={labelMode} hover={hover === b.id} />
+              <Tray b={b} labelMode={labelMode} hover={hover === b.id} slots={slots.filter(s => s.tray === b.id).map(s => ({ x0: s.x0 - pos[0], x1: s.x1 - pos[0], z0: s.z0 - pos[2], z1: s.z1 - pos[2] }))} />
             </group>
           )
         }
@@ -194,8 +217,8 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
         </NodeLift>
       })}
       {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} /> : null)}
-      {[...plans.values()].map(p => p.holes.map((h, i) => <Hole key={`${h[0]},${h[1]},${i}`} p={h} />))}
-      {[...plans.entries()].map(([id, p]) => p.portals.map((pp, i) => <Portals key={`${id}:${i}`} pair={pp} />))}
+      {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? trayColor(boxes.get(s.tray)!.level) : SCENE.bg} y={s.tray ? 0 : -0.02} />)}
+      {portalList.length > 0 && <PortalSystem pairs={portalList} deps={[plans, hover]} />}
       </Env>
     </>
   )
@@ -265,7 +288,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
   useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
   return (
     <>
-      <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true }}>
+      <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[SCENE.bg]} />
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
         <Rig cam={c} fpsRef={fpsRef} />

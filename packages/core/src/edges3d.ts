@@ -11,7 +11,12 @@ export type P3 = [number, number, number] // x, z (plan), y (height)
 export const STEP_OFFSET = 20 * S // how far outside a tray rim (or the higher end) the step stands
 export const RISE = 0.35 // a bridge clears the other line by this much
 export const HALF_GAP = 0.4 // half the distance between the two holes / portals / bridge feet
-export const DEPTH = 0.2 // a tunnel bottoms out this far below the surface
+export const SLOT_W = 0.3 // a tunnel's open slot is this wide
+export const SLOT_MARGIN = 0.1 // and runs this far past the dipped stretch each end
+// how far the line dips and how deep the slot is cut: into the ground, or (shallower: a tray is only TRAY thick) into a tray's top
+export const DIP = { ground: 0.25, tray: 0.1 }
+export const SLOT_DEPTH = { ground: 0.4, tray: 0.18 } // a tray is TRAY (0.25) thick: its trough stays inside it
+export const SLOT_GAP = 0.25 // troughs closer than this are merged into one
 const TOUCH = 0.2 // lines whose heights differ by less than this at a crossing would touch
 const EPS = 1e-6
 
@@ -169,28 +174,48 @@ export function findCrossings(lines: P3[][]): Crossing[] {
 
 /** A pair of portals: the line ends at `a` and carries on from `b`. `dir` is the way the line runs (unit, on x or z). */
 export interface PortalPair { a: P3; b: P3; dir: [number, number] }
+/** An open trough: x0..x1 along x, z0..z1 across (equal for one line: a stadium; merged troughs are a rounded rectangle). Its floor is `depth` below `top`; it is cut in the tray `tray`, or in the ground. */
+export interface Slot { x0: number; x1: number; z0: number; z1: number; top: number; depth: number; tray?: string }
+
+/** Troughs on the same surface that are closer than SLOT_GAP become one trough (the bounding rectangle), repeatedly. */
+export function mergeSlots(slots: Slot[]): Slot[] {
+  const out = slots.map(s => ({ ...s }))
+  const near = (a: Slot, b: Slot) => a.tray === b.tray
+    && a.x0 - SLOT_GAP < b.x1 && b.x0 - SLOT_GAP < a.x1
+    && a.z0 - SLOT_W - SLOT_GAP < b.z1 && b.z0 - SLOT_W - SLOT_GAP < a.z1
+  for (let again = true; again;) {
+    again = false
+    for (let i = 0; i < out.length && !again; i++) for (let j = i + 1; j < out.length && !again; j++) {
+      if (!near(out[i], out[j])) continue
+      const a = out[i], b = out[j]
+      out[i] = { ...a, x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), z0: Math.min(a.z0, b.z0), z1: Math.max(a.z1, b.z1) }
+      out.splice(j, 1); again = true
+    }
+  }
+  return out
+}
 export interface EdgePlan {
   parts: P3[][] // the line, cut where it goes through portals; the arrow is on the last
-  holes: P3[] // tunnel mouths, on the surface
+  slots: Slot[] // tunnel slots, open in the surface the line dips into
   portals: PortalPair[]
 }
 
-/** The height of the surface under (x, z): the top of the innermost tray there, else the ground. */
-export function surfaceAt(x: number, z: number, bodies: Body[]): number {
-  let top = 0
-  for (const b of bodies) if (b.kind === 'group' && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1) top = Math.max(top, (b.level + 1) * TRAY)
-  return top
+/** The surface under (x, z): the top of the innermost tray there, else the ground. */
+export function surfaceAt(x: number, z: number, bodies: Body[]): { top: number; tray?: Body } {
+  let top = 0, tray: Body | undefined
+  for (const b of bodies) if (b.kind === 'group' && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && (b.level + 1) * TRAY > top) { top = (b.level + 1) * TRAY; tray = b }
+  return { top, tray }
 }
 
 export interface Stats { crossings: number; touching: number; bridge: number; tunnel: number; portal: number; skipped: number }
 
 /** Draws each crossing in the chosen style on the line that runs along x. Pure: returns new lines. */
-export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body[]): { plans: EdgePlan[]; stats: Stats } {
+export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body[]): { plans: EdgePlan[]; stats: Stats; slots: Slot[] } {
   const all = findCrossings(lines)
   const todo = style === 'none' ? [] : all.filter(c => c.touches)
   const stats: Stats = { crossings: all.length, touching: all.filter(c => c.touches).length, bridge: 0, tunnel: 0, portal: 0, skipped: 0 }
-  const plans: EdgePlan[] = lines.map(l => ({ parts: [l], holes: [], portals: [] }))
-  if (!todo.length) return { plans, stats }
+  const plans: EdgePlan[] = lines.map(l => ({ parts: [l], slots: [], portals: [] }))
+  if (!todo.length) return { plans, stats, slots: [] }
 
   const byEdge = new Map<number, Crossing[]>()
   for (const c of todo) byEdge.set(c.h.edge, [...(byEdge.get(c.h.edge) ?? []), c])
@@ -230,9 +255,9 @@ export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body
           const top = Math.max(c.hh, c.hv) + RISE
           emit([xe, z, y]); emit([xe, z, top]); emit([xx, z, top]); emit([xx, z, y]); stats.bridge++
         } else if (style === 'tunnel') {
-          const s = surfaceAt(c.x, z, bodies), bottom = s - DEPTH
+          const sf = surfaceAt(c.x, z, bodies), k = sf.tray ? 'tray' : 'ground', bottom = sf.top - DIP[k]
           emit([xe, z, y]); emit([xe, z, bottom]); emit([xx, z, bottom]); emit([xx, z, y])
-          plan.holes.push([xe, z, s], [xx, z, s]); stats.tunnel++
+          plan.slots.push({ x0: Math.min(xe, xx) - SLOT_MARGIN, x1: Math.max(xe, xx) + SLOT_MARGIN, z0: z, z1: z, top: sf.top, depth: SLOT_DEPTH[k], tray: sf.tray?.id }); stats.tunnel++
         } else if (style === 'portal') {
           emit([xe, z, y]); parts.push(part); part = []; emit([xx, z, y])
           plan.portals.push({ a: [xe, z, y], b: [xx, z, y], dir: [d, 0] }); stats.portal++
@@ -243,7 +268,7 @@ export function applyCrossings(lines: P3[][], style: CrossingStyle, bodies: Body
     parts.push(part)
     plan.parts = parts
   }
-  return { plans, stats }
+  return { plans, stats, slots: mergeSlots(plans.flatMap(p => p.slots)) }
 }
 
 /** The pieces `Scene` needs: bodies and routes in world units in, one plan per route out. */
@@ -257,6 +282,6 @@ export function planEdges(bodies: Body[], routes: { id: string; from: string; to
     ids.push(r.id)
     lines.push(stepRoute(r.points, a, b, map))
   }
-  const { plans, stats } = applyCrossings(lines, style, bodies)
-  return { plans: new Map(ids.map((id, i) => [id, plans[i]])), stats }
+  const { plans, stats, slots } = applyCrossings(lines, style, bodies)
+  return { plans: new Map(ids.map((id, i) => [id, plans[i]])), stats, slots }
 }

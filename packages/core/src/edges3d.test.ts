@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { stepRoute, findCrossings, applyCrossings, endHeight, surfaceAt, STEP_OFFSET, RISE, type Body, type P3 } from './edges3d.ts'
+import { mergeSlots, stepRoute, findCrossings, applyCrossings, endHeight, surfaceAt, STEP_OFFSET, RISE, DIP, SLOT_W, type Body, type P3 } from './edges3d.ts'
 import { TRAY, NODE_H } from './scale.ts'
 import { reroute, dock, layout, sideMid } from './layout.ts'
 import { parse } from './parser.ts'
@@ -105,15 +105,34 @@ test('bridge: only the horizontal line changes, hopping over by RISE; same plan 
   // never touches: at the crossing x the hop is above the other line
   assert.ok(plans[0].parts[0].filter(p => Math.abs(p[0] - 5) < .5 && p[0] !== 5).every(p => p[2] === .35 || p[2] >= .35 + RISE))
 })
-test('tunnel dives below the surface with a hole each side; on a tray the surface is the tray top', () => {
+test('tunnel: an open slot along the dipped stretch; on a tray it is cut in the tray top and the line stays inside the tray', () => {
+  const g = applyCrossings(X(), 'tunnel', []).plans[0]
+  assert.equal(g.slots.length, 1)
+  const s = g.slots[0]
+  assert.equal(s.z0, s.z1) // one line: a stadium
+  assert.ok(s.top === 0 && s.tray === undefined && s.x0 < 5 && s.x1 > 5 && s.depth === 0.4)
+  assert.ok(Math.abs(Math.min(...g.parts[0].map(p => p[2])) - -DIP.ground) < 1e-9)
+  const dipped = g.parts[0].filter(p => p[2] < 0).map(p => p[0])
+  assert.ok(s.x0 < Math.min(...dipped) && s.x1 > Math.max(...dipped)) // spans the dip plus a little
+  assert.equal(SLOT_W, 0.3)
   const t = tray('t', -1, -5, 12, 5, 0)
-  const { plans } = applyCrossings(X(), 'tunnel', [t])
-  assert.equal(plans[0].holes.length, 2)
-  assert.ok(plans[0].holes.every(h => h[2] === TRAY))
-  assert.ok(Math.min(...plans[0].parts[0].map(p => p[2])) < TRAY && Math.min(...plans[0].parts[0].map(p => p[2])) > 0) // inside the tray, above the ground
-  assert.equal(applyCrossings(X(), 'tunnel', []).plans[0].holes[0][2], 0)
-  assert.equal(surfaceAt(5, 0, [t]), TRAY)
+  const o = applyCrossings(X(), 'tunnel', [t]).plans[0]
+  assert.ok(o.slots[0].top === TRAY && o.slots[0].tray === 't' && o.slots[0].depth < TRAY) // shallower than the tray is thick
+  const low = Math.min(...o.parts[0].map(p => p[2]))
+  assert.ok(low >= 0 && low < TRAY) // inside the tray: not out of its bottom
+  assert.deepEqual(surfaceAt(5, 0, [t]).top, TRAY)
+  assert.equal(surfaceAt(50, 0, [t]).top, 0)
 })
+test('troughs close together merge into one; far apart stay two; the tray ones merge only with their own tray', () => {
+  const s = (x0: number, x1: number, z: number, tray?: string) => ({ x0, x1, z0: z, z1: z, top: 0, depth: 0.4, tray })
+  const m = mergeSlots([s(0, 1, 0), s(0.5, 1.5, 0.5), s(9, 10, 0)])
+  assert.equal(m.length, 2)
+  assert.deepEqual([m[0].x0, m[0].x1, m[0].z0, m[0].z1], [0, 1.5, 0, 0.5]) // the union's bounding rectangle
+  assert.equal(mergeSlots([s(0, 1, 0), s(0, 1, 3)]).length, 2)
+  assert.equal(mergeSlots([s(0, 1, 0, 't'), s(0, 1, 0.1)]).length, 2)
+  assert.equal(mergeSlots([s(0, 1, 0, 't'), s(0.2, 1, 0.1, 't')]).length, 1)
+})
+
 test('portal: the line is cut in two, a pair faces apart along the line, either direction', () => {
   const { plans } = applyCrossings(X(), 'portal', [])
   assert.equal(plans[0].parts.length, 2); assert.equal(plans[0].portals.length, 1)
