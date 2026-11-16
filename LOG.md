@@ -176,3 +176,15 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - One fixed crossing style: the person wants to choose between bridge, tunnel and portal.
 
 **Consequences.** Between two blocks on the same surface the line runs at mid-block height, not on the surface. Routes need a height per point.
+
+## 2026-11-16 — Lines routed by libavoid (BON-99)
+
+**Context.** BON-85's prototype kept ELK's routes: on the 50-node sample 14 lines still head off and double back (main also has 14), and dragging re-routes straight through nodes. ELK's options (favorStraightEdges, NETWORK_SIMPLEX, cycle breaking, model order, compaction) and choosing sides after a first pass did not fix it.
+
+**Decision.** ELK keeps placing the boxes; **libavoid** (the `libavoid-js` wasm port) routes the lines, orthogonally, around blocks and around trays a line does not go into, from pins at the middle of each side (the router picks the side). Dragging re-routes with libavoid too. The person accepted libavoid-js's licence, LGPL-2.1-or-later: it ships as its own wasm file beside Bonkei.
+
+**Alternatives considered.**
+- ELK alone, tuned: tried in BON-85, did not stop the doubling back.
+- `@mr_mint/elkjs-libavoid`, JointJS's `@joint/router-avoid`, draw.io's copy: wrappers or tied to another editor; libavoid-js is the plain port.
+
+**Consequences.** A mockup on the 50-node sample (`apps/playground/scripts/avoid-metrics.ts`): length over straight distance 1.03 against ELK's 1.12, a quarter less line, fewer bends, nothing through a block, ~5 ms per drag re-route. libavoid-js has no clusters, so the mockup ran one router per set of trays a line may enter; lines in different routers then overlap (31) and cross more (60 against ELK's 19), and the crossing penalty cannot help across routers. One router for every line, with trays kept closed some other way, is the prototype's question.
