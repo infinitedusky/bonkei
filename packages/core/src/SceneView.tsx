@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
-import { reroute } from './layout'
+import { reroute, PAD } from './layout'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
@@ -177,8 +177,8 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
       if (!p) return
       let x = p.x / S + W / 2 - gx, y = p.z / S + H / 2 - gy
       if (parent) { // keep inside parent tray
-        x = Math.min(Math.max(x, parent.x + 10), parent.x + parent.w - b.w - 10)
-        y = Math.min(Math.max(y, parent.y + 40), parent.y + parent.h - b.h - 10)
+        x = Math.min(Math.max(x, parent.x + PAD.side), parent.x + parent.w - b.w - PAD.side)
+        y = Math.min(Math.max(y, parent.y + PAD.top), parent.y + parent.h - b.h - PAD.side)
       }
       ovr.current = { ...ovr.current, [id]: { x, y } }
       setVer(v => v + 1)
