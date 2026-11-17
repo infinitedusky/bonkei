@@ -37,10 +37,10 @@ function geometry(shape: Box['shape'], w: number, h: number, height: number, bev
   return g
 }
 
-// The footprint's outline in plan (x, z), for the shapes whose sides are smooth.
+// The footprint's outline in plan (x, z), for the shapes with a rounded side or corner (everything but the diamond, whose corners are creases).
 function plan(shape: Box['shape'], w: number, h: number): [number, number][] {
   if (shape === 'cylinder') return Array.from({ length: 64 }, (_, i) => { const a = (i / 64) * Math.PI * 2; return [Math.cos(a) * w / 2, Math.sin(a) * h / 2] as [number, number] })
-  return rounded(w, h, Math.min(w, h) / 2 * 0.95).getPoints(16).map(p => [p.x, -p.y] as [number, number]) // shape y is world -z
+  return rounded(w, h, shape === 'round' ? Math.min(w, h) / 2 * 0.95 : 0.12).getPoints(16).map(p => [p.x, -p.y] as [number, number]) // shape y is world -z
 }
 
 /**
@@ -122,7 +122,7 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
         <Mat color={land ? plinth : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
         <Ink color={th.node.outline} width={th.node.outlineWidth} />
       </mesh>
-      {th.node.outline && (b.shape === 'round' || b.shape === 'cylinder') && (
+      {th.node.outline && b.shape !== 'diamond' && (
         <Silhouette shape={b.shape} w={land ? w * 0.9 : w} h={land ? h * 0.9 : h} height={height} y={0.012} color={th.node.outline} width={th.node.outlineWidth} />
       )}
       {land
