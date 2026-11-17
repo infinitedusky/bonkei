@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Bonkei by script tag</title>
+<style>html,body{margin:0;height:100%;background:#0a0a0f}#d{position:fixed;inset:0}
+#s{position:fixed;left:8px;bottom:8px;margin:0;color:#7f8aa3;font:11px ui-monospace,monospace;pointer-events:none}</style></head>
+<body>
+<div id="d"></div>
+<pre id="s">sample data: a made-up client / API / database flow · routing…</pre>
+<script src="bonkei.global.js"></script>
+<script>
+  // window.__stats / __error are what the smoke test reads; #s shows the same to a person.
+  var s = document.getElementById('s')
+  Bonkei.render(document.getElementById('d'), 'flowchart TD\n  A[Client] --> B[API]\n  B --> C[(Database)]\n  B --> D{Cache}\n  D --> C', {
+    onEdgeStats: function (st) {
+      window.__stats = st
+      s.textContent = 'sample data: a made-up client / API / database flow\n' + (st.routingError
+        ? 'libavoid did not load, ELK routes shown: ' + st.routingError
+        : 'libavoid routed the lines in ' + st.routerBuildMs.toFixed(1) + ' ms')
+    },
+    onError: function (e) { window.__error = e.message; s.textContent = 'error: ' + e.message }
+  })
+</script>
+</body></html>

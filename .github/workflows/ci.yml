@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r typecheck
+      - run: pnpm test
+      - name: Build the package, then lint it (publint, are-the-types-wrong)
+        run: pnpm check:package
+      - name: The apps and Storybook, built against packages/core/dist
+        run: pnpm build && pnpm --filter @bonkei/playground build-storybook
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter bonkei build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Packed tarball in a clean copy of examples/vite (dev and build), then the script-tag page
+        run: pnpm smoke
+        env:
+          SMOKE_CHROMIUM: bundled
+
+  size:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: andresz1/size-limit-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          package_manager: pnpm
+          directory: packages/core
+          build_script: build
+
+  preview:
+    # Every PR gets an installable build of bonkei and examples/vite as a StackBlitz template (pkg.pr.new; the GitHub app must be installed).
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter bonkei build
+      # pkg-pr-new skips packages with "private": true. The flag stays in the repo as a guard against npm publish; it is dropped in this checkout only.
+      - run: npm pkg delete private
+        working-directory: packages/core
+      - run: pnpm exec pkg-pr-new publish './packages/core' --template './examples/vite' --comment=update
