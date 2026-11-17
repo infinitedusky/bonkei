@@ -61,6 +61,7 @@ export function stadium(s: { x0: number; x1: number; z0: number; z1: number }, p
 // outline round the lip, all darker than the surface they are cut in; the walls receive shadows. The surface itself
 // has a matching hole (Ground, Tray). The line runs along the floor under the other line.
 export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: number }) {
+  const th = useTheme()
   // a hair inside the hole, so a tray's own cut walls and these never share a plane
   const shape = useMemo(() => { const sh = new THREE.Shape(); stadium(slot, sh, 0.004); return sh }, [slot.x0, slot.x1, slot.z0, slot.z1])
   const walls = useMemo(() => new THREE.ExtrudeGeometry(shape, { depth: slot.depth, bevelEnabled: false, curveSegments: 16 }), [shape, slot.depth])
@@ -76,7 +77,7 @@ export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: 
     <>
       <mesh geometry={walls} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow material={[hidden, wallMat]} />
       <mesh geometry={flat} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow><meshStandardMaterial color={floor} roughness={1} /></mesh>
-      <Line points={[...outline, outline[0]]} color={rim} lineWidth={1.5} />
+      <Line points={[...outline, outline[0]]} color={th.edge.rim ?? rim} lineWidth={th.edge.rimWidth} />
     </>
   )
 }

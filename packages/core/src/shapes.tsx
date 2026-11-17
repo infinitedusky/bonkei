@@ -19,7 +19,7 @@ function rounded(w: number, h: number, r: number) {
   s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y)
   return s
 }
-function geometry(shape: Box['shape'], w: number, h: number, height: number) {
+function geometry(shape: Box['shape'], w: number, h: number, height: number, bevel: number) {
   let g: THREE.BufferGeometry
   if (shape === 'cylinder') {
     g = new THREE.CylinderGeometry(0.5, 0.5, 1, 48).translate(0, 0.5, 0).scale(w, height, h)
@@ -29,7 +29,7 @@ function geometry(shape: Box['shape'], w: number, h: number, height: number) {
   if (shape === 'diamond') {
     sh = new THREE.Shape(); sh.moveTo(-w / 2, 0); sh.lineTo(0, -h / 2); sh.lineTo(w / 2, 0); sh.lineTo(0, h / 2); sh.closePath()
   } else sh = rounded(w, h, shape === 'round' ? Math.min(w, h) / 2 * 0.95 : 0.12)
-  g = new THREE.ExtrudeGeometry(sh, { depth: height, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2, curveSegments: 16 })
+  g = new THREE.ExtrudeGeometry(sh, { depth: height, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 2, curveSegments: 16 })
   g.rotateX(-Math.PI / 2)
   return g
 }
@@ -54,15 +54,15 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
   const w = b.w * S, h = b.h * S
   const land = th.node.form === 'landscape'
   const height = land ? th.node.footHeight : (b.height ?? NODE_H)
-  const geo = useMemo(() => geometry(b.shape, land ? w * 0.9 : w, land ? h * 0.9 : h, height), [b.shape, w, h, height, land])
+  const geo = useMemo(() => geometry(b.shape, land ? w * 0.9 : w, land ? h * 0.9 : h, height, th.node.bevel), [b.shape, w, h, height, land, th.node.bevel])
   return (
     <>
       <mesh geometry={geo} castShadow={th.light.shadows} receiveShadow={th.light.shadows}>
         <Mat color={land ? th.node.foot : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
         <Ink color={th.node.outline} width={th.node.outlineWidth} />
       </mesh>
-      {land && <Form shape={b.shape} w={w} h={h} y={height} />}
-      <Label text={b.label} mode={land ? 'billboard' : labelMode} y={land ? height - 0.12 : height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />
+      {land && <Form shape={b.shape} w={w} h={h} y={height + th.node.labelGap} />}
+      <Label text={b.label} mode={land ? 'billboard' : labelMode} y={land ? height - 0.35 : height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />
     </>
   )
 }
@@ -70,7 +70,7 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
 export function Label({ text, mode, y, size, maxWidth, left = false, role }: { text: string; mode: LabelMode; y: number; size: number; maxWidth: number; left?: boolean; role: 'node' | 'tray' }) {
   const th = useTheme()
   const plate = th.label[role], font = fontUrl(th)
-  const body = <PlateText text={text} plate={plate} font={font} fontSize={size} maxWidth={maxWidth} left={left} outline={mode !== 'top' && plate.style === 'plain'} />
+  const body = <PlateText text={text} plate={plate} font={font} fontSize={size} maxWidth={maxWidth} left={left} outline={mode !== 'top' && plate.style === 'plain'} toward={mode !== 'top' && role === 'node' ? th.label.toward : 0} />
   if (mode === 'top') return <group rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>{body}</group>
   return <Billboard position={[0, y + 0.45, 0]}>{body}</Billboard>
 }
@@ -79,33 +79,35 @@ export function Tray({ b, labelMode, hover = false, slots = [] }: { b: Box; labe
   const th = useTheme()
   const w = b.w * S, h = b.h * S
   const lv = Math.min(b.level, 2)
+  const T = th.tray.thickness
   const pat = th.tray.sides[lv]
   const side = useMemo(() => {
-    const t = patternTexture(pat, th.tray.patternInk, th.tray.patternPaper)
+    const t = patternTexture(pat, th.tray.patternInk, th.tray.patternPaper, th.tray.outline ?? th.tray.patternInk)
     if (!t) return null
     const c = t.clone(); c.needsUpdate = true
-    c.repeat.set(1 / TRAY, 1 / TRAY) // extruded side walls have world-unit UVs: one tile is as wide as the tray is thick
+    c.repeat.set(1 / T, 1 / T) // extruded side walls have world-unit UVs (v runs 1-T..1): one square tile is exactly the band's height
+    c.offset.set(0, ((-(1 - T) / T) % 1 + 1) % 1)
     return c
-  }, [pat, th.tray.patternInk, th.tray.patternPaper])
+  }, [pat, th.tray.patternInk, th.tray.patternPaper, T])
   // with tunnel slots (in tray-local x, z) the top is cut open, and a patterned side needs the extruded walls; otherwise a plain box
   const cut = useMemo(() => {
     if (!slots.length && !side) return null
-    return new THREE.ExtrudeGeometry(slotShape(-w / 2, -h / 2, w / 2, h / 2, slots), { depth: TRAY, bevelEnabled: false }).rotateX(-Math.PI / 2)
-  }, [w, h, JSON.stringify(slots), !!side])
+    return new THREE.ExtrudeGeometry(slotShape(-w / 2, -h / 2, w / 2, h / 2, slots), { depth: T, bevelEnabled: false }).rotateX(-Math.PI / 2)
+  }, [w, h, JSON.stringify(slots), !!side, T])
   const mat = (map: THREE.Texture | null | undefined, attach?: string) => <Mat attach={attach} color={map ? '#ffffff' : th.tray.colors[lv]} map={map} roughness={0.9} emissive={hover ? th.tray.hover : '#000'} emissiveIntensity={hover ? th.tray.hoverIntensity : 0} />
   return (
     <>
-      <mesh key={cut ? 'cut' : 'box'} position={[0, cut ? 0 : TRAY / 2, 0]} receiveShadow={th.light.shadows} geometry={cut ?? undefined}>
-        {!cut && <boxGeometry args={[w, TRAY, h]} />}
+      <mesh key={cut ? 'cut' : 'box'} position={[0, cut ? 0 : T / 2, 0]} receiveShadow={th.light.shadows} geometry={cut ?? undefined}>
+        {!cut && <boxGeometry args={[w, T, h]} />}
         {cut ? <>{mat(null, 'material-0')}{mat(side, 'material-1')}</> : mat(null)}
         <Ink color={th.tray.outline} width={th.node.outlineWidth} />
       </mesh>
       <group position={[-w / 2 + 0.25, 0, -h / 2 + 0.5]}>
-        <Label text={b.label} mode={labelMode} y={TRAY + 0.01} size={0.4} maxWidth={w - 0.5} left role="tray" />
+        <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left role="tray" />
       </group>
     </>
   )
 }
 
 // y of the surface a box sits on
-export const baseOf = (b: Box) => (b.kind === 'group' ? b.level * TRAY : b.level * TRAY)
+export const baseOf = (b: Box, thickness = TRAY) => b.level * thickness

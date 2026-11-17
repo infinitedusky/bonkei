@@ -10,7 +10,7 @@ import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, type LabelMode } from './shapes'
-import { Mat, ThemeProvider, useTheme, grainTexture } from './look'
+import { Mat, ThemeProvider, ToneSetup, useTheme, grainTexture } from './look'
 import { CLASSIC, type Theme } from './theme'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
@@ -168,10 +168,10 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const quality = useMemo<RouteQuality>(() => measureRoutes([...boxes.values()], routes), [boxes, routes])
   const { plans, stats, slots, ms } = useMemo(() => {
     const t0 = performance.now()
-    const bodies: Body[] = [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.height }))
+    const bodies: Body[] = [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.height, tray: th.tray.thickness }))
     const r = planEdges(bodies, routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) })), crossings)
     return { ...r, ms: performance.now() - t0 }
-  }, [boxes, routes, crossings, W, H])
+  }, [boxes, routes, crossings, W, H, th.tray.thickness])
   const groundSlots = useMemo(() => slots.filter(s => !s.tray), [slots])
   const portalList = useMemo(() => [...plans.values()].flatMap(p => p.portals), [plans])
   useEffect(() => { camera.layers.enable(TEXT_LAYER) }, [camera])
@@ -195,7 +195,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const startNodeDrag = (e: ThreeEvent<PointerEvent>, id: string) => {
     e.stopPropagation()
     const b = boxes.get(id)!
-    const planeY = baseOf(b) + (b.height ?? NODE_H)
+    const planeY = baseOf(b, th.tray.thickness) + (b.height ?? NODE_H)
     const p0 = groundPoint(e.nativeEvent.clientX, e.nativeEvent.clientY, planeY)
     if (!p0) return
     const gx = p0.x / S + W / 2 - b.x, gy = p0.z / S + H / 2 - b.y
@@ -225,7 +225,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
       <Env cam={cam} controls={controls} slots={groundSlots}>
       {[...boxes.values()].map(b => {
         const w = b.w * S, h = b.h * S
-        const pos: [number, number, number] = [wx(b.x) + w / 2, baseOf(b), wz(b.y) + h / 2]
+        const pos: [number, number, number] = [wx(b.x) + w / 2, baseOf(b, th.tray.thickness), wz(b.y) + h / 2]
         if (b.kind === 'group') {
           return (
             <group key={b.id} position={pos}
@@ -331,9 +331,10 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
   useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
   return (
     <>
-      <Canvas shadows={theme.light.shadows} flat={!theme.light.toneMapping} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
+      <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
         <ThemeProvider theme={theme} key={theme.name + JSON.stringify(theme).length}>
+          <ToneSetup />
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
         <Rig cam={c} fpsRef={fpsRef} />
         {data && ('kind' in data

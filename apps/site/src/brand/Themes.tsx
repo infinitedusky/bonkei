@@ -1,25 +1,25 @@
 import { useState } from 'react'
-import bonkeiStill from './mock/theme-bonkei.jpg'
-import landscapeStill from './mock/theme-landscape.jpg'
+import { Bonkei } from 'bonkei'
 import prints from './mock/ref-prints.jpg'
+import { THEMES_DIAGRAM } from './themes-sample'
 
-// MOCKUP: the home page's Themes section. One diagram, switched between themes from a list.
-// The engine has no themes yet (BON-32), so the Bonkei looks are stills of the sketch
-// (sketches/brand-theme.html), marked as such; Classic is today's real still.
+// The home page's Themes section. One diagram, drawn live in the theme picked from the list: the theme
+// is chosen the way a reader would, by `config.theme` / `config.themeVariables` in the diagram's frontmatter.
 
 type ThemeId = 'classic' | 'bonkei' | 'landscape'
 
-const THEMES: { id: ThemeId | null; name: string; note: string; still?: string; mock?: boolean; config?: string }[] = [
-  { id: 'classic', name: 'Classic', note: 'the default', still: import.meta.env.BASE_URL + 'still-iso.png', config: 'theme: classic' },
-  { id: 'bonkei', name: 'Bonkei', note: 'ink and paper, patterned trays', still: bonkeiStill, mock: true, config: 'theme: bonkei' },
-  { id: 'landscape', name: 'Bonkei · landscape', note: 'nodes become houses, bonsai, rocks', still: landscapeStill, mock: true, config: 'theme: bonkei\n  themeVariables:\n    node.form: landscape' },
+const THEMES: { id: ThemeId | null; name: string; note: string; config?: string }[] = [
+  { id: 'classic', name: 'Classic', note: 'the default', config: 'theme: classic' },
+  { id: 'bonkei', name: 'Bonkei', note: 'ink and paper, patterned trays', config: 'theme: bonkei' },
+  { id: 'landscape', name: 'Bonkei · landscape', note: 'nodes become houses, bonsai, rocks', config: 'theme: bonkei\n  themeVariables:\n    node.form: landscape' },
   { id: null, name: 'Blueprint', note: 'coming with themes' },
   { id: null, name: 'Map', note: 'coming with themes' },
 ]
 
-export function Themes({ start = 'landscape' }: { start?: ThemeId }) {
+export function Themes({ start = 'landscape', source = THEMES_DIAGRAM }: { start?: ThemeId; source?: string }) {
   const [on, setOn] = useState<ThemeId>(start)
   const t = THEMES.find(x => x.id === on)!
+  const text = `---\nconfig:\n  ${t.config}\n---\n${source}`
   return (
     <div className="brand-themes">
       <div>
@@ -34,8 +34,7 @@ export function Themes({ start = 'landscape' }: { start?: ThemeId }) {
       </div>
       <div>
         <div className="brand-tview">
-          <img src={t.still} alt={`A flowchart drawn in the ${t.name} theme`} />
-          {t.mock && <span className="brand-tmock">mockup: a still of the sketch, the theme is not built yet</span>}
+          <Bonkei source={text} mode="iso" toolbar={false} controls={{ zoom: false }} />
         </div>
         <div className="brand-origin">
           <img src={prints} alt="Three Edo woodblock prints of tray landscapes: mountains, pines and houses in blue-and-white patterned bowls" />

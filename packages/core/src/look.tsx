@@ -1,7 +1,8 @@
 // The theme as the scene uses it: the context, materials, ink outlines, label plates, patterns and landscape forms.
 // Everything here reads tokens from the Theme; nothing checks a theme's name.
 import * as THREE from 'three'
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import { useThree } from '@react-three/fiber'
 import { Edges, Text } from '@react-three/drei'
 import type { Shape } from './model.ts'
 import { CLASSIC, type Pattern, type Plate, type Theme } from './theme.ts'
@@ -11,6 +12,13 @@ import { TEXT_LAYER } from './scale.ts'
 const Ctx = createContext<Theme>(CLASSIC)
 export const ThemeProvider = ({ theme, children }: { theme: Theme; children: ReactNode }) => <Ctx.Provider value={theme}>{children}</Ctx.Provider>
 export const useTheme = () => useContext(Ctx)
+/** Tone mapping from the theme. Set here rather than with Canvas's `flat` prop, which is read once when the canvas is made (the theme can arrive after, from the frontmatter). */
+export function ToneSetup() {
+  const th = useTheme()
+  const gl = useThree(s => s.gl)
+  useLayoutEffect(() => { gl.toneMapping = th.light.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping }, [gl, th.light.toneMapping])
+  return null
+}
 export const fontUrl = (t: Theme) => (t.label.font ? FONTS[t.label.font] : undefined)
 
 // ---- materials ----
@@ -42,40 +50,40 @@ export function Ink({ color, width }: { color: string | null; width: number }) {
 }
 
 // ---- tray side patterns, drawn on a canvas (no image files) ----
+// One square tile is exactly the height of the tray's side band: a single bold motif filling the band, an ink line along the top and the bottom.
 const pats = new Map<string, THREE.CanvasTexture>()
-export function patternTexture(kind: Pattern, ink: string, paper: string): THREE.Texture | null {
+export function patternTexture(kind: Pattern, ink: string, paper: string, line: string): THREE.Texture | null {
   if (kind === 'plain') return null
-  const key = `${kind}|${ink}|${paper}`
+  const key = `${kind}|${ink}|${paper}|${line}`
   let t = pats.get(key)
   if (t) return t
-  const N = 64, c = document.createElement('canvas')
+  const N = 128, c = document.createElement('canvas')
   c.width = c.height = N
   const g = c.getContext('2d')!
-  const u = N / 16
+  const bar = N * 0.07, m = N / 2
   if (kind === 'hishi') {
     g.fillStyle = paper; g.fillRect(0, 0, N, N)
     g.fillStyle = ink
-    for (const [ox, oy] of [[0, 0], [8, 0], [0, 8], [8, 8]]) { // 2x2 diamonds per tile
-      const cx = (ox + 4) * u, cy = (oy + 4) * u
-      g.beginPath(); g.moveTo(cx, cy - 3.2 * u); g.lineTo(cx + 3.2 * u, cy); g.lineTo(cx, cy + 3.2 * u); g.lineTo(cx - 3.2 * u, cy); g.closePath(); g.fill()
-    }
+    const r = N / 2 - bar - 2
+    g.beginPath(); g.moveTo(m, m - r); g.lineTo(m + r, m); g.lineTo(m, m + r); g.lineTo(m - r, m); g.closePath(); g.fill()
+    g.fillStyle = paper; g.beginPath(); g.moveTo(m, m - r * 0.4); g.lineTo(m + r * 0.4, m); g.lineTo(m, m + r * 0.4); g.lineTo(m - r * 0.4, m); g.closePath(); g.fill()
   } else if (kind === 'flower') {
     g.fillStyle = paper; g.fillRect(0, 0, N, N)
-    for (const [ox, oy] of [[0, 0], [8, 0], [0, 8], [8, 8]]) {
-      const cx = (ox + 4) * u, cy = (oy + 4) * u
-      g.fillStyle = ink
-      for (const [dx, dy] of [[0, -1.8], [0, 1.8], [-1.8, 0], [1.8, 0]]) { g.beginPath(); g.arc(cx + dx * u, cy + dy * u, 1.4 * u, 0, 7); g.fill() }
-      g.fillStyle = paper; g.beginPath(); g.arc(cx, cy, 0.8 * u, 0, 7); g.fill()
-    }
+    g.fillStyle = ink
+    const pr = N * 0.17, d = N * 0.2
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) { g.beginPath(); g.arc(m + dx * d, m + dy * d, pr, 0, 7); g.fill() }
+    g.fillStyle = paper; g.beginPath(); g.arc(m, m, N * 0.1, 0, 7); g.fill()
   } else { // stone: dark ground with wavy veins
     g.fillStyle = '#5f5850'; g.fillRect(0, 0, N, N)
-    g.strokeStyle = '#4a443d'; g.lineWidth = 3; g.lineCap = 'round'
-    for (const y of [10, 28, 46, 60]) { g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(N * 0.25, y - 6, N * 0.5, y + 6, N * 0.75, y - 3); g.lineTo(N, y); g.stroke() }
+    g.strokeStyle = '#4a443d'; g.lineWidth = N * 0.06; g.lineCap = 'round'
+    for (const y of [0.3, 0.55, 0.8]) { g.beginPath(); g.moveTo(0, N * y); g.bezierCurveTo(N * 0.25, N * (y - 0.14), N * 0.5, N * (y + 0.14), N, N * y); g.stroke() }
   }
+  g.fillStyle = line
+  g.fillRect(0, 0, N, bar); g.fillRect(0, N - bar, N, bar)
   t = new THREE.CanvasTexture(c)
   t.wrapS = t.wrapT = THREE.RepeatWrapping
   t.colorSpace = THREE.SRGBColorSpace
-  t.anisotropy = 4
+  t.anisotropy = 8
   pats.set(key, t)
   return t
 }
@@ -92,8 +100,8 @@ export function grainTexture(bg: string, amount: number): THREE.Texture {
   g.fillStyle = bg; g.fillRect(0, 0, N, N)
   let seed = 7
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
-  for (let i = 0; i < 5200; i++) {
-    g.fillStyle = rnd() < 0.5 ? `rgba(120,95,55,${0.05 + rnd() * 0.1 * amount})` : `rgba(255,250,235,${0.05 + rnd() * 0.12 * amount})`
+  for (let i = 0; i < 3500; i++) {
+    g.fillStyle = rnd() < 0.5 ? `rgba(120,95,55,${0.02 + rnd() * 0.07 * amount})` : `rgba(255,250,235,${0.02 + rnd() * 0.08 * amount})`
     g.fillRect(rnd() * N, rnd() * N, 1 + rnd() * 1.5, 1 + rnd() * 1.5)
   }
   t = new THREE.CanvasTexture(c)
@@ -106,13 +114,13 @@ export function grainTexture(bg: string, amount: number): THREE.Texture {
 
 // ---- label plates ----
 /** Text, and behind it a cartouche (border and plate sized to the text) when the plate token asks for one. Lies in its parent's XY plane. */
-export function PlateText({ text, plate, font, fontSize, maxWidth, left = false, outline = false }: { text: string; plate: Plate; font?: string; fontSize: number; maxWidth: number; left?: boolean; outline?: boolean }) {
+export function PlateText({ text, plate, font, fontSize, maxWidth, left = false, outline = false, toward = 0 }: { text: string; plate: Plate; font?: string; fontSize: number; maxWidth: number; left?: boolean; outline?: boolean; toward?: number }) {
   const [b, setB] = useState<[number, number, number, number] | null>(null)
   const cart = plate.style === 'cartouche'
   const pad = fontSize * 0.28, bw = fontSize * 0.09
   const mat = { depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }
   return (
-    <>
+    <group position={[0, 0, toward]}>
       {cart && b && (
         <group position={[(b[0] + b[2]) / 2, (b[1] + b[3]) / 2, 0]}>
           <mesh layers={TEXT_LAYER as any} renderOrder={1}>
@@ -129,7 +137,7 @@ export function PlateText({ text, plate, font, fontSize, maxWidth, left = false,
         anchorX={left ? 'left' : 'center'} anchorY="middle" textAlign={left ? 'left' : 'center'}
         outlineWidth={outline ? 0.03 : 0} outlineColor="#000"
         onSync={cart ? (t: any) => { const r = t.textRenderInfo?.blockBounds; if (r) setB(p => (p && p[0] === r[0] && p[1] === r[1] && p[2] === r[2] && p[3] === r[3] ? p : [r[0], r[1], r[2], r[3]])) } : undefined}>{text}</Text>
-    </>
+    </group>
   )
 }
 

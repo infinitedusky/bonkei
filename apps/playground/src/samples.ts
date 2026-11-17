@@ -203,8 +203,30 @@ const checkoutFlow = `flowchart LR
   Fraud --> Review
   Fraud --> Ledger[(Ledger)]
   Ledger --> Payments`
+// The diagram of sketches/brand-theme.html, for comparing the Bonkei themes with the mockup.
+export const bonkeiMockup = `flowchart LR
+  Client[Client] --> GW[API gateway]
+  subgraph Services
+    Auth((Auth))
+    Orders[Orders]
+    subgraph Billing
+      Invoices[Invoices] --> Paid{Paid?}
+    end
+  end
+  subgraph Data
+    PG[(Postgres)]
+    Cache((Cache))
+  end
+  GW --> Auth
+  GW --> Orders
+  Orders --> Invoices
+  Orders --> PG
+  Auth --> Cache
+`
+
 export const SAMPLES: Record<string, string> = {
   'flow: small (sample.mmd)': small,
+  'flow: bonkei mockup': bonkeiMockup,
   'flow: large (~50 nodes)': large,
   'flow: wide (30 → 5)': wide,
   'flow: checkout': checkoutFlow,

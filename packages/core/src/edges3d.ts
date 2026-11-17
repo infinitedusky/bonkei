@@ -29,10 +29,11 @@ export interface Body {
   level: number
   parent?: string
   height?: number
+  tray?: number // the thickness of one tray level, default TRAY (a theme sets it)
 }
 
-export const baseOf = (b: Pick<Body, 'level'>) => b.level * TRAY
-export const heightOf = (b: Pick<Body, 'kind' | 'height'>) => b.kind === 'group' ? TRAY : b.height ?? NODE_H
+export const baseOf = (b: Pick<Body, 'level' | 'tray'>) => b.level * (b.tray ?? TRAY)
+export const heightOf = (b: Pick<Body, 'kind' | 'height' | 'tray'>) => b.kind === 'group' ? b.tray ?? TRAY : b.height ?? NODE_H
 /** Where an edge meets a body: halfway up it. */
 export const endHeight = (b: Body) => baseOf(b) + heightOf(b) / 2
 
@@ -221,7 +222,7 @@ export interface EdgePlan {
 /** The surface under (x, z): the top of the innermost tray there, else the ground. */
 export function surfaceAt(x: number, z: number, bodies: Body[]): { top: number; tray?: Body } {
   let top = 0, tray: Body | undefined
-  for (const b of bodies) if (b.kind === 'group' && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && (b.level + 1) * TRAY > top) { top = (b.level + 1) * TRAY; tray = b }
+  for (const b of bodies) if (b.kind === 'group' && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && (b.level + 1) * (b.tray ?? TRAY) > top) { top = (b.level + 1) * (b.tray ?? TRAY); tray = b }
   return { top, tray }
 }
 

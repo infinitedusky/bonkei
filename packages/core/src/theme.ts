@@ -19,12 +19,15 @@ export interface Theme {
     form: 'block' | 'landscape' // landscape: a form stands on the footprint
     outline: string | null // ink colour; null: no outline
     outlineWidth: number
+    bevel: number // edge rounding of a block; 0 for crisp ink edges
     footHeight: number // landscape: the low footprint under a form
+    labelGap: number // landscape: how far the form stands above its footprint, leaving room for the label in front
     foot: string
     hover: string
     hoverIntensity: number
   }
   tray: {
+    thickness: number // the tray's height (one level)
     colors: [string, string, string] // top, by level
     sides: [Pattern, Pattern, Pattern] // side pattern, by level
     patternInk: string
@@ -37,8 +40,9 @@ export interface Theme {
     font: string | null // a bundled font key, null: drei's default
     node: Plate
     tray: Plate
+    toward: number // how far a billboarded label is pulled towards the camera, so it stands in front of a form
   }
-  edge: { color: string; width: number; label: string; labelOutline: string; portal: string }
+  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number } // rim: the lip of a tunnel's trough; null: a dark shade of the surface
   seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
 }
 
@@ -48,10 +52,11 @@ export const CLASSIC: Theme = {
   light: { ambient: 0.55, sky: '#bcd0ff', floor: '#202838', hemi: 0.5, sun: 1.6, shadows: true, shading: 'standard', tones: 3, toneMapping: true },
   node: {
     colors: { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' },
-    form: 'block', outline: null, outlineWidth: 1.5, footHeight: 0.12, foot: '#e9dfc8',
+    form: 'block', outline: null, outlineWidth: 2, bevel: 0.03, footHeight: 0.12, labelGap: 0.3, foot: '#e9dfc8',
     hover: '#ffffff', hoverIntensity: 0.18,
   },
   tray: {
+    thickness: 0.25,
     colors: ['#243044', '#2d3b52', '#374862'], sides: ['plain', 'plain', 'plain'], patternInk: '#24508F', patternPaper: '#f4efe3',
     outline: null, hover: '#8fb0ff', hoverIntensity: 0.15,
   },
@@ -59,35 +64,38 @@ export const CLASSIC: Theme = {
     font: null,
     node: { style: 'plain', text: '#ffffff', plate: '#ffffff', border: '#000000' },
     tray: { style: 'plain', text: '#cfd8ea', plate: '#ffffff', border: '#000000' },
+    toward: 0,
   },
-  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff' },
+  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: null, rimWidth: 1.5 },
   seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 }
 
 export const BONKEI: Theme = {
   name: 'bonkei',
-  ground: { bg: '#EFE6D0', grid: null, grain: 0.5, lit: false },
-  light: { ambient: 1.7, sky: '#fff8e6', floor: '#d8cbaa', hemi: 0.4, sun: 1.5, shadows: false, shading: 'toon', tones: 3, toneMapping: false },
+  ground: { bg: '#EFE6D0', grid: null, grain: 0.25, lit: false },
+  light: { ambient: 1.2, sky: '#fff8e6', floor: '#d8cbaa', hemi: 0.4, sun: 1.5, shadows: false, shading: 'toon', tones: 3, toneMapping: false },
   node: {
     colors: { rect: '#9AAE8C', round: '#5E8F88', cylinder: '#C9A24A', diamond: '#7C93B8' },
-    form: 'block', outline: '#2A2622', outlineWidth: 1.6, footHeight: 0.12, foot: '#e9dfc8',
+    form: 'block', outline: '#2A2622', outlineWidth: 2, bevel: 0, footHeight: 0.2, labelGap: 0.34, foot: '#F3EBD8',
     hover: '#fff2c0', hoverIntensity: 0.15,
   },
   tray: {
-    colors: ['#E6DCC3', '#E6DCC3', '#E6DCC3'], sides: ['hishi', 'flower', 'stone'], patternInk: '#24508F', patternPaper: '#f4efe3',
+    thickness: 0.42,
+    colors: ['#E6DCC3', '#DACDAE', '#CDBF9C'], sides: ['hishi', 'flower', 'stone'], patternInk: '#24508F', patternPaper: '#f4efe3',
     outline: '#2A2622', hover: '#fff2c0', hoverIntensity: 0.12,
   },
   label: {
     font: 'mincho',
     node: { style: 'cartouche', text: '#2A2622', plate: '#f6efdd', border: '#2A2622' },
     tray: { style: 'cartouche', text: '#f1e8d2', plate: '#23345A', border: '#2A2622' },
+    toward: 0,
   },
-  edge: { color: '#2A2622', width: 2.4, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#C8452C' },
+  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2 },
   seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
 }
 
 // Bonkei plus one override: a landscape form stands on each node's footprint.
-export const LANDSCAPE: Theme = { ...BONKEI, name: 'landscape', node: { ...BONKEI.node, form: 'landscape' } }
+export const LANDSCAPE: Theme = { ...BONKEI, name: 'landscape', node: { ...BONKEI.node, form: 'landscape' }, label: { ...BONKEI.label, toward: 0.7 } }
 
 export const PRESETS: Record<string, Theme> = { classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': LANDSCAPE, landscape: LANDSCAPE }
 

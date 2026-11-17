@@ -6,9 +6,9 @@ test('presets are plain JSON: they survive a round trip', () => {
   for (const t of [CLASSIC, BONKEI, LANDSCAPE]) assert.deepEqual(JSON.parse(JSON.stringify(t)), t)
 })
 
-test('landscape is Bonkei with one token changed', () => {
+test('landscape is Bonkei with two tokens changed: the form, and how far its label is pulled forward', () => {
   assert.equal(LANDSCAPE.node.form, 'landscape')
-  assert.deepEqual({ ...LANDSCAPE, name: '', node: { ...LANDSCAPE.node, form: 'block' } }, { ...BONKEI, name: '' })
+  assert.deepEqual({ ...LANDSCAPE, name: '', node: { ...LANDSCAPE.node, form: 'block' }, label: { ...LANDSCAPE.label, toward: 0 } }, { ...BONKEI, name: '' })
 })
 
 test('an unknown name is Classic with a problem; no name is Classic without one', () => {
