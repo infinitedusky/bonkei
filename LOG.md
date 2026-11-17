@@ -185,3 +185,13 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 **Measured** (50-node sample, `route-metrics.ts`): doubling back 0 at off, some and strong. 0 through a block or foreign tray, 0 lying on top of each other, length / direct 1.00 (main 1.12). Crossings: off 96, some 52, strong 48. Drag (`drag-check.ts`, 168 frames): 0 through a block or tray, 0 turning back where a direct route exists. 13 frames turn back because the drop puts the target straight behind another block, where no route that avoids the block can be monotone.
 
 **Consequences.** Blocks can sit up to 240 px off where ELK put them. While a node is dragged, a line still turns back if the drop leaves no direct route. The drag never slides other blocks, because they would jump under the pointer.
+
+## 2026-11-17 — React 19 (BON-52)
+
+**Context.** Core, the playground and the site are on React 18 (`^18.3.1`) with React Three Fiber 8. BON-52 sets the peer dependencies the published package asks of a host app.
+
+**Decision.** Move everything to React 19, with the React Three Fiber and drei versions that go with it. The `bonkei` package asks the host for React 19 or later; React 18 is not supported.
+
+**Alternatives considered.** Supporting React 18 and 19 together: Fiber 9 needs React 19 and Fiber 8 does not support it, so one peer range covering both would mean shipping against two Fiber majors.
+
+**Consequences.** Hosts still on React 18 cannot install Bonkei without upgrading. The upgrade is done inside BON-52, before the build is measured for the size budget.
