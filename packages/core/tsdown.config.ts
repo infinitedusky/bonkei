@@ -1,4 +1,14 @@
+import fs from 'node:fs'
 import { defineConfig } from 'tsdown'
+
+// `virtual:libavoid-inline`: the wasm as base64 in a module of its own, which loadAvoid() imports only if the file beside the module is not found.
+const inlineWasm = (on: boolean) => ({
+  name: 'libavoid-inline',
+  resolveId: (id: string) => (id === 'virtual:libavoid-inline' ? '\0libavoid-inline' : null),
+  load: (id: string) => id === '\0libavoid-inline'
+    ? `export default ${on ? JSON.stringify(fs.readFileSync('src/libavoid.wasm').toString('base64')) : 'null'}`
+    : null,
+})
 
 export default defineConfig([
   {
@@ -9,6 +19,7 @@ export default defineConfig([
     dts: true,
     clean: true,
     sourcemap: true,
+    plugins: [inlineWasm(true)],
     exports: true,
     publint: true,
     attw: { profile: 'esm-only' },
@@ -22,6 +33,7 @@ export default defineConfig([
     minify: true,
     clean: false,
     noExternal: [/.*/],
+    plugins: [inlineWasm(false)],
     define: { 'process.env.NODE_ENV': '"production"' },
   },
 ])

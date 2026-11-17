@@ -47,19 +47,34 @@ let loading: Promise<Avoid> | null = null
 let wasmUrl: string | undefined
 /** Where the browser finds libavoid.wasm. By default the file beside this module (`./libavoid.wasm`), which Vite, webpack and Rollup turn into an asset; call this before the first layout to point elsewhere. */
 export function setAvoidWasm(url: string) { wasmUrl = url }
-/** Loads the wasm once. Rejects if it cannot load (the caller falls back to ELK's routes); a later call tries again. */
 // Where the wasm is, by setting: an ES module bundled by the host finds it from `import.meta.url` (the pattern below is the one Vite,
-// webpack and Rollup turn into an asset; Vite's dev pre-bundling rewrites it to the file in node_modules/bonkei/dist). The script-tag
-// bundle has no `import.meta.url`, so it takes `libavoid.wasm` from beside the script that loaded it, read while that script runs.
+// webpack and Rollup turn into an asset). The script-tag bundle has no `import.meta.url`, so it takes `libavoid.wasm` from beside the
+// script that loaded it, read while that script runs.
 const scriptSrc = typeof document !== 'undefined' && document.currentScript && 'src' in document.currentScript ? (document.currentScript as HTMLScriptElement).src : ''
 function defaultWasmUrl(): string | undefined {
   if (typeof document === 'undefined') return undefined // Node: libavoid-js reads the file itself
   if (import.meta.url) return new URL('./libavoid.wasm', import.meta.url).href
   return scriptSrc ? new URL('libavoid.wasm', scriptSrc).href : undefined
 }
-/** Loads the wasm once. Rejects if it cannot load (the caller falls back to ELK's routes); a later call tries again. */
+/** How the wasm was found on the last successful load: 'url' (the file beside the module or the script), 'set' (setAvoidWasm) or 'inline' (the lazy base64 chunk). */
+export const wasmInfo: { source: 'url' | 'set' | 'inline' | null } = { source: null }
+/** Loads the wasm once. Rejects if it cannot load (the caller falls back to ELK's routes); a later call tries again.
+ * If the file at the default URL is not there (Vite 5's dev pre-bundling moves the module away from it), the same bytes come from a lazy chunk
+ * that holds them as base64; a host never has to configure anything. */
 export function loadAvoid(): Promise<Avoid> {
-  loading ??= AvoidLib.load(wasmUrl ?? defaultWasmUrl()).then(() => AvoidLib.getInstance()).catch(e => { loading = null; throw e })
+  loading ??= (async () => {
+    try {
+      await AvoidLib.load(wasmUrl ?? defaultWasmUrl())
+      wasmInfo.source = wasmUrl ? 'set' : 'url'
+    } catch (e) {
+      if (wasmUrl) throw e
+      const inline: string | null = (await import('virtual:libavoid-inline')).default
+      if (!inline) throw e
+      await AvoidLib.load('data:application/wasm;base64,' + inline)
+      wasmInfo.source = 'inline'
+    }
+    return AvoidLib.getInstance()
+  })().catch(e => { loading = null; throw e })
   return loading
 }
 /** The loaded module, or null while it has not loaded. */

@@ -1,5 +1,5 @@
 import type { Graph, Box, Route, LayoutResult } from './model.ts'
-import { loadAvoid, createRouter, keepRouter, sideMid, TUNE, type AvoidCrossings, type Side } from './avoid.ts'
+import { loadAvoid, wasmInfo, createRouter, keepRouter, sideMid, TUNE, type AvoidCrossings, type Side } from './avoid.ts'
 import { straighten, unblock } from './monotone.ts'
 import { withSpan } from './telemetry.ts'
 import type { Span } from '@opentelemetry/api'
@@ -63,7 +63,7 @@ export const layout: LayoutEngine = async (g, o = {}) => {
       if (!loadMs.wasm) loadMs.wasm = performance.now() - tw
       const r = createRouter(A, placed, level)
       const ms = performance.now() - t0
-      span.setAttributes({ 'bonkei.route_ms': ms, 'bonkei.router_build_ms': r.stats.buildMs, 'bonkei.unroutable': r.stats.failed.length, 'bonkei.straightened': r.stats.straightened, 'bonkei.forced_turns': r.stats.forced, 'bonkei.refined': r.stats.refined, 'bonkei.elk_load_ms': loadMs.elk, 'bonkei.wasm_load_ms': loadMs.wasm })
+      span.setAttributes({ 'bonkei.route_ms': ms, 'bonkei.router_build_ms': r.stats.buildMs, 'bonkei.unroutable': r.stats.failed.length, 'bonkei.straightened': r.stats.straightened, 'bonkei.forced_turns': r.stats.forced, 'bonkei.refined': r.stats.refined, 'bonkei.elk_load_ms': loadMs.elk, 'bonkei.wasm_load_ms': loadMs.wasm, 'bonkei.wasm_source': wasmInfo.source ?? '' })
       const out: LayoutResult = { ...placed, routes: r.routes, stats: { ...placed.stats!, route: { ms, buildMs: r.stats.buildMs, failed: r.stats.failed, straightened: r.stats.straightened, forced: r.stats.forced, error: null, level } } }
       keepRouter(out, r) // the scene drags on the same router
       return out
