@@ -17,8 +17,8 @@ const NORMAL: Record<Side, Pt> = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] 
 const SIDES: Side[] = ['N', 'S', 'E', 'W']
 const mid = (b: Box, s: Side): Pt => s === 'N' ? [b.x + b.w / 2, b.y] : s === 'S' ? [b.x + b.w / 2, b.y + b.h] : s === 'E' ? [b.x + b.w, b.y + b.h / 2] : [b.x, b.y + b.h / 2]
 
-/** The cost of a bend and of lying on another line (plus as much per px), against 1 per px of length. A crossing costs what the caller says. */
-export const COST = { bend: 12, overlap: 1000 }
+/** The cost of a bend, of lying on another line (plus as much per px) and of crossing one (the caller may set its own), against 1 per px of length. */
+export const COST = { bend: 12, overlap: 1000, cross: 1000 }
 /** A line leaves and arrives square to its side for at least this long. */
 export const STUB = 12
 /** The largest grid searched (cells); a bigger diagram keeps libavoid's route. */
@@ -119,12 +119,12 @@ function corners(cells: Pt[]): Pt[] {
 
 // Cheapest path from p (leaving along np) to q (arriving against nq). Without `bounds`: monotone, only moves towards q inside
 // [p, q]'s box, visited in order. With `bounds`: any move within them (never straight back), by Dijkstra. No bend within STUB of either end.
-function search(p: Pt, q: Pt, np: Pt, nq: Pt, obstacles: Rect[], others: Seg[], bounds: Rect | null): { pts: Pt[]; cost: number } | null {
+function search(p: Pt, q: Pt, np: Pt, nq: Pt, obstacles: Rect[], others: Seg[], bounds: Rect | null, cross: number): { pts: Pt[]; cost: number } | null {
   const lo: Pt = bounds ? [bounds.x0, bounds.y0] : [Math.min(p[0], q[0]), Math.min(p[1], q[1])]
   const hi: Pt = bounds ? [bounds.x1, bounds.y1] : [Math.max(p[0], q[0]), Math.max(p[1], q[1])]
   // the start and end must not be buried in an obstacle (a block standing on a side midpoint)
   if (obstacles.some(o => inside(p[0] + np[0] * 0.5, p[1] + np[1] * 0.5, o) || inside(q[0] + nq[0] * 0.5, q[1] + nq[1] * 0.5, o))) return null
-  const G = grid(lo, hi, [p, q, [p[0] + np[0] * STUB, p[1] + np[1] * STUB], [q[0] + nq[0] * STUB, q[1] + nq[1] * STUB]], obstacles, others)
+  const G = grid(lo, hi, [p, q, [p[0] + np[0] * STUB, p[1] + np[1] * STUB], [q[0] + nq[0] * STUB, q[1] + nq[1] * STUB]], obstacles, others, cross)
   if (!G) return null
   const { xs, ys, X, Y, hc, vc, index } = G
   const i0 = index(xs, p[0]), j0 = index(ys, p[1]), i1 = index(xs, q[0]), j1 = index(ys, q[1])
@@ -184,7 +184,7 @@ function search(p: Pt, q: Pt, np: Pt, nq: Pt, obstacles: Rect[], others: Seg[], 
   return { pts: corners(cells), cost: cost[goal] }
 }
 
-function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds: Rect | null): Pt[] | null {
+function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds: Rect | null, cross: number): Pt[] | null {
   const by = new Map(boxes.map(b => [b.id, b]))
   const A = by.get(r.from), B = by.get(r.to)
   if (!A || !B || A === B) return null
@@ -198,22 +198,22 @@ function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds:
       if ((np[0] && np[0] !== dx) || (np[1] && np[1] !== dy)) continue
       if ((nq[0] && -nq[0] !== dx) || (nq[1] && -nq[1] !== dy)) continue
     }
-    const found = search(p, q, np, nq, obstacles, others, bounds)
+    const found = search(p, q, np, nq, obstacles, others, bounds, cross)
     if (found && (!best || found.cost < best.cost)) best = found
   }
   return best?.pts ?? null
 }
 
 /** The best monotone route from a side midpoint of `from` to one of `to`, or null if there is none. `others`: the other lines. */
-export function monotoneRoute(boxes: Box[], r: Route, others: Seg[], buffer: number): Pt[] | null {
-  return bestOver(boxes, r, others, buffer, null)
+export function monotoneRoute(boxes: Box[], r: Route, others: Seg[], buffer: number, cross = COST.cross): Pt[] | null {
+  return bestOver(boxes, r, others, buffer, null, cross)
 }
 
 /** The cheapest route round every block and foreign tray (it may turn back), within the diagram grown by 60 px. */
-export function detourRoute(boxes: Box[], r: Route, others: Seg[], buffer: number): Pt[] | null {
+export function detourRoute(boxes: Box[], r: Route, others: Seg[], buffer: number, cross = COST.cross): Pt[] | null {
   const x0 = Math.min(...boxes.map(b => b.x)) - 60, y0 = Math.min(...boxes.map(b => b.y)) - 60
   const x1 = Math.max(...boxes.map(b => b.x + b.w)) + 60, y1 = Math.max(...boxes.map(b => b.y + b.h)) + 60
-  return bestOver(boxes, r, others, buffer, { x0, y0, x1, y1 })
+  return bestOver(boxes, r, others, buffer, { x0, y0, x1, y1 }, cross)
 }
 
 /** Is there a monotone route for this line at all, ignoring other lines? If not, any route it takes must turn back somewhere. */
@@ -226,7 +226,7 @@ export function canGoDirect(boxes: Box[], r: Route, buffer: number): boolean {
  * if there is one; failing that, a route through a block or foreign tray takes the cheapest way round. Lines are taken one by
  * one, each kept off those already settled. `forced` counts the lines left turning back because no direct route exists.
  */
-export function straighten(boxes: Box[], routes: Route[], buffer: number): { routes: Route[]; changed: number; forced: number } {
+export function straighten(boxes: Box[], routes: Route[], buffer: number, cross: number = COST.cross): { routes: Route[]; changed: number; forced: number } {
   const out = routes.slice()
   let changed = 0, forced = 0
   const segsOf = (skip: number) => out.flatMap((e, i) => i === skip ? [] : e.points.slice(1).map((b, k) => ({ a: e.points[k], b })))
@@ -236,7 +236,7 @@ export function straighten(boxes: Box[], routes: Route[], buffer: number): { rou
     const back = doublesBack(r.points), through = blocked(boxes, r)
     if (!back && !through) continue
     const others = segsOf(i)
-    const pts = monotoneRoute(boxes, r, others, buffer) ?? (through ? detourRoute(boxes, r, others, buffer) : null)
+    const pts = monotoneRoute(boxes, r, others, buffer, cross) ?? (through ? detourRoute(boxes, r, others, buffer, cross) : null)
     if (pts) { out[i] = { ...r, points: pts }; changed++ }
     if (doublesBack(out[i].points)) forced++
   }

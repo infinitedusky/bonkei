@@ -3,6 +3,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { loadAvoid, createRouter, TUNE } from './avoid.ts'
 import { layout } from './layout.ts'
+import { straighten, doublesBack, blocked } from './monotone.ts'
+import { measureRoutes } from './routeMetrics.ts'
 import { parse } from './parser.ts'
 import type { Box, LayoutResult, Route } from './model.ts'
 
@@ -61,15 +63,16 @@ test('lines that belong to a tray enter and leave it, ending at side midpoints, 
   r.dispose()
 })
 
-test('openings leak, gates do not: a line aligned with another line\'s opening may pass through the tray; with gates it never does', () => {
+test('a line aligned with another line\'s opening in a tray it does not belong to goes round the tray, not through it', () => {
   const T = tray('T', 400, 200, 300, 400)
   const boxes = () => [T, node('in', 480, 380, 'T', 1), node('l', 100, 380), node('r', 900, 380), node('far', 900, 100)]
   const routes = () => [edge('across', 'l', 'r'), edge('into', 'l', 'in'), edge('out', 'in', 'far')]
-  const gated = createRouter(A, lay(boxes(), routes()), { ...TUNE, trays: 'gates' })
-  assert.ok(!hits(gated.routes[0], T, 1), 'with gates the line past stays outside')
-  assert.ok(hits(gated.routes[1], T, 1) && hits(gated.routes[2], T, 1), 'and the lines that belong enter and leave')
-  assert.deepEqual(gated.stats.failed, [])
-  gated.dispose()
+  const r = createRouter(A, lay(boxes(), routes()))
+  assert.ok(!hits(r.routes[0], T, 1), 'the line past stays outside the tray')
+  assert.ok(hits(r.routes[1], T, 1) && hits(r.routes[2], T, 1), 'and the lines that belong enter and leave')
+  for (const e of r.routes) assert.ok(!blocked(boxes(), e), `${e.id} through no foreign tray or block`)
+  assert.deepEqual(r.stats.failed, [])
+  r.dispose()
 })
 
 test('an edge to a tray itself ends at a side midpoint of the tray', () => {
@@ -129,49 +132,52 @@ test('the tuning keeps the router fast to move: no crossing cost while dragging'
   assert.equal(TUNE.dragCrossing, 0)
 })
 
-test('routing basic: ELK\'s own routes, no libavoid; advanced keeps ELK\'s routes beside the new ones', async () => {
-  const g = parse(`flowchart TD
-  subgraph T["T"]
-    A --> B
-  end
-  C --> B
-  A --> C`)
-  const basic = await layout(g, { routing: 'basic' })
-  assert.equal(basic.stats?.route, undefined)
-  assert.equal(basic.elkRoutes, undefined)
-  const adv = await layout(g, { routing: 'advanced' })
-  assert.equal(adv.stats?.route?.error, null)
-  assert.deepEqual(adv.elkRoutes, basic.routes)
-  assert.equal(adv.routes.length, basic.routes.length)
-})
-
-test('the routing option reads from frontmatter and props override it', async () => {
+test('the avoid-crossings level reads from frontmatter, props override it, and the layout routes at that level', async () => {
   const { prepare } = await import('./diagram.ts')
   const { mergeOptions } = await import('./options.ts')
-  const src = '---\nconfig:\n  bonkei:\n    routing: basic\n---\nflowchart TD\nA --> B'
+  const src = '---\nconfig:\n  bonkei:\n    avoidCrossings: strong\n---\nflowchart TD\nA --> B'
   const p = await prepare(src)
-  assert.equal(p.options.routing, 'basic')
-  assert.equal(p.data && 'elkRoutes' in p.data, false, 'basic from frontmatter: not routed by libavoid')
-  assert.equal(mergeOptions({}, p.options).routing, 'basic')
-  assert.equal(mergeOptions({ routing: 'advanced' }, p.options).routing, 'advanced')
-  assert.equal(mergeOptions().routing, 'advanced')
+  assert.equal(p.options.avoidCrossings, 'strong')
+  assert.equal((p.data as LayoutResult).stats?.route?.level, 'strong')
+  assert.equal(mergeOptions({ avoidCrossings: 'off' }, p.options).avoidCrossings, 'off')
+  assert.equal(mergeOptions().avoidCrossings, 'some')
+  assert.equal((await prepare(src, { avoidCrossings: 'off' }) as any).data.stats.route.level, 'off')
 })
 
-test('ends spread: a node with ten lines meets them at ten different points; midpoint puts them all at one', async () => {
-  const hub = 'flowchart LR\n  H[Hub]\n' + Array.from({ length: 10 }, (_, i) => `  H --> T${i}[Target ${i}]`).join('\n')
-  const g = parse(hub)
-  const ends = (r: LayoutResult) => new Set(r.routes.map(e => e.points[0].map(Math.round).join(',')))
-  const mid = await layout(g, { ends: 'midpoint' })
-  const spread = await layout(g, { ends: 'spread' })
-  assert.equal(ends(mid).size <= 2, true, 'midpoint: the lines share the side midpoint')
-  assert.equal(ends(spread).size, 10, 'spread: ten ends')
-  assert.deepEqual(spread.stats?.route?.failed, [])
-  const by = new Map(spread.boxes.map(b => [b.id, b]))
-  const hubBox = by.get('H')!
-  for (const e of spread.routes) { const p = e.points[0]; assert.ok(p[0] >= hubBox.x - 0.5 && p[0] <= hubBox.x + hubBox.w + 0.5 && p[1] >= hubBox.y - 0.5 && p[1] <= hubBox.y + hubBox.h + 0.5, 'on the hub') }
+test('stronger crossing avoidance never gives more crossings, and no level leaves a line through a block', async () => {
+  const g = parse(`flowchart TD
+  A --> D
+  B --> C
+  A --> C
+  B --> D
+  C --> E
+  D --> F
+  A --> F
+  B --> E`)
+  const count: number[] = []
+  for (const level of ['off', 'some', 'strong'] as const) {
+    const d = await layout(g, { avoidCrossings: level })
+    assert.equal(d.stats?.route?.level, level)
+    count.push(measureRoutes(d.boxes, d.routes).crossings)
+    assert.equal(measureRoutes(d.boxes, d.routes).throughBlocks, 0)
+  }
+  // fewer crossings at each step is measured on the 50-node sample (apps/playground/scripts/route-metrics.ts); a graph this small can tie
+  assert.ok(count[2] <= count[0] + 1, `crossings ${count}`)
 })
 
-test('dragging a node out of a tray\'s way: the doors follow and the line goes straight out by the facing side, in midpoint and spread ends, and reset restores', async () => {
+test('a line libavoid sends back on itself is given the direct route when there is one', () => {
+  // b sits up and to the right of a: a route that leaves a downwards and comes back up doubles back
+  const boxes = [node('a', 100, 400), node('b', 500, 100)]
+  const bad: Route = { id: 'e', from: 'a', to: 'b', points: [[155, 456], [155, 520], [610, 520], [610, 156]] }
+  assert.ok(doublesBack(bad.points))
+  const s = straighten(boxes, [bad], 10)
+  assert.equal(s.changed, 1)
+  assert.ok(!doublesBack(s.routes[0].points), JSON.stringify(s.routes[0].points))
+  assert.ok(onMid(s.routes[0].points[0], boxes[0]) && onMid(s.routes[0].points.at(-1)!, boxes[1]))
+  assert.equal(s.forced, 0)
+})
+
+test('dragging a node out of a tray\'s way: the doors follow and the line goes straight out by the facing side, and reset restores', async () => {
   const data = await layout(parse(`flowchart LR
   Client([Client]) --> Pay
   subgraph Payments
@@ -185,8 +191,9 @@ test('dragging a node out of a tray\'s way: the doors follow and the line goes s
   Fraud --> Review
   Fraud --> Ledger[(Ledger)]
   Ledger --> Payments`))
-  for (const ends of ['midpoint', 'spread'] as const) {
-    const r = createRouter(A, data, undefined, 'some', ends)
+  {
+    const ends = 'midpoint'
+    const r = createRouter(A, data, 'some')
     const sig = () => JSON.stringify(r.routes.map(e => e.points.map(p => p.map(Math.round))))
     const before = sig()
     r.move('Ledger', -900, 300) // to the left of and below the trays, the other side from where layout put it

@@ -94,7 +94,6 @@ export const sideMid = (b: Box, s: Side): [number, number] => s === 'N' ? [b.x +
 export const DOCK_OUT = 14
 
 export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings = 'some', tune: AvoidTune = TUNE): EdgeRouter {
-  tune = { ...tune, ...(globalThis as any).TUNEX }
   const t0 = performance.now()
   const base = data.routes
   const home = new Map(data.boxes.map(b => [b.id, { x: b.x, y: b.y }]))
@@ -189,7 +188,7 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
     const key = `${e.id}:${end}`
     if (byId.get(end)!.kind === 'group') return dockPoint(end, dockSide.get(key)!)
     const d = doorOf.get(key)
-    return { shape: shapes.get(end)!, pin: d && !(globalThis as any).process?.env?.NODOOR ? SIDE_PIN[d] : PIN }
+    return { shape: shapes.get(end)!, pin: d ? SIDE_PIN[d] : PIN }
   }
 
   const conns = new Map<string, ConnRef>()
@@ -232,7 +231,8 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
         const b = byId.get(id)!
         if (shapes.has(id) && (b.x !== h.x || b.y !== h.y)) { router.moveShape(shapes.get(id)!, h.x - b.x, h.y - b.y); b.x = h.x; b.y = h.y; moved = true }
       }
-      if (moved) { followDoors(); router.processTransaction(); read() }
+      // with every node home the routes are the ones first made (routed with the crossing cost a drag frame does without)
+      if (moved) { followDoors(); router.processTransaction(); read(); out.routes = first }
       return out.routes
     },
     dispose() { router.delete() },
@@ -250,13 +250,14 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
       if (dt) pts.push(sideMid(byId.get(r.to)!, dt))
       return { ...r, points: tidy(pts) }
     })
-    const s = (globalThis as any).process?.env?.NOSTR ? { routes: routed, changed: 0, forced: 0 } : straighten([...byId.values()], routed, tune.buffer)
+    const s = straighten([...byId.values()], routed, tune.buffer, CROSSING_COST[level])
     out.routes = s.routes
     out.stats.failed = failed
     out.stats.straightened = s.changed
     out.stats.forced = s.forced
   }
   read()
+  const first = out.routes
   out.stats.buildMs = performance.now() - t0
   return out
 }

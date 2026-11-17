@@ -188,7 +188,7 @@ test('every route of a nested sample meets its boxes at a side midpoint (libavoi
     const g = parse(src.replace('flowchart TD', 'flowchart ' + dir))
     const r = await layout(g)
     const by = new Map(r.boxes.map(b => [b.id, b]))
-    assert.equal(r.stats?.portFallbacks, 0)
+    assert.equal(r.stats?.route?.error, null)
     for (const e of r.routes) {
       const a = by.get(e.from)!, b = by.get(e.to)!
       const near = (p: number[], q: number[]) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.5

@@ -4,6 +4,7 @@ import { loadAvoid, createRouter, keepRouter, sideMid, type AvoidCrossings, type
 import { straighten } from './monotone.ts'
 import { withSpan } from './telemetry.ts'
 import type { Span } from '@opentelemetry/api'
+export { sideMid } from './avoid.ts'
 
 // Swap-friendly interface: layout(graph, options) -> { boxes, routes }.
 export interface LayoutOptions {
@@ -93,7 +94,6 @@ async function place(g: Graph): Promise<LayoutResult> {
       'elk.layered.cycleBreaking.strategy': 'GREEDY',
       'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
       'elk.padding': '[top=40,left=40,bottom=40,right=40]',
-      ...(globalThis as any).ELKX,
     },
   }
   const put = (id: string, parent?: string) => ((parent ? eNodes.get(parent) : root).children as any[]).push(eNodes.get(id))
