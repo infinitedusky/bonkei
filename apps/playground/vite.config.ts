@@ -8,5 +8,5 @@ const BASE = '/merman/app/' // custom domain: change to '/app/'
 export default defineConfig(({ command, isPreview }) => ({
   base: command === 'build' || isPreview ? BASE : '/app/',
   plugins: [react()],
-  server: { host: true, allowedHosts: true, port: 5174, strictPort: true },
+  server: { host: true, allowedHosts: true, port: Number(process.env.PLAYGROUND_PORT ?? 5174), strictPort: true },
 }))

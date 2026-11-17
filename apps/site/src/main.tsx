@@ -1,3 +1,3 @@
 import { createRoot } from 'react-dom/client'
-import { Home } from './Home'
-createRoot(document.getElementById('root')!).render(<Home />)
+import { BrandHome } from './brand/BrandHome'
+createRoot(document.getElementById('root')!).render(<BrandHome live />)

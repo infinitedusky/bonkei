@@ -40,6 +40,7 @@ export default function App() {
         onEdgeStats={setEdges}
         onWarning={w => { if (w.kind === 'dropped') setDropped(n => n + 1); else if (w.kind === 'theme') setWarn(w.message) }} />
       <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6, alignItems: 'center', color: '#9aa6c0' }}>
+        <a href="/" style={{ ...btn(false), textDecoration: 'none', font: 'inherit' }}>← Site</a>
         <button style={btn(false)} onClick={() => setLabelMode(l => l === 'top' ? 'billboard' : 'top')}>labels: {labelMode}</button>
         <select value={sel} onChange={e => { setSel(e.target.value); setSrc(SAMPLES[e.target.value]) }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{Object.keys(SAMPLES).map(k => <option key={k}>{k}</option>)}</select>
         <select aria-label="Theme" value={theme} onChange={e => { setTheme(e.target.value); setWarn('') }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{['from source', 'classic', 'bonkei', 'bonkei-landscape', 'unknown-name'].map(k => <option key={k}>{k}</option>)}</select>
