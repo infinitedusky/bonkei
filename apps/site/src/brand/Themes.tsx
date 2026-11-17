@@ -35,7 +35,7 @@ export function Themes({ start = 'landscape', source = THEMES_DIAGRAM }: { start
       </div>
       <div>
         <div className="brand-tview">
-          <Bonkei source={text} mode={mode} toolbar={false} controls={{ zoom: false }} />
+          <Bonkei source={text} mode={mode} toolbar={false} />
           <div className="brand-tmodes" role="radiogroup" aria-label="View">
             {(['flat', 'iso', '3d'] as const).map(m => <button key={m} role="radio" aria-checked={m === mode} onClick={() => setMode(m)}>{m === '3d' ? '3D' : m[0].toUpperCase() + m.slice(1)}</button>)}
           </div>
