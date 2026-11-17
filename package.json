@@ -11,5 +11,8 @@
     "storybook": "pnpm --filter @bonkei/playground storybook",
     "capture": "pnpm --filter @bonkei/site capture",
     "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
   }
 }

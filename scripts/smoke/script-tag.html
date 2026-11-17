@@ -1,0 +1,13 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Bonkei by script tag</title>
+<style>html,body{margin:0;height:100%;background:#0a0a0f}#d{position:fixed;inset:0}</style></head>
+<body>
+<div id="d"></div>
+<script src="bonkei.global.js"></script>
+<script>
+  Bonkei.render(document.getElementById('d'), 'flowchart TD\n  A[Client] --> B[API]\n  B --> C[(Database)]\n  B --> D{Cache}\n  D --> C', {
+    onEdgeStats: function (s) { window.__stats = s },
+    onError: function (e) { window.__error = e.message }
+  })
+</script>
+</body></html>
