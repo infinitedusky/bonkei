@@ -11,6 +11,7 @@ export default meta
 type Story = StoryObj<typeof Home>
 
 // The page's three states. `live` forces the gate so each story looks the same at any window size.
+// No `name` arg: the screens show Home's default, the Bonkei brand, and its GitHub link.
 export const Desktop: Story = { args: { live: true } }
 
 export const Phone: Story = {
