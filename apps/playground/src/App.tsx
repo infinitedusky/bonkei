@@ -10,7 +10,7 @@ export default function App() {
   const [sel, setSel] = useState(Object.keys(SAMPLES)[0])
   const [debounced, setDebounced] = useState(src)
   const [labelMode, setLabelMode] = useState<LabelMode>('top')
-  const [theme, setTheme] = useState('classic')
+  const [theme, setTheme] = useState('from source')
   const [warn, setWarn] = useState('')
   const [edit, setEdit] = useState(false)
   const [ms, setMs] = useState<number | null>(null)

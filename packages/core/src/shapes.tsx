@@ -48,7 +48,7 @@ function Form({ shape, w, h, y, gap, label, plate, font, toward }: { shape: Box[
           <meshBasicMaterial map={tex} transparent alphaTest={0.3} toneMapped={false} />
         </mesh>
       )}
-      <group position={[0, 0.1, 0]}><PlateText text={label} plate={plate} font={font} fontSize={0.36} maxWidth={w - 0.3} toward={toward} /></group>
+      <group position={[0, 0.1, 0]}><PlateText text={label} plate={plate} font={font} fontSize={0.36} maxWidth={w - 0.3} toward={Math.max(toward, 0.7)} inFront /></group>
     </Billboard>
   )
 }
