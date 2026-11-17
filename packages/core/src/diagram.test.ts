@@ -113,6 +113,19 @@ test('prepare emits a bonkei.prepare span with a bonkei.layout child', async () 
   assert.equal(fm[0].attributes?.['bonkei.line'], 5)
 })
 
+test('the lines are routed under a bonkei.route span with the crossing level and how the routing went (BON-100)', async () => {
+  await prepare('flowchart TD\nA --> B\nA --> C\nB --> C', { avoidCrossings: 'strong' })
+  const [p] = spans('bonkei.prepare'), [r] = spans('bonkei.route')
+  assert.ok(p && r)
+  assert.equal(r.parentSpanContext?.spanId, p.spanContext().spanId)
+  assert.equal(r.attributes['bonkei.avoid_crossings'], 'strong')
+  assert.equal(r.attributes['bonkei.edges'], 3)
+  assert.equal(r.attributes['bonkei.unroutable'], 0)
+  assert.equal(typeof r.attributes['bonkei.route_ms'], 'number')
+  assert.equal(typeof r.attributes['bonkei.straightened'], 'number')
+  assert.equal(r.events.length, 0, 'no fallback to ELK routes')
+})
+
 test('a hand-built graph is traced as input graph', async () => {
   await prepare({ nodes: [{ id: 'a', label: 'A', shape: 'rect' }], edges: [] })
   const [p] = spans('bonkei.prepare')

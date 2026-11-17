@@ -5,6 +5,7 @@ import type { Box, LayoutResult, Route } from './model'
 import { reroute, PAD } from './layout'
 import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
+import { instant } from './telemetry'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
@@ -148,8 +149,11 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   useEffect(() => {
     router.current?.reset()
     // the layout's own router when its level matches, else the lines are routed again at this level (null until the wasm loads)
+    const t0 = performance.now()
     const r = routerFor(data, avoidCrossings)
     router.current = r
+    // routed again at another crossing level than the layout's: one span, so the cost of a toolbar switch shows in traces
+    if (r && r.routes !== data.routes) instant('bonkei.reroute', { 'bonkei.avoid_crossings': r.level, 'bonkei.route_ms': performance.now() - t0, 'bonkei.unroutable': r.stats.failed.length }, Date.now() - (performance.now() - t0))
     live.current = r && r.routes !== data.routes ? r.routes : null
     ovr.current = {}; setVer(v => v + 1)
   }, [data, wasm, avoidCrossings])
