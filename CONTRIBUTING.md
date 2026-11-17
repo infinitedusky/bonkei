@@ -19,7 +19,10 @@ Map of the code (a pnpm workspace; see the README's Packages list):
 - `packages/core/src/diagram.ts`: `prepare(source)`, one step from a source to something drawable (frontmatter, parse, layout) or a `BonkeiError`
 - `packages/core/src/controls.ts`: what the reader's controls allow, as pure decisions `SceneView` asks for
 - `packages/core/src/telemetry.ts`: the OpenTelemetry tracer and span helpers (a no-op unless the page registers an SDK)
-- `packages/core/src/palette.ts`: the scene's and the UI's colours
+- `packages/core/src/theme.ts`: themes as data: the `Theme` tokens, the Classic, Bonkei and Bonkei · landscape presets, `resolveTheme` (prop over frontmatter, variables on top), variable checking, `inkPx`. Scene code reads tokens and never names a theme
+- `packages/core/src/look.tsx`: the scene's side of the tokens: `ThemeProvider`/`useTheme`, materials, ink outlines, label plates, tray patterns, paper grain, landscape forms; `fonts.ts` + `fonts/` the bundled Zen Old Mincho subset (SIL OFL)
+- `packages/core/src/titles.ts`: which tray corner a title goes to so nothing stands on it
+- `packages/core/src/palette.ts`: the overlay UI's colours (the scene's are theme tokens)
 - `packages/core/src/scale.ts`: layout-to-world scale and the scene's fixed heights
 - `packages/core/src/model.ts`: the model types
 - `packages/core/src/index.ts`: the public API of `bonkei`, and nothing else
@@ -27,9 +30,9 @@ Map of the code (a pnpm workspace; see the README's Packages list):
 - `apps/playground/src/samples.ts`: built-in diagrams (add one when you fix a bug it exposes)
 - `apps/playground/scripts/`: route measurements on the samples (`route-metrics.ts`, `drag-metrics.ts`, `drag-check.ts`, `avoid-levels.ts`, `crossing-styles.ts`, `measure-edges.ts`, `list-back.ts`, `route-svg.ts`) and `routes.test.ts`, the 50-node sample's checks (`pnpm --filter @bonkei/playground test`)
 - `TESTING.md`: the manual test plan, page by page
-- `PULL_REQUEST.md`: the pull request description for BON-99, with its risks (what could break, how you would notice)
+- `PULL_REQUEST.md`: the pull request description for BON-117, with its risks (what could break, how you would notice)
 - `apps/playground/src/main.tsx`, `apps/playground/src/App.tsx` (mounted by `apps/playground/index.html`): the viewer, served at `/app/`
-- `apps/site/src/` (mounted by `apps/site/index.html`): the marketing page. The hero loads the scene lazily, so keep `bonkei` out of `Home` and the site's `main.tsx`; a static import of it puts the whole scene chunk on first paint and on phones. Asset URLs and links in its JSX go through `import.meta.env.BASE_URL`.
+- `apps/site/src/` (mounted by `apps/site/index.html`): the marketing page, in the brand drawn from the bonkei prints (`site.css`, `Marks.tsx` logo and small mark; `public/favicon.svg` is the small mark). `Themes.tsx` is the Themes section; its scene is `ThemesScene.tsx`, lazily loaded like `HeroScene.tsx`. The hero loads the scene lazily, so keep `bonkei` out of `Home` and the site's `main.tsx`; a static import of it puts the whole scene chunk on first paint and on phones. Asset URLs and links in its JSX go through `import.meta.env.BASE_URL`.
 - `apps/site/dev/capture.*` + `apps/site/scripts/capture-stills.mjs`: the asset capture behind `pnpm capture`. It is dev-only and not a build input. It renders `<Bonkei>` (not a bare `SceneView`), waits 60 frames after `onReady` for text and shadows, and writes `apps/site/public/poster.png`, `og.png` and `still-*.png`.
 
 Rules:
