@@ -190,8 +190,8 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 
 **Context.** Core, the playground and the site are on React 18 (`^18.3.1`) with React Three Fiber 8. BON-52 sets the peer dependencies the published package asks of a host app.
 
-**Decision.** Move everything to React 19, with the React Three Fiber and drei versions that go with it. The `bonkei` package asks the host for React 19 or later; React 18 is not supported.
+**Decision.** Move everything to React 19, with the React Three Fiber and drei versions that go with it. The `bonkei` package accepts the same React versions as its React Three Fiber (Fiber 9.8: `>=19 <19.4`; Fiber raises the cap a few weeks after each React minor), and the peer range moves when Fiber's does. React 18 is not supported.
 
 **Alternatives considered.** Supporting React 18 and 19 together: Fiber 9 needs React 19 and Fiber 8 does not support it, so one peer range covering both would mean shipping against two Fiber majors.
 
-**Consequences.** Hosts still on React 18 cannot install Bonkei without upgrading. The upgrade is done inside BON-52, before the build is measured for the size budget.
+**Consequences.** Hosts still on React 18 cannot install Bonkei without upgrading, and a host on a React minor newer than Fiber supports gets a peer warning until Fiber catches up. The upgrade is done inside BON-52, before the build is measured for the size budget.
