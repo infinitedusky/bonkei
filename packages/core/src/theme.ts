@@ -41,6 +41,9 @@ export interface Theme {
     tray: Plate
     toward: number // how far a billboarded label is pulled towards the camera, so it stands in front of a form
   }
+  // Ink follows the drawing's on-screen scale: width in px = token width x (px per world unit / ref), kept between min (px, for an outline;
+  // other lines get it in proportion to their own width) and the token width. ref null: fixed widths, as in Classic.
+  ink: { ref: number | null; min: number }
   edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface. flat: lines lie on the surface under them and the arrowhead is a flat triangle
   seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
 }
@@ -65,6 +68,7 @@ export const CLASSIC: Theme = {
     tray: { style: 'plain', text: '#cfd8ea', plate: '#ffffff', border: '#000000' },
     toward: 0,
   },
+  ink: { ref: null, min: 1 },
   edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: null, rimWidth: 1.5, flat: false },
   seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 }
@@ -75,7 +79,7 @@ export const BONKEI: Theme = {
   light: { ambient: 1.2, sky: '#fff8e6', floor: '#d8cbaa', hemi: 0.4, sun: 1.5, shadows: false, shading: 'toon', tones: 3, toneMapping: false },
   node: {
     colors: { rect: '#9AAE8C', round: '#5E8F88', cylinder: '#C9A24A', diamond: '#7C93B8' },
-    form: 'block', outline: '#2A2622', outlineWidth: 2, bevel: 0, footprint: { height: 0.4, color: null, darken: 0.93 }, labelGap: 0.34,
+    form: 'block', outline: '#2A2622', outlineWidth: 1.5, bevel: 0, footprint: { height: 0.22, color: null, darken: 0.93 }, labelGap: 0.34,
     hover: '#fff2c0', hoverIntensity: 0.15,
   },
   tray: {
@@ -89,6 +93,7 @@ export const BONKEI: Theme = {
     tray: { style: 'cartouche', text: '#f1e8d2', plate: '#23345A', border: '#2A2622' },
     toward: 0,
   },
+  ink: { ref: 40, min: 1 },
   edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false },
   seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
 }

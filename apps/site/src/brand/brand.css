@@ -91,6 +91,12 @@
   .brand .site-sub { font-size:17px }
   .brand .site-stage { height:240px; margin-top:28px }
   .brand .site-stage-poster { object-fit:cover; object-position:50% 40% }
+  /* the stage's overlays: modes on top, "try a theme" bottom-left and "see the source" bottom-right, no caption, nothing overlapping */
+  .brand .site-modes { top:8px; padding:3px }
+  .brand .site-modes button { padding:5px 11px; font-size:12px }
+  .brand .site-stage-caption { display:none }
+  .brand .site-stage-src { right:10px; bottom:10px; font-size:11px; padding:3px 8px }
+  .brand-try { top:auto; bottom:10px; left:10px; right:auto; font-size:11px; padding:3px 8px }
   .brand .site-proof { gap:6px 16px; padding-top:20px }
   .brand .site-proof span:nth-child(even) { display:none }
   .brand .site-cards, .brand .site-seq, .brand .site-status { grid-template-columns:minmax(0,1fr) }
@@ -105,3 +111,5 @@
   .brand .site-footer { justify-content:center; text-align:center }
   .brand .site-footer .r { margin-left:0; width:100% }
 }
+
+.brand-tmodes .fit { border-right:1px solid #cdbd98 !important; border-radius:6px 0 0 6px !important; margin-right:4px }

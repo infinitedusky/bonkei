@@ -1,10 +1,13 @@
-import { useState } from 'react'
-import { Bonkei, type Mode } from 'bonkei'
+import { useEffect, useRef, useState } from 'react'
+import { Bonkei, type BonkeiViewHandle, type Mode } from 'bonkei'
 import prints from './mock/ref-prints.jpg'
 import { THEMES_DIAGRAM } from './themes-sample'
 
 // The home page's Themes section. One diagram, drawn live in the theme picked from the list: the theme
 // is chosen the way a reader would, by `config.theme` / `config.themeVariables` in the diagram's frontmatter.
+
+// the view a phone opens in
+const PHONE_MODE: Mode = 'flat'
 
 type ThemeId = 'classic' | 'bonkei' | 'landscape'
 
@@ -18,7 +21,16 @@ const THEMES: { id: ThemeId | null; name: string; note: string; config?: string 
 
 export function Themes({ start = 'landscape', source = THEMES_DIAGRAM }: { start?: ThemeId; source?: string }) {
   const [on, setOn] = useState<ThemeId>(start)
-  const [mode, setMode] = useState<Mode>('iso')
+  // A phone frame cannot show the whole diagram with readable labels: it opens on the largest tray, labels at least 11px, and "Fit" shows it all.
+  const [narrow, setNarrow] = useState(() => typeof matchMedia === 'function' && matchMedia('(max-width:760px)').matches)
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return
+    const mq = matchMedia('(max-width:760px)'), f = () => setNarrow(mq.matches)
+    mq.addEventListener('change', f)
+    return () => mq.removeEventListener('change', f)
+  }, [])
+  const [mode, setMode] = useState<Mode>(() => (typeof matchMedia === 'function' && matchMedia('(max-width:760px)').matches ? PHONE_MODE : 'iso'))
+  const view = useRef<BonkeiViewHandle>(null)
   const t = THEMES.find(x => x.id === on)!
   const text = `---\nconfig:\n  ${t.config}\n---\n${source}`
   // below the phone breakpoint the frontmatter starts folded: the scene comes first
@@ -40,8 +52,9 @@ export function Themes({ start = 'landscape', source = THEMES_DIAGRAM }: { start
       </div>
       <div className="brand-tright">
         <div className="brand-tview">
-          <Bonkei source={text} mode={mode} toolbar={false} fit="tight" />
+          <Bonkei ref={view} source={text} mode={mode} toolbar={false} fit="tight" minLabelPx={narrow ? 11 : 0} />
           <div className="brand-tmodes" role="radiogroup" aria-label="View">
+            {narrow && <button type="button" className="fit" aria-label="Fit the whole diagram" onClick={() => view.current?.fit()}>Fit</button>}
             {(['flat', 'iso', '3d'] as const).map(m => <button key={m} role="radio" aria-checked={m === mode} onClick={() => setMode(m)}>{m === '3d' ? '3D' : m[0].toUpperCase() + m.slice(1)}</button>)}
           </div>
         </div>

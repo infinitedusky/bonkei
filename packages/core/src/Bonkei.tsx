@@ -4,7 +4,7 @@ import { SpanStatusCode } from '@opentelemetry/api'
 import { SceneView, type EdgeStats } from './SceneView'
 import { CROSSING_STYLES, type CrossingStyle } from './edges3d.ts'
 import { AVOID_CROSSINGS, type AvoidCrossings } from './avoid.ts'
-import { createCamera, type Mode } from './camera'
+import { createCamera, biggestTray, type Mode } from './camera'
 import { prepare, isBonkeiError, type Prepared, type PrepareError } from './diagram'
 import { DEFAULTS, mergeOptions, resolveControls, type BonkeiError, type BonkeiOptions, type BonkeiWarning, type ModeChange, type NodeClick } from './options'
 import type { GraphInput } from './model'
@@ -151,6 +151,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   const { source } = props
   const [camera] = useState(createCamera)
   camera.tight = props.fit === 'tight'
+  camera.minLabel = props.minLabelPx ?? 0
   const [prepared, setPrepared] = useState<(Prepared & { key: string }) | null>(null)
   const [error, setError] = useState<BonkeiError | null>(null)
   const [status, setStatus] = useState<Status>('loading')
@@ -251,9 +252,18 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     pick(declared, 'prop')
   }, [declared, prepared, camera, pick])
 
+  // Fit: the whole diagram (even when labels would be small). frame(): the opening view, which keeps labels readable when asked.
   const fit = useCallback(() => {
     const p = preparedRef.current
-    if (p) camera.fit(p.data.width, p.data.height)
+    if (!p) return
+    camera.whole = true
+    camera.fit(p.data.width, p.data.height)
+  }, [camera])
+  const frame = useCallback(() => {
+    const p = preparedRef.current
+    if (!p) return
+    camera.whole = false
+    camera.fit(p.data.width, p.data.height, 'boxes' in p.data && camera.minLabel > 0 ? biggestTray(p.data.boxes, p.data.width, p.data.height) : undefined)
   }, [camera])
 
   useImperativeHandle(ref, () => ({ setMode: m => pick(m, 'handle'), fit }), [pick, fit])
@@ -268,11 +278,11 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
       const now = el.clientWidth + 'x' + el.clientHeight
       if (now === last) return
       last = now
-      clearTimeout(t); t = window.setTimeout(() => { fit() }, 120)
+      clearTimeout(t); t = window.setTimeout(() => { frame() }, 120)
     })
     ro.observe(el)
     return () => { ro.disconnect(); clearTimeout(t) }
-  }, [props.fit, fit])
+  }, [props.fit, frame])
 
   const themeName = useRef(theme.name)
   themeName.current = theme.name

@@ -1,16 +1,16 @@
 import * as THREE from 'three'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute, PAD } from './layout'
 import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { instant } from './telemetry'
-import { createCamera, type Camera, type Mode } from './camera'
+import { createCamera, biggestTray, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
-import { Mat, ThemeProvider, ToneSetup, useTheme, grainTexture } from './look'
+import { Mat, ThemeProvider, ToneSetup, InkStore, InkCtx, inkPx, useTheme, grainTexture } from './look'
 import { CLASSIC, type Theme } from './theme'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
@@ -34,8 +34,13 @@ function effective(data: LayoutResult, ovr: Ovr, live: Route[] | null) {
 
 function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElement> }) {
   const acc = useRef({ t: 0, n: 0 })
-  useFrame(({ camera, size }, dt) => {
+  const th = useTheme()
+  const ink = useContext(InkCtx)
+  const inkSeen = useRef({ ppu: 0, frame: 0 })
+  const base = useRef(new WeakMap<object, { base: number; set: number }>())
+  useFrame(({ camera, size, scene }, dt) => {
     cam.aspect = size.width / size.height
+    cam.frameH = size.height
     const c = cam.cur, g = cam.goal, k = 1 - Math.exp(-6 * Math.min(dt, 0.1))
     for (const key of ['tx', 'tz', 'yaw', 'pitch'] as const) c[key] += (g[key] - c[key]) * k
     for (const key of ['H', 'fov'] as const) c[key] = Math.exp(Math.log(c[key]) + (Math.log(g[key]) - Math.log(c[key])) * k)
@@ -46,6 +51,24 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
     p.position.set(c.tx + d * Math.sin(c.yaw) * Math.cos(c.pitch), d * Math.sin(c.pitch), c.tz + d * Math.cos(c.yaw) * Math.cos(c.pitch))
     p.lookAt(c.tx, 0, c.tz)
     p.updateProjectionMatrix()
+    // Ink follows the drawing's scale (theme.ink): the line materials get their width for this zoom, the landscape forms a matching step.
+    const ppu = size.height / c.H
+    ink.ppu = ppu
+    if (th.ink.ref !== null) {
+      const seen = inkSeen.current
+      if (Math.abs(ppu - seen.ppu) > seen.ppu * 0.004 || ++seen.frame % 30 === 0) {
+        seen.ppu = ppu
+        scene.traverse((o: any) => {
+          const m = o.material
+          if (!m || !m.isLineMaterial) return
+          let e = base.current.get(m)
+          if (!e || m.linewidth !== e.set) { e = { base: m.linewidth, set: m.linewidth }; base.current.set(m, e) } // React set a new width: that is the new base
+          const w = inkPx(th, e.base, ppu)
+          if (m.linewidth !== w) { m.linewidth = w; e.set = w }
+        })
+        ink.setBucket(Math.round(Math.log2(inkPx(th, th.node.outlineWidth, ppu) / th.node.outlineWidth) * 4))
+      }
+    }
     acc.current.t += dt; acc.current.n++
     if (acc.current.t > 0.5 && fpsRef.current) {
       fpsRef.current.textContent = `${Math.round(acc.current.n / acc.current.t)} fps`
@@ -281,8 +304,9 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
   useFrame(({ size }) => {
     if (!data || seen.current === data) return
     seen.current = data
-    if (size.width > 0 && size.height > 0) cam.aspect = size.width / size.height
-    cam.fit(data.width, data.height)
+    if (size.width > 0 && size.height > 0) { cam.aspect = size.width / size.height; cam.frameH = size.height }
+    cam.whole = false
+    cam.fit(data.width, data.height, 'boxes' in data && cam.minLabel > 0 ? biggestTray(data.boxes, data.width, data.height) : undefined)
     if (!laidOut.current) { cam.snap(); laidOut.current = true }
     cb.current?.()
   })
@@ -325,6 +349,7 @@ export interface SceneViewProps {
 
 export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats, theme = CLASSIC }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
+  const [inkStore] = useState(() => new InkStore())
   const [own] = useState(createCamera)
   const c = camera ?? own
   const ctl = controls ?? ALL_ON
@@ -333,14 +358,14 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
     <>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
-        <ThemeProvider theme={theme} key={theme.name + JSON.stringify(theme).length}>
+        <InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={theme.name + JSON.stringify(theme).length}>
           <ToneSetup />
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
         <Rig cam={c} fpsRef={fpsRef} />
         {data && ('kind' in data
           ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
           : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
-        </ThemeProvider>
+        </ThemeProvider></InkCtx.Provider>
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

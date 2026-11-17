@@ -55,6 +55,8 @@ export interface ThemeRequest { name?: string; variables?: Record<string, unknow
 export type BonkeiOptions = DiagramOptions & {
   /** How the camera frames the diagram: 'default' leaves generous margins; 'tight' fits its real extent with a small one. */
   fit?: 'default' | 'tight'
+  /** Open zoomed in on the largest tray when the whole diagram would make node labels smaller than this many pixels (a phone). 0 = off. */
+  minLabelPx?: number
   /** A preset by name ('classic', 'bonkei', 'bonkei-landscape') or a whole Theme object. Over the frontmatter's config.theme. */
   theme?: string | Theme
   onError?: (error: BonkeiError) => void

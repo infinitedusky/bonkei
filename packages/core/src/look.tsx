@@ -1,8 +1,8 @@
 // The theme as the scene uses it: the context, materials, ink outlines, label plates, patterns and landscape forms.
 // Everything here reads tokens from the Theme; nothing checks a theme's name.
 import * as THREE from 'three'
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
-import { useThree } from '@react-three/fiber'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { Edges, Text } from '@react-three/drei'
 import type { Shape } from './model.ts'
 import { CLASSIC, type Pattern, type Plate, type Theme } from './theme.ts'
@@ -10,6 +10,20 @@ import { FONTS } from './fonts.ts'
 import { TEXT_LAYER } from './scale.ts'
 
 const Ctx = createContext<Theme>(CLASSIC)
+
+// ---- ink: line widths that follow the drawing's scale ----
+/** The view's scale (px per world unit), per canvas; the render loop sets it, label borders and landscape forms read it. */
+export class InkStore {
+  ppu = 30
+  bucket = 0
+  private subs = new Set<() => void>()
+  subscribe = (f: () => void) => { this.subs.add(f); return () => { this.subs.delete(f) } }
+  getBucket = () => this.bucket
+  setBucket(b: number) { if (b !== this.bucket) { this.bucket = b; this.subs.forEach(f => f()) } }
+}
+export const InkCtx = createContext<InkStore>(new InkStore())
+/** The width in px an outline of token width `w` gets at `ppu`. */
+export const inkPx = (th: Theme, w: number, ppu: number) => th.ink.ref === null ? w : Math.min(w, Math.max(th.ink.min * (w / th.node.outlineWidth), (w * ppu) / th.ink.ref))
 export const ThemeProvider = ({ theme, children }: { theme: Theme; children: ReactNode }) => <Ctx.Provider value={theme}>{children}</Ctx.Provider>
 export const useTheme = () => useContext(Ctx)
 /** Tone mapping from the theme. Set here rather than with Canvas's `flat` prop, which is read once when the canvas is made (the theme can arrive after, from the frontmatter). */
@@ -118,14 +132,22 @@ export function grainTexture(bg: string, amount: number): THREE.Texture {
 export function PlateText({ text, plate, font, fontSize, maxWidth, left = false, outline = false, toward = 0, inFront = false }: { text: string; plate: Plate; font?: string; fontSize: number; maxWidth: number; left?: boolean; outline?: boolean; toward?: number; inFront?: boolean }) {
   const [b, setB] = useState<[number, number, number, number] | null>(null)
   const cart = plate.style === 'cartouche'
-  const pad = fontSize * 0.28, bw = fontSize * 0.09
+  const pad = fontSize * 0.28
+  const th = useTheme(), ink = useContext(InkCtx)
+  const border = useRef<THREE.Mesh>(null!)
+  // the cartouche's border is ink: its width follows the same rule as the outlines (a world-space border would swamp a small label)
+  useFrame(() => {
+    if (!border.current || !b) return
+    const bw = th.ink.ref === null ? fontSize * 0.09 : inkPx(th, th.node.outlineWidth, ink.ppu) / ink.ppu
+    border.current.scale.set(b[2] - b[0] + 2 * (pad + bw), b[3] - b[1] + 2 * (pad * 0.6 + bw), 1)
+  })
   const mat = { depthWrite: true, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }
   return (
     <group position={[0, 0, toward]}>
       {cart && b && (
         <group position={[(b[0] + b[2]) / 2, (b[1] + b[3]) / 2, 0]}>
-          <mesh layers={TEXT_LAYER as any} renderOrder={1}>
-            <planeGeometry args={[b[2] - b[0] + 2 * (pad + bw), b[3] - b[1] + 2 * (pad * 0.6 + bw)]} />
+          <mesh ref={border} layers={TEXT_LAYER as any} renderOrder={1}>
+            <planeGeometry args={[1, 1]} />
             <meshBasicMaterial color={plate.border} {...mat} />
           </mesh>
           <mesh layers={TEXT_LAYER as any} renderOrder={2} position={[0, 0, 0.01]}>
@@ -167,26 +189,33 @@ const FORM_SVG: Record<Shape, string> = {
       <path d='M2 35 L20 3 L38 35 Z' fill='#C9A24A' stroke='${INK}' stroke-width='1.6' stroke-linejoin='round'/>
       <path d='M14 14 L20 3 L26 14 L22 12 L20 15 L17 12 Z' fill='#f4efe3' stroke='${INK}' stroke-width='1.1' stroke-linejoin='round'/></svg>`,
 }
-const forms = new Map<Shape, THREE.Texture>()
-const pending = new Map<Shape, Promise<THREE.Texture>>()
-function loadForm(shape: Shape): Promise<THREE.Texture> {
-  let p = pending.get(shape)
+// The ink strokes are scaled by k (1 = as drawn: about 2 px on a form at the reference scale), so the forms' ink can match the mesh outlines at any zoom.
+// k comes in steps (a quarter of an octave) and a texture is made once per shape and step.
+const forms = new Map<string, THREE.Texture>()
+const pending = new Map<string, Promise<THREE.Texture>>()
+const stroked = (svg: string, k: number) => k === 1 ? svg : svg.replace(/(stroke='#2A2622' stroke-width=')([\d.]+)(')/g, (_m, a, w, c) => a + (+w * k).toFixed(3) + c)
+function loadForm(shape: Shape, step: number): Promise<THREE.Texture> {
+  const key = shape + step
+  let p = pending.get(key)
   if (!p) {
     p = new Promise(res => {
       const img = new Image()
       img.onload = () => {
         const t = new THREE.Texture(img)
         t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.needsUpdate = true
-        forms.set(shape, t); res(t)
+        forms.set(key, t); res(t)
       }
-      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(FORM_SVG[shape])
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(stroked(FORM_SVG[shape], 2 ** (step / 4)))
     })
-    pending.set(shape, p)
+    pending.set(key, p)
   }
   return p
 }
+/** The form's texture at the ink step the view asks for; the previous one stays up until the new one has loaded. */
 export function useFormTexture(shape: Shape) {
-  const [t, setT] = useState<THREE.Texture | null>(forms.get(shape) ?? null)
-  useEffect(() => { let on = true; loadForm(shape).then(x => on && setT(x)); return () => { on = false } }, [shape])
+  const ink = useContext(InkCtx)
+  const step = useSyncExternalStore(ink.subscribe, ink.getBucket)
+  const [t, setT] = useState<THREE.Texture | null>(forms.get(shape + step) ?? null)
+  useEffect(() => { let on = true; loadForm(shape, step).then(x => on && setT(x)); return () => { on = false } }, [shape, step])
   return t
 }
