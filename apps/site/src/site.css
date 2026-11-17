@@ -1,46 +1,56 @@
-.site { --bg:#0f1218; --panel:#151a24; --line:#2a3246; --text:#e6ebf5; --dim:#9aa6c0; --mute:#6b7690; --blue:#4b6bdc;
-  background:var(--bg); color:var(--text); font:16px/1.5 system-ui, sans-serif; min-height:100vh; overflow:auto }
+/* The site in the brand drawn from the 1848 tray-landscape prints: cream paper, sumi ink, mincho headings.
+   Scenes in the Classic look (the hero) and code keep their dark panel (--scene). Decisions: LOG.md, BON-117. */
+.site { --bg:#EFE6D0; --panel:#f4ecda; --line:#cdbd98; --text:#2A2622; --dim:#5d554b; --mute:#857a6b; --blue:#24508F;
+  --sumi:#2A2622; --indigo:#23345A; --shu:#C8452C; --scene:#0f1218; --scene-line:#2a3246; --serif:'Zen Old Mincho', serif;
+  background:var(--bg); color:var(--text); font:16px/1.5 system-ui, sans-serif; min-height:100vh; overflow:auto; position:relative }
+/* paper grain, over everything and never in the way */
+.site::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.4; mix-blend-mode:multiply; z-index:10;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5  0 0 0 0 .43  0 0 0 0 .3  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)'/%3E%3C/svg%3E") }
 .site * { box-sizing:border-box }
 .site a { color:inherit }
 .site-wrap { max-width:1080px; margin:0 auto; padding:0 24px }
 
 .site-nav { display:flex; align-items:center; gap:24px; padding:18px 0 }
-.site-logo { font-weight:700; font-size:18px; display:flex; gap:10px; align-items:center; text-decoration:none }
-.site-logo i { width:16px; height:16px; background:var(--blue); transform:rotate(45deg) skew(-10deg,-10deg); border-radius:3px }
+.site-logo { font:700 22px var(--serif); display:flex; gap:8px; align-items:center; text-decoration:none }
 .site-links { margin-left:auto; display:flex; gap:20px; color:var(--dim); font-size:14px }
 .site-links a { text-decoration:none }
 
 .site-hero { text-align:center; padding:56px 0 24px }
-.site-eyebrow { display:inline-block; font-size:12px; color:var(--dim); border:1px solid var(--line); border-radius:99px; padding:3px 12px; margin-bottom:18px }
-.site h1 { font-size:52px; line-height:1.05; margin:0 0 16px; letter-spacing:-.02em }
+.site-eyebrow { display:inline-block; font-size:12px; color:var(--dim); border:1px solid var(--line); border-radius:99px; padding:3px 12px; margin-bottom:18px; background:var(--panel) }
+.site h1, .site h2, .site h3 { font-family:var(--serif) }
+.site h1 { font-size:52px; line-height:1.05; margin:0 0 16px; letter-spacing:-.01em; font-weight:900 }
 .site-sub { color:var(--dim); font-size:19px; max-width:620px; margin:0 auto 28px }
 .site-ctas { display:flex; gap:12px; justify-content:center; flex-wrap:wrap }
-.site-btn { padding:12px 22px; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px; border:1px solid var(--line) }
-.site-btn.primary { background:var(--blue); border-color:var(--blue) }
+.site-btn { padding:12px 22px; border-radius:6px; text-decoration:none; font-weight:600; font-size:15px; border:1.5px solid var(--sumi) }
+.site-btn.primary { background:var(--sumi); border-color:var(--sumi); color:var(--bg) }
 .site-hint { color:var(--mute); font-size:12px; margin-top:10px }
 
-.site-stage { position:relative; margin:40px auto 0; height:460px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#0f1218 }
+.site-hero-stage { position:relative }
+.site-stage { position:relative; margin:40px auto 0; height:460px; border:1px solid var(--scene-line); border-radius:14px; overflow:hidden; background:var(--scene) }
 .site-stage-poster { position:absolute; inset:0; width:100%; height:100%; object-fit:cover }
 .site-live { position:absolute; inset:0; opacity:0; transition:opacity .6s }
 .site-live.ready { opacity:1 }
 .site-live-scene { position:absolute; inset:0 }
-.site-modes { position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:4px; background:#0b0e14cc; border:1px solid var(--line); border-radius:8px; padding:4px }
-.site-modes button { background:none; border:0; color:var(--dim); padding:6px 14px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer }
-.site-modes button.on { background:var(--blue); color:#fff }
-.site-stage-caption { position:absolute; bottom:12px; left:16px; font-size:12px; color:var(--mute) }
-.site-stage-src { position:absolute; bottom:12px; right:76px; font:inherit; font-size:12px; color:var(--dim); border:1px solid var(--line); padding:4px 10px; border-radius:6px; background:#0b0e14cc; cursor:pointer }
+/* the hero's overlays sit on the dark Classic scene, so they keep the dark panel's colours */
+.site-modes { position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:4px; background:#0b0e14cc; border:1px solid var(--scene-line); border-radius:8px; padding:4px }
+.site-modes button { background:none; border:0; color:#d6deee; padding:6px 14px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer }
+.site-modes button.on { background:#4b6bdc; color:#fff }
+.site-stage-caption { position:absolute; bottom:12px; left:16px; font-size:12px; color:#b4bfd6 }
+.site-stage-src { position:absolute; bottom:12px; right:76px; font:inherit; font-size:12px; color:#e6ebf5; border:1px solid #5a6785; padding:4px 10px; border-radius:6px; background:#0b0e14e6; cursor:pointer }
+.site a.site-try { position:absolute; top:14px; right:14px; z-index:3; font-size:12px; color:#e6ebf5; border:1px solid #5a6785; padding:4px 10px; border-radius:6px; background:#0b0e14e6; text-decoration:none }
 
 .site-proof { display:flex; justify-content:center; gap:28px; color:var(--mute); font-size:13px; padding:28px 0 8px; flex-wrap:wrap }
 
-.site section { padding:72px 0; border-top:1px solid #1a2030 }
+.site section { padding:72px 0; border-top:1px solid var(--line) }
 .site h2 { font-size:32px; margin:0 0 10px; letter-spacing:-.01em }
 .site-lead { color:var(--dim); max-width:640px; margin:0 0 32px }
 .site-note { text-align:center; color:var(--dim); font-size:13px; margin-top:12px }
 
 .site-split { display:grid; grid-template-columns:1fr 1fr; gap:20px; border-radius:12px; transition:box-shadow .6s }
-.site-split.flash { box-shadow:0 0 0 2px var(--blue) }
-.site pre { margin:0; background:#0b0e14; border:1px solid var(--line); border-radius:10px; padding:18px; font:13px/1.6 ui-monospace, monospace; color:#cfd8ea; overflow:auto; text-align:left }
-.site-still { display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:10px }
+.site-split > * { min-width:0 }
+.site-split.flash { box-shadow:0 0 0 2px var(--sumi) }
+.site pre { margin:0; background:#0b0e14; border:1px solid var(--scene-line); border-radius:10px; padding:18px; font:13px/1.6 ui-monospace, monospace; color:#cfd8ea; overflow:auto; text-align:left }
+.site-still { display:block; width:100%; height:auto; border:1px solid var(--scene-line); border-radius:10px }
 .site-split .site-still { height:100%; object-fit:cover }
 
 .site-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:16px }
@@ -54,24 +64,100 @@
 .site-status p, .site-status ul { margin:0; color:var(--dim); font-size:14px }
 .site-status ul { padding-left:18px }
 .site-status li { margin:4px 0 }
-.site-tag { display:inline-block; background:#3b2f0b; color:#f5d77a; font-size:12px; border-radius:99px; padding:2px 10px; margin-bottom:10px }
+.site-tag { display:inline-block; background:var(--indigo); color:#f1e8d2; font-size:12px; border-radius:99px; padding:2px 10px; margin-bottom:10px }
 
 .site-seq { display:grid; grid-template-columns:3fr 2fr; gap:32px; align-items:center }
 .site-seq .site-lead { margin:0 0 12px }
 
 .site-final { text-align:center }
 .site-final .site-lead { margin:0 auto }
-.site-final pre { display:inline-block; margin:18px 0 24px }
+.site-final pre { display:inline-block; margin:18px 0 24px; max-width:100% }
 
-.site-footer { border-top:1px solid #1a2030; padding:28px 0 48px; color:var(--mute); font-size:13px; display:flex; gap:20px; flex-wrap:wrap }
+.site-footer { border-top:1px solid var(--line); padding:28px 0 48px; color:var(--mute); font-size:13px; display:flex; gap:20px; flex-wrap:wrap; align-items:center }
 .site-footer .r { margin-left:auto }
 
+/* How it works: the source; on a phone a few lines with "Show all" */
+.site-src { min-width:0 }
+.site-src pre { max-width:100% }
+.site-srcmore { display:none }
+
+/* Themes: the list and the frontmatter on the left, the live scene and where the name comes from on the right */
+.site-themes { display:grid; grid-template-columns:230px minmax(0,1fr); gap:22px; align-items:start }
+.site-tleft, .site-tright { min-width:0 }
+.site-tlist { display:flex; flex-direction:column; gap:8px }
+.site-tlist button { text-align:left; border:1.5px solid var(--line); background:var(--panel); border-radius:10px; padding:10px 12px; cursor:pointer; font:inherit; color:var(--text) }
+.site-tlist button b { display:block; font:700 15px var(--serif) }
+.site-tlist button span { font-size:12px; color:var(--mute) }
+.site-tlist button[aria-pressed=true] { border-color:var(--sumi); background:#fbf6ea; box-shadow:0 2px 0 var(--sumi) }
+.site-tlist button:disabled { opacity:.55; cursor:default }
+.site-tcodebox { margin-top:14px }
+.site-tcodebox summary { display:none; cursor:pointer; font-size:13px; color:var(--dim); padding:4px 0 }
+.site .site-tcode { font-size:12px; padding:12px }
+.site-tview { position:relative; border-radius:12px; overflow:hidden; border:1px solid var(--line); aspect-ratio:16 / 9; background:var(--bg) }
+.site-tview canvas { touch-action:pan-y }
+.site-tnogl { position:absolute; inset:0; display:grid; place-items:center; padding:20px; text-align:center; color:var(--dim); font-size:14px }
+.site-tmodes { position:absolute; top:10px; right:10px; display:flex; gap:2px; padding:2px; background:#e2d5b8; border:1px solid var(--line); border-radius:8px }
+.site-tmodes button { border:0; background:none; font:inherit; font-size:13px; padding:4px 12px; border-radius:6px; cursor:pointer; color:#4a4238 }
+.site-tmodes button[aria-checked='true'] { background:var(--sumi); color:var(--bg) }
+.site-tmodes .fit { border-right:1px solid var(--line); border-radius:6px 0 0 6px; margin-right:4px }
+.site-origin { display:flex; gap:16px; align-items:center; margin-top:16px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px }
+.site-origin img { width:200px; height:auto; flex:none; border-radius:3px; border:1px solid var(--line) }
+.site-origin p { margin:0; font-size:13.5px; color:var(--dim) }
+.site-origin small { display:block; color:var(--mute); font-size:11.5px; margin-top:6px }
+
+/* Tablet and below (1000 px, so a landscape 1024 tablet keeps the desktop layout): one column wherever two would be cramped */
+@media (max-width:1000px) {
+  .site-wrap { padding:0 20px }
+  .site h1 { font-size:44px }
+  .site section { padding:56px 0 }
+  .site-stage { height:400px }
+  .site-split { grid-template-columns:1fr }
+  .site-split .site-still { height:auto; object-fit:contain }
+  .site-cards { grid-template-columns:repeat(2, minmax(0,1fr)) }
+  .site-cards .site-card:last-child { grid-column:1 / -1 }
+  .site-seq { grid-template-columns:1fr 1fr; gap:24px }
+  /* Themes: chips on top, the scene full width, the frontmatter under it */
+  .site-themes { grid-template-columns:minmax(0,1fr); gap:14px }
+  .site-tleft, .site-tright { display:contents }
+  .site-tlist { order:1; flex-direction:row; flex-wrap:wrap; gap:8px }
+  .site-tlist button { padding:7px 14px; border-radius:99px }
+  .site-tlist button b { display:inline; font-size:14px }
+  .site-tlist button span { display:none }
+  .site-tview { order:2; aspect-ratio:16 / 10 }
+  .site-tcodebox { order:3; margin-top:0 }
+  .site-origin { order:4; margin-top:0 }
+  .site-tcodebox summary { display:block }
+}
+
+/* Phone */
 @media (max-width:760px) {
-  .site h1 { font-size:36px }
-  .site-split, .site-cards, .site-status, .site-seq { grid-template-columns:1fr }
-  .site-stage { height:340px }
+  .site h1 { font-size:34px }
+  .site section { padding:44px 0 }
+  .site-hero { padding:36px 0 16px }
+  .site-sub { font-size:17px }
+  .site-split, .site-cards, .site-status, .site-seq { grid-template-columns:minmax(0,1fr) }
+  .site-cards .site-card:last-child { grid-column:auto }
+  .site-stage { height:240px; margin-top:28px }
+  .site-stage-poster { object-fit:cover; object-position:50% 40% }
   .site-links a:not(.gh) { display:none }
-  .site-footer .r { margin-left:0 }
+  /* the stage's overlays: modes on top, "try a theme" bottom-left and "see the source" bottom-right, no caption, nothing overlapping */
+  .site-modes { top:8px; padding:3px }
+  .site-modes button { padding:5px 11px; font-size:12px }
+  .site-stage-caption { display:none }
+  .site-stage-src { right:10px; bottom:10px; font-size:11px; padding:3px 8px }
+  .site a.site-try { top:auto; bottom:10px; left:10px; right:auto; font-size:11px; padding:3px 8px }
+  .site-proof { gap:6px 16px; padding-top:20px }
+  .site-proof span:nth-child(even) { display:none }
+  .site-status { padding:20px }
+  .site-src pre { font-size:12px; padding:14px }
+  .site-src pre.clamp { max-height:210px; overflow:hidden; -webkit-mask-image:linear-gradient(#000 70%, transparent); mask-image:linear-gradient(#000 70%, transparent) }
+  .site-srcmore { display:block; margin:8px auto 0; font:inherit; font-size:13px; padding:5px 14px; border:1.5px solid var(--sumi); border-radius:6px; background:none; color:var(--text); cursor:pointer }
+  .site-tview { aspect-ratio:4 / 3 }
+  .site-origin { flex-direction:column; align-items:flex-start }
+  .site-origin img { width:100% }
+  .site-final pre { font-size:12px; padding:14px; white-space:pre-wrap; word-break:break-all }
+  .site-footer { justify-content:center; text-align:center }
+  .site-footer .r { margin-left:0; width:100% }
 }
 
 @media (prefers-reduced-motion: reduce) {

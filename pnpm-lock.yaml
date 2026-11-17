@@ -68,6 +68,9 @@ importers:
 
   apps/site:
     dependencies:
+      '@fontsource/zen-old-mincho':
+        specifier: ^5.3.1
+        version: 5.3.1
       bonkei:
         specifier: workspace:*
         version: link:../../packages/core
@@ -558,6 +561,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource/zen-old-mincho@5.3.1':
+    resolution: {integrity: sha512-wahFUlw1s0zKkxiTRj9jJiyVrdNT5uHNYWakr6cDEIgp91YoP/LOvfD2+JVIKiXIwTChDM1oW1yqXJbdtlI56w==}
 
   '@joshwooding/vite-plugin-react-docgen-typescript@0.7.0':
     resolution: {integrity: sha512-qvsTEwEFefhdirGOPnu9Wp6ChfIwy2dBCRuETU3uE+4cC+PFoxMSiiEhxk4lOluA34eARHA0OxqsEUYDqRMgeQ==}
@@ -2428,6 +2434,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.25.12':
     optional: true
+
+  '@fontsource/zen-old-mincho@5.3.1': {}
 
   '@joshwooding/vite-plugin-react-docgen-typescript@0.7.0(typescript@5.9.3)(vite@5.4.21)':
     dependencies:
