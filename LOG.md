@@ -195,11 +195,13 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - The visible name is **Bonkei**: page titles, `og:title`, the home page's nav, hero and footer. Its links go to https://github.com/infinitedusky/bonkei. `VITE_SITE_URL` is `https://bonkei.dev/`, so `og:url` is `https://bonkei.dev/` and `og:image` is `https://bonkei.dev/og.png`.
 - The custom domain lives in the repository's Pages settings, because Actions-based Pages deploys ignore a CNAME file in the artifact. `apps/site/public/CNAME` (`bonkei.dev`) is shipped anyway, as a record of the domain in the repo and in case publishing ever switches to a branch.
 - `scripts/check-pages.mjs` runs at the end of the root `pnpm build` and guards the artifact: it fails the build, and so the deploy, if `dist/` mentions merman, a page points at a missing file, the bonkei.dev `og:url`/`og:image` or a Bonkei title is missing, or `dist/CNAME` is not `bonkei.dev`.
+- `.github/workflows/pages.yml` runs on every push to main and on `workflow_dispatch`, with `concurrency.cancel-in-progress: false` so a deploy that has started finishes and queued runs collapse to the latest.
 
 This supersedes the 'Names (BON-50)' entry's choice to keep the site's copy, its page titles and the `/merman/` base, and the `/merman/` and `/merman/app/` bases set in 'The Pages artifact and the dev proxy (BON-50)'.
 
 **Alternatives considered.**
 - Keep the `/merman/` subpath and redirect the domain's root to it: the old name would stay in every public URL, and a static Pages site can only redirect with a meta-refresh page.
 - Set the base through an environment variable: one site, one domain, so a variable only adds a way to build a wrong artifact; the check would still be needed.
+- Filter the push trigger by path (deploy only when the apps change): the brief asks for every merge to main to publish.
 
 **Consequences.** The old infinitedusky.github.io/merman/ URLs stop working. Internal names still say merman: the Storybook flow `merman.flow.json`, the dev-only capture page (`apps/site/dev/capture.html`) and `sketches/`. None of them reach `dist/`.

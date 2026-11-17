@@ -134,7 +134,7 @@ pnpm test         # unit tests: parser, options, prepare, camera, controls
 
 In dev, the viewer's plain page at http://localhost:5173/app/plain.html drives `render()` and its handle on a page with no React of its own.
 
-Public site: https://bonkei.dev/ (viewer at https://bonkei.dev/app/). It deploys to GitHub Pages through `.github/workflows/pages.yml`. For now that workflow runs only when started by hand (`workflow_dispatch`), so merging to main publishes nothing.
+Public site: https://bonkei.dev/ (viewer at https://bonkei.dev/app/). It deploys to GitHub Pages through `.github/workflows/pages.yml`. Every push to main deploys; the workflow can still be run by hand from the Actions tab (`workflow_dispatch`). The custom domain is set once in the repository's Settings → Pages (source: GitHub Actions).
 
 Two Vite apps, one Pages artifact: `apps/site` is the marketing site (`index.html`, code in `apps/site/src/`), and `apps/playground` is the viewer (`index.html`, `apps/playground/src/main.tsx`). `pnpm build` builds both and `scripts/assemble-pages.mjs` puts the site at `dist/` and the viewer at `dist/app/`; builds, `pnpm preview` and dev serve the site at `/` and the viewer at `/app/` (in dev the site's dev server proxies `/app` to the viewer's own server). `pnpm build` ends with `scripts/check-pages.mjs`, which fails the build (and so the deploy) if anything in `dist/` mentions merman, if a page points at a file that is not in `dist/`, if `dist/index.html` lacks the `https://bonkei.dev/` `og:url` and `og:image` or a Bonkei title, if the viewer's title does not say Bonkei, or if `dist/CNAME` is not `bonkei.dev`.
 
