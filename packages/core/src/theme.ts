@@ -145,6 +145,8 @@ function setPath(t: Theme, path: string, v: unknown): string | null {
   const choices = CHOICES[keys.map(k => (/^\d+$/.test(k) ? '#' : k)).join('.')]
   if (choices?.length && typeof v === 'string' && !choices.includes(v)) return `${path} must be one of ${choices.join(', ')}; got ${JSON.stringify(v)}`
   if (typeof v === 'number' && !Number.isFinite(v)) return `${path} must be a finite number; got ${JSON.stringify(v)}`
+  // every number in a theme is a size, a weight or a share (none negative in the presets); a negative one draws nothing
+  if (typeof v === 'number' && v < 0) return `${path} must be 0 or more; got ${v}`
   parent[last] = v
   return null
 }

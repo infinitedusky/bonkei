@@ -105,3 +105,17 @@ test('only a theme\'s own tokens can be set: an array\'s length and inherited na
   assert.deepEqual(r.theme.tray.colors, BONKEI.tray.colors)
   assert.deepEqual(r.theme.tray.sides, BONKEI.tray.sides)
 })
+
+test('a negative number is skipped and reported (a tray -2 thick draws nothing); zero is allowed', () => {
+  const r = withVariables(BONKEI, { 'tray.thickness': -2, 'edge.width': -1, 'node.outlineWidth': 0 })
+  assert.deepEqual(r.problems.map(p => p.message), ['tray.thickness must be 0 or more; got -2', 'edge.width must be 0 or more; got -1'])
+  assert.equal(r.theme.tray.thickness, BONKEI.tray.thickness)
+  assert.equal(r.theme.edge.width, BONKEI.edge.width)
+  assert.equal(r.theme.node.outlineWidth, 0)
+})
+
+test('no preset has a negative number, so the rule above takes nothing a preset uses', async () => {
+  const { PRESETS } = await import('./theme.ts')
+  const nums = (o: unknown): number[] => (typeof o === 'number' ? [o] : o && typeof o === 'object' ? Object.values(o).flatMap(nums) : [])
+  for (const t of Object.values(PRESETS)) assert.ok(nums(t).every(n => n >= 0), t.name)
+})
