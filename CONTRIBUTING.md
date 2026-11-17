@@ -25,7 +25,7 @@ Map of the code (a pnpm workspace; see the README's Packages list):
 - `packages/core/src/index.ts`: the public API of `bonkei`, and nothing else
 - `packages/core/src/internal.ts`: `bonkei/internal`, every other piece, for this repo's stories and tools (internal and unstable)
 - `apps/playground/src/samples.ts`: built-in diagrams (add one when you fix a bug it exposes)
-- `apps/playground/scripts/`: route measurements on the samples (`route-metrics.ts`, `drag-metrics.ts`, `drag-check.ts`, `route-svg.ts`) and `routes.test.ts`, the 50-node sample's checks (`pnpm --filter @bonkei/playground test`)
+- `apps/playground/scripts/`: route measurements on the samples (`route-metrics.ts`, `drag-metrics.ts`, `drag-check.ts`, `avoid-levels.ts`, `crossing-styles.ts`, `measure-edges.ts`, `list-back.ts`, `route-svg.ts`) and `routes.test.ts`, the 50-node sample's checks (`pnpm --filter @bonkei/playground test`)
 - `TESTING.md`: the manual test plan, page by page
 - `PULL_REQUEST.md`: the pull request description for BON-99, with its risks (what could break, how you would notice)
 - `apps/playground/src/main.tsx`, `apps/playground/src/App.tsx` (mounted by `apps/playground/index.html`): the viewer, served at `/app/`

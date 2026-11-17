@@ -16,7 +16,7 @@ const ts = readFileSync(dir + 'samples.ts', 'utf8')
 const samples: Record<string, string> = {
   small: readFileSync(dir + 'sample.mmd', 'utf8'),
   large: ts.match(/const large = `([\s\S]*?)`/)![1],
-  }
+}
 
 type Pt = [number, number]
 export function metrics(r: any) {

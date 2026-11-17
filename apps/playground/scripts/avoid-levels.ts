@@ -1,29 +1,28 @@
-// Crossing-avoidance levels on the 50-node sample (BON-99): quality, routing time, and drag frame time with the penalty on and off while dragging.
+// Crossing-avoidance levels on the 50-node sample (BON-99): quality, routing time, and drag frame time with the crossing
+// penalty off while dragging (as the scene does) and kept on.
+//   pnpm --filter @bonkei/playground exec node --experimental-strip-types scripts/avoid-levels.ts
 import { readFileSync } from 'node:fs'
 process.env.NOMAIN = '1'
-const root = '/Users/the_dusky/code/bonkei-worktrees/prototype--edges-in-3d-routed-by-libavoid-kond/packages/core/src/'
+const root = new URL('../../../packages/core/src/', import.meta.url).pathname
 const { layout } = await import(root + 'layout.ts')
 const { parse } = await import(root + 'parser.ts')
-const { loadAvoid, createRouter, TUNE } = await import(root + 'avoid.ts')
+const { loadAvoid, createRouter, TUNE, AVOID_CROSSINGS, CROSSING_COST } = await import(root + 'avoid.ts')
 const { metrics } = await import('./route-metrics.ts')
-const ts = readFileSync('src/samples.ts', 'utf8')
+const ts = readFileSync(new URL('../src/samples.ts', import.meta.url), 'utf8')
 const data = await layout(parse(ts.match(/const large = `([\s\S]*?)`/)![1]))
 const A = await loadAvoid()
 const nodes = data.boxes.filter((b: any) => b.kind === 'node').slice(0, 20)
-for (const crossing of [0, 30, 100, 300, 1000, 3000]) {
-  const out: string[] = []
-  const rr = createRouter(A, data, { ...TUNE, crossing, dragCrossing: 0 })
+const median = (ms: number[]) => ms.sort((a, b) => a - b)[ms.length >> 1].toFixed(0)
+for (const level of AVOID_CROSSINGS) {
+  const rr = createRouter(A, data, level)
   const m = metrics({ ...data, routes: rr.routes })
-  const t0 = performance.now()
   const ms: number[] = []
   for (const n of nodes) for (const d of [50, -50]) { rr.move(n.id, d, 0); ms.push(rr.stats.moveMs) }
-  ms.sort((a, b) => a - b)
   rr.dispose()
   // the same with the penalty kept on while dragging
-  const r2 = createRouter(A, data, { ...TUNE, crossing, dragCrossing: crossing })
+  const r2 = createRouter(A, data, level, { ...TUNE, dragCrossing: CROSSING_COST[level] })
   const m2: number[] = []
   for (const n of nodes.slice(0, 6)) for (const d of [50, -50]) { r2.move(n.id, d, 0); m2.push(r2.stats.moveMs) }
-  m2.sort((a, b) => a - b)
   r2.dispose()
-  console.log(`crossing ${crossing}: x ${m.cross} ov ${m.overlap} tray ${m.trays} block ${m.through} back ${m.back} ratio ${m.ratio} len ${m.len} build ${Math.round(rr.stats.buildMs)} ms; drag(penalty off) ${ms[ms.length >> 1].toFixed(0)} ms; drag(penalty on) ${m2[m2.length >> 1].toFixed(0)} ms`)
+  console.log(`${level}: crossings ${m.cross}, overlapping ${m.overlap}, foreign tray ${m.trays}, through a block ${m.through}, doubling back ${m.back}, length/direct ${m.ratio}, length ${m.len}; build ${Math.round(rr.stats.buildMs)} ms; drag (penalty off) ${median(ms)} ms, (penalty on) ${median(m2)} ms`)
 }
