@@ -257,13 +257,15 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
 
   useImperativeHandle(ref, () => ({ setMode: m => pick(m, 'handle'), fit }), [pick, fit])
 
+  const themeName = useRef(theme.name)
+  themeName.current = theme.name
   const onFirstFrame = useCallback(() => {
     const p = preparedRef.current
     if (!p) return
     setStatus(s => s === 'loading' ? 'ready' : s)
     instant('bonkei.first_frame', {
       'bonkei.nodes': p.ready.nodes, 'bonkei.edges': p.ready.edges,
-      'bonkei.dropped': p.ready.dropped, 'bonkei.layout_ms': p.ready.layoutMs,
+      'bonkei.dropped': p.ready.dropped, 'bonkei.layout_ms': p.ready.layoutMs, 'bonkei.theme': themeName.current,
     }, acceptedAt.current)
     cbs.current.onReady?.({ ...p.ready })
   }, [])

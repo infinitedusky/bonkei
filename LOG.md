@@ -185,3 +185,40 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 **Measured** (50-node sample, `route-metrics.ts`): doubling back 0 at off, some and strong. 0 through a block or foreign tray, 0 lying on top of each other, length / direct 1.00 (main 1.12). Crossings: off 96, some 52, strong 48. Drag (`drag-check.ts`, 168 frames): 0 through a block or tray, 0 turning back where a direct route exists. 13 frames turn back because the drop puts the target straight behind another block, where no route that avoids the block can be monotone.
 
 **Consequences.** Blocks can sit up to 240 px off where ELK put them. While a node is dragged, a line still turns back if the drop leaves no direct route. The drag never slides other blocks, because they would jump under the pointer.
+
+## 2026-11-17 — Themes in the engine: Classic, Bonkei, Bonkei · landscape (prototype for BON-32)
+
+**Context.** The brand idea wants two new looks drawn by the real scene, not stills. BON-32 says a theme is data and one renderer reads only tokens. This prototype built the smallest part of that to see what stops it.
+
+**Decision (what the prototype does).**
+- `theme.ts` (plain TS, no React): `Theme` is a JSON-serialisable token object (ground, light, node, tray, label, edge, seq). `CLASSIC`, `BONKEI` and `LANDSCAPE` are presets; `LANDSCAPE` is `BONKEI` with `node.form: landscape` and `label.toward`. `themeByName` (unknown name → Classic plus a problem) and `withVariables` (dotted-path overrides such as `node.form`, `tray.colors.0`, checked against the type already there).
+- `look.tsx`: the scene's side of the tokens: `ThemeProvider`/`useTheme`, `Mat` (standard or toon material), `Ink` (outline), `PlateText` (cartouche), tray side patterns and paper grain drawn on canvases, landscape forms drawn from SVG strings. Nothing in scene code names a theme.
+- Frontmatter: `config.theme` and `config.themeVariables` (outside `config.bonkei`); `<Bonkei theme>` takes a name or a whole `Theme` and wins over the frontmatter name; `render()` passes it through. A bad name or variable is a `BonkeiWarning` with `kind: 'theme'` (line of the frontmatter key; `line: 0` when it came from the prop) and the diagram is drawn in Classic.
+- Classic is unchanged: 0 differing pixels (3% fuzz) against the commit this branch started from, in flat, iso and 3D on the small sample (`.prototype/evidence/classic-main-vs-branch-*.jpg`).
+- Landscape forms are billboarded SVG cut-outs, not meshes: they cost one quad each, keep the logo's drawing exactly, and need no geometry per form. Price: their strokes scale with zoom while mesh outlines stay a constant width in pixels.
+- Tray thickness became a token (`tray.thickness`, 0.25 in Classic, 0.42 in Bonkei); `Body.tray` carries it into `edges3d` so steps, tunnels and bridges follow.
+
+**Limitations found** (each is a candidate PR; "fixed" means the prototype got past it, "open" means it did not):
+1. Colours were hard-coded in `shapes.tsx`, `palette.ts` `SCENE`, `SceneView`, `SeqScene`, `EdgeScene` (portal blue, tunnel rim) — fixed: all read tokens. `palette.ts` `UI` (toolbar, error card, loading text, fps) is still hard-coded dark — open: Bonkei sits a dark toolbar on cream paper.
+2. Materials were `meshStandardMaterial` only — fixed with `Mat` (toon via a gradient map). Trench walls/floors still use the standard material, tinted by the tray colour — open (looks fine only because they are dark shades).
+3. Lights, shadows and tone mapping were fixed in `Env` / `Canvas` — fixed as `light.*` tokens. Canvas's `flat` prop is read once, so tone mapping is set from the theme in `ToneSetup`; the theme can arrive after mount (frontmatter).
+4. A toon material with ACES tone mapping gives muddy cream — fixed by `light.toneMapping: false`; a token cannot make it right alone: ambient+hemisphere+sun must sum to about π for a top face to show its token colour exactly, so light tokens and colour tokens are coupled — open (a "flat" shading mode that ignores lights would remove this).
+5. The ground was a lit plane plus a `gridHelper` — fixed: `ground.lit`, `ground.grid: null`, `ground.grain` (canvas noise tile). No paper vignette (needs a screen-space pass) — open.
+6. Tray sides were a plain box, so no patterned side — fixed: patterned trays are an extruded shape with two materials, a square canvas tile one band high. Needs world-unit UVs from `ExtrudeGeometry` and a V offset (a tile must start at the base: `offset.y = -(1-T)/T`) — fragile, open.
+7. Tray thickness was the constant `TRAY` imported by `edges3d`, `shapes`, `SceneView` — fixed via `Body.tray` / `tray.thickness`; the `SLOT_DEPTH`, `DIP` and `STEP_OFFSET` constants are still absolute — open (a trough must stay inside a tray: 0.18 < 0.25 only by luck).
+8. No outlines existed — added with drei `Edges` (one `Line2` per mesh). Cost: on the large sample in iso with software GL, 8 fps with outlines against 24 without (Classic 14); on a GPU the gap will be smaller but it is one draw call per node and tray — open: batch the outlines into one `LineSegments2`, or an inverted-hull pass.
+9. Outline weight: mesh outlines are constant in screen pixels; the landscape forms' ink is part of a texture and scales with zoom (thick when flown in) — open; modelled forms with `Edges`, or SDF forms, would fix it.
+10. Label rendering was `Text` only. Cartouches (plate sized to the text's `blockBounds`, border plate behind it) are new: a plate needs `polygonOffset` to win over the surface under it, and a billboarded label has to be pulled towards the camera to stand in front of a form — fixed. Rounded cartouche corners are not drawn (plain rectangles) — open.
+11. Landscape forms stand in a billboard frame together with the label, so "above" and "in front" are screen directions in flat view too; in a non-billboard (top-down) world frame they overlapped.
+12. Edge styling: line colour and width, arrowhead colour and the tunnel rim read tokens; bridge, tunnel and portal geometry are unchanged. Portal rings and the portal view tint use `edge.portal` and `ground.bg`. The arrowhead cone and the hover lift are still hard-coded shapes — open.
+13. A layout's tray title position (back-left corner) can be hidden behind a landscape form on that corner (Billing, Data in the mockup diagram) — open: needs a title position token or collision-free placement.
+14. Round bowls (the prints' trays) are not possible: tray shape is a box with straight sides and the layout/routing assume rectangles — open, a layout change.
+15. A node's height (`Box.height`, `NODE_H`) is used by edge planning, so landscape forms (a low footprint + a tall cut-out) leave the edges at the layout's node height — lines pass behind the form's middle. Acceptable here; open for a "form height" token.
+16. Shadows: none in Bonkei (`light.shadows: false`); a hand-drawn drop shadow would need a blob under each footprint — open.
+17. The Themes section's diagram is small in its wide frame: `camera.fit` leaves generous margins — open (a `fit` padding option).
+
+**Telemetry.** `bonkei.first_frame` now carries `bonkei.theme` (the resolved theme name); an unknown theme name reaches `onWarning` (kind `theme`) — the existing channel.
+
+**Alternatives considered.** A theme as a React component set per theme (rejected: it is what BON-32 forbids and would duplicate the scene); meshes for the landscape forms (more faithful in 3D, more work per form, kept as the follow-up for limitation 9); a post-processing outline pass (breaks the portal render targets, which render the scene again).
+
+**Consequence.** Adding a look is a new preset plus, for new capabilities, a token. The scene has no theme names in it. Open items above are the follow-up PRs; 8 (outline batching) and 9 (form strokes) matter most for a real build.

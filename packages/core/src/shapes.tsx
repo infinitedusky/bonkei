@@ -8,6 +8,7 @@ export type { LabelMode }
 import { S, TRAY, NODE_H, TEXT_LAYER } from './scale.ts'
 import { slotShape } from './EdgeScene'
 import { Mat, Ink, PlateText, useTheme, fontUrl, patternTexture, useFormTexture, FORM_ASPECT } from './look'
+import type { Plate } from './theme'
 export { S, TRAY, NODE_H }
 
 
@@ -34,17 +35,20 @@ function geometry(shape: Box['shape'], w: number, h: number, height: number, bev
   return g
 }
 
-// A landscape form: a billboarded cut-out standing on the node's footprint.
-function Form({ shape, w, h, y }: { shape: Box['shape']; w: number; h: number; y: number }) {
+// A landscape form: a cut-out standing on the node's footprint, with the label in front of its foot. Both live in one billboard
+// frame, so "above" and "in front" are screen directions in flat view too (where the camera looks straight down).
+function Form({ shape, w, h, y, gap, label, plate, font, toward }: { shape: Box['shape']; w: number; h: number; y: number; gap: number; label: string; plate: Plate; font?: string; toward: number }) {
   const tex = useFormTexture(shape)
   const fw = Math.min(shape === 'diamond' ? 1.4 : 2.2, w * 0.8, h * 1.8), fh = fw * FORM_ASPECT[shape]
-  if (!tex) return null
   return (
     <Billboard position={[0, y, 0]}>
-      <mesh position={[0, fh / 2, 0]}>
-        <planeGeometry args={[fw, fh]} />
-        <meshBasicMaterial map={tex} transparent alphaTest={0.3} toneMapped={false} />
-      </mesh>
+      {tex && (
+        <mesh position={[0, gap + fh / 2, 0]}>
+          <planeGeometry args={[fw, fh]} />
+          <meshBasicMaterial map={tex} transparent alphaTest={0.3} toneMapped={false} />
+        </mesh>
+      )}
+      <group position={[0, 0.1, 0]}><PlateText text={label} plate={plate} font={font} fontSize={0.36} maxWidth={w - 0.3} toward={toward} /></group>
     </Billboard>
   )
 }
@@ -61,8 +65,9 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
         <Mat color={land ? th.node.foot : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
         <Ink color={th.node.outline} width={th.node.outlineWidth} />
       </mesh>
-      {land && <Form shape={b.shape} w={w} h={h} y={height + th.node.labelGap} />}
-      <Label text={b.label} mode={land ? 'billboard' : labelMode} y={land ? height - 0.35 : height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />
+      {land
+        ? <Form shape={b.shape} w={w} h={h} y={height} gap={th.node.labelGap} label={b.label} plate={th.label.node} font={fontUrl(th)} toward={th.label.toward} />
+        : <Label text={b.label} mode={labelMode} y={height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />}
     </>
   )
 }
