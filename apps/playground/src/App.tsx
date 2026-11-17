@@ -26,7 +26,7 @@ export default function App() {
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
-      <Bonkei source={debounced} labels={labelMode} theme={theme}
+      <Bonkei source={debounced} labels={labelMode} theme={theme === 'from source' ? undefined : theme}
         onReady={r => setMs(r.layoutMs)}
         onError={() => setMs(null)}
         onEdgeStats={setEdges}
@@ -34,7 +34,7 @@ export default function App() {
       <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6, alignItems: 'center', color: '#9aa6c0' }}>
         <button style={btn(false)} onClick={() => setLabelMode(l => l === 'top' ? 'billboard' : 'top')}>labels: {labelMode}</button>
         <select value={sel} onChange={e => { setSel(e.target.value); setSrc(SAMPLES[e.target.value]) }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{Object.keys(SAMPLES).map(k => <option key={k}>{k}</option>)}</select>
-        <select aria-label="Theme" value={theme} onChange={e => { setTheme(e.target.value); setWarn('') }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{['classic', 'bonkei', 'bonkei-landscape', 'unknown-name'].map(k => <option key={k}>{k}</option>)}</select>
+        <select aria-label="Theme" value={theme} onChange={e => { setTheme(e.target.value); setWarn('') }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{['from source', 'classic', 'bonkei', 'bonkei-landscape', 'unknown-name'].map(k => <option key={k}>{k}</option>)}</select>
         <button style={btn(edit)} onClick={() => setEdit(e => !e)}>source</button>
       </div>
       {/* the route quality readout: what the avoid-crossings setting and a drag do to the lines */}
