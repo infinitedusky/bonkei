@@ -1,9 +1,9 @@
 // The libavoid router (BON-99): side pins, tray closure, docks at a tray, a live drag. Hand-made layouts, so the expected routes are plain.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { loadAvoid, createRouter, TUNE } from './avoid.ts'
+import { loadAvoid, createRouter, TUNE, SLACK } from './avoid.ts'
 import { layout } from './layout.ts'
-import { straighten, doublesBack, blocked } from './monotone.ts'
+import { straighten, doublesBack, blocked, refine, overlapOf, crossingsOf } from './monotone.ts'
 import { measureRoutes } from './routeMetrics.ts'
 import { parse } from './parser.ts'
 import type { Box, LayoutResult, Route } from './model.ts'
@@ -204,4 +204,23 @@ test('dragging a node out of a tray\'s way: the doors follow and the line goes s
     assert.equal(sig(), before, `${ends}: reset restores the routes`)
     r.dispose()
   }
+})
+
+test('refine moves a line off another it lies on, onto a lane beside it, still direct', () => {
+  const boxes = [node('a', 0, 0), node('b', 400, 300), node('c', 0, 40), node('d', 400, 340)]
+  // two lines from the left blocks to the right ones, drawn on top of each other along y = 180
+  const r1: Route = { id: 'r1', from: 'a', to: 'b', points: [[110, 28], [200, 28], [200, 180], [300, 180], [300, 328], [400, 328]] }
+  const r2: Route = { id: 'r2', from: 'c', to: 'd', points: [[110, 68], [200, 68], [200, 180], [300, 180], [300, 368], [400, 368]] }
+  const seg = (r: Route) => r.points.slice(1).map((b, k) => ({ a: r.points[k], b }))
+  assert.ok(overlapOf(r1.points, seg(r2)) > 0)
+  const out = refine(boxes, [r1, r2], 10, 1000).routes
+  assert.equal(overlapOf(out[0].points, seg(out[1])), 0)
+  for (const r of out) { assert.ok(!doublesBack(r.points), r.id); assert.ok(!blocked(boxes, r), r.id) }
+  assert.ok(crossingsOf(out[0].points, seg(out[1])) <= crossingsOf(r1.points, seg(r2)))
+})
+
+test('only the strong level lets a line keep a sideways jog to cross fewer lines', () => {
+  assert.equal(SLACK.off, Infinity)
+  assert.equal(SLACK.some, Infinity)
+  assert.equal(SLACK.strong, 0)
 })

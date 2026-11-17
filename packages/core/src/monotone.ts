@@ -63,12 +63,14 @@ export function blocked(boxes: Box[], r: Route): boolean {
 // A grid of the coordinates that matter in [lo, hi] (the ends, their stubs, every obstacle edge, and lanes a third and two thirds
 // across each gap wider than 20 px), with the cost of every move worked out once: hc[i*Y+j] from (i, j) to (i+1, j), vc to (i, j+1).
 // Infinity through an obstacle; `cross` per line crossed; COST.overlap (and per px) lying on another line.
-function grid(lo: Pt, hi: Pt, ends: Pt[], obstacles: Rect[], others: Seg[], cross: number) {
+function grid(lo: Pt, hi: Pt, ends: Pt[], obstacles: Rect[], others: Seg[], cross: number, lanes = 0) {
   const near = obstacles.filter(o => o.x1 >= lo[0] && o.x0 <= hi[0] && o.y1 >= lo[1] && o.y0 <= hi[1])
   const segs = others.filter(g => Math.max(g.a[0], g.b[0]) >= lo[0] && Math.min(g.a[0], g.b[0]) <= hi[0] && Math.max(g.a[1], g.b[1]) >= lo[1] && Math.min(g.a[1], g.b[1]) <= hi[1])
   const coords = (k: 0 | 1) => {
     const s = new Set<number>(ends.map(p => p[k]))
     for (const o of near) { s.add(k ? o.y0 : o.x0); s.add(k ? o.y1 : o.x1) }
+    // `lanes`: a lane that far either side of every other line, so a line can run beside one instead of on it
+    if (lanes) for (const g of segs) if (Math.abs(g.a[k] - g.b[k]) < 0.5) { s.add(g.a[k] - lanes); s.add(g.a[k] + lanes) }
     const v = [...s].filter(c => c >= lo[k] - 1e-6 && c <= hi[k] + 1e-6).sort((a, b) => a - b)
     const out: number[] = []
     for (let i = 0; i < v.length; i++) {
@@ -79,7 +81,7 @@ function grid(lo: Pt, hi: Pt, ends: Pt[], obstacles: Rect[], others: Seg[], cros
   }
   const xs = coords(0), ys = coords(1)
   const X = xs.length, Y = ys.length
-  if (X * Y > MAX_CELLS) return null
+  if (X * Y > MAX_CELLS * (lanes ? 4 : 1)) return null
   const hc = new Float64Array(X * Y), vc = new Float64Array(X * Y)
   const spans = (cs: number[], a: number, b: number) => { const r: number[] = []; for (let i = 0; i + 1 < cs.length; i++) { const m = (cs[i] + cs[i + 1]) / 2; if (m > a && m < b) r.push(i) } return r }
   const within = (cs: number[], a: number, b: number) => { const r: number[] = []; for (let i = 0; i < cs.length; i++) if (cs[i] > a + 1e-6 && cs[i] < b - 1e-6) r.push(i); return r }
@@ -93,8 +95,8 @@ function grid(lo: Pt, hi: Pt, ends: Pt[], obstacles: Rect[], others: Seg[], cros
     const k = horiz ? 0 : 1, along = k ? ys : xs, across = k ? xs : ys
     const g0 = Math.min(g.a[k], g.b[k]), g1 = Math.max(g.a[k], g.b[k]), at = g.a[1 - k]
     // lying on it: moves along the same line, overlapping it
-    const row = across.findIndex(c => Math.abs(c - at) < 0.5)
-    if (row >= 0) for (let i = 0; i + 1 < along.length; i++) {
+    // (within 2 px counts: two lines that close look like one)
+    for (let row = 0; row < across.length; row++) if (Math.abs(across[row] - at) < 2) for (let i = 0; i + 1 < along.length; i++) {
       const o = Math.min(g1, along[i + 1]) - Math.max(g0, along[i])
       if (o > 0.5) { const c = COST.overlap + o * COST.overlap; if (k) vc[row * Y + i] += c; else hc[i * Y + row] += c }
     }
@@ -181,7 +183,7 @@ function search(p: Pt, q: Pt, np: Pt, nq: Pt, obstacles: Rect[], G: Grid, bounds
   return { pts: corners(cells), cost: cost[goal] }
 }
 
-function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds: Rect | null, cross: number): Pt[] | null {
+function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds: Rect | null, cross: number, lanes = 0): Pt[] | null {
   const by = new Map(boxes.map(b => [b.id, b]))
   const A = by.get(r.from), B = by.get(r.to)
   if (!A || !B || A === B) return null
@@ -191,7 +193,7 @@ function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds:
   for (const [b, sides] of [[A, SIDES], [B, SIDES]] as const) for (const sd of sides) { const m = mid(b, sd), n = NORMAL[sd]; ends.push(m, [m[0] + n[0] * STUB, m[1] + n[1] * STUB]) }
   const lo: Pt = bounds ? [bounds.x0, bounds.y0] : [Math.min(...ends.map(e => e[0])), Math.min(...ends.map(e => e[1]))]
   const hi: Pt = bounds ? [bounds.x1, bounds.y1] : [Math.max(...ends.map(e => e[0])), Math.max(...ends.map(e => e[1]))]
-  const G = grid(lo, hi, ends, obstacles, others, cross)
+  const G = grid(lo, hi, ends, obstacles, others, cross, lanes)
   if (!G) return null
   let best: { pts: Pt[]; cost: number } | null = null
   for (const sa of SIDES) for (const sb of SIDES) {
@@ -209,8 +211,8 @@ function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds:
 }
 
 /** The best monotone route from a side midpoint of `from` to one of `to`, or null if there is none. `others`: the other lines. */
-export function monotoneRoute(boxes: Box[], r: Route, others: Seg[], buffer: number, cross = COST.cross): Pt[] | null {
-  return bestOver(boxes, r, others, buffer, null, cross)
+export function monotoneRoute(boxes: Box[], r: Route, others: Seg[], buffer: number, cross = COST.cross, lanes = 0): Pt[] | null {
+  return bestOver(boxes, r, others, buffer, null, cross, lanes)
 }
 
 /** The cheapest route round every block and foreign tray (it may turn back): looked for near the line first (its ends and its
@@ -255,11 +257,14 @@ export function canGoDirect(boxes: Box[], r: Route, buffer: number): boolean {
  * if there is one; failing that, a route through a block or foreign tray takes the cheapest way round. Lines are taken one by
  * one, each kept off those already settled. `forced` counts the lines left turning back because no direct route exists.
  */
-export function straighten(boxes: Box[], routes: Route[], buffer: number, cross: number = COST.cross, slack = Infinity, cache?: StraightenCache): { routes: Route[]; changed: number; forced: number } {
+export function straighten(boxes: Box[], routes: Route[], buffer: number, cross: number = COST.cross, slack = Infinity, cache?: StraightenCache, first?: ReadonlySet<string>): { routes: Route[]; changed: number; forced: number; forcedIds: string[] } {
   const out = routes.slice()
   let changed = 0, forced = 0
+  const forcedIds: string[] = []
   const segsOf = (skip: number) => out.flatMap((e, i) => i === skip ? [] : e.points.slice(1).map((b, k) => ({ a: e.points[k], b })))
-  for (let i = 0; i < out.length; i++) {
+  // the lines in `first` are settled before the others, so they find room before the others take it
+  const order = [...out.keys()].sort((a, b) => Number(!!first?.has(out[b].id)) - Number(!!first?.has(out[a].id)))
+  for (const i of order) {
     const r = out[i]
     if (r.from === r.to || r.points.length < 2) continue
     const back = doublesBack(r.points), through = blocked(boxes, r)
@@ -268,19 +273,64 @@ export function straighten(boxes: Box[], routes: Route[], buffer: number, cross:
     const key = JSON.stringify(r.points), hit = cache?.get(r.id)
     if (hit && hit.raw === key && !blocked(boxes, { ...r, points: hit.pts })) {
       if (hit.pts !== r.points) { out[i] = { ...r, points: hit.pts }; changed++ }
-      if (doublesBack(out[i].points)) forced++
+      if (doublesBack(out[i].points)) { forced++; forcedIds.push(r.id) }
       continue
     }
     const others = segsOf(i)
-    // a line through a block or foreign tray must change: direct if that crosses no more lines than the cheapest way round, else that way round
+    // a line through a block or foreign tray must change: direct when there is a direct route, else the cheapest way round
+    // (with a finite `slack`, the way round wins when it crosses fewer lines than the direct route)
     const direct = monotoneRoute(boxes, r, others, buffer, cross)
-    const round = through ? detourRoute(boxes, r, others, buffer, cross) : null
-    const pts = direct && (!round || crossingsOf(direct, others) <= crossingsOf(round, others)) ? direct : round
+    const round = through && (!direct || slack !== Infinity) ? detourRoute(boxes, r, others, buffer, cross) : null
+    const pts = direct && (!round || crossingsOf(direct, others) <= crossingsOf(round, others) + slack) ? direct : round
     // a line that only turns back to keep off other lines keeps its route when going direct would cross more of them than `slack`
     const ok = pts && (through || crossingsOf(pts, others) <= crossingsOf(r.points, others) + slack)
     if (pts && ok) { out[i] = { ...r, points: pts }; changed++ }
     cache?.set(r.id, { raw: key, pts: out[i].points })
-    if (doublesBack(out[i].points)) forced++
+    if (doublesBack(out[i].points)) { forced++; forcedIds.push(r.id) }
   }
-  return { routes: out, changed, forced }
+  return { routes: out, changed, forced, forcedIds }
+}
+
+/** How much of the route lies on `others` (px of collinear overlap longer than 4 px). */
+export function overlapOf(p: Pt[], others: Seg[]): number {
+  let n = 0
+  for (let i = 1; i < p.length; i++) for (const g of others) {
+    const a = p[i - 1], b = p[i]
+    for (const k of [0, 1] as const) {
+      if (Math.abs(a[1 - k] - b[1 - k]) > 0.5 || Math.abs(g.a[1 - k] - g.b[1 - k]) > 0.5 || Math.abs(a[1 - k] - g.a[1 - k]) >= 2) continue
+      if (Math.abs(a[k] - b[k]) < 0.5 || Math.abs(g.a[k] - g.b[k]) < 0.5) continue
+      const o = Math.min(Math.max(a[k], b[k]), Math.max(g.a[k], g.b[k])) - Math.max(Math.min(a[k], b[k]), Math.min(g.a[k], g.b[k]))
+      if (o > 4) n += o
+    }
+  }
+  return n
+}
+
+/**
+ * Rip-up and re-route, after straighten(): each line that goes direct is looked for again against the others as they now are,
+ * and takes the new direct route if it crosses fewer lines without lying on more of them. Lines settled early were kept off
+ * libavoid's first routes, which straighten() then changed; this lets them use the room that freed. `passes` rounds.
+ */
+export function refine(boxes: Box[], routes: Route[], buffer: number, cross: number, passes = 2): { routes: Route[]; changed: number } {
+  const out = routes.slice()
+  let changed = 0
+  const segsOf = (skip: number) => out.flatMap((e, i) => i === skip ? [] : e.points.slice(1).map((b, k) => ({ a: e.points[k], b })))
+  for (let pass = 0; pass < passes; pass++) {
+    let moved = 0
+    for (let i = 0; i < out.length; i++) {
+      const r = out[i]
+      if (r.from === r.to || r.points.length < 2 || doublesBack(r.points)) continue
+      const others = segsOf(i)
+      const c0 = crossingsOf(r.points, others), o0 = overlapOf(r.points, others)
+      if (!c0 && !o0) continue
+      // a line lying on another is also given lanes beside every other line
+      const pts = monotoneRoute(boxes, r, others, buffer, cross, o0 ? buffer : 0)
+      if (!pts || doublesBack(pts) || blocked(boxes, { ...r, points: pts })) continue
+      const c1 = crossingsOf(pts, others), o1 = overlapOf(pts, others)
+      if (o1 <= o0 && (c1 < c0 || (c1 === c0 && o1 < o0))) { out[i] = { ...r, points: pts }; moved++ }
+    }
+    changed += moved
+    if (!moved) break
+  }
+  return { routes: out, changed }
 }

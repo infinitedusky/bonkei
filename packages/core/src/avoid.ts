@@ -10,7 +10,7 @@
 import { AvoidLib } from 'libavoid-js'
 import type { Avoid, Router, ShapeRef, ConnRef } from 'libavoid-js'
 import type { Box, LayoutResult, Route } from './model.ts'
-import { straighten, type StraightenCache } from './monotone.ts'
+import { straighten, refine, type StraightenCache } from './monotone.ts'
 
 export interface AvoidTune {
   /** Space kept between a line and a block it passes (px of layout). */
@@ -36,6 +36,9 @@ export const TUNE: Readonly<AvoidTune> = Object.freeze({ buffer: 10, nudge: 10, 
 export const AVOID_CROSSINGS = ['off', 'some', 'strong'] as const
 export type AvoidCrossings = typeof AVOID_CROSSINGS[number]
 export const CROSSING_COST: Readonly<Record<AvoidCrossings, number>> = Object.freeze({ off: 0, some: 1000, strong: 3000 })
+/** How many more lines a direct route may cross than the route libavoid found before the line keeps libavoid's route, sideways
+ * jog and all. Off and some: any number (every line goes direct when it can). Strong: none (a line may jog aside to cross fewer lines). */
+export const SLACK: Readonly<Record<AvoidCrossings, number>> = Object.freeze({ off: Infinity, some: Infinity, strong: 0 })
 
 // ---- loading the wasm
 let loading: Promise<Avoid> | null = null
@@ -253,7 +256,15 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
       if (dt) pts.push(sideMid(byId.get(r.to)!, dt))
       return { ...r, points: tidy(pts) }
     })
-    const s = tune.straighten ? straighten([...byId.values()], routed, tune.buffer, CROSSING_COST[level], Infinity, cache) : { routes: routed, changed: 0, forced: 0 }
+    const boxes = [...byId.values()]
+    let s = tune.straighten ? straighten(boxes, routed, tune.buffer, CROSSING_COST[level], SLACK[level], cache) : { routes: routed, changed: 0, forced: 0, forcedIds: [] as string[] }
+    // when the layout is first routed: lines left turning back get a second try, settled before the others; the better of the two is kept
+    if (tune.straighten && s.forced && !out.routes.length) {
+      const again = straighten(boxes, routed, tune.buffer, CROSSING_COST[level], SLACK[level], undefined, new Set(s.forcedIds))
+      if (again.forced < s.forced) { s = again; cache.clear() }
+    }
+    // when first routed with a crossing cost: rip up and re-route the direct lines against the others as they now are
+    if (tune.straighten && !out.routes.length && CROSSING_COST[level] > 0) s = { ...s, routes: refine(boxes, s.routes, tune.buffer, CROSSING_COST[level]).routes }
     out.routes = s.routes
     out.stats.failed = failed
     out.stats.straightened = s.changed
