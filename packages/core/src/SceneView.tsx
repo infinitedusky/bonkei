@@ -127,11 +127,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       if (wheelAction(controls) === 'pass') return
       e.preventDefault()
       span.touch()
-      // No momentum: the wheel moves the view itself, so it stops the moment the wheel does. The same factor goes to the goal, so an
-      // animation under way (a fly-in, a change of view) is not cut short or sent back, only scaled.
-      const f = Math.exp(e.deltaY * 0.001)
-      cam.goal.H = Math.min(200, Math.max(3, cam.goal.H * f))
-      cam.cur.H = Math.min(200, Math.max(3, cam.cur.H * f))
+      cam.goal.H = Math.min(200, Math.max(3, cam.goal.H * Math.exp(e.deltaY * 0.001)))
     }
     el.addEventListener('wheel', wheel, { passive: false })
     return () => { el.removeEventListener('wheel', wheel); span.end() }
