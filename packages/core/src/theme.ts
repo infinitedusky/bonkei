@@ -125,7 +125,9 @@ const CHOICES: Record<string, readonly string[]> = {
 
 export interface ThemeProblem { key: string; message: string }
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
-const at = (o: unknown, keys: string[]) => keys.reduce<any>((c, k) => (c !== null && typeof c === 'object' && k in c ? c[k] : undefined), o)
+// A token's own key: an array takes only an index (not `length`), an object only its own keys (not `toString`, `__proto__`).
+const owns = (c: object, k: string) => (Array.isArray(c) ? /^\d+$/.test(k) && Number(k) < c.length : Object.hasOwn(c, k))
+const at = (o: unknown, keys: string[]) => keys.reduce<any>((c, k) => (c !== null && typeof c === 'object' && owns(c, k) ? c[k] : undefined), o)
 
 // Sets one dotted path (`node.form`, `tray.colors.0`) to a value of the type the token has. A token that can be null
 // (an outline, a font) takes null or the type it has in the presets where it is set.
@@ -133,7 +135,7 @@ function setPath(t: Theme, path: string, v: unknown): string | null {
   const keys = path.split('.')
   if (keys[0] === 'name') return 'name is not a theme variable; pick the theme with config.theme'
   const parent = at(t, keys.slice(0, -1)), last = keys[keys.length - 1]
-  if (parent === null || typeof parent !== 'object' || !(last in parent)) return `unknown theme variable ${path}`
+  if (parent === null || typeof parent !== 'object' || !owns(parent, last)) return `unknown theme variable ${path}`
   const old = parent[last]
   if (old !== null && typeof old === 'object') return `${path} is a group of tokens; set one of them (${Object.keys(old).map(k => `${path}.${k}`).join(', ')})`
   const types = new Set(Object.values(PRESETS).map(p => at(p, keys)).map(x => (x === null ? 'null' : typeof x)))

@@ -95,3 +95,13 @@ test('inkPx: Classic keeps fixed widths; Bonkei ink follows the scale between it
   assert.ok(Math.abs(inkPx(BONKEI, w, ref * 0.8) - w * 0.8) < 1e-9) // in between: in proportion
   assert.equal(inkPx(BONKEI, 2 * w, ref / 100), 2 * BONKEI.ink.min) // a line twice an outline keeps twice the minimum
 })
+
+test('only a theme\'s own tokens can be set: an array\'s length and inherited names are unknown, and nothing changes', () => {
+  const r = withVariables(BONKEI, { 'tray.colors.length': 0, 'tray.sides.length': 1, 'node.toString': 'x', 'constructor': 'x', '__proto__.x': 1, 'tray.colors.3': '#fff' })
+  assert.deepEqual(r.problems.map(p => p.message), [
+    'unknown theme variable tray.colors.length', 'unknown theme variable tray.sides.length', 'unknown theme variable node.toString',
+    'unknown theme variable constructor', 'unknown theme variable __proto__.x', 'unknown theme variable tray.colors.3',
+  ])
+  assert.deepEqual(r.theme.tray.colors, BONKEI.tray.colors)
+  assert.deepEqual(r.theme.tray.sides, BONKEI.tray.sides)
+})
