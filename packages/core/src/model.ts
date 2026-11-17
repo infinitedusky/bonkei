@@ -27,7 +27,14 @@ export interface Box {
   id: string; label: string; kind: 'node' | 'group'; shape: Shape
   x: number; y: number; w: number; h: number
   level: number // number of ancestor groups
+  height?: number // a node's block height in world units (default NODE_H); set by a custom layout
   parent?: string
 }
 export interface Route { id: string; from: string; to: string; label?: string; points: [number, number][] }
-export interface LayoutResult { boxes: Box[]; routes: Route[]; width: number; height: number }
+// direction: the flow the layout was made in. stats.trayDocks: line ends ELK left off a side midpoint (ends at a tray, which has
+// no ports) and that were docked at one. stats.route: how the lines were routed.
+export interface LayoutResult { boxes: Box[]; routes: Route[]; direction?: 'TD' | 'LR'; width: number; height: number; stats?: { trayDocks: number; route?: RouteStats } }
+// How the lines were routed (BON-100): total ms (wasm load included), router build ms, lines libavoid could not route, lines given
+// the direct route because libavoid's turned back or crossed a foreign tray, lines that must turn back (no direct route exists), the crossing-avoidance level, and why it fell back to
+// ELK's routes (null: it did not).
+export interface RouteStats { ms: number; buildMs: number; failed: string[]; straightened: number; forced: number; error: string | null; level: 'off' | 'some' | 'strong' }

@@ -1,24 +1,32 @@
 import * as THREE from 'three'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
-import { Line, Text } from '@react-three/drei'
 import type { Box, LayoutResult, Route } from './model'
-import { reroute } from './layout'
+import { reroute, PAD } from './layout'
+import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings, type Ends } from './avoid.ts'
+import type { Routing } from './layout'
+import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
-import { NodeBody, Tray, baseOf, type LabelMode } from './shapes'
-import { S, TRAY, NODE_H } from './scale'
+import { NodeBody, Tray, baseOf, trayColor, type LabelMode } from './shapes'
+import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
+import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
+import { S, TRAY, NODE_H, TEXT_LAYER } from './scale'
 import { SCENE } from './palette'
 import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
 import type { NodeClick, ResolvedControls } from './options'
 
+const LIGHT_TILTED = new THREE.Vector3(10, 18, 7) // iso and 3D
+const LIGHT_FLAT = new THREE.Vector3(21.8 * Math.sin(Math.PI / 36), 21.8 * Math.cos(Math.PI / 36), 0) // flat: 5 degrees off straight overhead, same distance
+
 type Ovr = Record<string, { x: number; y: number }>
 
-function effective(data: LayoutResult, ovr: Ovr) {
+// `live` are the router's routes while a node is dragged; without a router (the wasm did not load) a moved node's lines take the cheap Manhattan route.
+function effective(data: LayoutResult, ovr: Ovr, live: Route[] | null, basic: boolean) {
   const boxes = new Map<string, Box>()
   for (const b of data.boxes) boxes.set(b.id, ovr[b.id] ? { ...b, ...ovr[b.id] } : b)
-  const routes: Route[] = data.routes.map(r =>
+  const routes: Route[] = live ?? (basic ? data.elkRoutes ?? data.routes : data.routes).map(r =>
     ovr[r.from] || ovr[r.to] ? { ...r, points: reroute(boxes.get(r.from)!, boxes.get(r.to)!) } : r)
   return { boxes, routes }
 }
@@ -46,36 +54,19 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
   return null
 }
 
-function Edge({ r, boxes, labelMode }: { r: Route; boxes: Map<string, Box>; labelMode: LabelMode }) {
-  const a = boxes.get(r.from)!, b = boxes.get(r.to)!
-  const y = Math.max(baseOf(a) + (a.kind === 'group' ? TRAY : 0), baseOf(b) + (b.kind === 'group' ? TRAY : 0)) + 0.06
-  const pts = r.points
-  const v = useMemo(() => pts.map(([x, z]) => new THREE.Vector3(x, y, z)), [pts, y])
-  const n = v.length
-  const dir = new THREE.Vector3().subVectors(v[n - 1], v[n - 2]).normalize()
-  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
-  const tip = v[n - 1].clone().multiplyScalar(0).add(v[n - 1])
-  const line = [...v.slice(0, n - 1), tip.clone().addScaledVector(dir, -0.3)]
-  // label on the longest segment
-  let best = 0, bi = 0
-  for (let i = 0; i < n - 1; i++) { const l = v[i].distanceTo(v[i + 1]); if (l > best) { best = l; bi = i } }
-  const mid = v[bi].clone().add(v[bi + 1]).multiplyScalar(0.5)
-  return (
-    <group>
-      <Line points={line.map(p => p.toArray() as [number, number, number])} color={SCENE.edge} lineWidth={2} />
-      <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
-        <coneGeometry args={[0.13, 0.4, 16]} />
-        <meshBasicMaterial color={SCENE.edge} />
-      </mesh>
-      {r.label && (
-        <Text position={[mid.x, y + (labelMode === 'top' ? 0.02 : 0.4), mid.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} fontSize={0.22} color={SCENE.label} outlineWidth={0.02} outlineColor="#000">{r.label}</Text>
-      )}
-    </group>
-  )
-}
-
-function Env({ cam, children, controls }: { cam: Camera; children: React.ReactNode; controls: ResolvedControls }) {
+const NO_SLOTS: Slot[] = []
+function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; children: React.ReactNode; controls: ResolvedControls; slots?: Slot[] }) {
+  const masks = useMemo(() => slots.map(s => new THREE.ShapeGeometry(stadium(s, new THREE.Shape()) as THREE.Shape, 16)), [slots])
+  const groundGeo = useMemo(() => new THREE.ShapeGeometry(slotShape(-200, -200, 200, 200, slots)), [slots])
   const { gl } = useThree()
+  // Flat view: the light is almost overhead (5 degrees off), so shadows are short. It eases between the two like the camera does.
+  const light = useRef<THREE.DirectionalLight>(null!)
+  const lightAt = useRef(new THREE.Vector3(10, 18, 7))
+  useFrame((_, dt) => {
+    const to = cam.mode === 'flat' ? LIGHT_FLAT : LIGHT_TILTED
+    lightAt.current.lerp(to, 1 - Math.exp(-6 * Math.min(dt, 0.1)))
+    light.current?.position.copy(lightAt.current)
+  })
   const startCamDrag = (e: ThreeEvent<PointerEvent>) => {
     const action = dragAction(controls, cam.mode, e.nativeEvent.button)
     if (action === 'none') return
@@ -120,21 +111,28 @@ function Env({ cam, children, controls }: { cam: Camera; children: React.ReactNo
     <>
       <ambientLight intensity={0.55} />
       <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
-      <directionalLight position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
+      <directionalLight ref={light} position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30} shadow-camera-near={1} shadow-camera-far={80} shadow-bias={-0.0004} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow>
-        <planeGeometry args={[400, 400]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow geometry={groundGeo}>
         <meshStandardMaterial color={SCENE.bg} roughness={1} />
       </mesh>
-      <gridHelper args={[200, 200, ...SCENE.grid]} position={[0, -0.01, 0]} />
+      {/* the grid is masked out over a tunnel's slot (stencil), so no grid line floats across it */}
+      {slots.map((s, i) => (
+        <mesh key={i} geometry={masks[i]} position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
+          <meshBasicMaterial colorWrite={false} depthWrite={false} stencilWrite stencilRef={1} stencilFunc={THREE.AlwaysStencilFunc} stencilZPass={THREE.ReplaceStencilOp} />
+        </mesh>
+      ))}
+      <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...SCENE.grid]} position={[0, -0.01, 0]} renderOrder={1}
+        material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />
       {children}
     </>
   )
 }
 
-function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick }: {
+function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick, crossings, avoidCrossings, routing, ends, onEdgeStats }: {
   cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void
   controls: ResolvedControls; onNodeClick?: (n: NodeClick) => void; hasClick: boolean
+  crossings: CrossingStyle; avoidCrossings: AvoidCrossings; routing: Routing; ends: Ends; onEdgeStats?: (s: EdgeStats) => void
 }) {
   const { camera, gl, raycaster } = useThree()
   // per canvas, so instances on one page never touch each other's cursor
@@ -142,10 +140,43 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
   const [ver, setVer] = useState(0)
   const ovr = useRef<Ovr>({})
   const [hover, setHover] = useState<string | null>(null)
-  useEffect(() => { ovr.current = {}; setVer(v => v + 1) }, [data])
-  const { boxes, routes } = useMemo(() => effective(data, ovr.current), [data, ver])
+  // the router that routed this layout (or one made from it), kept alive across drag frames
+  const router = useRef<EdgeRouter | null>(null)
+  const live = useRef<Route[] | null>(null)
+  const moveMs = useRef(0)
+  const [wasm, setWasm] = useState(0)
+  useEffect(() => { if (routing === 'advanced') loadAvoid().then(() => setWasm(v => v + 1), () => {}) }, [routing])
+  useEffect(() => {
+    router.current?.reset()
+    // basic: ELK's routes, no router. advanced: the layout's own router when its level matches, else the lines are routed again at this level
+    const r = routing === 'advanced' ? routerFor(data, avoidCrossings, ends) : null
+    router.current = r
+    live.current = r && !(data.elkRoutes && r.level === data.stats?.route?.level && r.ends === data.stats?.route?.ends) ? r.routes : null
+    ovr.current = {}; setVer(v => v + 1)
+  }, [data, wasm, avoidCrossings, routing, ends])
+  const { boxes, routes } = useMemo(() => effective(data, ovr.current, live.current, routing === 'basic'), [data, ver, routing])
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
+  // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
+  const quality = useMemo<RouteQuality>(() => measureRoutes([...boxes.values()], routes), [boxes, routes])
+  const { plans, stats, slots, ms } = useMemo(() => {
+    const t0 = performance.now()
+    const bodies: Body[] = [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.height }))
+    const r = planEdges(bodies, routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) })), crossings)
+    return { ...r, ms: performance.now() - t0 }
+  }, [boxes, routes, crossings, W, H])
+  const groundSlots = useMemo(() => slots.filter(s => !s.tray), [slots])
+  const portalList = useMemo(() => [...plans.values()].flatMap(p => p.portals), [plans])
+  useEffect(() => { camera.layers.enable(TEXT_LAYER) }, [camera])
+  const statsCb = useRef(onEdgeStats)
+  statsCb.current = onEdgeStats
+  useEffect(() => {
+    const rs = routing === 'advanced' ? data.stats?.route : undefined
+    statsCb.current?.({
+      ...stats, fallbacks: data.stats?.portFallbacks ?? 0, trayDocks: data.stats?.trayDocks ?? 0, recomputeMs: ms,
+      routeMs: rs?.ms ?? 0, routerBuildMs: rs?.buildMs ?? 0, unroutable: rs?.failed.length ?? 0, routingError: rs?.error ?? null, dragMs: moveMs.current, avoidCrossings: router.current?.level ?? 'off', ends: router.current?.ends ?? 'midpoint', routing, quality,
+    })
+  }, [stats, ms, data, quality])
 
   const groundPoint = (cx: number, cy: number, planeY: number) => {
     const r = gl.domElement.getBoundingClientRect()
@@ -157,7 +188,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
   const startNodeDrag = (e: ThreeEvent<PointerEvent>, id: string) => {
     e.stopPropagation()
     const b = boxes.get(id)!
-    const planeY = baseOf(b) + NODE_H
+    const planeY = baseOf(b) + (b.height ?? NODE_H)
     const p0 = groundPoint(e.nativeEvent.clientX, e.nativeEvent.clientY, planeY)
     if (!p0) return
     const gx = p0.x / S + W / 2 - b.x, gy = p0.z / S + H / 2 - b.y
@@ -170,9 +201,11 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
       if (!p) return
       let x = p.x / S + W / 2 - gx, y = p.z / S + H / 2 - gy
       if (parent) { // keep inside parent tray
-        x = Math.min(Math.max(x, parent.x + 10), parent.x + parent.w - b.w - 10)
-        y = Math.min(Math.max(y, parent.y + 40), parent.y + parent.h - b.h - 10)
+        x = Math.min(Math.max(x, parent.x + PAD.side), parent.x + parent.w - b.w - PAD.side)
+        y = Math.min(Math.max(y, parent.y + PAD.top), parent.y + parent.h - b.h - PAD.side)
       }
+      const r = router.current
+      if (r) { const at = r.at(id); live.current = r.move(id, x - at.x, y - at.y); moveMs.current = r.stats.moveMs }
       ovr.current = { ...ovr.current, [id]: { x, y } }
       setVer(v => v + 1)
     }
@@ -182,7 +215,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
 
   return (
     <>
-      <Env cam={cam} controls={controls}>
+      <Env cam={cam} controls={controls} slots={groundSlots}>
       {[...boxes.values()].map(b => {
         const w = b.w * S, h = b.h * S
         const pos: [number, number, number] = [wx(b.x) + w / 2, baseOf(b), wz(b.y) + h / 2]
@@ -197,7 +230,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
               }}
               onPointerOver={e => { e.stopPropagation(); setHover(b.id); setCursor(cursorFor('group', controls, hasClick)) }}
               onPointerOut={() => { setHover(null); setCursor('') }}>
-              <Tray b={b} labelMode={labelMode} hover={hover === b.id} />
+              <Tray b={b} labelMode={labelMode} hover={hover === b.id} slots={slots.filter(s => s.tray === b.id).map(s => ({ x0: s.x0 - pos[0], x1: s.x1 - pos[0], z0: s.z0 - pos[2], z1: s.z1 - pos[2] }))} />
             </group>
           )
         }
@@ -209,7 +242,9 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
           <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
         </NodeLift>
       })}
-      {routes.map(r => (boxes.get(r.from) && boxes.get(r.to)) ? <Edge key={r.id} r={{ ...r, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) }} boxes={boxes} labelMode={labelMode} /> : null)}
+      {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} /> : null)}
+      {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? trayColor(boxes.get(s.tray)!.level) : SCENE.bg} y={s.tray ? 0 : -0.02} />)}
+      {portalList.length > 0 && <PortalSystem pairs={portalList} deps={[plans, hover]} />}
       </Env>
     </>
   )
@@ -247,6 +282,14 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
   return null
 }
 
+/**
+ * What an embedding app would want to watch: `routeMs` and `routerBuildMs` (time to route every line at layout; routeMs includes loading the wasm),
+ * `dragMs` (re-route of the last drag frame), `unroutable` (lines libavoid could not route or that still cross an obstacle),
+ * `routingError` (why the lines fell back to ELK's routes, e.g. the wasm failed to load; null otherwise), `recomputeMs` (steps and crossings),
+ * and the crossings found (`crossings`, `touching`) and drawn per style (`bridge`, `tunnel`, `portal`; `skipped` had no room).
+ */
+export interface EdgeStats extends Stats { fallbacks: number; trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; ends: Ends; routing: Routing; quality: RouteQuality }
+
 export interface SceneViewProps {
   data: LayoutResult | SeqLayout | null
   labelMode: LabelMode
@@ -263,9 +306,19 @@ export interface SceneViewProps {
   hasClick?: boolean
   /** Called once per `data`, on the first frame drawn with it (after the fit). */
   onFirstFrame?: () => void
+  /** How crossing lines get past each other: not at all (default), by a bridge, a tunnel or portals. Steps between heights are always on. */
+  crossings?: CrossingStyle
+  /** How hard the router tries to keep lines from crossing (off, some, strong). Changing it routes the lines again. Default some. */
+  avoidCrossings?: AvoidCrossings
+  /** 'advanced' (default): libavoid routes the lines around blocks and trays, also while dragging. 'basic': ELK's own routes; dragging takes the straight route. Switching re-routes at once. */
+  routing?: Routing
+  /** Where lines meet a node: 'midpoint' (default) or 'spread' (each line at its own point along the side). Advanced routing only. Changing it routes the lines again. */
+  ends?: Ends
+  /** Called whenever the edges are planned (a new layout, a drag frame, a new style) with counts and the time it took. */
+  onEdgeStats?: (s: EdgeStats) => void
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame }: SceneViewProps) {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', routing = 'advanced', ends = 'midpoint', onEdgeStats }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
   const c = camera ?? own
@@ -273,13 +326,13 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
   useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
   return (
     <>
-      <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true }}>
+      <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[SCENE.bg]} />
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
         <Rig cam={c} fpsRef={fpsRef} />
         {data && ('kind' in data
           ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
-          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} />)}
+          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} routing={routing} ends={ends} onEdgeStats={onEdgeStats} />)}
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>
