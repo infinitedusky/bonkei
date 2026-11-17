@@ -1,6 +1,5 @@
-import ELK from 'elkjs/lib/elk.bundled.js'
 import type { Graph, Box, Route, LayoutResult } from './model.ts'
-import { loadAvoid, createRouter, keepRouter, sideMid, TUNE, type AvoidCrossings, type Side } from './avoid.ts'
+import { loadAvoid, wasmInfo, createRouter, keepRouter, sideMid, TUNE, type AvoidCrossings, type Side } from './avoid.ts'
 import { straighten, unblock } from './monotone.ts'
 import { withSpan } from './telemetry.ts'
 import type { Span } from '@opentelemetry/api'
@@ -15,7 +14,30 @@ export interface LayoutOptions {
 }
 export type LayoutEngine = (g: Graph, o?: LayoutOptions) => Promise<LayoutResult>
 
-const elk = new ELK()
+// ELK is the biggest piece of the package, so it is fetched on the first layout, not with the module (BON-52): a host's bundler
+// makes `elkjs/lib/elk.bundled.js` a chunk of its own. The fetch can fail (network), so it has a `bonkei.elk.load` span.
+type ElkInstance = { layout(g: any): Promise<any> }
+type ElkModule = { default?: unknown }
+let elkLoad: Promise<ElkInstance> | null = null
+/** Milliseconds the ELK chunk took to load on the first layout; 0 until it has. The wasm's is wasmInfo.ms. */
+export const elkInfo = { ms: 0 }
+/** Whether ELK has been fetched yet: false after import, true once a layout has run. */
+export function elkLoaded(): boolean { return elkInfo.ms > 0 }
+let importElk = (): Promise<ElkModule> => import('elkjs/lib/elk.bundled.js')
+/** Tests only: swap how the ELK module is imported (to see a failed fetch). Returns the previous importer. */
+export function setElkImport(f: () => Promise<ElkModule>) { const prev = importElk; importElk = f; elkLoad = null; return prev }
+function getElk(parent?: Span): Promise<ElkInstance> {
+  elkLoad ??= withSpan('bonkei.elk.load', {}, async span => {
+    const t = performance.now()
+    const m: any = await importElk()
+    const ELK = m.default?.default ?? m.default ?? m
+    const e = new ELK()
+    elkInfo.ms = Math.max(performance.now() - t, Number.MIN_VALUE)
+    span.setAttribute('bonkei.elk_load_ms', elkInfo.ms)
+    return e
+  }, parent).catch(e => { elkLoad = null; throw e })
+  return elkLoad
+}
 
 // Room inside a tray: the label sits in the top, and a step stands 20 px outside a tray's rim without landing on a node.
 // The drag clamp in SceneView follows it.
@@ -39,15 +61,15 @@ function sizeOf(n: { label: string; shape: string }) {
 // ELK places the boxes; libavoid routes the lines (BON-100). If the wasm cannot load or routing throws, ELK's own routes stay
 // (with U-turns straightened where it can) and `stats.route.error` says why; the `bonkei.route` span records it too.
 export const layout: LayoutEngine = async (g, o = {}) => {
-  const placed = await place(g)
+  const placed = await place(g, o.span)
   const level = o.avoidCrossings ?? 'some'
   return withSpan('bonkei.route', { 'bonkei.avoid_crossings': level, 'bonkei.edges': placed.routes.length }, async span => {
     const t0 = performance.now()
     try {
-      const A = await loadAvoid()
+      const A = await loadAvoid(span)
       const r = createRouter(A, placed, level)
       const ms = performance.now() - t0
-      span.setAttributes({ 'bonkei.route_ms': ms, 'bonkei.router_build_ms': r.stats.buildMs, 'bonkei.unroutable': r.stats.failed.length, 'bonkei.straightened': r.stats.straightened, 'bonkei.forced_turns': r.stats.forced, 'bonkei.refined': r.stats.refined })
+      span.setAttributes({ 'bonkei.route_ms': ms, 'bonkei.router_build_ms': r.stats.buildMs, 'bonkei.unroutable': r.stats.failed.length, 'bonkei.straightened': r.stats.straightened, 'bonkei.forced_turns': r.stats.forced, 'bonkei.refined': r.stats.refined, 'bonkei.elk_load_ms': elkInfo.ms, 'bonkei.wasm_load_ms': wasmInfo.ms, 'bonkei.wasm_source': wasmInfo.source ?? '' })
       const out: LayoutResult = { ...placed, routes: r.routes, stats: { ...placed.stats!, route: { ms, buildMs: r.stats.buildMs, failed: r.stats.failed, straightened: r.stats.straightened, forced: r.stats.forced, error: null, level } } }
       keepRouter(out, r) // the scene drags on the same router
       return out
@@ -60,7 +82,7 @@ export const layout: LayoutEngine = async (g, o = {}) => {
   }, o.span)
 }
 
-async function place(g: Graph): Promise<LayoutResult> {
+async function place(g: Graph, parent?: Span): Promise<LayoutResult> {
   const groupIds = new Set(g.groups.map(x => x.id))
   const parentOf = new Map<string, string | undefined>()
   g.groups.forEach(x => parentOf.set(x.id, x.parent))
@@ -111,7 +133,7 @@ async function place(g: Graph): Promise<LayoutResult> {
     ;(lca ? eNodes.get(lca) : root).edges.push(ee)
   }
 
-  const res: any = await elk.layout(root)
+  const res: any = await (await getElk(parent)).layout(root)
   const boxes: Box[] = []
   const walk = (n: any, ox: number, oy: number, level: number, parent?: string) => {
     for (const c of n.children ?? []) {
