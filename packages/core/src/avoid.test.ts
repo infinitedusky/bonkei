@@ -1,9 +1,9 @@
 // The libavoid router (BON-99): side pins, tray closure, docks at a tray, a live drag. Hand-made layouts, so the expected routes are plain.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { loadAvoid, createRouter, TUNE, SLACK } from './avoid.ts'
+import { loadAvoid, createRouter, TUNE, SLACK, REFINE_PASSES } from './avoid.ts'
 import { layout } from './layout.ts'
-import { straighten, doublesBack, blocked, refine, overlapOf, crossingsOf } from './monotone.ts'
+import { straighten, doublesBack, blocked, refine, overlapOf, crossingsOf, unblock, canGoDirect } from './monotone.ts'
 import { measureRoutes } from './routeMetrics.ts'
 import { parse } from './parser.ts'
 import type { Box, LayoutResult, Route } from './model.ts'
@@ -144,7 +144,7 @@ test('the avoid-crossings level reads from frontmatter, props override it, and t
   assert.equal((await prepare(src, { avoidCrossings: 'off' }) as any).data.stats.route.level, 'off')
 })
 
-test('stronger crossing avoidance never gives more crossings, and no level leaves a line through a block', async () => {
+test('stronger crossing avoidance never gives more crossings, and no level leaves a line through a block or turning back', async () => {
   const g = parse(`flowchart TD
   A --> D
   B --> C
@@ -160,9 +160,11 @@ test('stronger crossing avoidance never gives more crossings, and no level leave
     assert.equal(d.stats?.route?.level, level)
     count.push(measureRoutes(d.boxes, d.routes).crossings)
     assert.equal(measureRoutes(d.boxes, d.routes).throughBlocks, 0)
+    assert.equal(measureRoutes(d.boxes, d.routes).doublingBack, 0, level) // B -> E turned back until E slid aside (BON-102)
   }
-  // fewer crossings at each step is measured on the 50-node sample (apps/playground/scripts/route-metrics.ts); a graph this small can tie
-  assert.ok(count[2] <= count[0] + 1, `crossings ${count}`)
+  // fewer crossings at each step is measured on the 50-node sample (apps/playground/scripts/routes.test.ts); a graph this small can
+  // tie, and off is not compared: there A -> C starts on B -> D's run, which the count does not take for a crossing
+  assert.ok(count[2] <= count[1], `crossings ${count}`)
 })
 
 test('a line libavoid sends back on itself is given the direct route when there is one', () => {
@@ -219,10 +221,32 @@ test('refine moves a line off another it lies on, onto a lane beside it, still d
   assert.ok(crossingsOf(out[0].points, seg(out[1])) <= crossingsOf(r1.points, seg(r2)))
 })
 
-test('only the strong level lets a line keep a sideways jog to cross fewer lines', () => {
+test('no level lets a line keep a sideways jog that turns back; strong re-routes more rounds to cross fewer lines (BON-102)', () => {
   assert.equal(SLACK.off, Infinity)
   assert.equal(SLACK.some, Infinity)
-  assert.equal(SLACK.strong, 0)
+  assert.equal(SLACK.strong, Infinity)
+  assert.ok(REFINE_PASSES.strong > REFINE_PASSES.some)
+})
+
+test('a block whose line has no direct route slides across the flow inside its tray until it has one (BON-102)', () => {
+  // a above; a wide tray W (nobody enters it) right below a; b in tray T under W, also under a: every route must go round W and come back
+  const W = tray('W', 100, 200, 400, 200)
+  const T = { ...tray('T', 0, 500, 900, 200) }
+  const a = node('a', 245, 50), b = { ...node('b', 245, 580, 'T', 1) }
+  const boxes = [W, T, a, b]
+  const r: Route = { id: 'e', from: 'a', to: 'b', points: [[300, 106], [300, 150], [520, 150], [520, 540], [300, 540], [300, 580]] }
+  assert.ok(!canGoDirect(boxes, r, 10))
+  // a, at the top, has no room to move (the area is its own width), so b is the one that slides
+  const u = unblock(boxes, [r], 10, 0, 32, 40, { x0: 245, y0: 0, x1: 355, y1: 800 })
+  assert.deepEqual(u.moved, ['b'])
+  const nb = u.boxes.find(x => x.id === 'b')!
+  assert.equal(nb.y, b.y, 'slides across the flow only')
+  assert.ok(nb.x >= T.x + 40 && nb.x + nb.w <= T.x + T.w - 40, 'stays inside its tray')
+  assert.ok(canGoDirect(u.boxes, r, 10))
+  assert.ok(!doublesBack(u.routes[0].points) && !blocked(u.boxes, u.routes[0]), JSON.stringify(u.routes[0].points))
+  // a block with no room to slide stays where it is
+  const tight = [W, { ...T, x: 240, w: 120 }, a, b]
+  assert.deepEqual(unblock(tight, [r], 10, 0, 32, 40, { x0: 245, y0: 0, x1: 355, y1: 800 }).moved, [])
 })
 
 test('lines fanning out from one side midpoint are not counted as lying on each other; two lines on one run are', () => {

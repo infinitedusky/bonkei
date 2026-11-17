@@ -1,7 +1,7 @@
 import ELK from 'elkjs/lib/elk.bundled.js'
 import type { Graph, Box, Route, LayoutResult } from './model.ts'
-import { loadAvoid, createRouter, keepRouter, sideMid, type AvoidCrossings, type Side } from './avoid.ts'
-import { straighten } from './monotone.ts'
+import { loadAvoid, createRouter, keepRouter, sideMid, TUNE, type AvoidCrossings, type Side } from './avoid.ts'
+import { straighten, unblock } from './monotone.ts'
 import { withSpan } from './telemetry.ts'
 import type { Span } from '@opentelemetry/api'
 export { sideMid } from './avoid.ts'
@@ -91,7 +91,8 @@ async function place(g: Graph): Promise<LayoutResult> {
       'elk.json.edgeCoords': 'ROOT',
       ...SPACING,
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
-      'elk.layered.cycleBreaking.strategy': 'DEPTH_FIRST',
+      // ELK's default (as on main): depth-first put the 50-node sample's Client below the Platform tray, under WAF's own tray (BON-102)
+      'elk.layered.cycleBreaking.strategy': 'GREEDY',
       'elk.padding': '[top=40,left=40,bottom=40,right=40]',
     },
   }
@@ -157,7 +158,10 @@ async function place(g: Graph): Promise<LayoutResult> {
       trayDocks++
     }
   }
-  return { boxes, routes, direction: g.direction, width: res.width, height: res.height, stats: { trayDocks } }
+  // A line whose target ELK left behind a block or tray it must go round would have to turn back: its block slides across the
+  // flow, inside its tray, until the line can go direct (monotone.ts unblock).
+  const u = unblock(boxes, routes, TUNE.buffer, g.direction === 'LR' ? 1 : 0, Number(SPACING['elk.spacing.edgeNode']), PAD.side, { x0: 40, y0: 40, x1: res.width - 40, y1: res.height - 40 })
+  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, stats: { trayDocks, slid: u.moved } }
 }
 
 const NORMAL: Record<Side, [number, number]> = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }

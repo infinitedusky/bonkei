@@ -37,8 +37,10 @@ export const AVOID_CROSSINGS = ['off', 'some', 'strong'] as const
 export type AvoidCrossings = typeof AVOID_CROSSINGS[number]
 export const CROSSING_COST: Readonly<Record<AvoidCrossings, number>> = Object.freeze({ off: 0, some: 1000, strong: 3000 })
 /** How many more lines a direct route may cross than the route libavoid found before the line keeps libavoid's route, sideways
- * jog and all. Off and some: any number (every line goes direct when it can). Strong: none (a line may jog aside to cross fewer lines). */
-export const SLACK: Readonly<Record<AvoidCrossings, number>> = Object.freeze({ off: Infinity, some: Infinity, strong: 0 })
+ * jog and all. Any number at every level (BON-102): a jog turns back, and no line turns back when it can go direct. */
+export const SLACK: Readonly<Record<AvoidCrossings, number>> = Object.freeze({ off: Infinity, some: Infinity, strong: Infinity })
+/** Rounds of rip-up and re-route (monotone.ts refine) when the lines are first routed. Strong takes more, so it crosses fewer lines than some. */
+export const REFINE_PASSES: Readonly<Record<AvoidCrossings, number>> = Object.freeze({ off: 0, some: 2, strong: 4 })
 
 // ---- loading the wasm
 let loading: Promise<Avoid> | null = null
@@ -267,7 +269,7 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
     }
     // when first routed with a crossing cost: rip up and re-route the direct lines against the others as they now are
     if (tune.straighten && !out.routes.length && CROSSING_COST[level] > 0) {
-      const f = refine(boxes, s.routes, tune.buffer, CROSSING_COST[level])
+      const f = refine(boxes, s.routes, tune.buffer, CROSSING_COST[level], REFINE_PASSES[level])
       s = { ...s, routes: f.routes }
       out.stats.refined = f.changed
     }

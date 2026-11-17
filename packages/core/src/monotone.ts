@@ -6,7 +6,8 @@
 //   arrives square to a side, and lies on no other line. Of those, the one with the fewest crossings and bends wins.
 // - if there is none (the target sits behind a block or a tray the line has to go round), the line keeps libavoid's route, or,
 //   if that goes through a block or a foreign tray, takes the cheapest route round them on the same grid.
-// Decisions: LOG.md, "Edges in 3D, routed by libavoid (BON-100)". Pure, on layout pixels. Imported by node tests: explicit .ts extensions.
+// - before any of that, unblock() slides a block across the flow, inside its tray, when its line could not go direct at all.
+// Decisions: LOG.md, "Edges in 3D, routed by libavoid (BON-100)" and "No line turns back (BON-102)". Pure, on layout pixels. Imported by node tests: explicit .ts extensions.
 import type { Box, Route } from './model.ts'
 
 type Pt = [number, number]
@@ -250,6 +251,63 @@ export function crossingsOf(p: Pt[], others: Seg[]): number {
 /** Is there a monotone route for this line at all, ignoring other lines? If not, any route it takes must turn back somewhere. */
 export function canGoDirect(boxes: Box[], r: Route, buffer: number): boolean {
   return monotoneRoute(boxes, r, [], buffer) !== null
+}
+
+/** How far unblock() slides a block, at most, and in what steps (px). */
+export const SLIDE = { max: 240, step: 4 }
+
+/**
+ * Placement, before routing (BON-102): a line with no monotone route at all (its target sits behind a block or tray it must go
+ * round) has to turn back whatever the router does. For each such line, one of its two blocks is slid across the flow (`axis`
+ * 0: along x, 1: along y), the least distance that gives the line a direct route, if the block stays `pad` inside its tray (or
+ * inside `area` at the top), keeps `gap` from every other block and tray it is not in, and no other line loses its direct route.
+ * The lines of a slid block are given their direct route. Returns the boxes, the routes and the ids of the slid blocks.
+ */
+export function unblock(boxes: Box[], routes: Route[], buffer: number, axis: 0 | 1, gap: number, pad: number, area: Rect): { boxes: Box[]; routes: Route[]; moved: string[] } {
+  let bs = boxes.map(b => ({ ...b }))
+  let rs = routes.slice()
+  const by = () => new Map(bs.map(b => [b.id, b]))
+  const anc = (m: Map<string, Box>, id: string) => { const l = new Set<string>(); for (let p = m.get(id)?.parent; p; p = m.get(p)?.parent) l.add(p); return l }
+  const m0 = by()
+  const own = (r: Route) => m0.has(r.from) && m0.has(r.to) && r.from !== r.to && !anc(m0, r.from).has(r.to) && !anc(m0, r.to).has(r.from)
+  const blockedIds = (b: Box[]) => rs.filter(r => own(r) && !canGoDirect(b, r, buffer)).map(r => r.id)
+  let stuck = blockedIds(bs)
+  const moved: string[] = []
+  for (const id of stuck.slice()) {
+    if (!stuck.includes(id)) continue // freed by an earlier slide
+    const r = rs.find(x => x.id === id)!
+    const m = by()
+    let done = false
+    const steps: number[] = []
+    for (let d = SLIDE.step; d <= SLIDE.max; d += SLIDE.step) steps.push(d, -d)
+    for (const d of steps) {
+      for (const end of [r.from, r.to]) {
+        const n = m.get(end)!
+        if (n.kind !== 'node') continue
+        const k = axis ? 'y' : 'x', size = axis ? n.h : n.w
+        const at = n[k] + d
+        const P = n.parent ? m.get(n.parent)! : null
+        const lo = P ? P[k] + pad : (axis ? area.y0 : area.x0), hi = P ? P[k] + (axis ? P.h : P.w) - pad : (axis ? area.y1 : area.x1)
+        if (at < lo || at + size > hi) continue
+        const moved1 = { ...n, [k]: at }
+        const mine = anc(m, end)
+        const clash = bs.some(o => o.id !== end && !mine.has(o.id) && o.x - gap < moved1.x + moved1.w && moved1.x < o.x + o.w + gap && o.y - gap < moved1.y + moved1.h && moved1.y < o.y + o.h + gap)
+        if (clash) continue
+        const next = bs.map(b => b.id === end ? moved1 : b)
+        if (!canGoDirect(next, r, buffer)) continue
+        const after = blockedIds(next)
+        if (after.length >= stuck.length || after.some(a => !stuck.includes(a))) continue
+        bs = next
+        stuck = after
+        moved.push(end)
+        rs = rs.map(x => x.from !== end && x.to !== end ? x : { ...x, points: (own(x) && (monotoneRoute(bs, x, [], buffer) ?? detourRoute(bs, x, [], buffer))) || x.points })
+        done = true
+        break
+      }
+      if (done) break
+    }
+  }
+  return { boxes: bs, routes: rs, moved }
 }
 
 /**
