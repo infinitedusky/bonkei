@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bonkei } from 'bonkei'
+import { Bonkei, type Mode } from 'bonkei'
 import prints from './mock/ref-prints.jpg'
 import { THEMES_DIAGRAM } from './themes-sample'
 
@@ -18,6 +18,7 @@ const THEMES: { id: ThemeId | null; name: string; note: string; config?: string 
 
 export function Themes({ start = 'landscape', source = THEMES_DIAGRAM }: { start?: ThemeId; source?: string }) {
   const [on, setOn] = useState<ThemeId>(start)
+  const [mode, setMode] = useState<Mode>('iso')
   const t = THEMES.find(x => x.id === on)!
   const text = `---\nconfig:\n  ${t.config}\n---\n${source}`
   return (
@@ -34,7 +35,10 @@ export function Themes({ start = 'landscape', source = THEMES_DIAGRAM }: { start
       </div>
       <div>
         <div className="brand-tview">
-          <Bonkei source={text} mode="iso" toolbar={false} controls={{ zoom: false }} />
+          <Bonkei source={text} mode={mode} toolbar={false} controls={{ zoom: false }} />
+          <div className="brand-tmodes" role="radiogroup" aria-label="View">
+            {(['flat', 'iso', '3d'] as const).map(m => <button key={m} role="radio" aria-checked={m === mode} onClick={() => setMode(m)}>{m === '3d' ? '3D' : m[0].toUpperCase() + m.slice(1)}</button>)}
+          </div>
         </div>
         <div className="brand-origin">
           <img src={prints} alt="Three Edo woodblock prints of tray landscapes: mountains, pines and houses in blue-and-white patterned bowls" />
