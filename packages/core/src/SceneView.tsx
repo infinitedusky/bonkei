@@ -1,19 +1,20 @@
 import * as THREE from 'three'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute, PAD } from './layout'
 import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { instant } from './telemetry'
-import { createCamera, type Camera, type Mode } from './camera'
+import { createCamera, biggestTray, contentOf, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
-import { NodeBody, Tray, baseOf, trayColor, type LabelMode } from './shapes'
+import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
+import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
+import { CLASSIC, inkPx, type Theme } from './theme'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
-import { SCENE } from './palette'
 import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
 import type { NodeClick, ResolvedControls } from './options'
 
@@ -33,8 +34,13 @@ function effective(data: LayoutResult, ovr: Ovr, live: Route[] | null) {
 
 function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElement> }) {
   const acc = useRef({ t: 0, n: 0 })
-  useFrame(({ camera, size }, dt) => {
+  const th = useTheme()
+  const ink = useContext(InkCtx)
+  const inkSeen = useRef({ ppu: 0, frame: 0 })
+  const base = useRef(new WeakMap<object, { base: number; set: number }>())
+  useFrame(({ camera, size, scene }, dt) => {
     cam.aspect = size.width / size.height
+    cam.frameH = size.height
     const c = cam.cur, g = cam.goal, k = 1 - Math.exp(-6 * Math.min(dt, 0.1))
     for (const key of ['tx', 'tz', 'yaw', 'pitch'] as const) c[key] += (g[key] - c[key]) * k
     for (const key of ['H', 'fov'] as const) c[key] = Math.exp(Math.log(c[key]) + (Math.log(g[key]) - Math.log(c[key])) * k)
@@ -45,6 +51,24 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
     p.position.set(c.tx + d * Math.sin(c.yaw) * Math.cos(c.pitch), d * Math.sin(c.pitch), c.tz + d * Math.cos(c.yaw) * Math.cos(c.pitch))
     p.lookAt(c.tx, 0, c.tz)
     p.updateProjectionMatrix()
+    // Ink follows the drawing's scale (theme.ink): the line materials get their width for this zoom, the landscape forms a matching step.
+    const ppu = size.height / c.H
+    ink.ppu = ppu
+    if (th.ink.ref !== null) {
+      const seen = inkSeen.current
+      if (Math.abs(ppu - seen.ppu) > seen.ppu * 0.004 || ++seen.frame % 30 === 0) {
+        seen.ppu = ppu
+        scene.traverse((o: any) => {
+          const m = o.material
+          if (!m || !m.isLineMaterial) return
+          let e = base.current.get(m)
+          if (!e || m.linewidth !== e.set) { e = { base: m.linewidth, set: m.linewidth }; base.current.set(m, e) } // React set a new width: that is the new base
+          const w = inkPx(th, e.base, ppu)
+          if (m.linewidth !== w) { m.linewidth = w; e.set = w }
+        })
+        ink.setBucket(Math.round(Math.log2(inkPx(th, th.node.outlineWidth, ppu) / th.node.outlineWidth) * 4))
+      }
+    }
     acc.current.t += dt; acc.current.n++
     if (acc.current.t > 0.5 && fpsRef.current) {
       fpsRef.current.textContent = `${Math.round(acc.current.n / acc.current.t)} fps`
@@ -59,6 +83,8 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   const masks = useMemo(() => slots.map(s => new THREE.ShapeGeometry(stadium(s, new THREE.Shape()) as THREE.Shape, 16)), [slots])
   const groundGeo = useMemo(() => new THREE.ShapeGeometry(slotShape(-200, -200, 200, 200, slots)), [slots])
   const { gl } = useThree()
+  const th = useTheme()
+  const grain = useMemo(() => (th.ground.grain > 0 ? grainTexture(th.ground.bg, th.ground.grain) : null), [th.ground.bg, th.ground.grain])
   // Flat view: the light is almost overhead (5 degrees off), so shadows are short. It eases between the two like the camera does.
   const light = useRef<THREE.DirectionalLight>(null!)
   const lightAt = useRef(new THREE.Vector3(10, 18, 7))
@@ -109,21 +135,21 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
 
   return (
     <>
-      <ambientLight intensity={0.55} />
-      <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
-      <directionalLight ref={light} position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
+      <ambientLight intensity={th.light.ambient} />
+      <hemisphereLight args={[th.light.sky, th.light.floor, th.light.hemi]} />
+      <directionalLight ref={light} position={[10, 18, 7]} intensity={th.light.sun} castShadow={th.light.shadows} shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30} shadow-camera-near={1} shadow-camera-far={80} shadow-bias={-0.0004} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow geometry={groundGeo}>
-        <meshStandardMaterial color={SCENE.bg} roughness={1} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow={th.light.shadows} geometry={groundGeo}>
+        {th.ground.lit ? <meshStandardMaterial color={th.ground.bg} roughness={1} /> : <meshBasicMaterial color={grain ? '#ffffff' : th.ground.bg} map={grain} />}
       </mesh>
       {/* the grid is masked out over a tunnel's slot (stencil), so no grid line floats across it */}
-      {slots.map((_, i) => (
+      {th.ground.grid && slots.map((_, i) => (
         <mesh key={i} geometry={masks[i]} position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
           <meshBasicMaterial colorWrite={false} depthWrite={false} stencilWrite stencilRef={1} stencilFunc={THREE.AlwaysStencilFunc} stencilZPass={THREE.ReplaceStencilOp} />
         </mesh>
       ))}
-      <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...SCENE.grid]} position={[0, -0.01, 0]} renderOrder={1}
-        material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />
+      {th.ground.grid && <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...th.ground.grid]} position={[0, -0.01, 0]} renderOrder={1}
+        material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />}
       {children}
     </>
   )
@@ -135,6 +161,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   crossings: CrossingStyle; avoidCrossings: AvoidCrossings; onEdgeStats?: (s: EdgeStats) => void
 }) {
   const { camera, gl, raycaster } = useThree()
+  const th = useTheme()
   // per canvas, so instances on one page never touch each other's cursor
   const setCursor = (c: string) => { gl.domElement.style.cursor = c }
   const [ver, setVer] = useState(0)
@@ -162,12 +189,12 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
   const quality = useMemo<RouteQuality>(() => measureRoutes([...boxes.values()], routes), [boxes, routes])
+  const bodies = useMemo<Body[]>(() => [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.kind === 'node' ? nodeHeight(th, b) : b.height, tray: th.tray.thickness })), [boxes, W, H, th.tray.thickness, th.node.form, th.node.footprint.height])
   const { plans, stats, slots, ms } = useMemo(() => {
     const t0 = performance.now()
-    const bodies: Body[] = [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.height }))
     const r = planEdges(bodies, routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) })), crossings)
     return { ...r, ms: performance.now() - t0 }
-  }, [boxes, routes, crossings, W, H])
+  }, [bodies, routes, crossings, W, H])
   const groundSlots = useMemo(() => slots.filter(s => !s.tray), [slots])
   const portalList = useMemo(() => [...plans.values()].flatMap(p => p.portals), [plans])
   useEffect(() => { camera.layers.enable(TEXT_LAYER) }, [camera])
@@ -191,7 +218,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const startNodeDrag = (e: ThreeEvent<PointerEvent>, id: string) => {
     e.stopPropagation()
     const b = boxes.get(id)!
-    const planeY = baseOf(b) + (b.height ?? NODE_H)
+    const planeY = baseOf(b, th.tray.thickness) + nodeHeight(th, b)
     const p0 = groundPoint(e.nativeEvent.clientX, e.nativeEvent.clientY, planeY)
     if (!p0) return
     const gx = p0.x / S + W / 2 - b.x, gy = p0.z / S + H / 2 - b.y
@@ -221,7 +248,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
       <Env cam={cam} controls={controls} slots={groundSlots}>
       {[...boxes.values()].map(b => {
         const w = b.w * S, h = b.h * S
-        const pos: [number, number, number] = [wx(b.x) + w / 2, baseOf(b), wz(b.y) + h / 2]
+        const pos: [number, number, number] = [wx(b.x) + w / 2, baseOf(b, th.tray.thickness), wz(b.y) + h / 2]
         if (b.kind === 'group') {
           return (
             <group key={b.id} position={pos}
@@ -233,7 +260,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
               }}
               onPointerOver={e => { e.stopPropagation(); setHover(b.id); setCursor(cursorFor('group', controls, hasClick)) }}
               onPointerOut={() => { setHover(null); setCursor('') }}>
-              <Tray b={b} labelMode={labelMode} hover={hover === b.id} slots={slots.filter(s => s.tray === b.id).map(s => ({ x0: s.x0 - pos[0], x1: s.x1 - pos[0], z0: s.z0 - pos[2], z1: s.z1 - pos[2] }))} />
+              <Tray b={b} labelMode={labelMode} hover={hover === b.id} kids={th.tray.titles === 'free' ? [...boxes.values()].filter(k => k.parent === b.id).map(k => ({ x0: wx(k.x) - pos[0], x1: wx(k.x + k.w) - pos[0], z0: wz(k.y) - pos[2], z1: wz(k.y + k.h) - pos[2] })) : undefined} slots={slots.filter(s => s.tray === b.id).map(s => ({ x0: s.x0 - pos[0], x1: s.x1 - pos[0], z0: s.z0 - pos[2], z1: s.z1 - pos[2] }))} />
             </group>
           )
         }
@@ -245,8 +272,8 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
           <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
         </NodeLift>
       })}
-      {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} /> : null)}
-      {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? trayColor(boxes.get(s.tray)!.level) : SCENE.bg} y={s.tray ? 0 : -0.02} />)}
+      {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} bodies={bodies} /> : null)}
+      {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? th.tray.colors[Math.min(boxes.get(s.tray)!.level, 2)] : th.ground.bg} y={s.tray ? 0 : -0.02} />)}
       {portalList.length > 0 && <PortalSystem pairs={portalList} deps={[plans, hover]} />}
       </Env>
     </>
@@ -277,8 +304,10 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
   useFrame(({ size }) => {
     if (!data || seen.current === data) return
     seen.current = data
-    if (size.width > 0 && size.height > 0) cam.aspect = size.width / size.height
-    cam.fit(data.width, data.height)
+    if (size.width > 0 && size.height > 0) { cam.aspect = size.width / size.height; cam.frameH = size.height }
+    cam.whole = false
+    cam.content = 'boxes' in data ? contentOf(data.boxes, data.width, data.height) : []
+    cam.fit(data.width, data.height, 'boxes' in data && cam.minLabel > 0 ? biggestTray(data.boxes, data.width, data.height) : undefined)
     if (!laidOut.current) { cam.snap(); laidOut.current = true }
     cb.current?.()
   })
@@ -315,23 +344,32 @@ export interface SceneViewProps {
   avoidCrossings?: AvoidCrossings
   /** Called whenever the edges are planned (a new layout, a drag frame, a new style) with counts and the time it took. */
   onEdgeStats?: (s: EdgeStats) => void
+  /** The look: tokens for colours, materials, labels and lines. Default Classic. */
+  theme?: Theme
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats }: SceneViewProps) {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats, theme = CLASSIC }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
+  const [inkStore] = useState(() => new InkStore())
   const [own] = useState(createCamera)
   const c = camera ?? own
   const ctl = controls ?? ALL_ON
   useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
+  const themeKey = useMemo(() => JSON.stringify(theme), [theme])
   return (
     <>
-      <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
-        <color attach="background" args={[SCENE.bg]} />
+      <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
+        <color attach="background" args={[theme.ground.bg]} />
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
-        <Rig cam={c} fpsRef={fpsRef} />
-        {data && ('kind' in data
-          ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
-          : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
+        {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
+            and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
+        <InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
+          <ToneSetup />
+          <Rig cam={c} fpsRef={fpsRef} />
+          {data && ('kind' in data
+            ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
+            : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
+        </ThemeProvider></InkCtx.Provider>
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

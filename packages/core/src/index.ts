@@ -21,10 +21,18 @@ export type { DiagramOptions } from './options'
 /** The reader's controls: true/false for all, or one switch per control. */
 export type { Controls } from './options'
 
+// Themes
+/** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
+export type { Theme } from './theme'
+/** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
+export { CLASSIC, BONKEI, BONKEI_LANDSCAPE } from './theme'
+/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape. */
+export { THEME_NAMES } from './theme'
+
 // Events
 /** What onError receives when nothing could be drawn (kind: parse, graph, layout or render). */
 export type { BonkeiError } from './options'
-/** What onWarning receives for a dropped line or a bad frontmatter key; the diagram still draws. */
+/** What onWarning receives for a dropped line, a bad frontmatter key or an unknown theme or theme variable; the diagram still draws. */
 export type { BonkeiWarning } from './options'
 /** What onNodeClick receives for a node, a group or a sequence participant. */
 export type { NodeClick } from './options'
