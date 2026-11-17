@@ -299,3 +299,17 @@ test('flatLine lies on each surface and climbs a tray wall in a riser outside it
   assert.ok(near(out[out.length - 1][2], 0.42))
   for (const p of out) assert.ok(p[0] <= 2 ? near(p[2], 0.02) || near(p[2], 0.42) : near(p[2], 0.42))
 })
+
+test('pickCorner keeps the title off nodes and their forms, and stays put while the old corner is free', async () => {
+  const { pickCorner, titleRect } = await import('./titles.ts')
+  const tray = { w: 10, h: 6 }, tw = 2.5, th = 0.7, G = { x0: 0.5, x1: 0.5, z0: 0.5, z1: 0.5 }
+  const onBl = { x0: -4.5, x1: -2.5, z0: -2.7, z1: -1.7 } // a node right under the back-left title
+  assert.equal(pickCorner(tray.w, tray.h, tw, th, [], G), 'bl')
+  assert.notEqual(pickCorner(tray.w, tray.h, tw, th, [onBl], G), 'bl')
+  const t = titleRect('br', tray.w, tray.h, tw, th)
+  assert.ok(t.x1 <= tray.w / 2 && t.x0 >= -tray.w / 2) // inside the tray
+  assert.equal(pickCorner(tray.w, tray.h, tw, th, [{ x0: -4.6, x1: -1.6, z0: -2.8, z1: -1.8 }], G, 'br'), 'br') // the free previous corner is kept
+  // every corner covered: the least covered one, never an exception
+  const all = [{ x0: -5, x1: 5, z0: -3, z1: 3 }]
+  assert.ok(['bl', 'br', 'fl', 'fr'].includes(pickCorner(tray.w, tray.h, tw, th, all, G)))
+})

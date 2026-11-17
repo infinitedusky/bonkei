@@ -11,6 +11,7 @@ import { S, TRAY, NODE_H, TEXT_LAYER } from './scale.ts'
 import { slotShape } from './EdgeScene'
 import { Mat, Ink, PlateText, useTheme, fontUrl, patternTexture, useFormTexture, FORM_ASPECT } from './look'
 import type { Plate } from './theme'
+import { pickCorner, titleWidth, type Corner, type Rect } from './titles'
 export { S, TRAY, NODE_H }
 
 
@@ -155,19 +156,27 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
   )
 }
 
-export function Label({ text, mode, y, size, maxWidth, left = false, role }: { text: string; mode: LabelMode; y: number; size: number; maxWidth: number; left?: boolean; role: 'node' | 'tray' }) {
+export function Label({ text, mode, y, size, maxWidth, left = false, right = false, role }: { text: string; mode: LabelMode; y: number; size: number; maxWidth: number; left?: boolean; right?: boolean; role: 'node' | 'tray' }) {
   const th = useTheme()
   const plate = th.label[role], font = fontUrl(th)
-  const body = <PlateText text={text} plate={plate} font={font} fontSize={size} maxWidth={maxWidth} left={left} outline={mode !== 'top' && plate.style === 'plain'} toward={mode !== 'top' && role === 'node' ? th.label.toward : 0} />
+  const body = <PlateText text={text} plate={plate} font={font} fontSize={size} maxWidth={maxWidth} left={left} right={right} outline={mode !== 'top' && plate.style === 'plain'} toward={mode !== 'top' && role === 'node' ? th.label.toward : 0} />
   if (mode === 'top') return <group rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>{body}</group>
   return <Billboard position={[0, y + 0.45, 0]}>{body}</Billboard>
 }
 
-export function Tray({ b, labelMode, hover = false, slots = [] }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[] }) {
+export function Tray({ b, labelMode, hover = false, slots = [], kids = [] }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[]; kids?: Rect[] }) {
   const th = useTheme()
   const w = b.w * S, h = b.h * S
   const lv = Math.min(b.level, 2)
   const T = th.tray.thickness
+  // the title's corner: fixed back-left, or the first corner nothing stands on (a form stands taller than its footprint, so it is grown more)
+  const last = useRef<Corner>('bl')
+  const corner: Corner = useMemo(() => {
+    if (th.tray.titles === 'fixed') return 'bl'
+    const c = pickCorner(w, h, titleWidth(b.label, 0.4), 0.75, kids, th.node.form === 'landscape' ? { x0: 1.0, x1: 0.3, z0: 1.9, z1: 0.3 } : { x0: 0.4, x1: 0.3, z0: 0.8, z1: 0.3 }, last.current)
+    last.current = c
+    return c
+  }, [th.tray.titles, th.node.form, w, h, b.label, JSON.stringify(kids)])
   const pat = th.tray.sides[lv]
   const side = useMemo(() => {
     const t = patternTexture(pat, th.tray.patternInk, th.tray.patternPaper, th.tray.outline ?? th.tray.patternInk)
@@ -190,8 +199,8 @@ export function Tray({ b, labelMode, hover = false, slots = [] }: { b: Box; labe
         {cut ? <>{mat(null, 'material-0')}{mat(side, 'material-1')}</> : mat(null)}
         <Ink color={th.tray.outline} width={th.node.outlineWidth} />
       </mesh>
-      <group position={[-w / 2 + 0.25, 0, -h / 2 + 0.5]}>
-        <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left role="tray" />
+      <group position={[corner === 'bl' || corner === 'fl' ? -w / 2 + 0.25 : w / 2 - 0.25, 0, corner === 'bl' || corner === 'br' ? -h / 2 + 0.5 : h / 2 - 0.5]}>
+        <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={corner === 'bl' || corner === 'fl'} right={corner === 'br' || corner === 'fr'} role="tray" />
       </group>
     </>
   )

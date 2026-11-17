@@ -21,12 +21,15 @@
 /* scenes and code stay on their dark panel */
 .brand .site-stage { background:var(--scene); border-color:var(--scene-line) }
 .brand .site-modes, .brand .site-stage-src { border-color:var(--scene-line) }
-.brand .site-modes button.on { background:#4b6bdc }
+.brand .site-modes button { color:#d6deee }
+.brand .site-modes button.on { background:#4b6bdc; color:#fff }
+.brand .site-stage-src { color:#e6ebf5; border-color:#5a6785; background:#0b0e14e6 }
+.brand .site-stage-caption { color:#b4bfd6 }
 .brand pre { background:#0b0e14; border-color:var(--scene-line) }
 .brand .site-still { border-color:var(--scene-line) }
 .brand .site-split.flash { box-shadow:0 0 0 2px var(--sumi) }
 .brand .site-tag { background:var(--indigo); color:#f1e8d2 }
-.brand-try { position:absolute; top:14px; right:14px; z-index:3; font-size:12px; color:#9aa6c0; border:1px solid var(--scene-line); padding:4px 10px; border-radius:6px; background:#0b0e14cc; text-decoration:none }
+.brand a.brand-try { position:absolute; top:14px; right:14px; z-index:3; font-size:12px; color:#e6ebf5; border:1px solid #5a6785; padding:4px 10px; border-radius:6px; background:#0b0e14e6; text-decoration:none }
 
 /* Themes section: the list and the frontmatter on the left, the scene and the origin note on the right */
 .brand-themes { display:grid; grid-template-columns:230px minmax(0,1fr); gap:22px; align-items:start }
@@ -96,7 +99,7 @@
   .brand .site-modes button { padding:5px 11px; font-size:12px }
   .brand .site-stage-caption { display:none }
   .brand .site-stage-src { right:10px; bottom:10px; font-size:11px; padding:3px 8px }
-  .brand-try { top:auto; bottom:10px; left:10px; right:auto; font-size:11px; padding:3px 8px }
+  .brand a.brand-try { top:auto; bottom:10px; left:10px; right:auto; font-size:11px; padding:3px 8px }
   .brand .site-proof { gap:6px 16px; padding-top:20px }
   .brand .site-proof span:nth-child(even) { display:none }
   .brand .site-cards, .brand .site-seq, .brand .site-status { grid-template-columns:minmax(0,1fr) }

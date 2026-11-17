@@ -129,7 +129,7 @@ export function grainTexture(bg: string, amount: number): THREE.Texture {
 
 // ---- label plates ----
 /** Text, and behind it a cartouche (border and plate sized to the text) when the plate token asks for one. Lies in its parent's XY plane. */
-export function PlateText({ text, plate, font, fontSize, maxWidth, left = false, outline = false, toward = 0, inFront = false }: { text: string; plate: Plate; font?: string; fontSize: number; maxWidth: number; left?: boolean; outline?: boolean; toward?: number; inFront?: boolean }) {
+export function PlateText({ text, plate, font, fontSize, maxWidth, left = false, right = false, outline = false, toward = 0, inFront = false }: { text: string; plate: Plate; font?: string; fontSize: number; maxWidth: number; left?: boolean; right?: boolean; outline?: boolean; toward?: number; inFront?: boolean }) {
   const [b, setB] = useState<[number, number, number, number] | null>(null)
   const cart = plate.style === 'cartouche'
   const pad = fontSize * 0.28
@@ -157,7 +157,7 @@ export function PlateText({ text, plate, font, fontSize, maxWidth, left = false,
         </group>
       )}
       <Text layers={TEXT_LAYER as any} renderOrder={3} position={[0, 0, cart ? 0.02 : 0]} depthOffset={cart || inFront ? -12 : 0} font={font} fontSize={fontSize} maxWidth={maxWidth} color={plate.text}
-        anchorX={left ? 'left' : 'center'} anchorY="middle" textAlign={left ? 'left' : 'center'}
+        anchorX={left ? 'left' : right ? 'right' : 'center'} anchorY="middle" textAlign={left ? 'left' : right ? 'right' : 'center'}
         outlineWidth={outline ? 0.03 : 0} outlineColor="#000"
         onSync={cart ? (t: any) => { const r = t.textRenderInfo?.blockBounds; if (r) setB(p => (p && p[0] === r[0] && p[1] === r[1] && p[2] === r[2] && p[3] === r[3] ? p : [r[0], r[1], r[2], r[3]])) } : undefined}>{text}</Text>
     </group>

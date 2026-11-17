@@ -29,6 +29,7 @@ export interface Theme {
     thickness: number // the tray's height (one level)
     colors: [string, string, string] // top, by level
     sides: [Pattern, Pattern, Pattern] // side pattern, by level
+    titles: 'fixed' | 'free' // fixed: the back-left corner; free: a corner nothing stands on (tested against the nodes and forms on the tray)
     patternInk: string
     patternPaper: string
     outline: string | null
@@ -59,7 +60,7 @@ export const CLASSIC: Theme = {
   },
   tray: {
     thickness: 0.25,
-    colors: ['#243044', '#2d3b52', '#374862'], sides: ['plain', 'plain', 'plain'], patternInk: '#24508F', patternPaper: '#f4efe3',
+    colors: ['#243044', '#2d3b52', '#374862'], sides: ['plain', 'plain', 'plain'], titles: 'fixed', patternInk: '#24508F', patternPaper: '#f4efe3',
     outline: null, hover: '#8fb0ff', hoverIntensity: 0.15,
   },
   label: {
@@ -84,7 +85,7 @@ export const BONKEI: Theme = {
   },
   tray: {
     thickness: 0.42,
-    colors: ['#E6DCC3', '#DACDAE', '#CDBF9C'], sides: ['hishi', 'flower', 'stone'], patternInk: '#24508F', patternPaper: '#f4efe3',
+    colors: ['#E6DCC3', '#DACDAE', '#CDBF9C'], sides: ['hishi', 'flower', 'stone'], titles: 'free', patternInk: '#24508F', patternPaper: '#f4efe3',
     outline: '#2A2622', hover: '#fff2c0', hoverIntensity: 0.12,
   },
   label: {
