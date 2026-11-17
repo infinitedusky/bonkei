@@ -12,10 +12,13 @@
     "capture": "pnpm --filter @bonkei/site capture",
     "test": "pnpm -r test",
     "size": "pnpm --filter bonkei build && pnpm --filter bonkei size",
-    "check:package": "pnpm --filter bonkei build",
+    "check:package": "pnpm --filter bonkei build && pnpm --filter bonkei exec publint --strict && pnpm --filter bonkei exec attw --pack . --profile esm-only",
     "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs"
   },
   "devDependencies": {
-    "playwright": "^1.65.1"
+    "@arethetypeswrong/cli": "^0.18.5",
+    "pkg-pr-new": "^0.0.94",
+    "playwright": "^1.65.1",
+    "size-limit": "^14.3.0"
   }
 }
