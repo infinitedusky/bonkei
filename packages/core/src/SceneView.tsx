@@ -34,18 +34,11 @@ function effective(data: LayoutResult, ovr: Ovr, live: Route[] | null) {
 
 function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElement> }) {
   const acc = useRef({ t: 0, n: 0 })
-  const th = useTheme()
-  const thin = useRef({ on: false, applied: -1, frame: 0 })
-  const bases = useRef(new WeakMap<object, number>())
-  useFrame(({ camera, size, scene }, dt) => {
+  useFrame(({ camera, size }, dt) => {
     cam.aspect = size.width / size.height
     const c = cam.cur, g = cam.goal, k = 1 - Math.exp(-6 * Math.min(dt, 0.1))
-    // The easing is exponential, so it never quite arrives: for a second or more the camera creeps by fractions of a pixel, and every thin
-    // line (the outlines are 2px) re-rasterises each frame, which shows as shimmer. Once the remaining move is under a twentieth of a pixel it lands.
-    const px = c.H / Math.max(size.height, 1) // world units per pixel at the focus
-    for (const key of ['tx', 'tz'] as const) c[key] = Math.abs(g[key] - c[key]) < px * 0.05 ? g[key] : c[key] + (g[key] - c[key]) * k
-    for (const key of ['yaw', 'pitch'] as const) c[key] = Math.abs(g[key] - c[key]) < 0.05 / Math.max(size.height, 1) ? g[key] : c[key] + (g[key] - c[key]) * k
-    for (const key of ['H', 'fov'] as const) { const d = Math.log(g[key]) - Math.log(c[key]); c[key] = Math.abs(d) < 0.05 / Math.max(size.height, 1) ? g[key] : Math.exp(Math.log(c[key]) + d * k) }
+    for (const key of ['tx', 'tz', 'yaw', 'pitch'] as const) c[key] += (g[key] - c[key]) * k
+    for (const key of ['H', 'fov'] as const) c[key] = Math.exp(Math.log(c[key]) + (Math.log(g[key]) - Math.log(c[key])) * k)
     const p = camera as THREE.PerspectiveCamera
     const d = c.H / 2 / Math.tan((c.fov * Math.PI) / 360)
     p.fov = c.fov
@@ -53,23 +46,6 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
     p.position.set(c.tx + d * Math.sin(c.yaw) * Math.cos(c.pitch), d * Math.sin(c.pitch), c.tz + d * Math.cos(c.yaw) * Math.cos(c.pitch))
     p.lookAt(c.tx, 0, c.tz)
     p.updateProjectionMatrix()
-    // Lines at half width when zoomed far out, in one step with a margin (back to full above 1.15x the threshold) so it does not toggle at the edge.
-    const T = th.edge.thinBelow, st = thin.current
-    if (T !== null) {
-      const ppu = size.height / c.H
-      st.on = st.on ? ppu < T * 1.15 : ppu < T
-    } else st.on = false
-    // new lines can be mounted at any time (a theme change, a new diagram), so the pass also runs now and then
-    if (st.applied !== +st.on || ++st.frame % 20 === 0) {
-      st.applied = +st.on
-      scene.traverse((o: any) => {
-        const m = o.material
-        if (!m || !m.isLineMaterial) return
-        if (!bases.current.has(m)) bases.current.set(m, m.linewidth)
-        const w = bases.current.get(m)! * (st.on ? 0.5 : 1)
-        if (m.linewidth !== w) m.linewidth = w
-      })
-    }
     acc.current.t += dt; acc.current.n++
     if (acc.current.t > 0.5 && fpsRef.current) {
       fpsRef.current.textContent = `${Math.round(acc.current.n / acc.current.t)} fps`
