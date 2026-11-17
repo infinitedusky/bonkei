@@ -239,3 +239,6 @@ Round and cylinder nodes (and their landscape plinths) get two vertical ink line
 
 ### Addendum: outline shimmer when zoomed out
 Outlines are `Line2`s with a fixed width in screen pixels (2px), so they do not grow with zoom. Far out, a 2px line over tiny geometry sits on the 1-2px rasterisation boundary and re-rasterises every frame as the camera eases, so its thickness flickers. Two changes: the camera easing now lands when the remaining move is under a twentieth of a pixel (it used to creep for a second or more), and `edge.thinBelow` (Bonkei: 14 px per world unit, Classic: null) draws every line at half width in one step when zoomed out below it, with a 15% hysteresis. A stepped width (2px to 1px), not a smooth one, because a fractional width is exactly what shimmers. The pass runs over `LineMaterial`s in `Rig`, so it covers outlines, edges, silhouette lines and trench rims; new lines are picked up within 20 frames.
+
+### Addendum: zoom has no momentum
+The wheel now scales the camera's current height and its goal by the same factor, so zoom stops the moment the wheel does; only other moves (fly-in, change of view, pan release) ease. Applies to every theme, Classic included (its still frames are unchanged).
