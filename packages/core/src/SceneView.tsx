@@ -13,7 +13,7 @@ import { NodeBody, Tray, baseOf, type LabelMode } from './shapes'
 import { Mat, ThemeProvider, ToneSetup, useTheme, grainTexture } from './look'
 import { CLASSIC, type Theme } from './theme'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
-import { planEdges, surfaceAt, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
+import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
 import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
 import type { NodeClick, ResolvedControls } from './options'
@@ -167,7 +167,6 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
   const quality = useMemo<RouteQuality>(() => measureRoutes([...boxes.values()], routes), [boxes, routes])
   const bodies = useMemo<Body[]>(() => [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.height, tray: th.tray.thickness })), [boxes, W, H, th.tray.thickness])
-  const surface = useMemo(() => (x: number, z: number) => surfaceAt(x, z, bodies).top, [bodies])
   const { plans, stats, slots, ms } = useMemo(() => {
     const t0 = performance.now()
     const r = planEdges(bodies, routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) })), crossings)
@@ -250,7 +249,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
           <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
         </NodeLift>
       })}
-      {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} surface={surface} /> : null)}
+      {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} bodies={bodies} /> : null)}
       {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? th.tray.colors[Math.min(boxes.get(s.tray)!.level, 2)] : th.ground.bg} y={s.tray ? 0 : -0.02} />)}
       {portalList.length > 0 && <PortalSystem pairs={portalList} deps={[plans, hover]} />}
       </Env>

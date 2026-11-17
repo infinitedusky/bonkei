@@ -226,6 +226,46 @@ export function surfaceAt(x: number, z: number, bodies: Body[]): { top: number; 
   return { top, tray }
 }
 
+/**
+ * A line laid flat on the surfaces under it. Every sub-segment between rim crossings lies on its own surface (`lift` above it); where the surface
+ * changes (a tray rim) the line climbs or drops the wall in a short riser just outside it, so it never cuts through the tray's body.
+ * Points are P3 [x, z, y]; the input's own heights and steps are ignored.
+ */
+export function flatLine(pts: P3[], bodies: Body[], lift = 0.02): P3[] {
+  const trays = bodies.filter(b => b.kind === 'group')
+  const out: P3[] = []
+  const push = (x: number, z: number, y: number) => { const l = out[out.length - 1]; if (!l || l[0] !== x || l[1] !== z || l[2] !== y) out.push([x, z, y]) }
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1]
+    const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz)
+    if (len < 1e-6) continue
+    const ts = [0, 1]
+    for (const t of trays) {
+      if (dx) for (const v of [t.x0, t.x1]) { const u = (v - ax) / dx; if (u > 0 && u < 1) ts.push(u) }
+      if (dz) for (const v of [t.z0, t.z1]) { const u = (v - az) / dz; if (u > 0 && u < 1) ts.push(u) }
+    }
+    ts.sort((p, q) => p - q)
+    const at = (u: number) => [ax + dx * u, az + dz * u] as const
+    let prev: number | null = null
+    for (let k = 0; k < ts.length - 1; k++) {
+      if (ts[k + 1] - ts[k] < 1e-6) continue
+      const m = at((ts[k] + ts[k + 1]) / 2), h = surfaceAt(m[0], m[1], bodies).top + lift
+      const [px, pz] = at(ts[k])
+      if (prev === null) push(px, pz, h)
+      else if (Math.abs(h - prev) > 1e-6) {
+        // the riser stands on the lower side of the rim, 0.02 off the wall
+        const s = h > prev ? -1 : 1, ox = (dx / len) * 0.02 * s, oz = (dz / len) * 0.02 * s
+        const [wx, wz] = [px + ox, pz + oz]
+        push(wx, wz, prev); push(wx, wz, h)
+      }
+      prev = h
+      const [qx, qz] = at(ts[k + 1])
+      push(qx, qz, h)
+    }
+  }
+  return out
+}
+
 export interface Stats { crossings: number; touching: number; bridge: number; tunnel: number; portal: number; skipped: number }
 
 /**

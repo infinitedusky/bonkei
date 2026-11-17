@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Text } from '@react-three/drei'
-import { SLOT_W, type EdgePlan, type P3, type PortalPair, type Slot } from './edges3d.ts'
+import { SLOT_W, flatLine, type Body, type EdgePlan, type P3, type PortalPair, type Slot } from './edges3d.ts'
 import { useTheme, fontUrl } from './look'
 import { TEXT_LAYER } from './scale.ts'
 import type { LabelMode } from './model'
@@ -22,16 +22,13 @@ function FlatArrow({ tip, dir, color }: { tip: THREE.Vector3; dir: THREE.Vector3
   return <mesh geometry={geo}><meshBasicMaterial color={color} side={THREE.DoubleSide} /></mesh>
 }
 
-export function Edge({ plan, label, labelMode, surface }: { plan: EdgePlan; label?: string; labelMode: LabelMode; surface?: (x: number, z: number) => number }) {
+export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label?: string; labelMode: LabelMode; bodies?: Body[] }) {
   const th = useTheme()
-  const flat = th.edge.flat && !!surface
-  // flat: every point lies on the surface under it (a hair above, against z-fighting); a step becomes a ramp, a bridge or tunnel is levelled
-  const lay = (p: THREE.Vector3[]) => {
-    if (!flat) return p
-    const q = p.map(v => new THREE.Vector3(v.x, surface!(v.x, v.z) + 0.02, v.z))
-    return q.filter((v, i) => i === 0 || v.distanceTo(q[i - 1]) > 1e-4)
-  }
-  const parts = plan.parts.map(p => lay(p.map(v3)))
+  const flat = th.edge.flat && !!bodies
+  // flat: the whole route (its parts joined) is laid on the surfaces under it; a bridge or tunnel is levelled
+  const parts = flat
+    ? [flatLine(plan.parts.flatMap(p => p), bodies!).map(v3)]
+    : plan.parts.map(p => p.map(v3))
   const last = parts[parts.length - 1]
   const n = last.length
   const dir = new THREE.Vector3().subVectors(last[n - 1], last[n - 2]).normalize()
