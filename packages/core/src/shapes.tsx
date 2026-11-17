@@ -40,7 +40,13 @@ function geometry(shape: Box['shape'], w: number, h: number, height: number, bev
 // The footprint's outline in plan (x, z), for the shapes with a rounded side or corner (everything but the diamond, whose corners are creases).
 function plan(shape: Box['shape'], w: number, h: number): [number, number][] {
   if (shape === 'cylinder') return Array.from({ length: 64 }, (_, i) => { const a = (i / 64) * Math.PI * 2; return [Math.cos(a) * w / 2, Math.sin(a) * h / 2] as [number, number] })
-  return rounded(w, h, shape === 'round' ? Math.min(w, h) / 2 * 0.95 : 0.12).getPoints(16).map(p => [p.x, -p.y] as [number, number]) // shape y is world -z
+  const raw = rounded(w, h, shape === 'round' ? Math.min(w, h) / 2 * 0.95 : 0.12).getPoints(16).map(p => [p.x, -p.y] as [number, number]) // shape y is world -z
+  // a repeated point (where two segments join, or the loop's last point equal to its first) is a zero-length edge with no facing: it would fake a silhouette
+  const out: [number, number][] = []
+  for (const p of raw) { const l = out[out.length - 1]; if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) > 1e-6) out.push(p) }
+  const f = out[0], l = out[out.length - 1]
+  if (out.length > 2 && Math.hypot(f[0] - l[0], f[1] - l[1]) <= 1e-6) out.pop()
+  return out
 }
 
 /**
@@ -52,6 +58,9 @@ function Silhouette({ shape, w, h, height, y, color, width }: { shape: Box['shap
   const pts = useMemo(() => plan(shape, w, h), [shape, w, h])
   const root = useRef<THREE.Group>(null!)
   const a = useRef<any>(null), b = useRef<any>(null)
+  // a rect's rounded corners that face the camera have no crease either, so they get a line at the middle of the arc; one near the silhouette is left to the silhouette line
+  const corners = useMemo(() => shape === 'rect' ? ([[1, 1], [1, -1], [-1, 1], [-1, -1]] as const).map(([sx, sz]) => ({ n: [sx * Math.SQRT1_2, sz * Math.SQRT1_2] as const, p: [sx * (w / 2 - 0.12 * (1 - Math.SQRT1_2)), sz * (h / 2 - 0.12 * (1 - Math.SQRT1_2))] as const })) : [], [shape, w, h])
+  const cl = useRef<any[]>([])
   const pos = useMemo(() => new THREE.Vector3(), [])
   const n = pts.length
   // orientation of the loop, so "outward" is the same side for any winding
@@ -63,8 +72,17 @@ function Silhouette({ shape, w, h, height, y, color, width }: { shape: Box['shap
       const q = pts[(i + 1) % n], ex = q[0] - p[0], ez = q[1] - p[1]
       return sign * (ez * (cx - (p[0] + q[0]) / 2) - ex * (cz - (p[1] + q[1]) / 2)) > 0 // outward normal . (camera - edge midpoint) > 0
     })
+    // the vertex where the edges stop facing the camera, and the one where they start again
     const found: number[] = []
-    for (let i = 0; i < n; i++) if (facing[(i + n - 1) % n] !== facing[i]) found.push(i)
+    for (let i = 0; i < n; i++) if (facing[(i + n - 1) % n] && !facing[i]) { found[0] = i; break }
+    for (let i = 0; i < n; i++) if (!facing[(i + n - 1) % n] && facing[i]) { found[1] = i; break }
+    corners.forEach((c, i) => {
+      const l = cl.current[i]
+      if (!l) return
+      const vx = cx - c.p[0], vz = cz - c.p[1], len = Math.hypot(vx, vz) || 1
+      l.visible = (c.n[0] * vx + c.n[1] * vz) / len > 0.35
+      l.position.set(c.p[0], y, c.p[1]); l.scale.set(1, height, 1)
+    })
     for (const [ref, k] of [[a, 0], [b, 1]] as const) {
       const l = ref.current, i = found[k]
       if (!l) continue
@@ -77,6 +95,7 @@ function Silhouette({ shape, w, h, height, y, color, width }: { shape: Box['shap
     <group ref={root}>
       <Line ref={a} points={unit} color={color} lineWidth={width} />
       <Line ref={b} points={unit} color={color} lineWidth={width} />
+      {corners.map((_, i) => <Line key={i} ref={(l: any) => { cl.current[i] = l }} points={unit} color={color} lineWidth={width} />)}
     </group>
   )
 }
