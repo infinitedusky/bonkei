@@ -7,22 +7,25 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types scripts/*.test.ts",
-    "storybook": "storybook dev -p 6006",
-    "measure": "node --experimental-strip-types scripts/measure-edges.ts"
+    "storybook": "node scripts/copy-embed.mjs && storybook dev -p 6006",
+    "build-storybook": "node scripts/copy-embed.mjs && storybook build",
+    "measure": "node --experimental-strip-types scripts/measure-edges.ts",
+    "predev": "node scripts/copy-embed.mjs",
+    "prebuild": "node scripts/copy-embed.mjs"
   },
   "dependencies": {
-    "@react-three/drei": "^9.121.0",
-    "@react-three/fiber": "^8.17.10",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
     "bonkei": "workspace:*",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@storybook/addon-docs": "^10.6.7",
     "@storybook/addon-mcp": "^10.6.7",
     "@storybook/react-vite": "^10.6.7",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "@types/three": "^0.170.0",
     "@vitejs/plugin-react": "^4.3.4",
     "@zigbang/storybook-addon-story-flow": "^0.10.0",
