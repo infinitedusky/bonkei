@@ -134,7 +134,7 @@ export function PlateText({ text, plate, font, fontSize, maxWidth, left = false,
           </mesh>
         </group>
       )}
-      <Text layers={TEXT_LAYER as any} renderOrder={3} position={[0, 0, 0.02]} depthOffset={cart || inFront ? -12 : 0} font={font} fontSize={fontSize} maxWidth={maxWidth} color={plate.text}
+      <Text layers={TEXT_LAYER as any} renderOrder={3} position={[0, 0, cart ? 0.02 : 0]} depthOffset={cart || inFront ? -12 : 0} font={font} fontSize={fontSize} maxWidth={maxWidth} color={plate.text}
         anchorX={left ? 'left' : 'center'} anchorY="middle" textAlign={left ? 'left' : 'center'}
         outlineWidth={outline ? 0.03 : 0} outlineColor="#000"
         onSync={cart ? (t: any) => { const r = t.textRenderInfo?.blockBounds; if (r) setB(p => (p && p[0] === r[0] && p[1] === r[1] && p[2] === r[2] && p[3] === r[3] ? p : [r[0], r[1], r[2], r[3]])) } : undefined}>{text}</Text>

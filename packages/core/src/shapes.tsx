@@ -68,6 +68,10 @@ function Silhouette({ shape, w, h, height, y, color, width }: { shape: Box['shap
   useFrame(({ camera }) => {
     root.current.getWorldPosition(pos)
     const cx = camera.position.x - pos.x, cz = camera.position.z - pos.z
+    // looking (nearly) straight down, a vertical line is a dot: it would only shimmer, and which points are edge-on flips with the slightest move
+    const steep = camera.position.y - pos.y > Math.hypot(cx, cz) * 3.7 // more than about 75 degrees above the horizon
+    root.current.visible = !steep
+    if (steep) return
     const facing = pts.map((p, i) => {
       const q = pts[(i + 1) % n], ex = q[0] - p[0], ez = q[1] - p[1]
       return sign * (ez * (cx - (p[0] + q[0]) / 2) - ex * (cz - (p[1] + q[1]) / 2)) > 0 // outward normal . (camera - edge midpoint) > 0
