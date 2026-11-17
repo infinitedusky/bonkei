@@ -3,6 +3,7 @@
 import { load, CORE_SCHEMA, YAMLException } from 'js-yaml'
 import type { Mode } from './camera.ts'
 import type { LabelMode } from './model.ts'
+import { themeByName, withVariables, type Theme } from './theme.ts'
 import { CROSSING_STYLES, type CrossingStyle } from './edges3d.ts'
 import { AVOID_CROSSINGS, type AvoidCrossings } from './avoid.ts'
 
@@ -33,7 +34,7 @@ export interface BonkeiError {
 }
 // A BonkeiWarning is a problem the diagram is drawn despite. It goes to `onWarning`.
 export interface BonkeiWarning {
-  kind: 'dropped' | 'frontmatter'
+  kind: 'dropped' | 'frontmatter' | 'theme'
   message: string
   line: number
   text?: string
@@ -48,7 +49,12 @@ export interface NodeClick { id: string; label: string; kind: 'node' | 'group' |
 // Who moved the view: the built-in toolbar, the imperative handle, or a changed `mode` option.
 export interface ModeChange { source: 'toolbar' | 'handle' | 'prop' }
 
+// The theme a diagram's frontmatter asks for (config.theme, config.themeVariables), as written.
+export interface ThemeRequest { name?: string; variables?: Record<string, unknown> }
+
 export type BonkeiOptions = DiagramOptions & {
+  /** A preset by name ('classic', 'bonkei', 'bonkei-landscape') or a whole Theme object. Over the frontmatter's config.theme. */
+  theme?: string | Theme
   onError?: (error: BonkeiError) => void
   onWarning?: (warning: BonkeiWarning) => void
   onModeChange?: (mode: Mode, change: ModeChange) => void
@@ -69,6 +75,7 @@ export interface Frontmatter {
   body: string // the source with the frontmatter block removed
   lineOffset: number // source lines before `body`
   options: DiagramOptions
+  theme: ThemeRequest
   warnings: BonkeiWarning[]
 }
 
@@ -80,7 +87,7 @@ const reEscape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 // (title, config.theme, themeVariables, ...) is left alone for Mermaid and for themes.
 export function readFrontmatter(src: string): Frontmatter {
   const m = src.match(FRONTMATTER_RE)
-  if (!m) return { body: src, lineOffset: 0, options: {}, warnings: [] }
+  if (!m) return { body: src, lineOffset: 0, options: {}, theme: {}, warnings: [] }
   const body = src.slice(m[0].length)
   const lineOffset = m[0].split('\n').length - 1
   const yamlLines = m[1].split('\n')
@@ -107,13 +114,37 @@ export function readFrontmatter(src: string): Frontmatter {
   } catch (e) {
     const mark = e instanceof YAMLException ? e.mark : undefined
     warn(`frontmatter is not valid YAML: ${e instanceof YAMLException ? e.reason : String(e)}`, Math.min(mark?.line ?? 0, yamlLines.length - 1))
-    return { body, lineOffset, options, warnings }
+    return { body, lineOffset, options, theme: {}, warnings }
+  }
+  const theme: ThemeRequest = {}
+  if (isMap(doc) && isMap(doc.config)) {
+    const cfg = doc.config
+    if (cfg.theme !== undefined && cfg.theme !== null) {
+      if (typeof cfg.theme !== 'string') warn(`config.theme must be a theme name; got ${show(cfg.theme)}`, lineOf(['config', 'theme']))
+      else {
+        theme.name = cfg.theme
+        const p = themeByName(cfg.theme).problem
+        if (p) warnings.push({ kind: 'theme', message: p.message, ...at(lineOf(['config', 'theme'])) })
+      }
+    }
+    if (cfg.themeVariables !== undefined && cfg.themeVariables !== null) {
+      if (!isMap(cfg.themeVariables)) warn(`config.themeVariables must be a mapping; got ${show(cfg.themeVariables)}`, lineOf(['config', 'themeVariables']))
+      else {
+        // `node.form: landscape` and a nested `node: { form: landscape }` both mean the dotted token path
+        const flat: Record<string, unknown> = {}
+        const walk = (o: Record<string, unknown>, prefix: string) => { for (const [k, v] of Object.entries(o)) isMap(v) ? walk(v, prefix + k + '.') : (flat[prefix + k] = v) }
+        walk(cfg.themeVariables, '')
+        const base = themeByName(theme.name).theme
+        for (const pr of withVariables(base, flat).problems) warnings.push({ kind: 'theme', message: pr.message, ...at(Math.max(lineOf(['config', 'themeVariables', pr.key]), lineOf(['config', 'themeVariables', pr.key.split('.').pop()!]))) })
+        theme.variables = flat
+      }
+    }
   }
   const bonkei = isMap(doc) && isMap(doc.config) ? doc.config.bonkei : undefined
-  if (bonkei === undefined || bonkei === null) return { body, lineOffset, options, warnings }
+  if (bonkei === undefined || bonkei === null) return { body, lineOffset, options, theme, warnings }
   if (!isMap(bonkei)) {
     warn(`config.bonkei must be a mapping, got ${show(bonkei)}`, lineOf(['config', 'bonkei']))
-    return { body, lineOffset, options, warnings }
+    return { body, lineOffset, options, theme, warnings }
   }
 
   const oneOf = <T extends string>(key: string, v: unknown, allowed: readonly T[]): T | undefined => {
@@ -146,7 +177,7 @@ export function readFrontmatter(src: string): Frontmatter {
     } else warn(`unknown option config.bonkei.${key}; known: mode, labels, toolbar, controls, crossings, avoidCrossings`, lineOf(['config', 'bonkei', key]))
   }
   for (const k of Object.keys(options) as (keyof DiagramOptions)[]) if (options[k] === undefined) delete options[k]
-  return { body, lineOffset, options, warnings }
+  return { body, lineOffset, options, theme, warnings }
 }
 
 // Props over frontmatter, key by key; a `controls` object replaces the frontmatter one whole.

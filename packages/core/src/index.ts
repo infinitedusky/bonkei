@@ -21,6 +21,12 @@ export type { DiagramOptions } from './options'
 /** The reader's controls: true/false for all, or one switch per control. */
 export type { Controls } from './options'
 
+// Themes
+/** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
+export type { Theme } from './theme'
+/** Classic (today's look) and the Bonkei presets, for passing as `theme` or as a base to edit. */
+export { CLASSIC, BONKEI, LANDSCAPE } from './theme'
+
 // Events
 /** What onError receives when nothing could be drawn (kind: parse, graph, layout or render). */
 export type { BonkeiError } from './options'

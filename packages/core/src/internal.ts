@@ -5,7 +5,9 @@
 export { SceneView, type SceneViewProps, type EdgeStats } from './SceneView'
 export { stepRoute, findCrossings, applyCrossings, planEdges, endHeight, CROSSING_STYLES, type CrossingStyle, type Body, type P3 } from './edges3d.ts'
 export { SeqScene } from './SeqScene'
-export { trayColor, NodeBody, Label, Tray, baseOf } from './shapes'
+export { NodeBody, Label, Tray, baseOf } from './shapes'
+export { CLASSIC, BONKEI, LANDSCAPE, PRESETS, themeByName, withVariables, type Theme, type Plate, type Pattern } from './theme'
+export { ThemeProvider, useTheme } from './look'
 export { SCENE, UI } from './palette'
 export { ALL_ON, wheelAction, dragAction, cursorFor, gesture, type Gesture, type Pickable, type Cursor } from './controls'
 

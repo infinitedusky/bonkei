@@ -1,16 +1,15 @@
 import * as THREE from 'three'
 import { useMemo } from 'react'
-import { Text, Billboard } from '@react-three/drei'
+import { Billboard } from '@react-three/drei'
 import type { Box, LabelMode } from './model'
 
 export type { LabelMode }
 
 import { S, TRAY, NODE_H, TEXT_LAYER } from './scale.ts'
 import { slotShape } from './EdgeScene'
+import { Mat, Ink, PlateText, useTheme, fontUrl, patternTexture, useFormTexture, FORM_ASPECT } from './look'
 export { S, TRAY, NODE_H }
 
-const COLORS: Record<string, string> = { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' }
-export const trayColor = (level: number) => ['#243044', '#2d3b52', '#374862'][Math.min(level, 2)]
 
 function rounded(w: number, h: number, r: number) {
   const s = new THREE.Shape(), x = -w / 2, y = -h / 2
@@ -35,45 +34,74 @@ function geometry(shape: Box['shape'], w: number, h: number, height: number) {
   return g
 }
 
-export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
-  const w = b.w * S, h = b.h * S
-  const height = b.height ?? NODE_H
-  const geo = useMemo(() => geometry(b.shape, w, h, height), [b.shape, w, h, height])
+// A landscape form: a billboarded cut-out standing on the node's footprint.
+function Form({ shape, w, h, y }: { shape: Box['shape']; w: number; h: number; y: number }) {
+  const tex = useFormTexture(shape)
+  const fw = Math.min(shape === 'diamond' ? 1.4 : 2.2, w * 0.8, h * 1.8), fh = fw * FORM_ASPECT[shape]
+  if (!tex) return null
   return (
-    <>
-      <mesh geometry={geo} castShadow receiveShadow>
-        <meshStandardMaterial color={COLORS[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? '#ffffff' : '#000000'} emissiveIntensity={hover ? 0.18 : 0} />
+    <Billboard position={[0, y, 0]}>
+      <mesh position={[0, fh / 2, 0]}>
+        <planeGeometry args={[fw, fh]} />
+        <meshBasicMaterial map={tex} transparent alphaTest={0.3} toneMapped={false} />
       </mesh>
-      <Label text={b.label} mode={labelMode} y={height + 0.08} size={0.36} maxWidth={w - 0.3} />
-    </>
-  )
-}
-
-export function Label({ text, mode, y, size, maxWidth, left = false, color = '#fff' }: { text: string; mode: LabelMode; y: number; size: number; maxWidth: number; left?: boolean; color?: string }) {
-  const common = { fontSize: size, maxWidth, color, anchorX: left ? ('left' as const) : ('center' as const), anchorY: 'middle' as const, textAlign: left ? ('left' as const) : ('center' as const) }
-  if (mode === 'top') return <Text {...common} layers={TEXT_LAYER as any} rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>{text}</Text>
-  return (
-    <Billboard position={[0, y + 0.45, 0]}>
-      <Text {...common} layers={TEXT_LAYER as any} outlineWidth={0.03} outlineColor="#000">{text}</Text>
     </Billboard>
   )
 }
 
-export function Tray({ b, labelMode, hover = false, slots = [] }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[] }) {
+export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
+  const th = useTheme()
   const w = b.w * S, h = b.h * S
-  // with tunnel slots (in tray-local x, z) the top is cut open; otherwise a plain box
-  const cut = useMemo(() => {
-    if (!slots.length) return null
-    return new THREE.ExtrudeGeometry(slotShape(-w / 2, -h / 2, w / 2, h / 2, slots), { depth: TRAY, bevelEnabled: false }).rotateX(-Math.PI / 2)
-  }, [w, h, JSON.stringify(slots)])
+  const land = th.node.form === 'landscape'
+  const height = land ? th.node.footHeight : (b.height ?? NODE_H)
+  const geo = useMemo(() => geometry(b.shape, land ? w * 0.9 : w, land ? h * 0.9 : h, height), [b.shape, w, h, height, land])
   return (
     <>
-      <mesh key={cut ? 'cut' : 'box'} position={[0, cut ? 0 : TRAY / 2, 0]} receiveShadow geometry={cut ?? undefined}>
+      <mesh geometry={geo} castShadow={th.light.shadows} receiveShadow={th.light.shadows}>
+        <Mat color={land ? th.node.foot : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
+        <Ink color={th.node.outline} width={th.node.outlineWidth} />
+      </mesh>
+      {land && <Form shape={b.shape} w={w} h={h} y={height} />}
+      <Label text={b.label} mode={land ? 'billboard' : labelMode} y={land ? height - 0.12 : height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />
+    </>
+  )
+}
+
+export function Label({ text, mode, y, size, maxWidth, left = false, role }: { text: string; mode: LabelMode; y: number; size: number; maxWidth: number; left?: boolean; role: 'node' | 'tray' }) {
+  const th = useTheme()
+  const plate = th.label[role], font = fontUrl(th)
+  const body = <PlateText text={text} plate={plate} font={font} fontSize={size} maxWidth={maxWidth} left={left} outline={mode !== 'top' && plate.style === 'plain'} />
+  if (mode === 'top') return <group rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>{body}</group>
+  return <Billboard position={[0, y + 0.45, 0]}>{body}</Billboard>
+}
+
+export function Tray({ b, labelMode, hover = false, slots = [] }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[] }) {
+  const th = useTheme()
+  const w = b.w * S, h = b.h * S
+  const lv = Math.min(b.level, 2)
+  const pat = th.tray.sides[lv]
+  const side = useMemo(() => {
+    const t = patternTexture(pat, th.tray.patternInk, th.tray.patternPaper)
+    if (!t) return null
+    const c = t.clone(); c.needsUpdate = true
+    c.repeat.set(1 / TRAY, 1 / TRAY) // extruded side walls have world-unit UVs: one tile is as wide as the tray is thick
+    return c
+  }, [pat, th.tray.patternInk, th.tray.patternPaper])
+  // with tunnel slots (in tray-local x, z) the top is cut open, and a patterned side needs the extruded walls; otherwise a plain box
+  const cut = useMemo(() => {
+    if (!slots.length && !side) return null
+    return new THREE.ExtrudeGeometry(slotShape(-w / 2, -h / 2, w / 2, h / 2, slots), { depth: TRAY, bevelEnabled: false }).rotateX(-Math.PI / 2)
+  }, [w, h, JSON.stringify(slots), !!side])
+  const mat = (map: THREE.Texture | null | undefined, attach?: string) => <Mat attach={attach} color={map ? '#ffffff' : th.tray.colors[lv]} map={map} roughness={0.9} emissive={hover ? th.tray.hover : '#000'} emissiveIntensity={hover ? th.tray.hoverIntensity : 0} />
+  return (
+    <>
+      <mesh key={cut ? 'cut' : 'box'} position={[0, cut ? 0 : TRAY / 2, 0]} receiveShadow={th.light.shadows} geometry={cut ?? undefined}>
         {!cut && <boxGeometry args={[w, TRAY, h]} />}
-        <meshStandardMaterial color={trayColor(b.level)} roughness={0.9} emissive={hover ? '#8fb0ff' : '#000'} emissiveIntensity={hover ? 0.15 : 0} />
+        {cut ? <>{mat(null, 'material-0')}{mat(side, 'material-1')}</> : mat(null)}
+        <Ink color={th.tray.outline} width={th.node.outlineWidth} />
       </mesh>
       <group position={[-w / 2 + 0.25, 0, -h / 2 + 0.5]}>
-        <Label text={b.label} mode={labelMode} y={TRAY + 0.01} size={0.4} maxWidth={w - 0.5} left color="#cfd8ea" />
+        <Label text={b.label} mode={labelMode} y={TRAY + 0.01} size={0.4} maxWidth={w - 0.5} left role="tray" />
       </group>
     </>
   )

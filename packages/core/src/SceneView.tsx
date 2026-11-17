@@ -9,11 +9,12 @@ import { instant } from './telemetry'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
-import { NodeBody, Tray, baseOf, trayColor, type LabelMode } from './shapes'
+import { NodeBody, Tray, baseOf, type LabelMode } from './shapes'
+import { Mat, ThemeProvider, useTheme, grainTexture } from './look'
+import { CLASSIC, type Theme } from './theme'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
-import { SCENE } from './palette'
 import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
 import type { NodeClick, ResolvedControls } from './options'
 
@@ -59,6 +60,8 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   const masks = useMemo(() => slots.map(s => new THREE.ShapeGeometry(stadium(s, new THREE.Shape()) as THREE.Shape, 16)), [slots])
   const groundGeo = useMemo(() => new THREE.ShapeGeometry(slotShape(-200, -200, 200, 200, slots)), [slots])
   const { gl } = useThree()
+  const th = useTheme()
+  const grain = useMemo(() => (th.ground.grain > 0 ? grainTexture(th.ground.bg, th.ground.grain) : null), [th.ground.bg, th.ground.grain])
   // Flat view: the light is almost overhead (5 degrees off), so shadows are short. It eases between the two like the camera does.
   const light = useRef<THREE.DirectionalLight>(null!)
   const lightAt = useRef(new THREE.Vector3(10, 18, 7))
@@ -109,21 +112,21 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
 
   return (
     <>
-      <ambientLight intensity={0.55} />
-      <hemisphereLight args={['#bcd0ff', '#202838', 0.5]} />
-      <directionalLight ref={light} position={[10, 18, 7]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
+      <ambientLight intensity={th.light.ambient} />
+      <hemisphereLight args={[th.light.sky, th.light.floor, th.light.hemi]} />
+      <directionalLight ref={light} position={[10, 18, 7]} intensity={th.light.sun} castShadow={th.light.shadows} shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30} shadow-camera-near={1} shadow-camera-far={80} shadow-bias={-0.0004} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow geometry={groundGeo}>
-        <meshStandardMaterial color={SCENE.bg} roughness={1} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow={th.light.shadows} geometry={groundGeo}>
+        {th.ground.lit ? <meshStandardMaterial color={th.ground.bg} roughness={1} /> : <meshBasicMaterial color={grain ? '#ffffff' : th.ground.bg} map={grain} />}
       </mesh>
       {/* the grid is masked out over a tunnel's slot (stencil), so no grid line floats across it */}
-      {slots.map((_, i) => (
+      {th.ground.grid && slots.map((_, i) => (
         <mesh key={i} geometry={masks[i]} position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
           <meshBasicMaterial colorWrite={false} depthWrite={false} stencilWrite stencilRef={1} stencilFunc={THREE.AlwaysStencilFunc} stencilZPass={THREE.ReplaceStencilOp} />
         </mesh>
       ))}
-      <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...SCENE.grid]} position={[0, -0.01, 0]} renderOrder={1}
-        material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />
+      {th.ground.grid && <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...th.ground.grid]} position={[0, -0.01, 0]} renderOrder={1}
+        material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />}
       {children}
     </>
   )
@@ -135,6 +138,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   crossings: CrossingStyle; avoidCrossings: AvoidCrossings; onEdgeStats?: (s: EdgeStats) => void
 }) {
   const { camera, gl, raycaster } = useThree()
+  const th = useTheme()
   // per canvas, so instances on one page never touch each other's cursor
   const setCursor = (c: string) => { gl.domElement.style.cursor = c }
   const [ver, setVer] = useState(0)
@@ -246,7 +250,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
         </NodeLift>
       })}
       {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} /> : null)}
-      {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? trayColor(boxes.get(s.tray)!.level) : SCENE.bg} y={s.tray ? 0 : -0.02} />)}
+      {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? th.tray.colors[Math.min(boxes.get(s.tray)!.level, 2)] : th.ground.bg} y={s.tray ? 0 : -0.02} />)}
       {portalList.length > 0 && <PortalSystem pairs={portalList} deps={[plans, hover]} />}
       </Env>
     </>
@@ -315,9 +319,11 @@ export interface SceneViewProps {
   avoidCrossings?: AvoidCrossings
   /** Called whenever the edges are planned (a new layout, a drag frame, a new style) with counts and the time it took. */
   onEdgeStats?: (s: EdgeStats) => void
+  /** The look: tokens for colours, materials, labels and lines. Default Classic. */
+  theme?: Theme
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats }: SceneViewProps) {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats, theme = CLASSIC }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [own] = useState(createCamera)
   const c = camera ?? own
@@ -325,13 +331,15 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
   useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
   return (
     <>
-      <Canvas shadows dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
-        <color attach="background" args={[SCENE.bg]} />
+      <Canvas shadows={theme.light.shadows} flat={!theme.light.toneMapping} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
+        <color attach="background" args={[theme.ground.bg]} />
+        <ThemeProvider theme={theme} key={theme.name + JSON.stringify(theme).length}>
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
         <Rig cam={c} fpsRef={fpsRef} />
         {data && ('kind' in data
           ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
           : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
+        </ThemeProvider>
       </Canvas>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
     </>

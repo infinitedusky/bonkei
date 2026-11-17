@@ -5,14 +5,14 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Text } from '@react-three/drei'
 import { SLOT_W, type EdgePlan, type P3, type PortalPair, type Slot } from './edges3d.ts'
-import { SCENE } from './palette'
+import { useTheme, fontUrl } from './look'
 import { TEXT_LAYER } from './scale.ts'
 import type { LabelMode } from './model'
 
-const PORTAL = '#3fa7ff'
 const v3 = ([x, z, y]: P3) => new THREE.Vector3(x, y, z)
 
 export function Edge({ plan, label, labelMode }: { plan: EdgePlan; label?: string; labelMode: LabelMode }) {
+  const th = useTheme()
   const parts = plan.parts.map(p => p.map(v3))
   const last = parts[parts.length - 1]
   const n = last.length
@@ -28,13 +28,13 @@ export function Edge({ plan, label, labelMode }: { plan: EdgePlan; label?: strin
   }
   return (
     <group>
-      {lines.map((l, i) => <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={SCENE.edge} lineWidth={2} />)}
+      {lines.map((l, i) => <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={th.edge.color} lineWidth={th.edge.width} />)}
       <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
         <coneGeometry args={[0.13, 0.4, 16]} />
-        <meshBasicMaterial color={SCENE.edge} />
+        <meshBasicMaterial color={th.edge.color} />
       </mesh>
       {label && (
-        <Text layers={TEXT_LAYER as any} position={[at.x, at.y + (labelMode === 'top' ? 0.02 : 0.4), at.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} fontSize={0.22} color={SCENE.label} outlineWidth={0.02} outlineColor="#000">{label}</Text>
+        <Text layers={TEXT_LAYER as any} position={[at.x, at.y + (labelMode === 'top' ? 0.02 : 0.4), at.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} font={fontUrl(th)} fontSize={0.22} color={th.edge.label} outlineWidth={0.02} outlineColor={th.edge.labelOutline}>{label}</Text>
       )}
     </group>
   )
@@ -103,8 +103,8 @@ const MIN_PX = 24 // smaller than this on screen: a tint
 const MIN_H = 64 // no target is shorter than this
 const SETTLE = 45 // frames to keep drawing after something changed
 
-const mouthMat = () => new THREE.ShaderMaterial({
-  uniforms: { tex: { value: null }, rect: { value: new THREE.Vector4() }, tint: { value: new THREE.Color(SCENE.bg) }, plain: { value: 1 } },
+const mouthMat = (bg: string) => new THREE.ShaderMaterial({
+  uniforms: { tex: { value: null }, rect: { value: new THREE.Vector4() }, tint: { value: new THREE.Color(bg) }, plain: { value: 1 } },
   vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   // the target is sRGB, so sampling decodes to linear; encode back on output or the view comes out too dark.
   // The texture holds only the mouth's screen rectangle `rect` (x, y, w, h in drawing-buffer pixels).
@@ -130,6 +130,8 @@ export interface PortalStats { visible: number; tinted: number; passes: number; 
 // through a is the main camera shifted by (b - a), clipped at b's plane; and the reverse for b. Any axis, either way.
 // `deps` changes whenever something in the scene moved (the plans, the hover).
 export function PortalSystem({ pairs, deps }: { pairs: PortalPair[]; deps: unknown[] }) {
+  const th = useTheme()
+  const PORTAL = th.edge.portal
   const { gl, scene, camera } = useThree()
   const size = useMemo(() => new THREE.Vector2(), [])
   const virt = useMemo(() => new THREE.PerspectiveCamera(), [])
@@ -142,10 +144,10 @@ export function PortalSystem({ pairs, deps }: { pairs: PortalPair[]; deps: unkno
     const side = (f: THREE.Vector3) => new THREE.Vector3(-f.z, 0, f.x)
     const base = { mesh: null, rt: null, rect: [0, 0, 0, 0], area: 0, on: false, plain: true, pending: true, last: -1e9, hidden: 0 }
     return [
-      { ...base, mat: mouthMat(), pos: a, face: d.clone().negate(), side: side(d.clone().negate()), shift: b.clone().sub(a), plane: new THREE.Plane(d.clone(), -d.dot(b)) },
-      { ...base, mat: mouthMat(), pos: b, face: d.clone(), side: side(d), shift: a.clone().sub(b), plane: new THREE.Plane(d.clone().negate(), d.dot(a)) },
+      { ...base, mat: mouthMat(th.ground.bg), pos: a, face: d.clone().negate(), side: side(d.clone().negate()), shift: b.clone().sub(a), plane: new THREE.Plane(d.clone(), -d.dot(b)) },
+      { ...base, mat: mouthMat(th.ground.bg), pos: b, face: d.clone(), side: side(d), shift: a.clone().sub(b), plane: new THREE.Plane(d.clone().negate(), d.dot(a)) },
     ] as Mouth[]
-  }), [pairs])
+  }), [pairs, th.ground.bg])
   useEffect(() => { st.current.settle = SETTLE; return () => mouths.forEach(m => { m.rt?.dispose(); m.mat.dispose() }) }, [mouths])
 
   useFrame(() => {

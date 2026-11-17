@@ -10,6 +10,7 @@ import { DEFAULTS, mergeOptions, resolveControls, type BonkeiError, type BonkeiO
 import type { GraphInput } from './model'
 import { instant, tracer } from './telemetry'
 import { UI } from './palette'
+import { themeByName, withVariables, type Theme } from './theme'
 
 /** What a mounted view can be told to do. */
 export interface BonkeiViewHandle {
@@ -198,6 +199,16 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     () => mergeOptions({ mode: props.mode, labels: props.labels, toolbar: props.toolbar, controls: props.controls, crossings: props.crossings, avoidCrossings: props.avoidCrossings }, prepared?.options),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [props.mode, props.labels, props.toolbar, props.crossings, props.avoidCrossings, ctlKey, prepared])
+  // The look: the theme prop over the frontmatter's config.theme, then config.themeVariables over that.
+  // A bad name in the frontmatter was already reported (with its line) when the source was prepared; one in the prop is reported here.
+  const themeKey = typeof props.theme === 'object' ? JSON.stringify(props.theme) : props.theme ?? ''
+  const { theme, problem } = useMemo(() => {
+    const fm = prepared?.theme ?? {}
+    const named = typeof props.theme === 'object' ? { theme: props.theme as Theme, problem: undefined } : themeByName(props.theme ?? fm.name)
+    return { theme: withVariables(named.theme, fm.variables).theme, problem: props.theme !== undefined ? named.problem : undefined }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themeKey, prepared])
+  useEffect(() => { if (problem) cbs.current.onWarning?.({ kind: 'theme', message: problem.message, line: 0 }) }, [problem])
   const resolvedKey = JSON.stringify(resolveControls(opts.controls))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const controls = useMemo(() => resolveControls(opts.controls), [resolvedKey])
@@ -270,7 +281,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   return (
     <div data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <SceneBoundary resetKey={prepared?.key ?? ''} onError={onRenderError}>
-        <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false}
+        <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false} theme={theme}
           controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} />
         {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit} crossings={crossings} onCrossings={pickCrossings} avoid={avoid} onAvoid={pickAvoid} />}
       </SceneBoundary>
