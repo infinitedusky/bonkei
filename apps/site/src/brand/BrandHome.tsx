@@ -34,6 +34,7 @@ const Still = ({ src, alt }: { src: string; alt: string }) => (
 
 export function BrandHome({ live }: { live?: boolean }) {
   const [showSrc, setShowSrc] = useState(false)
+  const [srcAll, setSrcAll] = useState(false) // phone: the source starts as a few lines
   return (
     <div className="site brand">
       <div className="site-wrap">
@@ -69,7 +70,10 @@ export function BrandHome({ live }: { live?: boolean }) {
           <h2>Keep the text. Get the scene.</h2>
           <p className="site-lead">Your diagrams already live in READMEs and docs as Mermaid. You don't have to move them into a drawing tool: the same text becomes a 3D scene.</p>
           <div className={'site-split' + (showSrc ? ' flash' : '')}>
-            <pre>{sample.replace(/^%%.*\n/, '')}</pre>
+            <div className="brand-src">
+              <pre className={srcAll ? '' : 'clamp'}>{sample.replace(/^%%.*\n/, '')}</pre>
+              <button className="brand-srcmore" onClick={() => setSrcAll(v => !v)}>{srcAll ? 'Show less' : 'Show all'}</button>
+            </div>
             <Still src="still-iso.png" alt="The flowchart from the source beside it, rendered isometrically" />
           </div>
           <div className="site-note">Edit the source, and the scene re-lays itself out as you type.</div>

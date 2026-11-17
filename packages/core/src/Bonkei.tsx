@@ -150,6 +150,7 @@ class SceneBoundary extends Component<{ resetKey: string; onError: (e: BonkeiErr
 export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(props, ref) {
   const { source } = props
   const [camera] = useState(createCamera)
+  camera.tight = props.fit === 'tight'
   const [prepared, setPrepared] = useState<(Prepared & { key: string }) | null>(null)
   const [error, setError] = useState<BonkeiError | null>(null)
   const [status, setStatus] = useState<Status>('loading')
@@ -257,6 +258,22 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
 
   useImperativeHandle(ref, () => ({ setMode: m => pick(m, 'handle'), fit }), [pick, fit])
 
+  // A tight fit follows its frame: when the container changes size (a window resized, a phone turned), frame the diagram again.
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = box.current
+    if (props.fit !== 'tight' || !el || typeof ResizeObserver === 'undefined') return
+    let t = 0, last = el.clientWidth + 'x' + el.clientHeight
+    const ro = new ResizeObserver(() => {
+      const now = el.clientWidth + 'x' + el.clientHeight
+      if (now === last) return
+      last = now
+      clearTimeout(t); t = window.setTimeout(() => { fit() }, 120)
+    })
+    ro.observe(el)
+    return () => { ro.disconnect(); clearTimeout(t) }
+  }, [props.fit, fit])
+
   const themeName = useRef(theme.name)
   themeName.current = theme.name
   const onFirstFrame = useCallback(() => {
@@ -281,7 +298,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   }, [])
 
   return (
-    <div data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
+    <div ref={box} data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <SceneBoundary resetKey={prepared?.key ?? ''} onError={onRenderError}>
         <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false} theme={theme}
           controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} />

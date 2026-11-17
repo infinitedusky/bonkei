@@ -28,29 +28,80 @@
 .brand .site-tag { background:var(--indigo); color:#f1e8d2 }
 .brand-try { position:absolute; top:14px; right:14px; z-index:3; font-size:12px; color:#9aa6c0; border:1px solid var(--scene-line); padding:4px 10px; border-radius:6px; background:#0b0e14cc; text-decoration:none }
 
-/* Themes section */
-.brand-themes { display:grid; grid-template-columns:230px 1fr; gap:22px; align-items:start }
+/* Themes section: the list and the frontmatter on the left, the scene and the origin note on the right */
+.brand-themes { display:grid; grid-template-columns:230px minmax(0,1fr); gap:22px; align-items:start }
+.brand-tleft, .brand-tright { min-width:0 }
 .brand-tlist { display:flex; flex-direction:column; gap:8px }
 .brand-tlist button { text-align:left; border:1.5px solid var(--line); background:var(--panel); border-radius:10px; padding:10px 12px; cursor:pointer; font:inherit; color:var(--text) }
 .brand-tlist button b { display:block; font:700 15px 'Zen Old Mincho', serif }
 .brand-tlist button span { font-size:12px; color:var(--mute) }
 .brand-tlist button[aria-pressed=true] { border-color:var(--sumi); background:#fbf6ea; box-shadow:0 2px 0 var(--sumi) }
 .brand-tlist button:disabled { opacity:.55; cursor:default }
-.brand-tcode { margin-top:14px; font-size:12px !important; padding:12px !important }
-.brand-tview { position:relative; border-radius:12px; overflow:hidden; border:1px solid var(--line); aspect-ratio:1180 / 500; background:var(--scene) }
-.brand-tview img { display:block; width:100%; height:100%; object-fit:cover }
-.brand-tmock { position:absolute; left:10px; bottom:10px; font-size:11px; background:#3b2f0b; color:#f5d77a; border-radius:4px; padding:1px 7px }
+.brand-tcodebox { margin-top:14px }
+.brand-tcodebox summary { display:none; cursor:pointer; font-size:13px; color:var(--dim); padding:4px 0 }
+.brand-tcode { font-size:12px !important; padding:12px !important }
+.brand-tview { position:relative; border-radius:12px; overflow:hidden; border:1px solid var(--line); aspect-ratio:1180 / 500; background:var(--bg) }
+.brand-tview canvas { touch-action:pan-y }
 .brand-origin { display:flex; gap:16px; align-items:center; margin-top:16px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px }
-.brand-origin img { width:200px; border-radius:3px; border:1px solid var(--line) }
+.brand-origin img { width:200px; flex:none; border-radius:3px; border:1px solid var(--line) }
 .brand-origin p { margin:0; font-size:13.5px; color:var(--dim) }
 .brand-origin small { display:block; color:var(--mute); font-size:11.5px; margin-top:6px }
-
-@media (max-width:760px) {
-  .brand-themes { grid-template-columns:1fr }
-  .brand-origin { flex-direction:column; align-items:flex-start }
-  .brand-origin img { width:100% }
-}
 
 .brand-tmodes { position:absolute; top:10px; right:10px; display:flex; gap:2px; padding:2px; background:#e2d5b8; border:1px solid #cdbd98; border-radius:8px }
 .brand-tmodes button { border:0; background:none; font:inherit; font-size:13px; padding:4px 12px; border-radius:6px; cursor:pointer; color:#4a4238 }
 .brand-tmodes button[aria-checked='true'] { background:#2A2622; color:#EFE6D0 }
+
+/* How it works: the source, which on a phone is a few lines with "show all" */
+.brand-src { min-width:0 }
+.brand-src pre { max-width:100% }
+.brand-srcmore { display:none }
+.brand .site-split > * { min-width:0 }
+.brand .site-final pre { max-width:100%; text-align:left }
+
+/* Tablet and below (1000, so a landscape 1024 tablet keeps the desktop layout): one column wherever two would be cramped */
+@media (max-width:1000px) {
+  .brand .site-wrap { padding:0 20px }
+  .brand h1 { font-size:44px }
+  .brand section { padding:56px 0 }
+  .brand .site-stage { height:400px }
+  .brand .site-split { grid-template-columns:1fr }
+  .brand .site-split .site-still { height:auto; object-fit:contain }
+  .brand .site-cards { grid-template-columns:repeat(2, minmax(0,1fr)) }
+  .brand .site-cards .site-card:last-child { grid-column:1 / -1 }
+  .brand .site-seq { grid-template-columns:1fr 1fr; gap:24px }
+
+  /* Themes: chips on top, the scene full width, the frontmatter under it */
+  .brand-themes { grid-template-columns:minmax(0,1fr); gap:14px }
+  .brand-tleft, .brand-tright { display:contents }
+  .brand-tlist { order:1; flex-direction:row; flex-wrap:wrap; gap:8px }
+  .brand-tlist button { padding:7px 14px; border-radius:99px }
+  .brand-tlist button b { display:inline; font-size:14px }
+  .brand-tlist button span { display:none }
+  .brand-tview { order:2; aspect-ratio:16 / 10 }
+  .brand-tcodebox { order:3; margin-top:0 }
+  .brand-origin { order:4; margin-top:0 }
+  .brand-tcodebox summary { display:block }
+}
+
+/* Phone */
+@media (max-width:760px) {
+  .brand h1 { font-size:34px }
+  .brand section { padding:44px 0 }
+  .brand .site-hero { padding:36px 0 16px }
+  .brand .site-sub { font-size:17px }
+  .brand .site-stage { height:240px; margin-top:28px }
+  .brand .site-stage-poster { object-fit:cover; object-position:50% 40% }
+  .brand .site-proof { gap:6px 16px; padding-top:20px }
+  .brand .site-proof span:nth-child(even) { display:none }
+  .brand .site-cards, .brand .site-seq, .brand .site-status { grid-template-columns:minmax(0,1fr) }
+  .brand .site-status { padding:20px }
+  .brand-src pre { font-size:12px; padding:14px }
+  .brand-src pre.clamp { max-height:210px; overflow:hidden; -webkit-mask-image:linear-gradient(#000 70%, transparent); mask-image:linear-gradient(#000 70%, transparent) }
+  .brand-srcmore { display:block; margin:8px auto 0; font:inherit; font-size:13px; padding:5px 14px; border:1.5px solid var(--sumi); border-radius:6px; background:none; color:var(--text); cursor:pointer }
+  .brand-tview { aspect-ratio:4 / 3 }
+  .brand-origin { flex-direction:column; align-items:flex-start }
+  .brand-origin img { width:100% }
+  .brand .site-final pre { font-size:12px; padding:14px; white-space:pre-wrap; word-break:break-all }
+  .brand .site-footer { justify-content:center; text-align:center }
+  .brand .site-footer .r { margin-left:0; width:100% }
+}

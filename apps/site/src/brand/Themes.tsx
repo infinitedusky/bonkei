@@ -21,9 +21,11 @@ export function Themes({ start = 'landscape', source = THEMES_DIAGRAM }: { start
   const [mode, setMode] = useState<Mode>('iso')
   const t = THEMES.find(x => x.id === on)!
   const text = `---\nconfig:\n  ${t.config}\n---\n${source}`
+  // below the phone breakpoint the frontmatter starts folded: the scene comes first
+  const [codeOpen, setCodeOpen] = useState(() => typeof matchMedia !== 'function' || !matchMedia('(max-width:760px)').matches)
   return (
     <div className="brand-themes">
-      <div>
+      <div className="brand-tleft">
         <div className="brand-tlist" role="group" aria-label="Theme">
           {THEMES.map(x => (
             <button key={x.name} disabled={!x.id} aria-pressed={x.id === on} onClick={() => x.id && setOn(x.id)}>
@@ -31,11 +33,14 @@ export function Themes({ start = 'landscape', source = THEMES_DIAGRAM }: { start
             </button>
           ))}
         </div>
-        <pre className="brand-tcode">{`---\nconfig:\n  ${t.config}\n---\nflowchart LR\n  ...`}</pre>
+        <details className="brand-tcodebox" open={codeOpen} onToggle={e => setCodeOpen((e.target as HTMLDetailsElement).open)}>
+          <summary>The frontmatter that picks this theme</summary>
+          <pre className="brand-tcode">{`---\nconfig:\n  ${t.config}\n---\nflowchart LR\n  ...`}</pre>
+        </details>
       </div>
-      <div>
+      <div className="brand-tright">
         <div className="brand-tview">
-          <Bonkei source={text} mode={mode} toolbar={false} />
+          <Bonkei source={text} mode={mode} toolbar={false} fit="tight" />
           <div className="brand-tmodes" role="radiogroup" aria-label="View">
             {(['flat', 'iso', '3d'] as const).map(m => <button key={m} role="radio" aria-checked={m === mode} onClick={() => setMode(m)}>{m === '3d' ? '3D' : m[0].toUpperCase() + m.slice(1)}</button>)}
           </div>
