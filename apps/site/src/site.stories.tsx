@@ -11,14 +11,14 @@ export default meta
 type Story = StoryObj<typeof Home>
 
 // The page's three states. `live` forces the gate so each story looks the same at any window size.
-export const Desktop: Story = { args: { live: true } }
+export const Desktop: Story = { args: { name: 'Bonkei', live: true } }
 
 export const Phone: Story = {
-  args: { live: false },
+  args: { name: 'Bonkei', live: false },
   globals: { viewport: { value: 'mobile2', isRotated: false } },
 }
 
-export const NoWebGL: Story = { args: { live: false } }
+export const NoWebGL: Story = { args: { name: 'Bonkei', live: false } }
 
 // The hero on its own, through the wrapper (poster, then the lazily loaded live scene fading in).
 const Wrap = ({ label, children }: { label: string; children: React.ReactNode }) => (

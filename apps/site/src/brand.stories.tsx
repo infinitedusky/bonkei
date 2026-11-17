@@ -48,8 +48,8 @@ export const Marks: StoryObj<typeof Logo> = {
       </div>
       <h2 style={{ marginTop: 40 }}>Lockups</h2>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-        <div className="site-card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}><Logo size={56} /><span style={{ font: '700 30px var(--serif)' }}>merman</span></div>
-        <div className="site-card" style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#14161c' }}><Logo size={56} /><span style={{ font: '700 30px var(--serif)', color: '#efe6d0' }}>merman</span></div>
+        <div className="site-card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}><Logo size={56} /><span style={{ font: '700 30px var(--serif)' }}>Bonkei</span></div>
+        <div className="site-card" style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#14161c' }}><Logo size={56} /><span style={{ font: '700 30px var(--serif)', color: '#efe6d0' }}>Bonkei</span></div>
       </div>
     </Page>
   ),

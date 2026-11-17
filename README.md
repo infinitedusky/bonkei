@@ -161,7 +161,7 @@ pnpm test         # unit tests: parser, options, prepare, camera, controls
 
 In dev, the viewer's plain page at http://localhost:5173/app/plain.html drives `render()` and its handle on a page with no React of its own.
 
-Public site: https://infinitedusky.github.io/merman/ (live after the first deploy). It deploys to GitHub Pages through `.github/workflows/pages.yml`. For now that workflow runs only when started by hand (`workflow_dispatch`), so merging to main publishes nothing.
+Public site: https://infinitedusky.github.io/merman/ (live after the first deploy). The site and the viewer are called Bonkei; the `/merman/` address stays until the domain is set. It deploys to GitHub Pages through `.github/workflows/pages.yml`. For now that workflow runs only when started by hand (`workflow_dispatch`), so merging to main publishes nothing.
 
 Two Vite apps, one Pages artifact: `apps/site` is the marketing site (`index.html`, code in `apps/site/src/`), and `apps/playground` is the viewer (`index.html`, `apps/playground/src/main.tsx`). `pnpm build` builds both and `scripts/assemble-pages.mjs` puts the site at `dist/` and the viewer at `dist/app/`; builds and `pnpm preview` serve them under `/merman/`. In dev they are served under `/`: the site's dev server proxies `/app` to the viewer's own server.
 

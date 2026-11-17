@@ -18,7 +18,7 @@ const FIRST_ISSUES = [
 ]
 
 const BASE = import.meta.env.BASE_URL
-const GH = 'https://github.com/infinitedusky/merman'
+const GH = 'https://github.com/infinitedusky/bonkei'
 
 const Ctas = () => (
   <div className="site-ctas">
@@ -35,7 +35,7 @@ const Still = ({ src, alt }: { src: string; alt: string }) => (
 // tray-landscape logo. The hero stays in the Classic look. `live`: true forces the live hero, false the poster, unset
 // auto-detects; `themesLive` the same for the Themes section's scene (unset: when it comes near the screen, with WebGL).
 // Keep this file free of static imports of the scene (SceneView, camera, layout, three): Hero and Themes lazy-load it.
-export function Home({ name = 'merman', live, themesLive }: { name?: string; live?: boolean; themesLive?: boolean }) {
+export function Home({ name = 'Bonkei', live, themesLive }: { name?: string; live?: boolean; themesLive?: boolean }) {
   const [showSrc, setShowSrc] = useState(false)
   const [srcAll, setSrcAll] = useState(false) // phone: the source starts as a few lines
   return (

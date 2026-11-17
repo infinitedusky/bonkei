@@ -1,7 +1,7 @@
 {
   "$schema": "https://zigbang.github.io/storybook-addon-story-flow/flow.schema.json",
-  "epic": "merman",
-  "title": "Merman/Map",
+  "epic": "bonkei",
+  "title": "Bonkei/Map",
   "nodes": [
     {
       "id": "site",

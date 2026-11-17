@@ -207,3 +207,13 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 **Telemetry.** New `bonkei.theme` span per look drawn (`bonkei.theme`, `.source` prop/frontmatter/default, `.requested`, `.variables`, `.unknown`); `bonkei.prepare` carries `bonkei.theme.requested` / `.variables` and a `bonkei.frontmatter_warning` event (with `bonkei.warning.kind`) per bad theme name or variable; `bonkei.first_frame` carries `bonkei.theme`.
 
 **Consequences.** Adding a look is a preset plus, for a new capability, a token. Known limits (follow-ups outside this task): the toolbar and error card stay dark on cream; forms are flat cut-outs from low angles; round bowls need a layout change.
+
+## 2026-11-17 — Site name: Bonkei (BON-116)
+
+**Context.** BON-116's brief listed renaming the site from merman as out of scope, so the brand build kept "merman" on the site. The approved mockup and prototype call it Bonkei everywhere; BON-122 corrects the brief.
+
+**Decision.** The visible name of the site and the viewer is **Bonkei**: the nav, hero copy and footer (`Home`'s `name` default), the page titles and `og:title`, the viewer's title, the brand stories, and the GitHub links' target (the repository is `infinitedusky/bonkei`). The GitHub Pages base `/merman/` (site) and `/merman/app/` (viewer), `assemble-pages.mjs` and `pages.yml` stay until the domain is set; `og.png`, the poster and the stills are not re-shot. This supersedes the "site's copy, its page titles ... stay as they are" line of "Names (BON-50)" for the name only; the `/merman/` base it kept still stays.
+
+**Alternatives considered.** Renaming the base path in the same change: it moves the public address, which waits on the domain.
+
+**Consequences.** The site says Bonkei while its address is still `/merman/`; the OG image and stills may still show the old name until they are re-shot.
