@@ -10,7 +10,23 @@ Bonkei turns Mermaid into one Three.js scene (Mermaid → ELK → react-three-fi
 
 ## Use it
 
-`bonkei` exports one component, one function and their types. It needs `react`, `react-dom` and `three` as peers (and `@opentelemetry/api`, see below).
+`bonkei` exports one component, one function and their types. It is an ESM package with TypeScript types; importing it runs nothing. Your app supplies `react`, `react-dom` (React 19: the same range React Three Fiber accepts, today `>=19 <19.4`) and `three`:
+
+```bash
+npm install bonkei react react-dom three
+```
+
+Nothing else: `@opentelemetry/api` comes with Bonkei, and a default Vite config works as it is (`examples/vite` is such an app). The layout engine (ELK) and the line router (`libavoid.wasm`) are fetched when the first diagram is laid out, not with the page. Bonkei finds the wasm beside its own module; if your bundler moves it (Vite 5's dev pre-bundling does), it falls back to a lazy chunk holding the same bytes. `setAvoidWasm(url)` from `bonkei/internal` points elsewhere.
+
+With a script tag and no build step, load `bonkei.global.js` (React, three and ELK inside) with `libavoid.wasm` in the same folder, and call `Bonkei.render(element, source, options)`:
+
+```html
+<div id="diagram" style="height:480px"></div>
+<script src="bonkei.global.js"></script>
+<script>Bonkei.render(document.getElementById('diagram'), 'flowchart LR\n  A --> B')</script>
+```
+
+Both files are in the package's `dist/`.
 
 With React:
 
@@ -110,13 +126,14 @@ A `Graph` works as a source too. `direction` and `groups` are optional (they def
 
 Sizing: Bonkei fills its container (`width: 100%; height: 100%`). Give the container a height; one with no height draws nothing and `onReady` does not fire. The root carries `data-bonkei="loading|ready|error"` for styling and tests.
 
-Telemetry: Bonkei emits OpenTelemetry spans through `@opentelemetry/api` when the page registers an SDK, and does nothing otherwise. The spans are `bonkei.prepare` (with a `bonkei.layout` child), `bonkei.first_frame`, `bonkei.mode_change`, `bonkei.node_click`, `bonkei.control` and `bonkei.render_error`.
+Telemetry: Bonkei emits OpenTelemetry spans through `@opentelemetry/api` when the page registers an SDK, and does nothing otherwise. The spans are `bonkei.prepare` (with a `bonkei.layout` child; under it `bonkei.elk.load` on the first layout and `bonkei.route`, with `bonkei.wasm.load` and its `bonkei.wasm.fallback` event when the inline copy was used), `bonkei.first_frame`, `bonkei.mode_change`, `bonkei.node_click`, `bonkei.control` and `bonkei.render_error`.
 
 ## Packages
 
 The repo is a pnpm workspace (`pnpm-workspace.yaml`); the root `bonkei-workspace` is a private shell.
 
-- `packages/core` — **`bonkei`**: the engine and its public API (`<Bonkei />`, `render()`). Private for now; it will be published later. Its other pieces (parser, layout, renderer, camera) are in `bonkei/internal`, which is internal and unstable.
+- `packages/core` — **`bonkei`**: the engine and its public API (`<Bonkei />`, `render()`), built by tsdown into `dist/` (ESM, types, the script-tag bundle). Private for now; it will be published later. The apps, Storybook and `examples/vite` use the built `dist/`, not the source.
+- `examples/vite` — a fresh `npm create vite` React app with `bonkei` added: what CI's smoke test installs the packed tarball into, and each PR's StackBlitz template on pkg.pr.new. Its other pieces (parser, layout, renderer, camera) are in `bonkei/internal`, which is internal and unstable.
 - `apps/playground` — **`@bonkei/playground`** (private): the viewer, its stories, Storybook and the screen map.
 - `apps/site` — **`@bonkei/site`** (private): the marketing site, its stills and OG images, and the capture page behind `pnpm capture`.
 
@@ -124,8 +141,11 @@ Both apps import the engine only through its public `bonkei` exports (stories ma
 
 ```bash
 pnpm install
-pnpm dev          # both apps: site at http://localhost:5173/, viewer at /app/
-pnpm build        # type-check everything, build both apps, assemble dist/ (site) + dist/app/ (viewer)
+pnpm dev          # core rebuilt on save (tsdown --watch) + both apps: site at http://localhost:5173/, viewer at /app/, script-tag page at /app/embed/
+pnpm build        # build core, type-check everything, build both apps, assemble dist/ (site) + dist/app/ (viewer)
+pnpm check:package # build core, then publint, are-the-types-wrong and the dist checks
+pnpm size         # build core, then the size budget (packages/core/.size-limit.mjs)
+pnpm smoke        # after building core: pack it, install into a clean examples/vite, draw under vite dev and preview, then the script-tag page
 pnpm preview      # serve the assembled dist/ under /merman/
 pnpm storybook    # stories: node shape, subgraph, full sample, sequence, site screens
 pnpm capture      # regenerate apps/site/public/*.png from the real scene (needs Chrome; CHROME_PATH to override)

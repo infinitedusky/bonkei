@@ -33,3 +33,16 @@ Run `pnpm --filter @bonkei/playground dev -- --port 6207` and open `http://local
 4. Pick **Crossings: Bridge / Tunnel / Portal** in the toolbar. The `(bridge/tunnel/portal drawn)` counts change to match, and the crossings are drawn in that style.
 5. Pick **flow: small (sample.mmd)** and **flow: checkout**. Repeat step 1. Every count is 0 and `length/direct` is 1.
 6. Pick **seq: login flow**. Sequence diagrams' lines don't change in this task and look as on main.
+
+# Manual test plan: Bonkei as an installable package (BON-52)
+
+In this order. The diagrams are made-up sample data.
+
+1. **Automated checks first.** `pnpm install`, then `pnpm check:package` (publint, are-the-types-wrong and `scripts/dist.test.mjs`: no errors), `pnpm test`, and `pnpm size` (five rows, each under its limit; the numbers match LOG.md, BON-52).
+2. **Smoke.** `pnpm smoke`. Look for `ok` on `current vite dev`, `current vite preview`, `vite 5 dev`, `vite 5 preview`, `script tag` and `script tag, wasm missing`. `npm install output lines about peers/warnings: none`, `installed: react 19.3.x`, `@opentelemetry/api in app dependencies: false`, `tsc passed`. The build lists `elk.bundled-*.js` apart from `index-*.js`. Screenshots are in the tmp folder it prints.
+3. **The playground on the built package.** `pnpm dev`, open http://localhost:5173/app/. A diagram draws; the readout shows no `ROUTING FELL BACK TO ELK`. In the network tab, `elk.bundled` and `libavoid.wasm` load only after the page, on the first layout. Edit `packages/core/src/Bonkei.tsx` (any visible text), reload: the change is there (tsdown rebuilt `dist/`).
+4. **The site.** http://localhost:5173/: the hero draws its diagram.
+5. **Script tag.** http://localhost:5173/app/embed/: one `<script>`, a diagram, and in the bottom-left `libavoid routed the lines in … ms`. http://localhost:5173/app/embed/no-wasm/: the diagram still draws, and the line says `libavoid did not load, ELK routes shown: …`.
+6. **Storybook.** `pnpm storybook` (or `pnpm --filter bonkei build && pnpm --filter @bonkei/playground storybook`). Script tag / Script Tag and Script Tag Wasm Missing show the two pages above. Any Bonkei story still draws.
+7. **A fresh app by hand.** `cd examples/vite && npm install ../../packages/core/<packed .tgz> && npm run dev`: the sample diagram draws.
+8. **On the PR** (needs the pkg.pr.new GitHub app, BON-109): the size-limit comment shows the five sizes; the pkg.pr.new comment's `npm i https://pkg.pr.new/...` line installs in a new Vite app and draws; its StackBlitz link opens `examples/vite` drawing a diagram; a new commit updates the comment.
