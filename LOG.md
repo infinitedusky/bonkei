@@ -171,3 +171,17 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - Gates or checkpoints for trays (tried in the prototype): many overlaps or failed routes.
 
 **Consequences.** At some, there are more crossings than with libavoid's own routes (47 against 16): the lines go straight instead of jogging round each other. The crossing styles exist to make those readable; strong is there for a viewer who prefers fewer crossings. Routing the first time costs ~1.8 s on 50 nodes at some (~0.3 s at off); a drag frame never pays the crossing cost or the re-route pass, so a drag can add crossings, and choosing the level again routes everything afresh.
+
+## 2026-11-16 — No line turns back (BON-102)
+
+**Context.** BON-100 left, on the 50-node sample, 2 lines doubling back at some (e0 Client → WAF, e39 OrderQ → NotifSvc) and 15 at strong, where `SLACK.strong = 0` let a line keep a sideways jog. Drag frames could turn a line back too.
+
+**Decision.**
+- **A block slides so its line can go direct** (`monotone.ts` `unblock`, called at the end of `layout.ts` `place`). A line with no monotone route at all (`canGoDirect` false) has to turn back whatever the router does. One of its two blocks is moved across the flow (x in TD, y in LR) by the smallest step, 4 px at a time and at most 240 px, that gives the line a direct route. The block has to stay 40 px inside its tray, keep ELK's edge-node gap from every other block and tray, and leave no other line without a direct route. `stats.slid` lists the blocks moved.
+- **ELK's cycle breaking is back to its default, GREEDY** (main's). Depth-first put Client below the Platform tray, under WAF's own tray.
+- **No level keeps a jog**: `SLACK` is Infinity at every level. Strong now means more rounds of rip-up and re-route (`REFINE_PASSES`: some 2, strong 4) at a higher crossing cost.
+- **Checks**: `apps/playground/scripts/routes.test.ts` (`pnpm --filter @bonkei/playground test`) holds the 50-node sample to this at every level and while a node is dragged. `drag-check.ts` counts frames that turn back, and counts apart the frames where the drop leaves no direct route.
+
+**Measured** (50-node sample, `route-metrics.ts`): doubling back 0 at off, some and strong. 0 through a block or foreign tray, 0 lying on top of each other, length / direct 1.00 (main 1.12). Crossings: off 96, some 52, strong 48. Drag (`drag-check.ts`, 168 frames): 0 through a block or tray, 0 turning back where a direct route exists. 13 frames turn back because the drop puts the target straight behind another block, where no route that avoids the block can be monotone.
+
+**Consequences.** Blocks can sit up to 240 px off where ELK put them. While a node is dragged, a line still turns back if the drop leaves no direct route. The drag never slides other blocks, because they would jump under the pointer.
