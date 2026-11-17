@@ -195,3 +195,34 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 **Alternatives considered.** Supporting React 18 and 19 together: Fiber 9 needs React 19 and Fiber 8 does not support it, so one peer range covering both would mean shipping against two Fiber majors.
 
 **Consequences.** Hosts still on React 18 cannot install Bonkei without upgrading, and a host on a React minor newer than Fiber supports gets a peer warning until Fiber catches up. The upgrade is done inside BON-52, before the build is measured for the size budget.
+
+## 2026-11-17 — bonkei is a package you can install (BON-52)
+
+**Context.** `bonkei` pointed at `src/*.ts`, so only this repo could use it. BON-52 makes it installable into a fresh React 19 app and a plain HTML page, with types, the layout engine out of the main download and a size budget.
+
+**Decision.**
+- **Build: tsdown** (`packages/core/tsdown.config.ts`). ESM + `.d.ts` for `.` and `./internal` (as BON-51 defined them), the `exports` map written by tsdown, `sideEffects: false` (nothing runs on import), `files: ["dist"]`, publint and are-the-types-wrong run in the build and in CI (`pnpm check:package`). `private: true` stays (no npm publish yet). A second build makes `dist/bonkei.global.js`, an IIFE with React, React DOM, three and everything else inside (`Bonkei.render(el, source)`). `scripts/finish-build.mjs` copies the wasm beside the output (a real file, not the `src` symlink) and renames the IIFE.
+- **React 19, Fiber's range.** `react` / `react-dom` peers `>=19 <19.4` (Fiber 9.8.2's), `three >=0.170`; Fiber ^9.8.2 and drei ^10.7.9 stay dependencies. The apps stay on Vite 5.
+- **OpenTelemetry**: `@opentelemetry/api` is a **dependency**, not an optional peer. It is 1.9, tiny, and uses a global singleton, so a host's own copy and ours cooperate; an optional peer would need a no-op fallback in every file that traces. A host installs nothing extra and gets no warning.
+- **ELK loads on the first layout**: `layout()` does `await import('elkjs/lib/elk.bundled.js')`, so a host bundler makes it a chunk of its own (Vite build: `elk.bundled-*.js`, 1.4 MB, 440 kB gzip). No worker.
+- **Where the wasm is found.** ES module in a host's build: `new URL('./libavoid.wasm', import.meta.url)`, which Vite, webpack and Rollup turn into an asset. Script tag (no `import.meta.url`): `libavoid.wasm` beside the script that loaded it, from `document.currentScript` read at load. **Vite 5 dev**: its pre-bundling moves the module to `.vite/deps/`, so the URL is a 404; `loadAvoid()` then falls back to the same bytes from a lazy chunk (`_libavoid-inline-*.js`, base64, never fetched otherwise). A host needs no `optimizeDeps` setting. (Vite 7, which `create-vite` installs today, rewrites the URL itself and never needs the fallback.) `setAvoidWasm(url)` still overrides.
+- **Apps on the built package.** `bonkei` resolves to `packages/core/dist` for the playground, the site and Storybook. `pnpm build` and `pnpm storybook` build core first. `pnpm dev` builds core, then runs `tsdown --watch --no-clean` beside the apps (a change in core is rebuilt in about a second and the playground's page picks it up). Node tests and scripts still import `src` directly.
+- **One example app, two uses.** `examples/vite` is the host app: the smoke test copies it clean, installs the **packed tarball** (`pnpm pack`) with npm and checks it under `vite dev` and `vite build` + `preview`; pkg.pr.new opens it in StackBlitz as the PR's template. `.github/workflows/ci.yml`: typecheck, tests, build + publint + attw, both smoke tests (Playwright's bundled Chromium), size-limit through `andresz1/size-limit-action`, and the pkg.pr.new publish. pkg-pr-new skips `"private": true` packages without a word, so that job removes the flag in its own checkout (`npm pkg delete private`); the repo keeps it.
+
+**Measured and budgets** (size-limit 14, gzip, 1 kB = 1024 bytes, react / react-dom / three ignored; `packages/core/.size-limit.mjs`):
+
+| What | Measured | Budget | Headroom |
+|---|---|---|---|
+| main chunk, a host importing `{ Bonkei }` (ELK, React, three out) | 179.3 kB | 190 kB | 6% |
+| ELK chunk (`elk.bundled.js`) | 470.0 kB | 480 kB | 2% (elkjs is pinned by the range; an update is a decision) |
+| `libavoid.wasm` | 178.7 kB | 183 kB | 2% (a file we do not change) |
+| wasm fallback chunk (base64, fetched only if the file is missing) | 242.7 kB | 255 kB | 5% |
+| script-tag bundle `bonkei.global.js` (everything inside, ELK too) | 844.7 kB | 880 kB | 4% |
+
+Adding 30 kB of random data to the main chunk made the check fail: 209.7 kB, "exceeded by 19.71 kB".
+
+**Script-tag wasm options** (gzip / brotli): beside the bundle (chosen): bundle 845 / 651 kB + `libavoid.wasm` 179 / 146 kB fetched separately; inlined as base64: one file of 1089 / 851 kB, +244 / +200 kB, and the wasm is parsed from a data URL. Chosen: beside the bundle; `setAvoidWasm` for a host that cannot put the file next to the script.
+
+**Telemetry.** Still no channel of its own. A failed wasm load shows as `routingError` in `onEdgeStats` and the `bonkei.route.fallback` event on the `bonkei.route` span; the diagram still draws with ELK's routes (checked from the built package, Vite dev and the global bundle). `bonkei.route` now also carries `bonkei.elk_load_ms`, `bonkei.wasm_load_ms` and `bonkei.wasm_source` (`url`, `set` or `inline`).
+
+**Consequences.** Hosts on React 18, or on a React minor Fiber does not allow yet, get a peer warning. The package carries the 243 kB fallback chunk in its tarball (1.16 MB packed). In Vite 5 dev the first layout logs one 404 for the wasm before the fallback. The PR comment and the StackBlitz link can only be seen on a real PR once the pkg.pr.new GitHub app is installed (BON-109).
