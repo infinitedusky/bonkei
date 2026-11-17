@@ -31,9 +31,12 @@ export async function check(url, { label, expectElkRequest = true, shot } = {}) 
   const wasmReq = requests.filter(u => /\.wasm(\?|$)|^data:application\/wasm/.test(u))
   if (!wasmReq.length) fails.push('no wasm request')
   if (expectElkRequest && !requests.some(u => /elk/i.test(u))) fails.push('no ELK chunk request')
+  // which path found the wasm: the lazy base64 chunk was fetched (inline), or the file itself was (url)
+  const wasmSource = requests.some(u => /_libavoid-inline/.test(u)) ? 'inline (lazy base64 chunk)' : 'url (libavoid.wasm file)'
   console.log(`[${label}] ${fails.length ? 'FAIL' : 'ok'}: canvas=${canvas} routingError=${stats?.routingError} routerBuildMs=${stats?.routerBuildMs?.toFixed?.(1)} routeMs=${stats?.routeMs?.toFixed?.(1)} firstStats=${ms}ms`)
+  console.log(`[${label}] wasm found via: ${wasmSource}`)
   console.log(`[${label}] loaded:`, JSON.stringify(timing), 'wasm url:', wasmReq.map(u => u.replace(/^https?:\/\/[^/]+/, '')))
   if (errors.length) console.log(`[${label}] console errors:`, errors.slice(0, 3))
   if (fails.length) { console.error(`[${label}] ${fails.join('; ')}`); process.exitCode = 1 }
-  return { stats, requests, timing, fails }
+  return { stats, requests, timing, fails, wasmSource }
 }
