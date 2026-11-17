@@ -141,3 +141,13 @@ test('a failure sets status ERROR with the error kind and line', async () => {
   assert.equal(p.attributes['bonkei.error.line'], 1)
   assert.equal(spans('bonkei.layout').length, 0)
 })
+
+test('the theme a diagram names is handed on with the layout, and its frontmatter warnings are traced with their kind', async () => {
+  const p = await prepare('---\nconfig:\n  theme: nope\n  themeVariables:\n    edge.flat: true\n---\nflowchart TD\nA --> B')
+  assert.deepEqual(p.theme, { name: 'nope', variables: { 'edge.flat': true } })
+  assert.deepEqual(p.warnings.map(w => [w.kind, w.line]), [['theme', 3]])
+  const [span] = spans('bonkei.prepare')
+  assert.equal(span.attributes['bonkei.theme.requested'], 'nope')
+  assert.equal(span.attributes['bonkei.theme.variables'], 1)
+  assert.deepEqual(span.events.map(e => [e.name, e.attributes?.['bonkei.warning.kind']]), [['bonkei.frontmatter_warning', 'theme']])
+})

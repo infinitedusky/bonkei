@@ -4,12 +4,13 @@ import { SpanStatusCode } from '@opentelemetry/api'
 import { SceneView, type EdgeStats } from './SceneView'
 import { CROSSING_STYLES, type CrossingStyle } from './edges3d.ts'
 import { AVOID_CROSSINGS, type AvoidCrossings } from './avoid.ts'
-import { createCamera, type Mode } from './camera'
+import { createCamera, biggestTray, type Mode } from './camera'
 import { prepare, isBonkeiError, type Prepared, type PrepareError } from './diagram'
 import { DEFAULTS, mergeOptions, resolveControls, type BonkeiError, type BonkeiOptions, type BonkeiWarning, type ModeChange, type NodeClick } from './options'
 import type { GraphInput } from './model'
 import { instant, tracer } from './telemetry'
 import { UI } from './palette'
+import { resolveTheme, themeByName } from './theme'
 
 /** What a mounted view can be told to do. */
 export interface BonkeiViewHandle {
@@ -149,6 +150,8 @@ class SceneBoundary extends Component<{ resetKey: string; onError: (e: BonkeiErr
 export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(props, ref) {
   const { source } = props
   const [camera] = useState(createCamera)
+  camera.tight = props.fit === 'tight'
+  camera.minLabel = props.minLabelPx ?? 0
   const [prepared, setPrepared] = useState<(Prepared & { key: string }) | null>(null)
   const [error, setError] = useState<BonkeiError | null>(null)
   const [status, setStatus] = useState<Status>('loading')
@@ -198,6 +201,24 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     () => mergeOptions({ mode: props.mode, labels: props.labels, toolbar: props.toolbar, controls: props.controls, crossings: props.crossings, avoidCrossings: props.avoidCrossings }, prepared?.options),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [props.mode, props.labels, props.toolbar, props.crossings, props.avoidCrossings, ctlKey, prepared])
+  // The look: the theme prop over the frontmatter's config.theme, then config.themeVariables over that (resolveTheme).
+  // A bad name or variable in the frontmatter was reported with its line when the source was read; a bad name in the prop is reported here.
+  const themeKey = typeof props.theme === 'object' ? JSON.stringify(props.theme) : props.theme ?? ''
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const look = useMemo(() => resolveTheme(props.theme, prepared?.theme), [themeKey, prepared?.theme])
+  const theme = look.theme
+  // one event per look a diagram is drawn in: which theme, asked for how, and whether the name was known
+  const lookKey = prepared ? `${look.source}|${look.requested ?? ''}|${JSON.stringify(theme)}` : ''
+  useEffect(() => {
+    if (!lookKey) return
+    const unknown = look.problem !== undefined || (look.source === 'frontmatter' && themeByName(look.requested).problem !== undefined)
+    instant('bonkei.theme', {
+      'bonkei.theme': theme.name, 'bonkei.theme.source': look.source, 'bonkei.theme.requested': look.requested ?? '',
+      'bonkei.theme.variables': look.variables, 'bonkei.theme.unknown': unknown,
+    })
+    if (look.problem) cbs.current.onWarning?.({ kind: 'theme', message: look.problem.message, line: 0 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookKey])
   const resolvedKey = JSON.stringify(resolveControls(opts.controls))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const controls = useMemo(() => resolveControls(opts.controls), [resolvedKey])
@@ -239,20 +260,47 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     pick(declared, 'prop')
   }, [declared, prepared, camera, pick])
 
+  // Fit: the whole diagram (even when labels would be small). frame(): the opening view, which keeps labels readable when asked.
   const fit = useCallback(() => {
     const p = preparedRef.current
-    if (p) camera.fit(p.data.width, p.data.height)
+    if (!p) return
+    camera.whole = true
+    camera.fit(p.data.width, p.data.height)
+  }, [camera])
+  const frame = useCallback(() => {
+    const p = preparedRef.current
+    if (!p) return
+    camera.whole = false
+    camera.fit(p.data.width, p.data.height, 'boxes' in p.data && camera.minLabel > 0 ? biggestTray(p.data.boxes, p.data.width, p.data.height) : undefined)
   }, [camera])
 
   useImperativeHandle(ref, () => ({ setMode: m => pick(m, 'handle'), fit }), [pick, fit])
 
+  // A tight fit follows its frame: when the container changes size (a window resized, a phone turned), frame the diagram again.
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = box.current
+    if (props.fit !== 'tight' || !el || typeof ResizeObserver === 'undefined') return
+    let t = 0, last = el.clientWidth + 'x' + el.clientHeight
+    const ro = new ResizeObserver(() => {
+      const now = el.clientWidth + 'x' + el.clientHeight
+      if (now === last) return
+      last = now
+      clearTimeout(t); t = window.setTimeout(() => { frame() }, 120)
+    })
+    ro.observe(el)
+    return () => { ro.disconnect(); clearTimeout(t) }
+  }, [props.fit, frame])
+
+  const themeName = useRef(theme.name)
+  themeName.current = theme.name
   const onFirstFrame = useCallback(() => {
     const p = preparedRef.current
     if (!p) return
     setStatus(s => s === 'loading' ? 'ready' : s)
     instant('bonkei.first_frame', {
       'bonkei.nodes': p.ready.nodes, 'bonkei.edges': p.ready.edges,
-      'bonkei.dropped': p.ready.dropped, 'bonkei.layout_ms': p.ready.layoutMs,
+      'bonkei.dropped': p.ready.dropped, 'bonkei.layout_ms': p.ready.layoutMs, 'bonkei.theme': themeName.current,
     }, acceptedAt.current)
     cbs.current.onReady?.({ ...p.ready })
   }, [])
@@ -268,9 +316,9 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   }, [])
 
   return (
-    <div data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
+    <div ref={box} data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <SceneBoundary resetKey={prepared?.key ?? ''} onError={onRenderError}>
-        <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false}
+        <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false} theme={theme}
           controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} />
         {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit} crossings={crossings} onCrossings={pickCrossings} avoid={avoid} onAvoid={pickAvoid} />}
       </SceneBoundary>

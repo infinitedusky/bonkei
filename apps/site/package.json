@@ -9,6 +9,7 @@
     "capture": "node scripts/capture-stills.mjs"
   },
   "dependencies": {
+    "@fontsource/zen-old-mincho": "^5.3.1",
     "bonkei": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

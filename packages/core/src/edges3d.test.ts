@@ -287,3 +287,16 @@ test('a line that runs along the side of a tray stays at its own height until it
   assert.ok(Math.abs((8 - up[0]) + 0.3 - STEP_OFFSET) < 1e-9, `step at x ${up[0]}`)
   for (let k = 0; k < i; k++) assert.equal(l[k][2], endHeight(a), 'low until the step')
 })
+
+test('flatLine lies on each surface and climbs a tray wall in a riser outside it, never through the tray', async () => {
+  const { flatLine } = await import('./edges3d.ts')
+  const tray = { id: 't', kind: 'group' as const, x0: 2, z0: -5, x1: 6, z1: 5, level: 0, tray: 0.4 }
+  const out = flatLine([[0, 0, 0.35], [4, 0, 0.35]], [tray])
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-9
+  assert.ok(near(out[0][2], 0.02))
+  const rise = out.filter(p => near(p[0], 1.98)).map(p => p[2])
+  assert.ok(rise.length === 2 && near(rise[0], 0.02) && near(rise[1], 0.42)) // up the wall, 0.02 outside it
+  assert.ok(near(out[out.length - 1][2], 0.42))
+  for (const p of out) assert.ok(p[0] <= 2 ? near(p[2], 0.02) || near(p[2], 0.42) : near(p[2], 0.42))
+})
+
