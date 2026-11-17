@@ -10,7 +10,7 @@
 import { AvoidLib } from 'libavoid-js'
 import type { Avoid, Router, ShapeRef, ConnRef } from 'libavoid-js'
 import type { Box, LayoutResult, Route } from './model.ts'
-import { straighten } from './monotone.ts'
+import { straighten, type StraightenCache } from './monotone.ts'
 
 export interface AvoidTune {
   /** Space kept between a line and a block it passes (px of layout). */
@@ -27,8 +27,10 @@ export interface AvoidTune {
   gap: number
   /** Thickness of a tray's wall obstacle. */
   wall: number
+  /** Give a line that libavoid sends back on itself, or through a foreign tray, the direct route (monotone.ts). Off only to compare. */
+  straighten: boolean
 }
-export const TUNE: Readonly<AvoidTune> = Object.freeze({ buffer: 10, nudge: 10, segment: 10, reverse: 200, dragCrossing: 0, gap: 36, wall: 4 })
+export const TUNE: Readonly<AvoidTune> = Object.freeze({ buffer: 10, nudge: 10, segment: 10, reverse: 200, dragCrossing: 0, gap: 36, wall: 4, straighten: true })
 
 /** How hard the router tries not to cross lines. The cost is paid when the lines are routed (about 1 s on 50 nodes at 'some'); a drag frame always routes without it. */
 export const AVOID_CROSSINGS = ['off', 'some', 'strong'] as const
@@ -237,6 +239,7 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
     },
     dispose() { router.delete() },
   }
+  const cache: StraightenCache = new Map()
   const read = () => {
     const failed: string[] = []
     const routed = base.map(r => {
@@ -250,7 +253,7 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
       if (dt) pts.push(sideMid(byId.get(r.to)!, dt))
       return { ...r, points: tidy(pts) }
     })
-    const s = straighten([...byId.values()], routed, tune.buffer, CROSSING_COST[level])
+    const s = tune.straighten ? straighten([...byId.values()], routed, tune.buffer, CROSSING_COST[level], Infinity, cache) : { routes: routed, changed: 0, forced: 0 }
     out.routes = s.routes
     out.stats.failed = failed
     out.stats.straightened = s.changed

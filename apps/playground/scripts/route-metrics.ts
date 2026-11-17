@@ -2,7 +2,7 @@
 // they do not enter, lines lying on top of each other, crossings, doubling back, bends, length / direct.
 // LAYOUT=<path to a layout.ts> measures another checkout's layout (e.g. main's or BON-85's) for comparison; it must sit beside its parser.ts.
 //   pnpm --filter @bonkei/playground exec node --experimental-strip-types scripts/route-metrics.ts
-// V=1 lists the ids. TUNE='{"reverse":50}' overrides the libavoid settings (this checkout only).
+// V=1 lists the ids. LEVEL=off|some|strong sets the crossing avoidance.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
@@ -10,7 +10,6 @@ import { dirname } from 'node:path'
 const layoutPath = process.env.LAYOUT ?? fileURLToPath(new URL('../../../packages/core/src/layout.ts', import.meta.url))
 const mod = await import(layoutPath)
 const { layout } = mod
-if (process.env.TUNE) { const a = await import(dirname(layoutPath) + '/avoid.ts').catch(() => null); if (a) Object.assign(a.TUNE, JSON.parse(process.env.TUNE)) }
 const { parse } = await import(dirname(layoutPath) + '/parser.ts')
 const dir = fileURLToPath(new URL('../src/', import.meta.url))
 const ts = readFileSync(dir + 'samples.ts', 'utf8')
@@ -85,7 +84,7 @@ export const show = (m: ReturnType<typeof metrics>) =>
 if (process.argv[1]?.endsWith("route-metrics.ts") && !process.env.NOMAIN) {
   for (const [name, src] of Object.entries(samples)) {
     const t0 = performance.now()
-    const r = await layout(parse(src))
+    const r = await layout(parse(src), process.env.LEVEL ? { avoidCrossings: process.env.LEVEL } : undefined)
     const m = metrics(r)
     console.log(`${name} (${m.routes} edges): ${show(m)}; ${Math.round(performance.now() - t0)} ms${r.stats?.route ? `; libavoid failed ${r.stats.route.failed.length}${r.stats.route.error ? ', ERROR ' + r.stats.route.error : ''}` : ''}`)
     if (process.env.V) console.log('  back:', m.backIds.join(' '), '| block:', m.throughIds.join(' '), '| tray:', m.trayIds.join(' '))

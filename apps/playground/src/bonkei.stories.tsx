@@ -117,6 +117,24 @@ export const NoToolbar: Story = {
   ),
 }
 
+/** BON-100: the toolbar's crossing style (No hop / Bridge / Tunnel / Portal, default No hop) and Avoid crossings (off / some / strong, default some). A made-up diagram whose lines cross. */
+export const CrossingStyles: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="made-up lines that cross: pick a crossing style and how hard lines avoid crossing"><Bonkei source={'flowchart TD\n  A --> C\n  A --> D\n  B --> C\n  B --> D\n  A --> E\n  B --> E'} avoidCrossings="off" /></Box>
+    </div>
+  ),
+}
+
+/** BON-100: frontmatter sets crossings: tunnel and avoidCrossings: strong; the toolbar starts on those. */
+export const CrossingsInFrontmatter: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="frontmatter: crossings tunnel, avoidCrossings strong"><Bonkei source={'---\nconfig:\n  bonkei:\n    crossings: tunnel\n    avoidCrossings: strong\n---\nflowchart TD\n  A --> C\n  A --> D\n  B --> C\n  B --> D'} /></Box>
+    </div>
+  ),
+}
+
 /** Frontmatter sets config.bonkei: mode flat, labels billboard, toolbar false. */
 export const OptionsInFrontmatter: Story = {
   render: () => (

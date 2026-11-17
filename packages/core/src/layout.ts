@@ -91,8 +91,7 @@ async function place(g: Graph): Promise<LayoutResult> {
       'elk.json.edgeCoords': 'ROOT',
       ...SPACING,
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
-      'elk.layered.cycleBreaking.strategy': 'GREEDY',
-      'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+      'elk.layered.cycleBreaking.strategy': 'DEPTH_FIRST',
       'elk.padding': '[top=40,left=40,bottom=40,right=40]',
     },
   }

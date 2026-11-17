@@ -119,13 +119,10 @@ function corners(cells: Pt[]): Pt[] {
 
 // Cheapest path from p (leaving along np) to q (arriving against nq). Without `bounds`: monotone, only moves towards q inside
 // [p, q]'s box, visited in order. With `bounds`: any move within them (never straight back), by Dijkstra. No bend within STUB of either end.
-function search(p: Pt, q: Pt, np: Pt, nq: Pt, obstacles: Rect[], others: Seg[], bounds: Rect | null, cross: number): { pts: Pt[]; cost: number } | null {
-  const lo: Pt = bounds ? [bounds.x0, bounds.y0] : [Math.min(p[0], q[0]), Math.min(p[1], q[1])]
-  const hi: Pt = bounds ? [bounds.x1, bounds.y1] : [Math.max(p[0], q[0]), Math.max(p[1], q[1])]
+type Grid = NonNullable<ReturnType<typeof grid>>
+function search(p: Pt, q: Pt, np: Pt, nq: Pt, obstacles: Rect[], G: Grid, bounds: Rect | null): { pts: Pt[]; cost: number } | null {
   // the start and end must not be buried in an obstacle (a block standing on a side midpoint)
   if (obstacles.some(o => inside(p[0] + np[0] * 0.5, p[1] + np[1] * 0.5, o) || inside(q[0] + nq[0] * 0.5, q[1] + nq[1] * 0.5, o))) return null
-  const G = grid(lo, hi, [p, q, [p[0] + np[0] * STUB, p[1] + np[1] * STUB], [q[0] + nq[0] * STUB, q[1] + nq[1] * STUB]], obstacles, others, cross)
-  if (!G) return null
   const { xs, ys, X, Y, hc, vc, index } = G
   const i0 = index(xs, p[0]), j0 = index(ys, p[1]), i1 = index(xs, q[0]), j1 = index(ys, q[1])
   if (i0 < 0 || j0 < 0 || i1 < 0 || j1 < 0) return null
@@ -189,6 +186,13 @@ function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds:
   const A = by.get(r.from), B = by.get(r.to)
   if (!A || !B || A === B) return null
   const obstacles = obstaclesOf(boxes, r, buffer)
+  // one grid for every pair of sides: it holds all eight side midpoints and their stubs
+  const ends: Pt[] = []
+  for (const [b, sides] of [[A, SIDES], [B, SIDES]] as const) for (const sd of sides) { const m = mid(b, sd), n = NORMAL[sd]; ends.push(m, [m[0] + n[0] * STUB, m[1] + n[1] * STUB]) }
+  const lo: Pt = bounds ? [bounds.x0, bounds.y0] : [Math.min(...ends.map(e => e[0])), Math.min(...ends.map(e => e[1]))]
+  const hi: Pt = bounds ? [bounds.x1, bounds.y1] : [Math.max(...ends.map(e => e[0])), Math.max(...ends.map(e => e[1]))]
+  const G = grid(lo, hi, ends, obstacles, others, cross)
+  if (!G) return null
   let best: { pts: Pt[]; cost: number } | null = null
   for (const sa of SIDES) for (const sb of SIDES) {
     const p = mid(A, sa), q = mid(B, sb), np = NORMAL[sa], nq = NORMAL[sb]
@@ -198,7 +202,7 @@ function bestOver(boxes: Box[], r: Route, others: Seg[], buffer: number, bounds:
       if ((np[0] && np[0] !== dx) || (np[1] && np[1] !== dy)) continue
       if ((nq[0] && -nq[0] !== dx) || (nq[1] && -nq[1] !== dy)) continue
     }
-    const found = search(p, q, np, nq, obstacles, others, bounds, cross)
+    const found = search(p, q, np, nq, obstacles, G, bounds)
     if (found && (!best || found.cost < best.cost)) best = found
   }
   return best?.pts ?? null
@@ -209,11 +213,36 @@ export function monotoneRoute(boxes: Box[], r: Route, others: Seg[], buffer: num
   return bestOver(boxes, r, others, buffer, null, cross)
 }
 
-/** The cheapest route round every block and foreign tray (it may turn back), within the diagram grown by 60 px. */
+/** The cheapest route round every block and foreign tray (it may turn back): looked for near the line first (its ends and its
+ * current route, grown by 200 px), then within the whole diagram grown by 60 px. */
 export function detourRoute(boxes: Box[], r: Route, others: Seg[], buffer: number, cross = COST.cross): Pt[] | null {
+  const by = new Map(boxes.map(b => [b.id, b]))
+  const A = by.get(r.from), B = by.get(r.to)
   const x0 = Math.min(...boxes.map(b => b.x)) - 60, y0 = Math.min(...boxes.map(b => b.y)) - 60
   const x1 = Math.max(...boxes.map(b => b.x + b.w)) + 60, y1 = Math.max(...boxes.map(b => b.y + b.h)) + 60
+  if (A && B) {
+    const xs = [A.x, A.x + A.w, B.x, B.x + B.w, ...r.points.map(p => p[0])], ys = [A.y, A.y + A.h, B.y, B.y + B.h, ...r.points.map(p => p[1])]
+    const near = { x0: Math.max(x0, Math.min(...xs) - 200), y0: Math.max(y0, Math.min(...ys) - 200), x1: Math.min(x1, Math.max(...xs) + 200), y1: Math.min(y1, Math.max(...ys) + 200) }
+    const found = bestOver(boxes, r, others, buffer, near, cross)
+    if (found) return found
+  }
   return bestOver(boxes, r, others, buffer, { x0, y0, x1, y1 }, cross)
+}
+
+/** What straighten() found for each line, by the route libavoid gave it: kept by a live router across drag frames. */
+export type StraightenCache = Map<string, { raw: string; pts: Pt[] }>
+
+/** How many of `others` the route crosses (strictly inside both segments). */
+export function crossingsOf(p: Pt[], others: Seg[]): number {
+  let n = 0
+  for (let i = 1; i < p.length; i++) for (const g of others) {
+    const a = p[i - 1], b = p[i]
+    const h1 = Math.abs(a[1] - b[1]) < 0.5, h2 = Math.abs(g.a[1] - g.b[1]) < 0.5
+    if (h1 === h2) continue
+    const [H, V] = h1 ? [{ a, b }, g] : [g, { a, b }]
+    if (V.a[0] > Math.min(H.a[0], H.b[0]) + 0.5 && V.a[0] < Math.max(H.a[0], H.b[0]) - 0.5 && H.a[1] > Math.min(V.a[1], V.b[1]) + 0.5 && H.a[1] < Math.max(V.a[1], V.b[1]) - 0.5) n++
+  }
+  return n
 }
 
 /** Is there a monotone route for this line at all, ignoring other lines? If not, any route it takes must turn back somewhere. */
@@ -226,7 +255,7 @@ export function canGoDirect(boxes: Box[], r: Route, buffer: number): boolean {
  * if there is one; failing that, a route through a block or foreign tray takes the cheapest way round. Lines are taken one by
  * one, each kept off those already settled. `forced` counts the lines left turning back because no direct route exists.
  */
-export function straighten(boxes: Box[], routes: Route[], buffer: number, cross: number = COST.cross): { routes: Route[]; changed: number; forced: number } {
+export function straighten(boxes: Box[], routes: Route[], buffer: number, cross: number = COST.cross, slack = Infinity, cache?: StraightenCache): { routes: Route[]; changed: number; forced: number } {
   const out = routes.slice()
   let changed = 0, forced = 0
   const segsOf = (skip: number) => out.flatMap((e, i) => i === skip ? [] : e.points.slice(1).map((b, k) => ({ a: e.points[k], b })))
@@ -235,9 +264,22 @@ export function straighten(boxes: Box[], routes: Route[], buffer: number, cross:
     if (r.from === r.to || r.points.length < 2) continue
     const back = doublesBack(r.points), through = blocked(boxes, r)
     if (!back && !through) continue
+    // a drag frame: a line whose route libavoid left as it was keeps the answer it got last frame, if that still clears every block
+    const key = JSON.stringify(r.points), hit = cache?.get(r.id)
+    if (hit && hit.raw === key && !blocked(boxes, { ...r, points: hit.pts })) {
+      if (hit.pts !== r.points) { out[i] = { ...r, points: hit.pts }; changed++ }
+      if (doublesBack(out[i].points)) forced++
+      continue
+    }
     const others = segsOf(i)
-    const pts = monotoneRoute(boxes, r, others, buffer, cross) ?? (through ? detourRoute(boxes, r, others, buffer, cross) : null)
-    if (pts) { out[i] = { ...r, points: pts }; changed++ }
+    // a line through a block or foreign tray must change: direct if that crosses no more lines than the cheapest way round, else that way round
+    const direct = monotoneRoute(boxes, r, others, buffer, cross)
+    const round = through ? detourRoute(boxes, r, others, buffer, cross) : null
+    const pts = direct && (!round || crossingsOf(direct, others) <= crossingsOf(round, others)) ? direct : round
+    // a line that only turns back to keep off other lines keeps its route when going direct would cross more of them than `slack`
+    const ok = pts && (through || crossingsOf(pts, others) <= crossingsOf(r.points, others) + slack)
+    if (pts && ok) { out[i] = { ...r, points: pts }; changed++ }
+    cache?.set(r.id, { raw: key, pts: out[i].points })
     if (doublesBack(out[i].points)) forced++
   }
   return { routes: out, changed, forced }
