@@ -53,17 +53,27 @@ function Form({ shape, w, h, y, gap, label, plate, font, toward }: { shape: Box[
   )
 }
 
+/** The height a node's body stands (a landscape node: its plinth); the edge planner and the drag plane use the same. */
+export const nodeHeight = (th: { node: { form: string; footprint: { height: number } } }, b: Box) => th.node.form === 'landscape' ? th.node.footprint.height : (b.height ?? NODE_H)
+
 export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
   const th = useTheme()
   const w = b.w * S, h = b.h * S
   const land = th.node.form === 'landscape'
-  const height = land ? th.node.footHeight : (b.height ?? NODE_H)
+  const height = nodeHeight(th, b)
+  // a plinth is the surface the node stands on (its tray's top, or the ground), a step darker; level 2 stands on a darker tray, so on a darker plinth
+  const plinth = useMemo(() => {
+    const fp = th.node.footprint
+    if (fp.color) return fp.color
+    const under = b.level > 0 ? th.tray.colors[Math.min(b.level - 1, 2)] : th.ground.bg
+    return '#' + new THREE.Color(under).multiplyScalar(fp.darken).getHexString()
+  }, [th.node.footprint, th.tray.colors, th.ground.bg, b.level])
   const geo = useMemo(() => geometry(b.shape, land ? w * 0.9 : w, land ? h * 0.9 : h, height, th.node.bevel), [b.shape, w, h, height, land, th.node.bevel])
   return (
     <>
       {/* an inked node stands a hair above its surface so its bottom outline is not lost to the depth test against the tray top */}
       <mesh geometry={geo} position={[0, th.node.outline ? 0.012 : 0, 0]} castShadow={th.light.shadows} receiveShadow={th.light.shadows}>
-        <Mat color={land ? th.node.foot : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
+        <Mat color={land ? plinth : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
         <Ink color={th.node.outline} width={th.node.outlineWidth} />
       </mesh>
       {land

@@ -20,9 +20,8 @@ export interface Theme {
     outline: string | null // ink colour; null: no outline
     outlineWidth: number
     bevel: number // edge rounding of a block; 0 for crisp ink edges
-    footHeight: number // landscape: the low footprint under a form
+    footprint: { height: number; color: string | null; darken: number } // landscape: the raised plinth a form stands on; color null: the surface it stands on, times darken
     labelGap: number // landscape: how far the form stands above its footprint, leaving room for the label in front
-    foot: string
     hover: string
     hoverIntensity: number
   }
@@ -52,7 +51,7 @@ export const CLASSIC: Theme = {
   light: { ambient: 0.55, sky: '#bcd0ff', floor: '#202838', hemi: 0.5, sun: 1.6, shadows: true, shading: 'standard', tones: 3, toneMapping: true },
   node: {
     colors: { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' },
-    form: 'block', outline: null, outlineWidth: 2, bevel: 0.03, footHeight: 0.12, labelGap: 0.3, foot: '#e9dfc8',
+    form: 'block', outline: null, outlineWidth: 2, bevel: 0.03, footprint: { height: 0.12, color: '#e9dfc8', darken: 0.9 }, labelGap: 0.3,
     hover: '#ffffff', hoverIntensity: 0.18,
   },
   tray: {
@@ -76,7 +75,7 @@ export const BONKEI: Theme = {
   light: { ambient: 1.2, sky: '#fff8e6', floor: '#d8cbaa', hemi: 0.4, sun: 1.5, shadows: false, shading: 'toon', tones: 3, toneMapping: false },
   node: {
     colors: { rect: '#9AAE8C', round: '#5E8F88', cylinder: '#C9A24A', diamond: '#7C93B8' },
-    form: 'block', outline: '#2A2622', outlineWidth: 2, bevel: 0, footHeight: 0.2, labelGap: 0.34, foot: '#F3EBD8',
+    form: 'block', outline: '#2A2622', outlineWidth: 2, bevel: 0, footprint: { height: 0.4, color: null, darken: 0.93 }, labelGap: 0.34,
     hover: '#fff2c0', hoverIntensity: 0.15,
   },
   tray: {

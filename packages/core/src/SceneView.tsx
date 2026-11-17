@@ -9,7 +9,7 @@ import { instant } from './telemetry'
 import { createCamera, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
-import { NodeBody, Tray, baseOf, type LabelMode } from './shapes'
+import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { Mat, ThemeProvider, ToneSetup, useTheme, grainTexture } from './look'
 import { CLASSIC, type Theme } from './theme'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
@@ -166,7 +166,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
   const quality = useMemo<RouteQuality>(() => measureRoutes([...boxes.values()], routes), [boxes, routes])
-  const bodies = useMemo<Body[]>(() => [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.height, tray: th.tray.thickness })), [boxes, W, H, th.tray.thickness])
+  const bodies = useMemo<Body[]>(() => [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.kind === 'node' ? nodeHeight(th, b) : b.height, tray: th.tray.thickness })), [boxes, W, H, th.tray.thickness, th.node.form, th.node.footprint.height])
   const { plans, stats, slots, ms } = useMemo(() => {
     const t0 = performance.now()
     const r = planEdges(bodies, routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) })), crossings)
@@ -195,7 +195,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const startNodeDrag = (e: ThreeEvent<PointerEvent>, id: string) => {
     e.stopPropagation()
     const b = boxes.get(id)!
-    const planeY = baseOf(b, th.tray.thickness) + (b.height ?? NODE_H)
+    const planeY = baseOf(b, th.tray.thickness) + nodeHeight(th, b)
     const p0 = groundPoint(e.nativeEvent.clientX, e.nativeEvent.clientY, planeY)
     if (!p0) return
     const gx = p0.x / S + W / 2 - b.x, gy = p0.z / S + H / 2 - b.y
