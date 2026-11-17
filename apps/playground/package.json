@@ -8,7 +8,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types scripts/*.test.ts",
     "storybook": "storybook dev -p 6006",
-    "measure": "node --experimental-strip-types scripts/measure-edges.ts"
+    "measure": "node --experimental-strip-types scripts/measure-edges.ts",
+    "predev": "node scripts/copy-embed.mjs",
+    "prebuild": "node scripts/copy-embed.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
