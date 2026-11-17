@@ -38,6 +38,9 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
   const ink = useContext(InkCtx)
   const inkSeen = useRef({ ppu: 0, frame: 0 })
   const base = useRef(new WeakMap<object, { base: number; set: number }>())
+  // labels live on TEXT_LAYER (left out of portal views); the main camera shows it for every diagram, a sequence one included
+  const { camera: main } = useThree()
+  useEffect(() => { main.layers.enable(TEXT_LAYER) }, [main])
   useFrame(({ camera, size, scene }, dt) => {
     cam.aspect = size.width / size.height
     cam.frameH = size.height
@@ -197,7 +200,6 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   }, [bodies, routes, crossings, W, H])
   const groundSlots = useMemo(() => slots.filter(s => !s.tray), [slots])
   const portalList = useMemo(() => [...plans.values()].flatMap(p => p.portals), [plans])
-  useEffect(() => { camera.layers.enable(TEXT_LAYER) }, [camera])
   const statsCb = useRef(onEdgeStats)
   statsCb.current = onEdgeStats
   useEffect(() => {
