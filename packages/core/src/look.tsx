@@ -8,6 +8,7 @@ import type { Shape } from './model.ts'
 import { CLASSIC, inkPx, type Pattern, type Plate, type Theme } from './theme.ts'
 import { FONTS } from './fonts.ts'
 import { TEXT_LAYER } from './scale.ts'
+import { MAT_DEFAULTS } from './mat.ts'
 
 const Ctx = createContext<Theme>(CLASSIC)
 
@@ -49,7 +50,7 @@ function gradient(tones: number) {
 
 interface MatProps { attach?: string; color?: string; map?: THREE.Texture | null; emissive?: string; emissiveIntensity?: number; roughness?: number; metalness?: number; side?: THREE.Side; transparent?: boolean; opacity?: number; depthWrite?: boolean }
 /** The surface material the theme asks for: lit standard, or flat steps (toon). */
-export function Mat({ roughness = 0.5, metalness = 0, ...p }: MatProps) {
+export function Mat({ roughness = MAT_DEFAULTS.roughness, metalness = MAT_DEFAULTS.metalness, ...p }: MatProps) {
   const th = useTheme()
   if (th.light.shading === 'toon') return <meshToonMaterial {...p} gradientMap={gradient(th.light.tones)} />
   return <meshStandardMaterial {...p} roughness={roughness} metalness={metalness} />
