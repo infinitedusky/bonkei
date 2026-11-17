@@ -224,3 +224,17 @@ test('only the strong level lets a line keep a sideways jog to cross fewer lines
   assert.equal(SLACK.some, Infinity)
   assert.equal(SLACK.strong, 0)
 })
+
+test('lines fanning out from one side midpoint are not counted as lying on each other; two lines on one run are', () => {
+  const boxes = [node('a', 0, 0), node('b', 300, 200), node('c', 300, 400)]
+  const fan = [
+    { id: 'f1', from: 'a', to: 'b', points: [[55, 56], [55, 68], [120, 68], [120, 228], [300, 228]] },
+    { id: 'f2', from: 'a', to: 'c', points: [[55, 56], [55, 68], [140, 68], [140, 428], [300, 428]] },
+  ] as Route[]
+  assert.equal(measureRoutes(boxes, fan).overlaps, 0)
+  const onTop = [
+    { id: 'o1', from: 'b', to: 'a', points: [[300, 228], [200, 228], [200, 28], [110, 28]] },
+    { id: 'o2', from: 'c', to: 'a', points: [[300, 428], [200, 428], [200, 100], [180, 100]] },
+  ] as Route[]
+  assert.equal(measureRoutes(boxes, onTop).overlaps, 1)
+})

@@ -63,11 +63,15 @@ Props of `<Bonkei />`, and the options of `render(element, source, options)`:
 | `labels` | `'top' \| 'billboard'` | `'top'` | Labels lie on top of the shapes, or face the camera. |
 | `toolbar` | `boolean` | `true` | Show the built-in flat/iso/3D switch and the fit button. |
 | `controls` | `boolean \| { zoom?, pan?, move?, drillIn? }` | `true` | The reader's controls: all on, all off, or per control (one left out is on). |
+| `crossings` | `'none' \| 'bridge' \| 'tunnel' \| 'portal'` | `'none'` | How a line gets past another where two cross: not at all (they cross flat), a hop over it, an open trough under it, or a pair of portals. The toolbar switches it, and the diagram redraws at once. |
+| `avoidCrossings` | `'off' \| 'some' \| 'strong'` | `'some'` | How hard lines avoid crossing each other. `some` keeps every line on its most direct route; `strong` lets a line take a short sideways jog to cross fewer lines. The toolbar switches it, and the lines are routed again at once. |
 | `onError` | `(error: BonkeiError) => void` | | Nothing could be drawn. |
 | `onWarning` | `(warning: BonkeiWarning) => void` | | Something was skipped; the diagram still draws. |
 | `onModeChange` | `(mode: Mode, change: { source }) => void` | | The view moved to another mode. |
 | `onNodeClick` | `(node: NodeClick) => void` | | A node, group or participant was clicked. |
 | `onReady` | `(ready: ReadyInfo) => void` | | A new source's first frame is drawn. |
+
+How lines are drawn (flowcharts): every line meets a node at the middle of one of its sides, halfway up the block, and runs around blocks and around trays it does not go into. An edge to a subgraph meets the tray's rim at the middle of a side. Where a line's two ends sit at different heights (a tray, a nested tray, a taller block) it makes one vertical step to the height of where it is headed, just outside the outermost tray edge it crosses. Steps are always on. In flat view the light is nearly overhead, so shadows are short. Lines are routed by [libavoid](https://github.com/Aksem/libavoid-js) (LGPL-2.1-or-later), which ships as its own `libavoid.wasm` beside Bonkei; if it cannot load, the layout's own routes are used.
 
 What the callbacks mean:
 
@@ -86,6 +90,8 @@ config:
     mode: 3d
     labels: billboard
     toolbar: false
+    crossings: tunnel
+    avoidCrossings: strong
     controls:
       zoom: false
 ---

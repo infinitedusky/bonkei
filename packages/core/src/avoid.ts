@@ -61,6 +61,8 @@ export interface RouterStats {
   failed: string[]
   /** Lines whose libavoid route made a U-turn or crossed a foreign tray and were given the direct route instead. */
   straightened: number
+  /** Lines the first rip-up and re-route pass moved to a route crossing fewer lines (monotone.ts refine). */
+  refined: number
   /** Lines that still turn back because no route to their target can avoid it (it sits behind a block or tray they must go round). */
   forced: number
   /** Re-route ms of the last move. */
@@ -216,7 +218,7 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
     }
   }
   const out: EdgeRouter = {
-    level, routes: [], stats: { buildMs: 0, failed: [], straightened: 0, forced: 0, moveMs: 0 },
+    level, routes: [], stats: { buildMs: 0, failed: [], straightened: 0, forced: 0, refined: 0, moveMs: 0 },
     move(id, dx, dy) {
       const t1 = performance.now()
       const b = byId.get(id)!
@@ -264,7 +266,11 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
       if (again.forced < s.forced) { s = again; cache.clear() }
     }
     // when first routed with a crossing cost: rip up and re-route the direct lines against the others as they now are
-    if (tune.straighten && !out.routes.length && CROSSING_COST[level] > 0) s = { ...s, routes: refine(boxes, s.routes, tune.buffer, CROSSING_COST[level]).routes }
+    if (tune.straighten && !out.routes.length && CROSSING_COST[level] > 0) {
+      const f = refine(boxes, s.routes, tune.buffer, CROSSING_COST[level])
+      s = { ...s, routes: f.routes }
+      out.stats.refined = f.changed
+    }
     out.routes = s.routes
     out.stats.failed = failed
     out.stats.straightened = s.changed

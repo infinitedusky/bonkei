@@ -5,7 +5,7 @@ import type { Box, Route } from './model.ts'
 export interface RouteQuality {
   /** Places where a line crosses another (plan view, strictly inside both). */
   crossings: number
-  /** Pairs of lines lying on top of each other over more than 4 px, not counting the stub two lines share where they meet one pin. */
+  /** Pairs of lines lying on top of each other over more than 4 px, not counting the stub two lines share where they meet one pin, nor where they fan out from it. */
   overlaps: number
   /** Lines that reverse along an axis (go right, later left). */
   doublingBack: number
@@ -38,7 +38,7 @@ export function measureRoutes(boxes: Box[], routes: Route[]): RouteQuality {
     if (rev) back++
     ratio += l / Math.max(Math.abs(p[p.length - 1][0] - p[0][0]) + Math.abs(p[p.length - 1][1] - p[0][1]), 1)
   }
-  const segs = routes.flatMap((e, ri) => e.points.slice(1).map((q, i) => ({ ri, a: e.points[i] as Pt, b: q, e, end: i === 0 || i === e.points.length - 2 })))
+  const segs = routes.flatMap((e, ri) => e.points.slice(1).map((q, i) => ({ ri, a: e.points[i] as Pt, b: q, e, end: i === 0 || i === e.points.length - 2, fork: i <= 1 || i >= e.points.length - 3 })))
   const hit = (s: { a: Pt; b: Pt }, n: Box, shrink: number) =>
     Math.max(s.a[0], s.b[0]) > n.x + shrink && Math.min(s.a[0], s.b[0]) < n.x + n.w - shrink && Math.max(s.a[1], s.b[1]) > n.y + shrink && Math.min(s.a[1], s.b[1]) < n.y + n.h - shrink
   const blocks = new Set<string>(), trays = new Set<string>()
@@ -48,11 +48,14 @@ export function measureRoutes(boxes: Box[], routes: Route[]): RouteQuality {
   }
   let crossings = 0, overlaps = 0
   const hz = (s: { a: Pt; b: Pt }) => Math.abs(s.a[1] - s.b[1]) < 0.5
+  // two lines leaving the same side midpoint fan out from the corner after its stub: counted with the shared stub, not as lying on each other
+  type S = (typeof segs)[number]
+  const fanOut = (h: S, v: S) => h.fork && v.fork && [h.a, h.b].some(p => [v.a, v.b].some(q => p[0] === q[0] && p[1] === q[1])) && [h.e.from, h.e.to].some(n => n === v.e.from || n === v.e.to)
   for (const h of segs) for (const v of segs) {
     if (h.ri >= v.ri) continue
     if (hz(h) === hz(v)) {
       const k = hz(h) ? 1 : 0, j = 1 - k
-      if (Math.abs(h.a[k] - v.a[k]) >= 0.5 || (h.end && v.end)) continue
+      if (Math.abs(h.a[k] - v.a[k]) >= 0.5 || (h.end && v.end) || fanOut(h, v)) continue
       const o = Math.min(Math.max(h.a[j], h.b[j]), Math.max(v.a[j], v.b[j])) - Math.max(Math.min(h.a[j], h.b[j]), Math.min(v.a[j], v.b[j]))
       if (o > 4) overlaps++
     }

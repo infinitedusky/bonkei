@@ -47,7 +47,7 @@ export const layout: LayoutEngine = async (g, o = {}) => {
       const A = await loadAvoid()
       const r = createRouter(A, placed, level)
       const ms = performance.now() - t0
-      span.setAttributes({ 'bonkei.route_ms': ms, 'bonkei.router_build_ms': r.stats.buildMs, 'bonkei.unroutable': r.stats.failed.length, 'bonkei.straightened': r.stats.straightened, 'bonkei.forced_turns': r.stats.forced })
+      span.setAttributes({ 'bonkei.route_ms': ms, 'bonkei.router_build_ms': r.stats.buildMs, 'bonkei.unroutable': r.stats.failed.length, 'bonkei.straightened': r.stats.straightened, 'bonkei.forced_turns': r.stats.forced, 'bonkei.refined': r.stats.refined })
       const out: LayoutResult = { ...placed, routes: r.routes, stats: { ...placed.stats!, route: { ms, buildMs: r.stats.buildMs, failed: r.stats.failed, straightened: r.stats.straightened, forced: r.stats.forced, error: null, level } } }
       keepRouter(out, r) // the scene drags on the same router
       return out
