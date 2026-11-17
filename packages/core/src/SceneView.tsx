@@ -12,7 +12,7 @@ import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, trayColor, type LabelMode } from './shapes'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
-import { S, TRAY, NODE_H, TEXT_LAYER } from './scale'
+import { S, NODE_H, TEXT_LAYER } from './scale'
 import { SCENE } from './palette'
 import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
 import type { NodeClick, ResolvedControls } from './options'
@@ -117,7 +117,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
         <meshStandardMaterial color={SCENE.bg} roughness={1} />
       </mesh>
       {/* the grid is masked out over a tunnel's slot (stencil), so no grid line floats across it */}
-      {slots.map((s, i) => (
+      {slots.map((_, i) => (
         <mesh key={i} geometry={masks[i]} position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
           <meshBasicMaterial colorWrite={false} depthWrite={false} stencilWrite stencilRef={1} stencilFunc={THREE.AlwaysStencilFunc} stencilZPass={THREE.ReplaceStencilOp} />
         </mesh>
