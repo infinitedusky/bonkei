@@ -48,9 +48,18 @@ let wasmUrl: string | undefined
 /** Where the browser finds libavoid.wasm. By default the file beside this module (`./libavoid.wasm`), which Vite, webpack and Rollup turn into an asset; call this before the first layout to point elsewhere. */
 export function setAvoidWasm(url: string) { wasmUrl = url }
 /** Loads the wasm once. Rejects if it cannot load (the caller falls back to ELK's routes); a later call tries again. */
+// Where the wasm is, by setting: an ES module bundled by the host finds it from `import.meta.url` (the pattern below is the one Vite,
+// webpack and Rollup turn into an asset; Vite's dev pre-bundling rewrites it to the file in node_modules/bonkei/dist). The script-tag
+// bundle has no `import.meta.url`, so it takes `libavoid.wasm` from beside the script that loaded it, read while that script runs.
+const scriptSrc = typeof document !== 'undefined' && document.currentScript && 'src' in document.currentScript ? (document.currentScript as HTMLScriptElement).src : ''
+function defaultWasmUrl(): string | undefined {
+  if (typeof document === 'undefined') return undefined // Node: libavoid-js reads the file itself
+  if (import.meta.url) return new URL('./libavoid.wasm', import.meta.url).href
+  return scriptSrc ? new URL('libavoid.wasm', scriptSrc).href : undefined
+}
+/** Loads the wasm once. Rejects if it cannot load (the caller falls back to ELK's routes); a later call tries again. */
 export function loadAvoid(): Promise<Avoid> {
-  // Node loads the wasm from disk itself; a bundled page needs a URL, and libavoid-js's own default does not survive bundling
-  loading ??= AvoidLib.load(wasmUrl ?? (typeof document !== 'undefined' ? new URL('./libavoid.wasm', import.meta.url).href : undefined)).then(() => AvoidLib.getInstance()).catch(e => { loading = null; throw e })
+  loading ??= AvoidLib.load(wasmUrl ?? defaultWasmUrl()).then(() => AvoidLib.getInstance()).catch(e => { loading = null; throw e })
   return loading
 }
 /** The loaded module, or null while it has not loaded. */
