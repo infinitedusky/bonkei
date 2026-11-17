@@ -187,10 +187,27 @@ const checkout = `sequenceDiagram
   Fraud-xPayments: late chargeback signal
 `
 
+// made-up checkout flow: Payments with Risk nested in it, an edge to the Payments tray itself
+const checkoutFlow = `flowchart LR
+  Client([Client]) --> Pay
+  Notifier[Notifier] --> Pay
+  Client --> Audit[Audit]
+  subgraph Payments
+    Pay[Pay API]
+    subgraph Risk
+      Fraud{Fraud Check}
+      Review[Review]
+    end
+    Pay --> Fraud
+  end
+  Fraud --> Review
+  Fraud --> Ledger[(Ledger)]
+  Ledger --> Payments`
 export const SAMPLES: Record<string, string> = {
   'flow: small (sample.mmd)': small,
   'flow: large (~50 nodes)': large,
   'flow: wide (30 → 5)': wide,
+  'flow: checkout': checkoutFlow,
   'seq: login flow': login,
   'seq: checkout flow': checkout,
 }

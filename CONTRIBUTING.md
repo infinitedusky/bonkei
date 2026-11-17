@@ -6,7 +6,12 @@ After any change that alters what the scene looks like, re-run `pnpm capture` an
 
 Map of the code (a pnpm workspace; see the README's Packages list):
 - `packages/core/src/parser.ts`, `packages/core/src/seq.ts`: Mermaid flowchart and sequence parsing (+ sequence layout)
-- `packages/core/src/layout.ts`: ELK behind `layout(graph)`; `reroute()` is the cheap drag-time router
+- `packages/core/src/layout.ts`: `layout(graph, { avoidCrossings })`: ELK places the boxes (ports at side midpoints, a block slid aside when its line could not go direct), then libavoid routes the lines. `reroute()` is only the fallback for a dragged node's lines when the libavoid wasm has not loaded
+- `packages/core/src/avoid.ts`: the libavoid router: side-midpoint pins, trays as walls with openings, the crossing-avoidance levels (`off`, `some`, `strong`). The router `layout()` builds is kept (`routerFor`) and re-routes the lines on every drag frame
+- `packages/core/src/monotone.ts`: direct routes: replaces a line libavoid sends back on itself or through a foreign tray with a monotone one, rips up and re-routes to cross fewer lines (`refine`), and slides a block whose line has no direct route (`unblock`)
+- `packages/core/src/routeMetrics.ts`: route quality counts (crossings, lines on top of each other, doubling back, through a block or tray, length / direct) for tests and the playground's readout
+- `packages/core/src/edges3d.ts`: lines in 3D, pure: the one vertical step between heights, where lines cross, and the bridge, tunnel and portal plans
+- `packages/core/src/EdgeScene.tsx`: draws those plans: lines, arrowheads, tunnel troughs, portals
 - `packages/core/src/SceneView.tsx`, `packages/core/src/SeqScene.tsx`, `packages/core/src/shapes.tsx`, `packages/core/src/camera.ts`: the r3f scene and camera rig
 - `packages/core/src/Bonkei.tsx`: the `<Bonkei />` component (mode, toolbar, error card and strip, render-error boundary, callbacks)
 - `packages/core/src/render.tsx`: `render(element, source, options)`, which mounts its own React root and returns the handle
@@ -20,6 +25,9 @@ Map of the code (a pnpm workspace; see the README's Packages list):
 - `packages/core/src/index.ts`: the public API of `bonkei`, and nothing else
 - `packages/core/src/internal.ts`: `bonkei/internal`, every other piece, for this repo's stories and tools (internal and unstable)
 - `apps/playground/src/samples.ts`: built-in diagrams (add one when you fix a bug it exposes)
+- `apps/playground/scripts/`: route measurements on the samples (`route-metrics.ts`, `drag-metrics.ts`, `drag-check.ts`, `avoid-levels.ts`, `crossing-styles.ts`, `measure-edges.ts`, `list-back.ts`, `route-svg.ts`) and `routes.test.ts`, the 50-node sample's checks (`pnpm --filter @bonkei/playground test`)
+- `TESTING.md`: the manual test plan, page by page
+- `PULL_REQUEST.md`: the pull request description for BON-99, with its risks (what could break, how you would notice)
 - `apps/playground/src/main.tsx`, `apps/playground/src/App.tsx` (mounted by `apps/playground/index.html`): the viewer, served at `/app/`
 - `apps/site/src/` (mounted by `apps/site/index.html`): the marketing page. The hero loads the scene lazily, so keep `bonkei` out of `Home` and the site's `main.tsx`; a static import of it puts the whole scene chunk on first paint and on phones. Asset URLs and links in its JSX go through `import.meta.env.BASE_URL`.
 - `apps/site/dev/capture.*` + `apps/site/scripts/capture-stills.mjs`: the asset capture behind `pnpm capture`. It is dev-only and not a build input. It renders `<Bonkei>` (not a bare `SceneView`), waits 60 frames after `onReady` for text and shadows, and writes `apps/site/public/poster.png`, `og.png` and `still-*.png`.

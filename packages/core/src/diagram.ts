@@ -3,7 +3,7 @@
 import type { Span } from '@opentelemetry/api'
 import type { Dropped, Graph, GraphInput, LayoutResult } from './model.ts'
 import { parse } from './parser.ts'
-import { layout } from './layout.ts'
+import { layout, type LayoutOptions } from './layout.ts'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from './seq.ts'
 import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOptions, type Ready } from './options.ts'
 import { withSpan } from './telemetry.ts'
@@ -75,7 +75,7 @@ async function timedLayout<T>(parent: Span, run: () => T | Promise<T>): Promise<
   }
 }
 
-async function fromText(src: string, warnings: BonkeiWarning[], span: Span): Promise<[Drawn, number]> {
+async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: LayoutOptions): Promise<[Drawn, number]> {
   if (!src.trim()) throw fail('parse', 'the diagram is empty')
   const fm = readFrontmatter(src)
   for (const w of fm.warnings) {
@@ -94,11 +94,11 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span): Pro
   const g = parse(fm.body, fm.lineOffset)
   const dropped = g.dropped ?? []
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
-  const [data, t] = await timedLayout(span, () => layout(g))
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span }))
   return [{ data, options: fm.options, nodes: g.nodes.length, edges: g.edges.length, dropped }, t]
 }
 
-async function fromGraph(input: GraphInput, span: Span): Promise<[Drawn, number]> {
+async function fromGraph(input: GraphInput, span: Span, lo: LayoutOptions): Promise<[Drawn, number]> {
   span.setAttribute('bonkei.diagram', 'flowchart')
   if (typeof input !== 'object' || input === null) throw fail('graph', 'source must be Mermaid text or a graph')
   if (!Array.isArray(input.nodes) || !input.nodes.length) throw fail('graph', 'the graph has no nodes')
@@ -112,7 +112,7 @@ async function fromGraph(input: GraphInput, span: Span): Promise<[Drawn, number]
     for (const end of [e.from, e.to]) if (!ids.has(end)) throw fail('graph', `edge ${e.id ?? `${e.from} -> ${e.to}`} points at unknown id ${JSON.stringify(end)}`)
   }
   const g: Graph = { ...input, direction: input.direction ?? 'TD', groups, edges, dropped: input.dropped ?? [] }
-  const [data, t] = await timedLayout(span, () => layout(g))
+  const [data, t] = await timedLayout(span, () => layout(g, { ...lo, span }))
   return [{ data, options: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped! }, t]
 }
 
@@ -127,12 +127,13 @@ function countReasons(dropped: Dropped[]) {
 
 // Mermaid text or a hand-built graph -> a laid-out diagram with its warnings. Never throws:
 // it resolves to `Prepared` or rejects with a `PrepareError`.
-export async function prepare(source: string | GraphInput): Promise<Prepared> {
+// `lo` are the routing options from props; the frontmatter's fill in what they leave out.
+export async function prepare(source: string | GraphInput, lo: LayoutOptions = {}): Promise<Prepared> {
   const warnings: BonkeiWarning[] = []
   const input = typeof source === 'string' ? 'mermaid' : 'graph'
   return withSpan('bonkei.prepare', { 'bonkei.input': input }, async span => {
     try {
-      const [drawn, t] = typeof source === 'string' ? await fromText(source, warnings, span) : await fromGraph(source, span)
+      const [drawn, t] = typeof source === 'string' ? await fromText(source, warnings, span, lo) : await fromGraph(source, span, lo)
       span.setAttributes({
         'bonkei.nodes': drawn.nodes,
         'bonkei.edges': drawn.edges,

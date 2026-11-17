@@ -54,3 +54,9 @@ export type { GEdge } from './model'
 export type { Shape } from './model'
 /** A source line the parser could not use, with its reason. */
 export type { Dropped } from './model'
+
+// Lines (BON-100)
+/** How two crossing lines are drawn: none (they cross as lines), bridge, tunnel or portal. */
+export type { CrossingStyle } from './edges3d'
+/** How hard the router keeps lines from crossing: off, some or strong. */
+export type { AvoidCrossings } from './avoid'

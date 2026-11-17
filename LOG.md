@@ -149,3 +149,39 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 - A separate, semi-stable `bonkei/advanced` subpath for them: a third tier to document and version, with no user yet to tell us what belongs in it. `bonkei/internal` already serves this repo's stories and tools, and promises nothing.
 
 **Consequences.** `SceneView`, `createCamera`, `parse` and the layout types, which were public on main, are now internal: code importing them from `bonkei` must move to `<Bonkei />` / `render()` or, inside this repo, to `bonkei/internal`. This is a breaking change made before anything is published. `SceneView`'s `wheelZoom` prop is gone (use `controls`). `pnpm -r typecheck` is the guard: an app that imports an internal name from `bonkei` fails it.
+
+## 2026-11-16 — Edges in 3D, routed by libavoid (BON-100)
+
+**Context.** BON-99's prototype was approved: ELK places the boxes, one libavoid router routes every line from pins at the four side midpoints, trays are walls with an opening where a line goes in or out, steps and crossing styles are BON-85's. It left three things not met on the 50-node sample at the default level: a line through a foreign tray (it used another line's opening), 4 lines lying on top of each other, and 15 lines doubling back (main: 14).
+
+**Decision.**
+- **Routing is libavoid's, then made direct** (`packages/core/src/avoid.ts`, `monotone.ts`). The prototype's router and tray walls are kept. A line libavoid sends back on itself, or through a block or a tray it does not belong to, is replaced by a **monotone** route: every step brings it nearer its target along x and along y, so it is as short as its two side midpoints allow. It is found on a grid of the coordinates that matter (ends, stubs, obstacle edges, lanes a third and two thirds across each gap), keeps the router's buffer from every block and foreign tray, leaves and arrives square to a side, and pays per crossing (the level's cost) and heavily for lying on another line. A line that has no monotone route at all (its target is behind a block or tray it must go round) keeps libavoid's route, or, if that goes through something, takes the cheapest way round on the same grid.
+- **Rip-up and re-route** (`refine`): when the lines are first routed with a crossing cost, each direct line is looked for again against the others as they now are (two rounds) and takes the new route when it crosses fewer lines without lying on more. A line that lies on another is also offered lanes beside every other line. Lines that both lie within 2 px are counted as lying on each other.
+- **What the levels mean.** off: no crossing cost, every line direct. some (default): crossing cost 1000, every line direct when it can be. strong: crossing cost 3000, and a line libavoid stepped aside to avoid a crossing keeps that jog when going direct would cross more lines (`SLACK`). So "no doubling back" holds at off and some; strong trades it for fewer crossings, which is what the viewer asked for by choosing it.
+- **Lines from the same side midpoint** fan out from the corner after their stub; `route-metrics.ts` counts that shared first run with the shared pin stubs, not as lines on top of each other.
+- **The rest is the prototype's**: side pins (the router picks the side; ELK's fixed ports are kept for placement only), docks 14 px outside a tray's rim for an edge to the tray, one step outside the outermost tray rim crossed (`edges3d.ts`), BON-85's spacing, crossing styles (none default; bridge, tunnel, portal), the portal budget, the flat-view light. The `routing: basic` and `ends: spread` options the prototype also tried are not built.
+- **Telemetry**: `bonkei.route` (layout: level, ms, unroutable, straightened, refined, forced turns, `bonkei.route.fallback` when the wasm fails), `bonkei.reroute` (a re-route at a new level), and `bonkei.crossings.change` / `bonkei.avoid_crossings.change` events for a toolbar pick.
+
+**Measured** (`apps/playground/scripts/route-metrics.ts`, 50-node sample, level some): 0 through a block, 0 through a foreign tray, 0 lying on top of each other, 0 ends off a side midpoint, length / straight distance 1.00 (main 1.12), 2 doubling back (main 14): e0 Client → WAF and e39 OrderQ → NotifSvc, cycle edges whose target is behind blocks and trays every route must go round (no monotone route exists, `canGoDirect` false). Crossings off 90, some 47, strong 26 (main 19 with ELK's routes, which double back 14 times). Small sample: all 0, 1.00. Drag (`drag-check.ts`): 0 frames with a line through a block or a foreign tray in 168; ~30 ms a frame.
+
+**Alternatives considered.**
+- Keep libavoid's crossing-avoiding routes as they are (the prototype): 16 crossings at some, but 15 lines doubling back and one through a foreign tray.
+- Prefer the way round over the direct route when it crosses fewer lines: 52 crossings, 5 doubling back.
+- Every line direct at every level: some and strong both 66 crossings, so "strong" would mean nothing.
+- Gates or checkpoints for trays (tried in the prototype): many overlaps or failed routes.
+
+**Consequences.** At some, there are more crossings than with libavoid's own routes (47 against 16): the lines go straight instead of jogging round each other. The crossing styles exist to make those readable; strong is there for a viewer who prefers fewer crossings. Routing the first time costs ~1.8 s on 50 nodes at some (~0.3 s at off); a drag frame never pays the crossing cost or the re-route pass, so a drag can add crossings, and choosing the level again routes everything afresh.
+
+## 2026-11-16 — No line turns back (BON-102)
+
+**Context.** BON-100 left, on the 50-node sample, 2 lines doubling back at some (e0 Client → WAF, e39 OrderQ → NotifSvc) and 15 at strong, where `SLACK.strong = 0` let a line keep a sideways jog. Drag frames could turn a line back too.
+
+**Decision.**
+- **A block slides so its line can go direct** (`monotone.ts` `unblock`, called at the end of `layout.ts` `place`). A line with no monotone route at all (`canGoDirect` false) has to turn back whatever the router does. One of its two blocks is moved across the flow (x in TD, y in LR) by the smallest step, 4 px at a time and at most 240 px, that gives the line a direct route. The block has to stay 40 px inside its tray, keep ELK's edge-node gap from every other block and tray, and leave no other line without a direct route. `stats.slid` lists the blocks moved.
+- **ELK's cycle breaking is back to its default, GREEDY** (main's). Depth-first put Client below the Platform tray, under WAF's own tray.
+- **No level keeps a jog**: `SLACK` is Infinity at every level. Strong now means more rounds of rip-up and re-route (`REFINE_PASSES`: some 2, strong 4) at a higher crossing cost.
+- **Checks**: `apps/playground/scripts/routes.test.ts` (`pnpm --filter @bonkei/playground test`) holds the 50-node sample to this at every level and while a node is dragged. `drag-check.ts` counts frames that turn back, and counts apart the frames where the drop leaves no direct route.
+
+**Measured** (50-node sample, `route-metrics.ts`): doubling back 0 at off, some and strong. 0 through a block or foreign tray, 0 lying on top of each other, length / direct 1.00 (main 1.12). Crossings: off 96, some 52, strong 48. Drag (`drag-check.ts`, 168 frames): 0 through a block or tray, 0 turning back where a direct route exists. 13 frames turn back because the drop puts the target straight behind another block, where no route that avoids the block can be monotone.
+
+**Consequences.** Blocks can sit up to 240 px off where ELK put them. While a node is dragged, a line still turns back if the drop leaves no direct route. The drag never slides other blocks, because they would jump under the pointer.
