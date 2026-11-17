@@ -12,6 +12,14 @@ export default function App() {
   const [labelMode, setLabelMode] = useState<LabelMode>('top')
   const [theme, setTheme] = useState('from source')
   const [warn, setWarn] = useState('')
+  const [fps, setFps] = useState(0)
+  // page frame rate: frames the browser drew per second (the canvas renders every frame)
+  useEffect(() => {
+    let n = 0, t0 = performance.now(), id = 0
+    const f = (t: number) => { n++; if (t - t0 >= 500) { setFps(Math.round((n * 1000) / (t - t0))); n = 0; t0 = t } id = requestAnimationFrame(f) }
+    id = requestAnimationFrame(f)
+    return () => cancelAnimationFrame(id)
+  }, [])
   const [edit, setEdit] = useState(false)
   const [ms, setMs] = useState<number | null>(null)
   const [dropped, setDropped] = useState(0)
@@ -39,7 +47,7 @@ export default function App() {
       </div>
       {/* the route quality readout: what the avoid-crossings setting and a drag do to the lines */}
       <div data-readout style={{ position: 'absolute', top: 48, left: 10, color: '#9aa6c0', font: '12px monospace', pointerEvents: 'none', whiteSpace: 'pre' }}>
-        <span>layout {ms === null ? '–' : Math.round(ms)} ms · {dropped} lines dropped{edges && ` · routed in ${Math.round(edges.routeMs)} ms · drag frame ${edges.dragMs.toFixed(1)} ms · ${edges.unroutable} unroutable\n[avoid ${edges.avoidCrossings}] crossings ${edges.quality.crossings} (${edges.bridge}/${edges.tunnel}/${edges.portal} drawn, ${edges.skipped} no room) · overlapping ${edges.quality.overlaps} · doubling back ${edges.quality.doublingBack} · length/direct ${edges.quality.lengthRatio} · through blocks ${edges.quality.throughBlocks} / foreign trays ${edges.quality.throughTrays}${edges.routingError ? ` · ROUTING FELL BACK TO ELK: ${edges.routingError}` : ''}`}</span>
+        <span>{fps} fps · layout {ms === null ? '–' : Math.round(ms)} ms · {dropped} lines dropped{edges && ` · routed in ${Math.round(edges.routeMs)} ms · drag frame ${edges.dragMs.toFixed(1)} ms · ${edges.unroutable} unroutable\n[avoid ${edges.avoidCrossings}] crossings ${edges.quality.crossings} (${edges.bridge}/${edges.tunnel}/${edges.portal} drawn, ${edges.skipped} no room) · overlapping ${edges.quality.overlaps} · doubling back ${edges.quality.doublingBack} · length/direct ${edges.quality.lengthRatio} · through blocks ${edges.quality.throughBlocks} / foreign trays ${edges.quality.throughTrays}${edges.routingError ? ` · ROUTING FELL BACK TO ELK: ${edges.routingError}` : ''}`}</span>
       </div>
       {warn && <div role="status" style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', background: '#4a3a10', color: '#ffd479', padding: '6px 12px', borderRadius: 6, font: '12px monospace' }}>warning: {warn}</div>}
       {edit && <textarea value={src} onChange={e => setSrc(e.target.value)} spellCheck={false}
