@@ -18,10 +18,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r typecheck
-      - run: pnpm test
+      # first: the apps import bonkei from packages/core/dist, so their typecheck needs the build
       - name: Build the package, then lint it (publint, are-the-types-wrong)
         run: pnpm check:package
+      - run: pnpm -r typecheck
+      - run: pnpm test
       - name: The apps and Storybook, built against packages/core/dist
         run: pnpm build && pnpm --filter @bonkei/playground build-storybook
 
