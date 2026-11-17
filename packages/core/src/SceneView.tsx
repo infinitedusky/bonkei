@@ -31,7 +31,7 @@ function effective(data: LayoutResult, ovr: Ovr, live: Route[] | null) {
   return { boxes, routes }
 }
 
-function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElement> }) {
+function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElement | null> }) {
   const acc = useRef({ t: 0, n: 0 })
   useFrame(({ camera, size }, dt) => {
     cam.aspect = size.width / size.height
