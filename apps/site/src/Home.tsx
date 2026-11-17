@@ -12,7 +12,7 @@ const FIRST_ISSUES = [
 ]
 
 const BASE = import.meta.env.BASE_URL
-const GH = 'https://github.com/infinitedusky/merman'
+const GH = 'https://github.com/infinitedusky/bonkei'
 
 const Ctas = () => (
   <div className="site-ctas">
@@ -27,7 +27,7 @@ const Still = ({ src, alt }: { src: string; alt: string }) => (
 
 // The marketing site's one page. `live`: true forces the live hero, false the poster, unset auto-detects.
 // Keep this file free of static imports of the scene (SceneView, camera, layout, three): Hero lazy-loads it.
-export function Home({ name = 'merman', live }: { name?: string; live?: boolean }) {
+export function Home({ name = 'Bonkei', live }: { name?: string; live?: boolean }) {
   const [showSrc, setShowSrc] = useState(false)
   return (
     <div className="site">
