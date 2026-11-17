@@ -32,6 +32,11 @@ export const FromFrontmatter: Story = {
   decorators: [stage()],
 }
 
+// Flat edges: lines lie on the surface under them and the arrowhead is a flat triangle (themeVariables: edge.flat).
+export const FlatEdgesBonkei: Story = { args: { source: `---\nconfig:\n  theme: bonkei\n  themeVariables:\n    edge.flat: true\n---\n${bonkeiMockup}`, mode: 'iso' }, decorators: [stage()] }
+export const FlatEdgesLandscape: Story = { args: { source: `---\nconfig:\n  theme: bonkei\n  themeVariables:\n    node.form: landscape\n    edge.flat: true\n---\n${bonkeiMockup}`, mode: '3d' }, decorators: [stage()] }
+export const FlatEdgesClassic: Story = { args: { source: `---\nconfig:\n  themeVariables:\n    edge.flat: true\n---\n${bonkeiMockup}`, mode: 'iso' }, decorators: [stage()] }
+
 // A name nobody knows: drawn in Classic, with a warning that onWarning receives (shown here).
 export const UnknownThemeWarns: Story = {
   render: () => {

@@ -61,7 +61,8 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
   const geo = useMemo(() => geometry(b.shape, land ? w * 0.9 : w, land ? h * 0.9 : h, height, th.node.bevel), [b.shape, w, h, height, land, th.node.bevel])
   return (
     <>
-      <mesh geometry={geo} castShadow={th.light.shadows} receiveShadow={th.light.shadows}>
+      {/* an inked node stands a hair above its surface so its bottom outline is not lost to the depth test against the tray top */}
+      <mesh geometry={geo} position={[0, th.node.outline ? 0.012 : 0, 0]} castShadow={th.light.shadows} receiveShadow={th.light.shadows}>
         <Mat color={land ? th.node.foot : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
         <Ink color={th.node.outline} width={th.node.outlineWidth} />
       </mesh>

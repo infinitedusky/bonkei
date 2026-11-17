@@ -11,9 +11,27 @@ import type { LabelMode } from './model'
 
 const v3 = ([x, z, y]: P3) => new THREE.Vector3(x, y, z)
 
-export function Edge({ plan, label, labelMode }: { plan: EdgePlan; label?: string; labelMode: LabelMode }) {
+// An arrowhead with no depth: a triangle lying in the surface, pointing along `dir` (horizontal part).
+function FlatArrow({ tip, dir, color }: { tip: THREE.Vector3; dir: THREE.Vector3; color: string }) {
+  const geo = useMemo(() => {
+    const d = new THREE.Vector3(dir.x, 0, dir.z).normalize(), n = new THREE.Vector3(-d.z, 0, d.x)
+    const b = tip.clone().addScaledVector(d, -0.4)
+    const g = new THREE.BufferGeometry().setFromPoints([tip, b.clone().addScaledVector(n, 0.15), b.clone().addScaledVector(n, -0.15)])
+    return g
+  }, [tip, dir])
+  return <mesh geometry={geo}><meshBasicMaterial color={color} side={THREE.DoubleSide} /></mesh>
+}
+
+export function Edge({ plan, label, labelMode, surface }: { plan: EdgePlan; label?: string; labelMode: LabelMode; surface?: (x: number, z: number) => number }) {
   const th = useTheme()
-  const parts = plan.parts.map(p => p.map(v3))
+  const flat = th.edge.flat && !!surface
+  // flat: every point lies on the surface under it (a hair above, against z-fighting); a step becomes a ramp, a bridge or tunnel is levelled
+  const lay = (p: THREE.Vector3[]) => {
+    if (!flat) return p
+    const q = p.map(v => new THREE.Vector3(v.x, surface!(v.x, v.z) + 0.02, v.z))
+    return q.filter((v, i) => i === 0 || v.distanceTo(q[i - 1]) > 1e-4)
+  }
+  const parts = plan.parts.map(p => lay(p.map(v3)))
   const last = parts[parts.length - 1]
   const n = last.length
   const dir = new THREE.Vector3().subVectors(last[n - 1], last[n - 2]).normalize()
@@ -29,10 +47,14 @@ export function Edge({ plan, label, labelMode }: { plan: EdgePlan; label?: strin
   return (
     <group>
       {lines.map((l, i) => <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={th.edge.color} lineWidth={th.edge.width} />)}
-      <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
-        <coneGeometry args={[0.13, 0.4, 16]} />
-        <meshBasicMaterial color={th.edge.color} />
-      </mesh>
+      {flat
+        ? <FlatArrow tip={tip} dir={dir} color={th.edge.color} />
+        : (
+          <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
+            <coneGeometry args={[0.13, 0.4, 16]} />
+            <meshBasicMaterial color={th.edge.color} />
+          </mesh>
+        )}
       {label && (
         <Text layers={TEXT_LAYER as any} position={[at.x, at.y + (labelMode === 'top' ? 0.02 : 0.4), at.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} font={fontUrl(th)} fontSize={0.22} color={th.edge.label} outlineWidth={0.02} outlineColor={th.edge.labelOutline}>{label}</Text>
       )}
