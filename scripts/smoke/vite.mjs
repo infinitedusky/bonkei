@@ -17,44 +17,21 @@ sh(`pnpm pack --pack-destination ${pack}`, path.join(root, 'packages/core'))
 const tgz = path.join(pack, fs.readdirSync(pack)[0])
 console.log('packed', path.basename(tgz), fs.statSync(tgz).size, 'bytes')
 
-sh(`npm create vite@latest app -- --template react-ts --no-interactive`, tmp)
-// latest React that Bonkei's peer range (Fiber's) allows, plus three: nothing else
-const out = sh(`npm install react@">=19 <19.4" react-dom@">=19 <19.4" three ${tgz} 2>&1`, app)
-const warn = out.split('\n').filter(l => /peer|ERESOLVE|WARN/i.test(l) && !/deprecated|Unknown env config/i.test(l))
+// the committed example app (examples/vite), copied clean: the same app StackBlitz opens from pkg.pr.new, with bonkei from the tarball
+fs.cpSync(path.join(root, 'examples/vite'), app, { recursive: true, filter: f => !/node_modules|dist$/.test(f) })
+const out = sh(`npm install ${tgz} 2>&1`, app)
+const warn = out.split('\n').filter(l => /peer|ERESOLVE|WARN/i.test(l) && !/deprecated|Unknown env config|install-scripts/i.test(l))
 console.log('npm install output lines about peers/warnings:', warn.length ? warn : 'none')
 if (warn.length) { console.error('peer warnings on install'); process.exitCode = 1 }
 const pkg = JSON.parse(fs.readFileSync(path.join(app, 'package.json'), 'utf8'))
-console.log('app dependencies:', JSON.stringify(pkg.dependencies), '| react installed:', JSON.parse(fs.readFileSync(path.join(app, 'node_modules/react/package.json'), 'utf8')).version)
+console.log('app dependencies:', JSON.stringify(pkg.dependencies), '| react installed:', JSON.parse(fs.readFileSync(path.join(app, 'node_modules/react/package.json'), 'utf8')).version, '| bonkei from tarball:', /\.tgz$/.test(pkg.dependencies.bonkei))
 console.log('@opentelemetry/api in app dependencies:', '@opentelemetry/api' in pkg.dependencies, '(installed transitively:', fs.existsSync(path.join(app, 'node_modules/@opentelemetry/api')) + ')')
-
-fs.writeFileSync(path.join(app, 'src/App.tsx'), `import { Bonkei } from 'bonkei'
-const SRC = \`flowchart TD
-  A[Client] --> B[API]
-  B --> C[(Database)]
-  B --> D{Cache}
-  D --> C
-  subgraph Back[Backend]
-    B
-    C
-  end\`
-export default function App() {
-  return (
-    <div style={{ position: 'fixed', inset: 0 }}>
-      <Bonkei source={SRC}
-        onEdgeStats={s => { (window as any).__stats = s }}
-        onError={e => { (window as any).__error = e.message }} />
-    </div>
-  )
-}
-`)
-fs.writeFileSync(path.join(app, 'src/main.tsx'), `import { createRoot } from 'react-dom/client'\nimport App from './App'\ncreateRoot(document.getElementById('root')!).render(<App />)\n`)
-fs.writeFileSync(path.join(app, 'src/index.css'), 'html,body,#root{margin:0;height:100%}')
-const vc = fs.readFileSync(path.join(app, 'vite.config.ts'), 'utf8')
-console.log('host vite.config.ts is the template default:', /plugins: \[react\(\)\]/.test(vc) && !/bonkei|optimizeDeps/i.test(vc))
+const vc = fs.readFileSync(path.join(app, 'vite.config.ts'), 'utf8').replace(/\/\/.*/g, '')
+console.log('host vite.config.ts has nothing Bonkei-specific:', /plugins: \[react\(\)\]/.test(vc) && !/optimizeDeps|wasm|alias/i.test(vc))
 
 console.log('--- tsc in the host app (types for bonkei and bonkei/internal)')
 fs.writeFileSync(path.join(app, 'src/types-check.ts'), `import { Bonkei, render, type BonkeiProps } from 'bonkei'\nimport { parse, layout } from 'bonkei/internal'\nexport const t = [Bonkei, render, parse, layout] as const\nexport type P = BonkeiProps\n`)
-try { console.log(sh('npx tsc -b', app) || 'tsc passed') } catch (e) { console.error(e.stdout || e.message); process.exitCode = 1 }
+try { console.log(sh('npx tsc --noEmit', app) || 'tsc passed') } catch (e) { console.error(e.stdout || e.message); process.exitCode = 1 }
 
 const serve = async (args, port) => {
   const p = spawn('npx', ['vite', ...args, '--port', String(port), '--strictPort'], { cwd: app, stdio: 'ignore' })
