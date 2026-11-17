@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bonkei — logo (sketch)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;700&family=Yuji+Syuku&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#EFE6D0; --paper2:#E2D5B8; --sumi:#2A2622; --ai:#24508F; --indigo:#23345A; --ochre:#C9A24A;
+    --sage:#9AAE8C; --pine:#3F6B4E; --teal:#5E8F88; --rock:#8C7E6E; --shu:#C8452C; --night:#14161c }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--paper); color:var(--sumi); font:15px/1.5 system-ui, sans-serif }
+  body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.35; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55  0 0 0 0 .48  0 0 0 0 .36  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E") }
+  .note { background:#3b2f0b; color:#f5d77a; font-size:12px; text-align:center; padding:6px }
+  .wrap { max-width:1080px; margin:0 auto; padding:24px }
+  h1 { font:700 28px 'Zen Old Mincho', serif; margin:12px 0 4px }
+  h2 { font:700 19px 'Zen Old Mincho', serif; margin:36px 0 6px }
+  p.lead { color:#5d554b; max-width:720px; margin:0 0 18px }
+  .row { display:flex; gap:28px; align-items:flex-end; flex-wrap:wrap }
+  .cell { display:flex; flex-direction:column; align-items:center; gap:8px; font-size:12px; color:#6f665a }
+  .card { background:#f6f0e2; border:1px solid #d8cbaa; border-radius:10px; padding:20px }
+  .dark { background:var(--night); border-color:#2a2e38; color:#c9c2b4 }
+  .choice { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px }
+  .choice .card { display:flex; flex-direction:column; align-items:center; gap:14px }
+  .choice h3 { margin:0; font:700 15px 'Zen Old Mincho', serif }
+  .choice small { color:#6f665a; text-align:center }
+  .tag { font-size:11px; background:var(--shu); color:#fff; border-radius:3px; padding:1px 6px }
+  .word { font:700 30px 'Zen Old Mincho', serif; letter-spacing:.01em }
+  .word.brush { font:400 32px 'Yuji Syuku', serif }
+  .lock { display:flex; align-items:center; gap:12px }
+  .lock .kanji { font:400 13px 'Zen Old Mincho', serif; color:#7a6f61; writing-mode:vertical-rl; letter-spacing:.2em }
+  .tabbar { display:flex; gap:0; background:#dfe1e6; border-radius:8px 8px 0 0; padding:6px 8px 0; width:420px }
+  .tab { display:flex; align-items:center; gap:8px; background:#fff; border-radius:7px 7px 0 0; padding:7px 12px; font-size:12px; color:#333; width:220px }
+  .swatches { display:flex; gap:10px; flex-wrap:wrap }
+  .sw { width:92px; font-size:11px; color:#5d554b }
+  .sw i { display:block; height:44px; border-radius:6px; border:1px solid #0002; margin-bottom:4px }
+</style>
+</head>
+<body>
+<div class="note">SKETCH · made-up lockups, not final art · all marks drawn as plain vector here, by hand</div>
+<div class="wrap">
+  <h1>Bonkei logo</h1>
+  <p class="lead"><b>C is the logo.</b> <b>A</b>, the same picture simplified, in C’s colours, is the small mark, used sparingly: favicon and tab. The red seal is kept for reference.</p>
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <!-- A: seal, square: mountain behind (paler), bonsai in front, tray -->
+      <symbol id="sealA" viewBox="0 0 32 32">
+        <path d="M3.2 4.1 Q3 2.8 4.4 2.9 L27.8 2.6 Q29.2 2.7 29.1 4 L29.4 27.9 Q29.3 29.3 27.9 29.2 L4.2 29.4 Q2.8 29.3 2.9 27.9 Z" fill="#C8452C"/>
+        <path d="M13.4 20.4 L18.6 10.6 L20.8 13.4 L23.8 7.4 L28.4 20.4 Z" fill="#fff" opacity=".5"/>
+        <g fill="#fff" stroke="#C8452C" stroke-width="1.1" paint-order="stroke" stroke-linejoin="round">
+          <path d="M10.9 16.7 Q9.6 16.6 8.2 17.2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M9.4 20.6 C8.2 18.4 11.2 17.4 10.6 15.6 C10.2 14.2 11.4 12.8 13.4 12.2 L14.3 13.3 C12.8 14 12.4 15 12.8 16 C13.4 17.8 12.2 19.2 13.6 20.6 Z"/><path d="M4.4 17.6 Q4.2 16.06 5.73 15.5 Q6.62 14.38 8.25 14.8 Q9.73 14.24 11.06 15.5 Q12 16.62 11.8 17.6 Q8.1 18.1 4.4 17.6 Z"/><path d="M12.4 14.6 Q12.2 12.95 13.88 12.35 Q14.86 11.15 16.66 11.6 Q18.3 11 19.78 12.35 Q20.8 13.55 20.6 14.6 Q16.5 15.14 12.4 14.6 Z"/><path d="M8.4 11.4 Q8.2 9.75 9.7 9.15 Q10.56 7.95 12.14 8.4 Q13.58 7.8 14.88 9.15 Q15.8 10.35 15.6 11.4 Q12 11.94 8.4 11.4 Z"/>
+        </g>
+        <path d="M5.6 20.8 H26.4 L23.8 25.2 H8.2 Z" fill="#fff"/>
+      </symbol>
+      <symbol id="smallA" viewBox="0 0 32 32">
+        <rect x="2.4" y="2.4" width="27.2" height="27.2" rx="5" fill="#EFE6D0" stroke="#2A2622" stroke-width="1.4"/>
+        <g transform="translate(16 16) scale(.83) translate(-16.39 -16.3)">
+        <path d="M13.4 20.4 L18.6 10.6 L20.8 13.4 L23.8 7.4 L28.4 20.4 Z" fill="#8C7E6E" stroke="#2A2622" stroke-width=".9" stroke-linejoin="round"/>
+        <path d="M22.3 10.4 L23.8 7.4 L25.2 10.6 Z" fill="#C9A24A" stroke="#2A2622" stroke-width=".6" stroke-linejoin="round"/>
+        <path d="M10.9 16.7 Q9.6 16.6 8.2 17.2" fill="none" stroke="#2A2622" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M9.4 20.6 C8.2 18.4 11.2 17.4 10.6 15.6 C10.2 14.2 11.4 12.8 13.4 12.2 L14.3 13.3 C12.8 14 12.4 15 12.8 16 C13.4 17.8 12.2 19.2 13.6 20.6 Z" fill="#6b5544" stroke="#2A2622" stroke-width=".8" stroke-linejoin="round"/>
+        <g fill="#3F6B4E" stroke="#2A2622" stroke-width=".8" stroke-linejoin="round"><path d="M4.4 17.6 Q4.2 16.06 5.73 15.5 Q6.62 14.38 8.25 14.8 Q9.73 14.24 11.06 15.5 Q12 16.62 11.8 17.6 Q8.1 18.1 4.4 17.6 Z"/><path d="M12.4 14.6 Q12.2 12.95 13.88 12.35 Q14.86 11.15 16.66 11.6 Q18.3 11 19.78 12.35 Q20.8 13.55 20.6 14.6 Q16.5 15.14 12.4 14.6 Z"/><path d="M8.4 11.4 Q8.2 9.75 9.7 9.15 Q10.56 7.95 12.14 8.4 Q13.58 7.8 14.88 9.15 Q15.8 10.35 15.6 11.4 Q12 11.94 8.4 11.4 Z"/></g>
+        <path d="M5.6 20.8 H26.4 L23.8 25.2 H8.2 Z" fill="#24508F" stroke="#2A2622" stroke-width=".9" stroke-linejoin="round"/>
+        <g fill="#f4efe3"><path d="M10 23 l1 -1 l1 1 l-1 1z"/><path d="M15 23 l1 -1 l1 1 l-1 1z"/><path d="M20 23 l1 -1 l1 1 l-1 1z"/></g>
+        </g>
+      </symbol>
+      <!-- B: seal, round, same picture -->
+      <symbol id="sealB" viewBox="0 0 32 32">
+        <circle cx="16" cy="16" r="14" fill="#C8452C"/>
+        <path d="M13.4 20.2 L18.6 10.8 L20.8 13.6 L23.4 8.6 L27 20.2 Z" fill="#fff" opacity=".5"/>
+        <g transform="translate(1.2 .2)"><g fill="#fff" stroke="#C8452C" stroke-width="1.1" paint-order="stroke" stroke-linejoin="round">
+          <path d="M10.9 16.7 Q9.6 16.6 8.2 17.2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M9.4 20.6 C8.2 18.4 11.2 17.4 10.6 15.6 C10.2 14.2 11.4 12.8 13.4 12.2 L14.3 13.3 C12.8 14 12.4 15 12.8 16 C13.4 17.8 12.2 19.2 13.6 20.6 Z"/><path d="M4.4 17.6 Q4.2 16.06 5.73 15.5 Q6.62 14.38 8.25 14.8 Q9.73 14.24 11.06 15.5 Q12 16.62 11.8 17.6 Q8.1 18.1 4.4 17.6 Z"/><path d="M12.4 14.6 Q12.2 12.95 13.88 12.35 Q14.86 11.15 16.66 11.6 Q18.3 11 19.78 12.35 Q20.8 13.55 20.6 14.6 Q16.5 15.14 12.4 14.6 Z"/><path d="M8.4 11.4 Q8.2 9.75 9.7 9.15 Q10.56 7.95 12.14 8.4 Q13.58 7.8 14.88 9.15 Q15.8 10.35 15.6 11.4 Q12 11.94 8.4 11.4 Z"/>
+        </g></g>
+        <path d="M6.6 20.6 H25.4 L23 24.8 H9 Z" fill="#fff"/>
+      </symbol>
+      <!-- pattern for the bowl -->
+      <pattern id="hishi" width="10" height="10" patternUnits="userSpaceOnUse">
+        <rect width="10" height="10" fill="#f4efe3"/>
+        <path d="M5 1.2 L8.8 5 L5 8.8 L1.2 5 Z" fill="#24508F"/>
+      </pattern>
+      <!-- C: full tray landscape, colour: mountain behind, bonsai in front -->
+      <symbol id="trayC" viewBox="0 0 64 64">
+        <path d="M24 38 L33 17 L38 23.5 L44 10 L52 29 L55 26.5 L58 38 Z" fill="#8C7E6E" stroke="#2A2622" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M40.6 16 L44 10 L47 16.8 Z" fill="#C9A24A" stroke="#2A2622" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M19.8 30.4 Q17.2 30.2 14.4 31.4" fill="none" stroke="#2A2622" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M16.8 38.2 C14.4 33.8 20.4 31.8 19.2 28.2 C18.4 25.4 20.8 22.6 24.8 21.4 L26.6 23.6 C23.6 25 22.8 27 23.6 29 C24.8 32.6 22.4 35.4 25.2 38.2 Z" fill="#6b5544" stroke="#2A2622" stroke-width="1.4" stroke-linejoin="round"/>
+        <g fill="#3F6B4E" stroke="#2A2622" stroke-width="1.3" stroke-linejoin="round"><path d="M6.8 32.2 Q6.6 29.12 9.46 28 Q11.24 25.76 14.5 26.6 Q17.46 25.48 20.12 28 Q21.8 30.24 21.6 32.2 Q14.2 33.21 6.8 32.2 Z"/><path d="M22.8 26.2 Q22.6 22.9 25.75 21.7 Q27.72 19.3 31.33 20.2 Q34.61 19 37.56 21.7 Q39.4 24.1 39.2 26.2 Q31 27.28 22.8 26.2 Z"/><path d="M14.8 19.8 Q14.6 16.5 17.39 15.3 Q19.12 12.9 22.29 13.8 Q25.17 12.6 27.76 15.3 Q29.4 17.7 29.2 19.8 Q22 20.88 14.8 19.8 Z"/></g>
+        <ellipse cx="32" cy="38.5" rx="25" ry="4" fill="#E6DCC3" stroke="#2A2622" stroke-width="1.6"/>
+        <path d="M7 38.5 Q8 52 18 53 H46 Q56 52 57 38.5 Q50 42.5 32 42.5 Q14 42.5 7 38.5 Z" fill="url(#hishi)" stroke="#2A2622" stroke-width="1.6" stroke-linejoin="round"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="choice">
+    <div class="card">
+      <span class="tag">small mark · favicon</span>
+      <svg width="120" height="120"><use href="#smallA"/></svg>
+      <h3>A · Small mark, in C’s colours</h3>
+      <small>A’s simplified cut (bonsai before the mountain, on a tray) in C’s colours, on a paper tile with an ink edge. Used sparingly: favicon, browser tab, app icon.</small>
+    </div>
+    <div class="card">
+      <svg width="120" height="120"><use href="#sealA"/></svg>
+      <h3>A (red seal), earlier</h3>
+      <small>A bonsai (tapered S-curved trunk, foliage pads) in front, the mountain paler behind it, on a shallow tray, cut from a red stamp. The uneven edge is the hand-printed note.</small>
+    </div>
+    <div class="card">
+      <span class="tag">the logo</span>
+      <svg width="120" height="120"><use href="#trayC"/></svg>
+      <h3>C · The logo</h3>
+      <small>The full picture in colour: bonsai before a rock mountain with a gold peak, lattice bowl, ink line. The logo everywhere from 32 px up: nav, footer, docs, social cards.</small>
+    </div>
+  </div>
+
+  <h2>At every size</h2>
+  <div class="card">
+    <div class="row">
+      <div class="cell"><svg width="128" height="128"><use href="#sealA"/></svg>128</div>
+      <div class="cell"><svg width="64" height="64"><use href="#sealA"/></svg>64</div>
+      <div class="cell"><svg width="32" height="32"><use href="#sealA"/></svg>32</div>
+      <div class="cell"><svg width="16" height="16"><use href="#sealA"/></svg>16</div>
+      <div style="width:30px"></div>
+      <div class="cell"><svg width="64" height="64"><use href="#smallA"/></svg>64</div>
+      <div class="cell"><svg width="32" height="32"><use href="#smallA"/></svg>32</div>
+      <div class="cell"><svg width="16" height="16"><use href="#smallA"/></svg>16</div>
+      <div style="width:30px"></div>
+      <div class="cell"><svg width="64" height="64"><use href="#trayC"/></svg>64</div>
+      <div class="cell"><svg width="32" height="32"><use href="#trayC"/></svg>32</div>
+      <div class="cell"><svg width="16" height="16"><use href="#trayC"/></svg>16</div>
+    </div>
+  </div>
+
+  <h2>In a browser tab</h2>
+  <div class="row">
+    <div class="tabbar"><div class="tab"><svg width="16" height="16"><use href="#sealA"/></svg>Bonkei — diagrams as tray…</div></div>
+    <div class="tabbar"><div class="tab"><svg width="16" height="16"><use href="#smallA"/></svg>Bonkei — diagrams as tray…</div></div>
+  </div>
+
+  <h2>Wordmark and lockups</h2>
+  <p class="lead">Old-style mincho serif (Zen Old Mincho, free licence) or a brush hand (Yuji Syuku). 盆景 set vertically, like the cartouches on the prints.</p>
+  <div class="row">
+    <div class="card lock"><svg width="56" height="56"><use href="#trayC"/></svg><span class="word">Bonkei</span><span class="kanji">盆景</span></div>
+    <div class="card lock"><svg width="40" height="40"><use href="#sealA"/></svg><span class="word brush">Bonkei</span></div>
+    <div class="card lock"><svg width="56" height="56"><use href="#trayC"/></svg><span class="word">Bonkei</span><svg width="22" height="22"><use href="#sealA"/></svg></div>
+    <div class="card lock dark"><svg width="56" height="56"><use href="#trayC"/></svg><span class="word" style="color:#efe6d0">Bonkei</span><span class="kanji" style="color:#8c8476">盆景</span></div>
+  </div>
+
+  <h2>Colours (from the prints' pigments)</h2>
+  <div class="swatches">
+    <div class="sw"><i style="background:#EFE6D0"></i>washi cream</div>
+    <div class="sw"><i style="background:#2A2622"></i>sumi ink</div>
+    <div class="sw"><i style="background:#24508F"></i>bero-ai blue</div>
+    <div class="sw"><i style="background:#23345A"></i>indigo</div>
+    <div class="sw"><i style="background:#C9A24A"></i>ochre</div>
+    <div class="sw"><i style="background:#9AAE8C"></i>sage</div>
+    <div class="sw"><i style="background:#3F6B4E"></i>pine</div>
+    <div class="sw"><i style="background:#5E8F88"></i>teal</div>
+    <div class="sw"><i style="background:#8C7E6E"></i>rock</div>
+    <div class="sw"><i style="background:#C8452C"></i>vermilion seal</div>
+  </div>
+</div>
+</body>
+</html>
