@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { useMemo } from 'react'
-import { Billboard } from '@react-three/drei'
+import { Billboard, Line } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
 import type { Box, LabelMode } from './model'
 
 export type { LabelMode }
@@ -33,6 +35,50 @@ function geometry(shape: Box['shape'], w: number, h: number, height: number, bev
   g = new THREE.ExtrudeGeometry(sh, { depth: height, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 2, curveSegments: 16 })
   g.rotateX(-Math.PI / 2)
   return g
+}
+
+// The footprint's outline in plan (x, z), for the shapes whose sides are smooth.
+function plan(shape: Box['shape'], w: number, h: number): [number, number][] {
+  if (shape === 'cylinder') return Array.from({ length: 64 }, (_, i) => { const a = (i / 64) * Math.PI * 2; return [Math.cos(a) * w / 2, Math.sin(a) * h / 2] as [number, number] })
+  return rounded(w, h, Math.min(w, h) / 2 * 0.95).getPoints(16).map(p => [p.x, -p.y] as [number, number]) // shape y is world -z
+}
+
+/**
+ * Vertical ink lines on the two edge-on points of a rounded side. They are not creases, so the outline pass has none; they are where the
+ * surface turns away from the camera, so they move round the curve as the view turns. Each frame: the vertices of the footprint where the
+ * outward normal stops facing the camera, found from the camera's position in the node's frame; two unit Line2s are placed there and stretched to the height.
+ */
+function Silhouette({ shape, w, h, height, y, color, width }: { shape: Box['shape']; w: number; h: number; height: number; y: number; color: string; width: number }) {
+  const pts = useMemo(() => plan(shape, w, h), [shape, w, h])
+  const root = useRef<THREE.Group>(null!)
+  const a = useRef<any>(null), b = useRef<any>(null)
+  const pos = useMemo(() => new THREE.Vector3(), [])
+  const n = pts.length
+  // orientation of the loop, so "outward" is the same side for any winding
+  const sign = useMemo(() => pts.reduce((s, p, i) => { const q = pts[(i + 1) % n]; return s + (q[0] - p[0]) * (q[1] + p[1]) }, 0) > 0 ? 1 : -1, [pts, n])
+  useFrame(({ camera }) => {
+    root.current.getWorldPosition(pos)
+    const cx = camera.position.x - pos.x, cz = camera.position.z - pos.z
+    const facing = pts.map((p, i) => {
+      const q = pts[(i + 1) % n], ex = q[0] - p[0], ez = q[1] - p[1]
+      return sign * (ez * (cx - (p[0] + q[0]) / 2) - ex * (cz - (p[1] + q[1]) / 2)) > 0 // outward normal . (camera - edge midpoint) > 0
+    })
+    const found: number[] = []
+    for (let i = 0; i < n; i++) if (facing[(i + n - 1) % n] !== facing[i]) found.push(i)
+    for (const [ref, k] of [[a, 0], [b, 1]] as const) {
+      const l = ref.current, i = found[k]
+      if (!l) continue
+      l.visible = i !== undefined
+      if (i !== undefined) { l.position.set(pts[i][0], y, pts[i][1]); l.scale.set(1, height, 1) }
+    }
+  })
+  const unit: [number, number, number][] = [[0, 0, 0], [0, 1, 0]]
+  return (
+    <group ref={root}>
+      <Line ref={a} points={unit} color={color} lineWidth={width} />
+      <Line ref={b} points={unit} color={color} lineWidth={width} />
+    </group>
+  )
 }
 
 // A landscape form: a cut-out standing on the node's footprint, with the label in front of its foot. Both live in one billboard
@@ -76,6 +122,9 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
         <Mat color={land ? plinth : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
         <Ink color={th.node.outline} width={th.node.outlineWidth} />
       </mesh>
+      {th.node.outline && (b.shape === 'round' || b.shape === 'cylinder') && (
+        <Silhouette shape={b.shape} w={land ? w * 0.9 : w} h={land ? h * 0.9 : h} height={height} y={0.012} color={th.node.outline} width={th.node.outlineWidth} />
+      )}
       {land
         ? <Form shape={b.shape} w={w} h={h} y={height} gap={th.node.labelGap} label={b.label} plate={th.label.node} font={fontUrl(th)} toward={th.label.toward} />
         : <Label text={b.label} mode={labelMode} y={height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />}
