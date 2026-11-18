@@ -2,7 +2,7 @@ import { test, beforeEach, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { trace } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { ALL_ON, cursorFor, dragAction, gesture, gestureRows, settleYaw, wheelAction, wheelInput, WHEEL_IDLE_MS } from './controls.ts'
+import { ALL_ON, cursorFor, dragAction, gesture, gestureRows, isPinch, isSwapped, settleYaw, wheelAction, wheelInput, WHEEL_IDLE_MS } from './controls.ts'
 import { resolveControls } from './options.ts'
 
 const exporter = new InMemorySpanExporter()
@@ -124,4 +124,19 @@ test('wheel events debounce into one span per gesture, ended after 300 ms idle',
   } finally {
     mock.timers.reset()
   }
+})
+
+test('a pinch is a ctrl wheel in small steps; ctrl + a mouse wheel is not', () => {
+  assert.equal(isPinch({ ctrlKey: true, metaKey: false, deltaMode: 0, deltaY: -2.5 }), true)
+  assert.equal(isPinch({ ctrlKey: true, metaKey: false, deltaMode: 0, deltaY: 100 }), false)
+  assert.equal(isPinch({ ctrlKey: false, metaKey: true, deltaMode: 0, deltaY: -2.5 }), false)
+})
+
+test('a gesture span says how it arrived, in which view, and whether Shift or the secondary button swapped it', () => {
+  gesture('turn', undefined, 'drag', () => '3d', isSwapped(2, false)).touch()
+  const g = exporter.getFinishedSpans()
+  assert.equal(g.length, 0) // still open
+  const s = gesture('pan', undefined, 'drag', () => 'flat', false); s.touch(); s.end()
+  const a = controlSpans().at(-1)!.attributes
+  assert.equal(a['bonkei.control.via'], 'drag'); assert.equal(a['bonkei.mode'], 'flat'); assert.equal(a['bonkei.control.swapped'], false)
 })

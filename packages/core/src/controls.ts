@@ -3,7 +3,7 @@
 import type { Span } from '@opentelemetry/api'
 import type { Mode } from './camera.ts'
 import type { ResolvedControls } from './options.ts'
-import { tracer } from './telemetry.ts'
+import { instant, tracer } from './telemetry.ts'
 
 export const ALL_ON: Readonly<ResolvedControls> = Object.freeze({ zoom: true, pan: true, move: true, drillIn: true })
 
@@ -68,6 +68,20 @@ export function cursorFor(kind: Pickable, controls: ResolvedControls, hasClick: 
 }
 
 export type Gesture = 'zoom' | 'pan' | 'turn' | 'move'
+/** How a gesture arrived: a wheel event (a pinch is a wheel with ctrlKey), a pointer drag, or two fingers on a touch screen. */
+export type Via = 'wheel' | 'pinch' | 'drag' | 'touch'
+
+/** `swapped`: the gesture was reached with Shift or the secondary button (BON-78), not by its plain form. */
+export const isSwapped = (button: number, shift: boolean) => button === 2 || shift
+
+/** A wheel event that is a pinch: ctrlKey without a real key held, small steps (a mouse wheel with Ctrl moves in big whole steps). */
+export const isPinch = (e: { ctrlKey: boolean; metaKey: boolean; deltaMode: number; deltaY: number }) => e.ctrlKey && !e.metaKey && e.deltaMode === 0 && !(Number.isInteger(e.deltaY) && Math.abs(e.deltaY) >= 50)
+
+/** One-off events for the things a reader sees: the hint over a page-scrolling diagram, taking or letting go of the gestures, the gesture card. */
+export const hintShown = (input: Input, mode: Mode) => instant('bonkei.control.hint', { 'bonkei.input': input, 'bonkei.mode': mode })
+export const holdChanged = (held: boolean, how: 'click' | 'touch' | 'esc' | 'outside', mode: Mode) => instant('bonkei.control.hold', { 'bonkei.hold': held ? 'taken' : 'let_go', 'bonkei.hold.how': how, 'bonkei.mode': mode })
+export const helpToggled = (open: boolean, input: Input, mode: Mode, how: 'button' | 'esc' | 'close') => instant('bonkei.help', { 'bonkei.help': open ? 'open' : 'close', 'bonkei.help.how': how, 'bonkei.input': input, 'bonkei.mode': mode })
+export const fitUsed = (mode: Mode) => instant('bonkei.fit', { 'bonkei.mode': mode })
 
 export interface GestureSpan {
   /** The gesture is going on: the first call opens the span, later ones keep it open. */
@@ -81,7 +95,7 @@ export interface GestureSpan {
  * on its own once `touch` has not been called for that long (wheel zooms arrive as many events);
  * without it the caller ends it (pan, turn and move end on pointer up).
  */
-export function gesture(control: Gesture, idleMs?: number): GestureSpan {
+export function gesture(control: Gesture, idleMs?: number, via: Via = 'wheel', mode?: () => Mode, swapped = false): GestureSpan {
   let span: Span | null = null
   let timer: ReturnType<typeof setTimeout> | undefined
   const end = () => {
@@ -90,7 +104,7 @@ export function gesture(control: Gesture, idleMs?: number): GestureSpan {
   }
   return {
     touch() {
-      if (!span) span = tracer.startSpan('bonkei.control', { attributes: { 'bonkei.control': control } })
+      if (!span) span = tracer.startSpan('bonkei.control', { attributes: { 'bonkei.control': control, 'bonkei.control.via': via, 'bonkei.control.swapped': swapped, ...(mode ? { 'bonkei.mode': mode() } : {}) } })
       if (idleMs !== undefined) {
         if (timer !== undefined) clearTimeout(timer)
         timer = setTimeout(end, idleMs)

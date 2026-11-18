@@ -359,3 +359,9 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - Turning on the right button only: a Mac has no right button without a modifier, and Ctrl-click opens the menu.
 
 **Consequences.** One modifier, Shift, always means "the other thing" in 3D. The card shows different rows in 3D, so a reader switching views sees what changed.
+
+### BON-78 prototype additions
+
+- **Telemetry.** `bonkei.control` now carries `bonkei.control.via` (`wheel` | `pinch` | `drag` | `touch`), `bonkei.control.swapped` (reached with Shift or the secondary button) and `bonkei.mode`. A trackpad pinch (a ctrl wheel in small steps) is `via: pinch`; ⌘/Ctrl + a mouse wheel is `via: wheel`. New instant spans: `bonkei.control.hint` (`bonkei.input`), `bonkei.control.hold` (`bonkei.hold`: `taken` | `let_go`, `bonkei.hold.how`: `click` | `touch` | `esc` | `outside`; only for a diagram in a page that scrolls), `bonkei.help` (`open` | `close`, how, input, mode) and `bonkei.fit`.
+- **Esc closes the gesture card** wherever focus is, not only when the "?" button has it.
+- **Touch** has its own spans for a twist (`turn`), a two-finger slide (`pan`) and a pinch (`zoom`), all `via: touch`.

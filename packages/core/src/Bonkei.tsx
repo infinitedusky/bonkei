@@ -10,7 +10,7 @@ import { DEFAULTS, mergeOptions, resolveControls, type BonkeiError, type BonkeiO
 import type { GraphInput } from './model'
 import { instant, tracer } from './telemetry'
 import { UI } from './palette'
-import { gestureRows, wheelInput, type Input } from './controls'
+import { fitUsed, gestureRows, helpToggled, wheelInput, type Input } from './controls'
 import { resolveTheme, themeByName } from './theme'
 import { loadFont } from './fonts.ts'
 
@@ -101,7 +101,14 @@ export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, on
   const refs = useRef<(HTMLButtonElement | null)[]>([])
   const [ownOpen, setOwnOpen] = useState(false)
   const open = helpOpen ?? ownOpen
-  const setOpen = (o: boolean) => { setOwnOpen(o); onHelp?.(o) }
+  const setOpen = (o: boolean, how: 'button' | 'esc' | 'close' = 'button') => { if (o !== open) helpToggled(o, input, mode, how); setOwnOpen(o); onHelp?.(o) }
+  // Esc closes the card wherever focus is
+  useEffect(() => {
+    if (!open) return
+    const esc = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setOpen(false, 'esc') }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  })
   const btn = (on: boolean): CSSProperties => ({
     padding: '4px 10px', border: 0, borderRadius: 4, cursor: 'pointer', font: '13px system-ui, sans-serif',
     background: on ? UI.on : 'transparent', color: UI.text,
@@ -140,10 +147,9 @@ export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, on
       )}
       <button type="button" aria-label="Fit the diagram" onClick={onFit} style={{ ...panel, ...btn(false), border: `1px solid ${UI.border}`, background: UI.panel }}>Fit</button>
       <button type="button" aria-label="How to move the diagram" aria-expanded={open} onClick={() => setOpen(!open)}
-        onKeyDown={e => { if (e.key === 'Escape') setOpen(false) }}
-        style={{ ...panel, ...btn(open), border: `1px solid ${UI.border}`, background: open ? UI.on : UI.panel, width: 30, padding: '4px 0' }}>?</button>
+                style={{ ...panel, ...btn(open), border: `1px solid ${UI.border}`, background: open ? UI.on : UI.panel, width: 30, padding: '4px 0' }}>?</button>
     </div>
-    {open && <GestureCard input={input} mode={mode} onClose={() => setOpen(false)} />}
+    {open && <GestureCard input={input} mode={mode} onClose={() => setOpen(false, 'close')} />}
     </div>
   )
 }
@@ -306,6 +312,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     if (!p) return
     camera.whole = true
     camera.fit(p.data.width, p.data.height)
+    fitUsed(modeRef.current)
   }, [camera])
   const frame = useCallback(() => {
     const p = preparedRef.current

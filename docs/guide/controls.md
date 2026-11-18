@@ -10,14 +10,34 @@ Four things a reader can do to a diagram: **zoom**, **pan**, **move** a node, an
 
 | Control | What the reader can do |
 | --- | --- |
-| `zoom` | Scroll or pinch to zoom |
-| `pan` | Drag the background to pan |
+| `zoom` | Pinch, or ⌘/Ctrl + scroll, to zoom |
+| `pan` | Move the diagram (two-finger drag, scroll wheel, or dragging the background) and turn it |
 | `move` | Drag a node to move it |
 | `drillIn` | Click a group to zoom into it |
 
 </div>
 
 `controls: true` (the default) turns all on, `false` all off; an object switches each, and a control left out is on.
+
+## Gestures
+
+The same in every view, on this page, in the viewer and in the stories. Press **?** beside **Fit** on any diagram for the list that matches the input you last used (trackpad, mouse or touch) and the current view.
+
+<div class="table-wrap">
+
+| | Flat and iso | 3D |
+| --- | --- | --- |
+| Move | Two-finger drag, scroll wheel (⇧ for sideways), or drag the background | Two-finger drag, scroll wheel, or ⇧ + drag, or right-drag |
+| Zoom | Pinch, or ⌘/Ctrl + scroll | Pinch, or ⌘/Ctrl + scroll |
+| Turn | ⇧ + drag or right-drag; settles on the nearest quarter turn when let go (iso stays on its corners) | Drag (sideways turns, up and down tilts), or ⇧ + scroll |
+| Touch | One finger moves, pinch zooms, a twist turns | The same, and two fingers up or down tilt |
+| Fit | Shows the whole diagram and puts it back square | The same |
+
+</div>
+
+**In a page that scrolls**, a diagram does not trap the page: scrolling over it scrolls the page and a hint says how to take hold ("Click to move the diagram"; on touch, "Use two fingers to move the diagram"). A click gives the diagram its gestures, shown by a ring and "Esc to let go", until you press Esc or click outside it. Pinch and ⌘/Ctrl + scroll zoom either way. A diagram that fills a page that does not scroll always has its gestures. The right-click menu never opens over a diagram.
+
+`controls.pan: false` switches off moving and turning, `controls.zoom: false` zooming; with zoom off, ⌘/Ctrl + scroll is left to the browser and the page.
 
 ## All on (the default)
 

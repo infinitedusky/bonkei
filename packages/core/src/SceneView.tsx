@@ -15,7 +15,7 @@ import { CLASSIC, inkPx, type Theme } from './theme'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
-import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, settleYaw, wheelAction, wheelInput, type Input } from './controls'
+import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, hintShown, holdChanged, isPinch, isSwapped, settleYaw, wheelAction, wheelInput, type Input } from './controls'
 import type { NodeClick, ResolvedControls } from './options'
 
 const LIGHT_TILTED = new THREE.Vector3(10, 18, 7) // iso and 3D
@@ -49,8 +49,15 @@ class Gate {
     const d = document.scrollingElement ?? document.documentElement
     return d.scrollHeight > d.clientHeight + 1
   }
-  hold(on: boolean) { if (this.held !== on) { this.held = on; for (const f of this.listeners) f() } }
-  hint() { this.hintListener() }
+  mode: Mode = 'iso'
+  hold(on: boolean, how: 'click' | 'touch' | 'esc' | 'outside' = 'click') {
+    if (this.held === on) return
+    this.held = on
+    // only a diagram in a page that scrolls has anything to take or let go of
+    if (this.inScroller()) holdChanged(on, how, this.mode)
+    for (const f of this.listeners) f()
+  }
+  hint() { hintShown(this.input, this.mode); this.hintListener() }
 }
 const GateCtx = createContext<Gate | null>(null)
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'
@@ -144,7 +151,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     const action = dragAction(controls, cam.mode, ne.button, ne.shiftKey)
     if (action === 'none') return
     let lx = ne.clientX, ly = ne.clientY
-    const span = gesture(action)
+    const span = gesture(action, undefined, ne.pointerType === 'touch' ? 'touch' : 'drag', () => cam.mode, isSwapped(ne.button, ne.shiftKey))
     const move = (ev: PointerEvent) => {
       if (touches.current.size > 1) return
       span.touch()
@@ -163,11 +170,12 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   useEffect(() => {
     const el = gl.domElement
     gate.el = el.closest<HTMLElement>('[data-bonkei]') ?? el.parentElement?.parentElement?.parentElement ?? el.parentElement
-    const zoomSpan = gesture('zoom', WHEEL_IDLE_MS), panSpan = gesture('pan', WHEEL_IDLE_MS), turnSpan = gesture('turn', WHEEL_IDLE_MS), pinch = gesture('zoom')
+    const zoomSpan = gesture('zoom', WHEEL_IDLE_MS, 'wheel'), pinchWheel = gesture('zoom', WHEEL_IDLE_MS, 'pinch'), panSpan = gesture('pan', WHEEL_IDLE_MS, 'wheel', () => cam.mode), turnSpan = gesture('turn', WHEEL_IDLE_MS, 'wheel', () => cam.mode, true), pinch = gesture('zoom', undefined, 'touch', () => cam.mode), twist = gesture('turn', undefined, 'touch', () => cam.mode), slide = gesture('pan', undefined, 'touch', () => cam.mode)
     // a page that scrolls keeps one finger for its own scrolling until the diagram is held
     const touchAction = () => { el.style.touchAction = gate.engaged() ? 'none' : 'pan-x pan-y' }
     touchAction()
     const wheel = (e: WheelEvent) => {
+      gate.mode = cam.mode
       gate.input = wheelInput(e)
       const a = wheelAction(controls, e, gate.engaged(), cam.mode)
       if (a === 'pass') return
@@ -175,7 +183,8 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       e.preventDefault()
       const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? el.clientHeight : 1
       if (a === 'zoom') {
-        zoomSpan.touch()
+        // a trackpad pinch arrives as a wheel with ctrlKey and no modifier key held; ⌘/Ctrl + scroll is the key form
+        if (isPinch(e)) pinchWheel.touch(); else zoomSpan.touch()
         zoomBy(Math.exp(Math.max(-60, Math.min(60, e.deltaY * k)) * 0.01))
       } else if (a === 'turn') {
         turnSpan.touch()
@@ -197,9 +206,10 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     }
     const down = (e: PointerEvent) => {
       gate.input = e.pointerType === 'touch' ? 'touch' : gate.input === 'touch' ? 'mouse' : gate.input
-      if (e.pointerType !== 'touch') { gate.hold(true); return }
+      gate.mode = cam.mode
+      if (e.pointerType !== 'touch') { gate.hold(true, 'click'); return }
       touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-      if (touches.current.size === 2) { gate.hold(true); last = two() }
+      if (touches.current.size === 2) { gate.hold(true, 'touch'); last = two() }
     }
     const tmove = (e: PointerEvent) => {
       if (!touches.current.has(e.pointerId)) return
@@ -211,18 +221,20 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       if (controls.pan) {
         let da = now.a - last.a
         if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI
+        if (Math.abs(da) > 0.002 || (cam.mode === '3d' && now.y !== last.y)) twist.touch()
         turnBy(-da, cam.mode === '3d' ? (now.y - last.y) * 0.005 : 0)
+        if (cam.mode !== '3d' || now.x !== last.x) slide.touch()
         panBy(now.x - last.x, cam.mode === '3d' ? 0 : now.y - last.y)
       }
       last = now
     }
     const tup = (e: PointerEvent) => {
       if (!touches.current.delete(e.pointerId)) return
-      if (touches.current.size < 2 && last) { last = null; pinch.end(); settle() }
+      if (touches.current.size < 2 && last) { last = null; pinch.end(); twist.end(); slide.end(); settle() }
     }
     // let go on Esc or a press outside the diagram
-    const outside = (e: PointerEvent) => { if (gate.el && !gate.el.contains(e.target as Node)) gate.hold(false) }
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') gate.hold(false) }
+    const outside = (e: PointerEvent) => { if (gate.el && !gate.el.contains(e.target as Node)) gate.hold(false, 'outside') }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') gate.hold(false, 'esc') }
     gate.listeners.add(touchAction)
     el.addEventListener('wheel', wheel, { passive: false })
     el.addEventListener('contextmenu', menu)
@@ -236,7 +248,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       el.removeEventListener('wheel', wheel); el.removeEventListener('contextmenu', menu); el.removeEventListener('pointerdown', down, true)
       window.removeEventListener('pointermove', tmove); window.removeEventListener('pointerup', tup); window.removeEventListener('pointercancel', tup)
       window.removeEventListener('pointerdown', outside, true); window.removeEventListener('keydown', esc); window.removeEventListener('resize', touchAction)
-      zoomSpan.end(); panSpan.end(); turnSpan.end(); pinch.end()
+      zoomSpan.end(); pinchWheel.end(); panSpan.end(); turnSpan.end(); pinch.end(); twist.end(); slide.end()
     }
   }, [cam, gl, controls, gate])
 
