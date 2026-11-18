@@ -67,3 +67,17 @@ export const UnknownThemeWarns: Story = {
     )
   },
 }
+
+// BON-181: the trench of a tunnel carries a light along its floor and a light rim round its lip, in every theme. MADE-UP SAMPLE DATA.
+const tunnel = (theme: string, mode: Mode, vars = ''): Story => ({
+  args: { source: `---\nconfig:\n  theme: ${theme}\n  bonkei:\n    crossings: tunnel\n    avoidCrossings: off\n${vars}---\nflowchart LR\n  Web[Web app] --> Api[API] --> Db[(Database)]\n  Web --> Db\n  Cdn[CDN] --> Api\n  Cdn --> Cache[(Cache)]`, mode, toolbar: true },
+  decorators: [stage()],
+})
+export const TunnelClassicIso = tunnel('classic', 'iso')
+export const TunnelClassic3D = tunnel('classic', '3d')
+export const TunnelBonkeiIso = tunnel('bonkei', 'iso')
+export const TunnelBonkei3D = tunnel('bonkei', '3d')
+export const TunnelLandscapeIso = tunnel('bonkei-landscape', 'iso')
+export const TunnelLandscape3D = tunnel('bonkei-landscape', '3d')
+// the diagram's own rim wins over the theme's: a red, thin rim (themeVariables edge.rim, edge.rimWidth)
+export const TunnelOwnRim = tunnel('bonkei', 'iso', '  themeVariables:\n    edge.rim: "#ff3030"\n    edge.rimWidth: 1.5\n')
