@@ -30,7 +30,9 @@ export function bonkeiMarkdown(md, options = {}) {
   const fallback = (tokens, idx, opts, env, self) => self.renderToken(tokens, idx, opts)
   md.renderer.rules.fence = (tokens, idx, opts, env, self) => {
     const token = tokens[idx]
+    // VitePress runs markdown-it-attrs, which moves `{height=600}` out of the info string into token.attrs; plain markdown-it leaves it.
     const attrs = parseInfo(token.info)
+    if (attrs) for (const [k, v] of token.attrs ?? []) attrs[k] = v || 'true'
     const pass = reason => {
       options.onFence?.({ claimed: false, reason, file: env?.relativePath })
       return (previous ?? fallback)(tokens, idx, opts, env, self)

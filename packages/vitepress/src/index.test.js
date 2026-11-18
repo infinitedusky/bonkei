@@ -31,3 +31,11 @@ test('passes other types and other languages to the previous renderer', () => {
   assert.equal(md.render('```js\nx\n```\n'), '<previous/>')
 })
 test('parseInfo', () => { assert.deepEqual(parseInfo('mermaid {height=600 mode=3d}'), { height: '600', mode: '3d' }); assert.equal(parseInfo('js'), null) })
+
+test('reads {height=600} from token.attrs, where VitePress (markdown-it-attrs) puts it', async () => {
+  const { default: attrs } = await import('markdown-it-attrs').catch(() => ({ default: null }))
+  if (!attrs) return
+  const md = new MarkdownIt().use(attrs)
+  bonkeiMarkdown(md)
+  assert.match(md.render('```mermaid {height=600}\nflowchart TD\n A-->B\n```\n'), /height="600"/)
+})
