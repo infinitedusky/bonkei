@@ -57,3 +57,5 @@
 .grid2 .bonkei-diagram { margin: 0; }
 @media (max-width: 639px) { .grid2 { grid-template-columns: 1fr; } }
 .stack > figure { margin: 0 0 8px; }
+.grid2 figure, .grid4 figure { margin: 0; }
+.grid2 figcaption, .grid4 figcaption { font-size: 12px; color: var(--vp-c-text-2); text-align: center; margin: 4px 0 10px; }
