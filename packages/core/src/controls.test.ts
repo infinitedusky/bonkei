@@ -26,15 +26,29 @@ test('a plain wheel moves an engaged diagram, and asks for a hint otherwise', ()
   assert.equal(wheelAction({ ...ALL_ON, pan: false }, plain, true), 'pass')
 })
 
-test('a ground drag pans, and turns with Shift or the secondary button, in every view', () => {
-  assert.equal(dragAction(ALL_ON, 0, false), 'pan')
-  assert.equal(dragAction(ALL_ON, 0, true), 'turn')
-  assert.equal(dragAction(ALL_ON, 2, false), 'turn')
+test('flat and iso: a ground drag pans, and turns with Shift or the secondary button', () => {
+  for (const mode of ['flat', 'iso'] as const) {
+    assert.equal(dragAction(ALL_ON, mode, 0, false), 'pan')
+    assert.equal(dragAction(ALL_ON, mode, 0, true), 'turn')
+    assert.equal(dragAction(ALL_ON, mode, 2, false), 'turn')
+  }
+})
+
+test('3d: a ground drag turns, and pans with Shift or the secondary button', () => {
+  assert.equal(dragAction(ALL_ON, '3d', 0, false), 'turn')
+  assert.equal(dragAction(ALL_ON, '3d', 0, true), 'pan')
+  assert.equal(dragAction(ALL_ON, '3d', 2, false), 'pan')
+})
+
+test('3d: Shift turns the wheel into turning; flat and iso keep panning', () => {
+  const shift = { ctrlKey: false, metaKey: false, shiftKey: true }
+  assert.equal(wheelAction(ALL_ON, shift, true, '3d'), 'turn')
+  assert.equal(wheelAction(ALL_ON, shift, true, 'iso'), 'pan')
+  assert.equal(wheelAction(ALL_ON, { ...shift, shiftKey: false }, true, '3d'), 'pan')
 })
 
 test('a ground drag does nothing when pan is off', () => {
-  assert.equal(dragAction({ ...ALL_ON, pan: false }, 0, false), 'none')
-  assert.equal(dragAction({ ...ALL_ON, pan: false }, 2, true), 'none')
+  for (const mode of ['flat', 'iso', '3d'] as const) assert.equal(dragAction({ ...ALL_ON, pan: false }, mode, 0, false), 'none')
 })
 
 test('flat and iso settle on a quarter turn; 3d stays put', () => {
@@ -58,6 +72,7 @@ test('the card has a turn row for every input, and tilt only for touch in 3d', (
   assert.ok(gestureRows('touch', '3d', '⌘').some(([, a]) => a === 'Tilt'))
   assert.ok(!gestureRows('touch', 'iso', '⌘').some(([, a]) => a === 'Tilt'))
   assert.ok(gestureRows('mouse', 'flat', 'Ctrl').some(([g]) => g === 'Ctrl + scroll'))
+  assert.deepEqual(gestureRows('trackpad', '3d', '⌘')[0], ['Drag', 'Turn and tilt'])
 })
 
 test('grab only when move is on, zoom-in only when drillIn is on', () => {

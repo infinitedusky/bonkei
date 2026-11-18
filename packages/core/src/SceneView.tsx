@@ -141,7 +141,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     const ne = e.nativeEvent
     // one finger in a page that scrolls is the page's; two fingers are handled below
     if (ne.pointerType === 'touch' && (!gate.engaged() || touches.current.size > 1)) { if (!gate.engaged()) gate.hint(); return }
-    const action = dragAction(controls, ne.button, ne.shiftKey)
+    const action = dragAction(controls, cam.mode, ne.button, ne.shiftKey)
     if (action === 'none') return
     let lx = ne.clientX, ly = ne.clientY
     const span = gesture(action)
@@ -163,13 +163,13 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   useEffect(() => {
     const el = gl.domElement
     gate.el = el.closest<HTMLElement>('[data-bonkei]') ?? el.parentElement?.parentElement?.parentElement ?? el.parentElement
-    const zoomSpan = gesture('zoom', WHEEL_IDLE_MS), panSpan = gesture('pan', WHEEL_IDLE_MS), pinch = gesture('zoom')
+    const zoomSpan = gesture('zoom', WHEEL_IDLE_MS), panSpan = gesture('pan', WHEEL_IDLE_MS), turnSpan = gesture('turn', WHEEL_IDLE_MS), pinch = gesture('zoom')
     // a page that scrolls keeps one finger for its own scrolling until the diagram is held
     const touchAction = () => { el.style.touchAction = gate.engaged() ? 'none' : 'pan-x pan-y' }
     touchAction()
     const wheel = (e: WheelEvent) => {
       gate.input = wheelInput(e)
-      const a = wheelAction(controls, e, gate.engaged())
+      const a = wheelAction(controls, e, gate.engaged(), cam.mode)
       if (a === 'pass') return
       if (a === 'hint') { gate.hint(); return }
       e.preventDefault()
@@ -177,6 +177,10 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       if (a === 'zoom') {
         zoomSpan.touch()
         zoomBy(Math.exp(Math.max(-60, Math.min(60, e.deltaY * k)) * 0.01))
+      } else if (a === 'turn') {
+        turnSpan.touch()
+        // a mouse with Shift often arrives as deltaX only: sideways turns, up and down tilts
+        turnBy(-e.deltaX * k * 0.005, e.deltaY * k * 0.005)
       } else {
         panSpan.touch()
         // Shift + a mouse wheel scrolls sideways where the system has not already turned it into deltaX
@@ -232,7 +236,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       el.removeEventListener('wheel', wheel); el.removeEventListener('contextmenu', menu); el.removeEventListener('pointerdown', down, true)
       window.removeEventListener('pointermove', tmove); window.removeEventListener('pointerup', tup); window.removeEventListener('pointercancel', tup)
       window.removeEventListener('pointerdown', outside, true); window.removeEventListener('keydown', esc); window.removeEventListener('resize', touchAction)
-      zoomSpan.end(); panSpan.end(); pinch.end()
+      zoomSpan.end(); panSpan.end(); turnSpan.end(); pinch.end()
     }
   }, [cam, gl, controls, gate])
 

@@ -13,16 +13,23 @@ export const ALL_ON: Readonly<ResolvedControls> = Object.freeze({ zoom: true, pa
  * has the gestures (`engaged`): a diagram in a page that scrolls lets the page scroll and asks for a
  * hint instead, until it is clicked.
  */
-export function wheelAction(controls: ResolvedControls, e: { ctrlKey: boolean; metaKey: boolean }, engaged: boolean): 'zoom' | 'pan' | 'hint' | 'pass' {
+export function wheelAction(controls: ResolvedControls, e: { ctrlKey: boolean; metaKey: boolean; shiftKey?: boolean }, engaged: boolean, mode: Mode = 'iso'): 'zoom' | 'pan' | 'turn' | 'hint' | 'pass' {
   if (e.ctrlKey || e.metaKey) return controls.zoom ? 'zoom' : 'pass'
   if (!controls.pan) return 'pass'
-  return engaged ? 'pan' : 'hint'
+  if (!engaged) return 'hint'
+  // 3D: Shift turns the wheel into turning (sideways turns, up and down tilts)
+  return mode === '3d' && e.shiftKey ? 'turn' : 'pan'
 }
 
-/** A drag on the ground: pan, or turn with Shift or the secondary button; nothing when `pan` is off. Every view alike. */
-export function dragAction(controls: ResolvedControls, button: number, shift: boolean): 'pan' | 'turn' | 'none' {
+/**
+ * A drag on the ground; nothing when `pan` is off. Flat and iso: pan, and turn with Shift or the
+ * secondary button. 3D: turn, and pan with Shift or the secondary button (the person, BON-78).
+ */
+export function dragAction(controls: ResolvedControls, mode: Mode, button: number, shift: boolean): 'pan' | 'turn' | 'none' {
   if (!controls.pan) return 'none'
-  return button === 2 || shift ? 'turn' : 'pan'
+  const swapped = button === 2 || shift
+  if (mode === '3d') return swapped ? 'pan' : 'turn'
+  return swapped ? 'turn' : 'pan'
 }
 
 /** The yaw a turn settles on when let go: flat and iso snap to the nearest quarter turn from their own heading; 3D stays where it was left. */
@@ -43,6 +50,8 @@ export function wheelInput(e: { deltaMode: number; deltaX: number; deltaY: numbe
 /** The gesture card's rows for an input and a view: [gesture, what it does]. `mod` is the zoom key's name (⌘ or Ctrl). */
 export function gestureRows(input: Input, mode: Mode, mod: string): [string, string][] {
   const turn = mode === '3d' ? 'Turn and tilt' : mode === 'iso' ? 'Turn to another corner' : 'Turn (settles square)'
+  if (mode === '3d' && input === 'trackpad') return [['Drag', turn], ['Two-finger drag', 'Move'], ['Pinch', 'Zoom'], ['⇧ Shift + drag', 'Move'], ['⇧ Shift + two-finger drag', turn]]
+  if (mode === '3d' && input === 'mouse') return [['Drag', turn], ['Scroll wheel', 'Move up and down'], [`${mod} + scroll`, 'Zoom'], ['⇧ Shift + drag, or right-drag', 'Move'], ['⇧ Shift + scroll', 'Turn']]
   if (input === 'trackpad') return [['Two-finger drag', 'Move'], ['Pinch', 'Zoom'], ['Drag the background', 'Move'], ['⇧ Shift + drag', turn]]
   if (input === 'mouse') return [['Drag the background', 'Move'], ['Scroll wheel', 'Move up and down (⇧ for sideways)'], [`${mod} + scroll`, 'Zoom'], ['⇧ Shift + drag, or right-drag', turn]]
   return [['One finger', 'Move'], ['Pinch', 'Zoom'], ['Two-finger twist', turn], ...(mode === '3d' ? [['Two fingers up or down', 'Tilt'] as [string, string]] : [])]
