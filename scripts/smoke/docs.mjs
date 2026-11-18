@@ -68,7 +68,21 @@ for (const u of pageUrls) {
   diagrams += total; if (total) pagesWith++
   ok(`page ${u}: ${total} diagram(s) draw, no console errors`, drew && cards === wantCards && errors.length === 0, errors.slice(0, 2).join(' | ') || (cards !== wantCards ? `${cards} error cards, wanted ${wantCards}` : ''))
   if (u.endsWith('/guide/diagram-types')) {
-    ok('diagram types: flowchart and sequence draw, the pie fence is a code block', total === 2 && await page.locator('div.language-mermaid').count() === 1 && /pie title Pets/.test(await page.locator('div.language-mermaid').innerText()))
+    ok('diagram types: flowchart, sequence and the playground draw, the pie fence is a code block', total === 3 && await page.locator('div.language-mermaid').count() === 1 && /pie title Pets/.test(await page.locator('div.language-mermaid').innerText()))
+  }
+  if (u === '/docs/') {
+    // the playground: editing the Mermaid redraws the diagram; a broken edit shows the problem and keeps the last diagram
+    const box = page.locator('.bonkei-playground .bonkei-diagram').first()
+    const shot = () => box.screenshot().then(b => b.toString('base64'))
+    const first = await shot()
+    await page.locator('.bonkei-editor').fill('flowchart LR\n  Edited --> Live --> Diagram')
+    await page.waitForTimeout(3000)
+    const second = await shot()
+    ok('playground: editing the Mermaid changes the diagram', first !== second)
+    await page.locator('.bonkei-editor').fill('flowchart TD\n  --> -->')
+    await page.waitForTimeout(2500)
+    const problem = await page.locator('.bonkei-problems li').first().innerText().catch(() => '')
+    ok('playground: a broken edit reports the problem under the editor', /parse|line/i.test(problem) && errors.length === 0, problem.slice(0, 80))
   }
   if (u.endsWith('/guide/edge-styles')) {
     await page.locator('button:has-text("Copy")').first().click()
