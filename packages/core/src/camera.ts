@@ -36,8 +36,15 @@ export interface Camera {
   fitHWhole(m: Mode): number
   /** Frame the whole diagram (layout px, centred on the origin), in the current mode; `at` centres it on a point instead. */
   fit(width: number, height: number, at?: { cx: number; cz: number }): void
+  /** Turn back to the view's own heading and tilt (the Fit control, BON-78), the short way round. */
+  square(): void
   /** Jump `cur` to `goal` now, skipping the tween. */
   snap(): void
+}
+
+/** `to` plus whole turns, as close as can be to `from`: the heading `from` reaches by turning the short way to `to`. */
+export function nearestTurn(from: number, to: number): number {
+  return to + Math.round((from - to) / (2 * Math.PI)) * 2 * Math.PI
 }
 
 /** A camera state for one diagram view. Starts in iso, H 30. */
@@ -80,7 +87,8 @@ export function createCamera(): Camera {
     },
     setMode(m) {
       cam.mode = m
-      Object.assign(cam.goal, PRESET[m])
+      // a reader may have turned the view round several times: head for the new view's yaw the short way
+      Object.assign(cam.goal, PRESET[m], { yaw: nearestTurn(cam.goal.yaw, PRESET[m].yaw) })
       // a tight fit on the whole diagram centres what the new view actually shows
       const proj = onContent(m)
       if (proj) { cam.goal.tx = proj.tx; cam.goal.tz = proj.tz }
@@ -96,6 +104,10 @@ export function createCamera(): Camera {
       onWhole = !at
       const proj = onContent(cam.mode)
       if (proj) { cam.goal.tx = proj.tx; cam.goal.tz = proj.tz; cam.goal.H = cam.fitH(cam.mode) }
+    },
+    square() {
+      cam.goal.yaw = nearestTurn(cam.goal.yaw, PRESET[cam.mode].yaw)
+      cam.goal.pitch = PRESET[cam.mode].pitch
     },
     snap() {
       Object.assign(cam.cur, cam.goal)

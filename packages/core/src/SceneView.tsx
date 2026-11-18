@@ -1,12 +1,12 @@
 import * as THREE from 'three'
-import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute, PAD } from './layout'
 import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { instant } from './telemetry'
-import { createCamera, biggestTray, contentOf, type Camera, type Mode } from './camera'
+import { createCamera, biggestTray, contentOf, PRESET, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
@@ -15,13 +15,19 @@ import { CLASSIC, inkPx, type Theme } from './theme'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
-import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
+import { UI } from './palette'
+import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gesture, hintText, isPinch, isSwapped, modKey, pairOf, settleYaw, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, type Input, type Pair, type Radii } from './controls'
+import { Gate, HINT_MS, clipRadii, inScroller } from './hold'
 import type { NodeClick, ResolvedControls } from './options'
 
 const LIGHT_TILTED = new THREE.Vector3(10, 18, 7) // iso and 3D
 const LIGHT_FLAT = new THREE.Vector3(21.8 * Math.sin(Math.PI / 36), 21.8 * Math.cos(Math.PI / 36), 0) // flat: 5 degrees off straight overhead, same distance
 
 type Ovr = Record<string, { x: number; y: number }>
+
+// The diagram's hold gate (hold.ts), for the scene's gesture handlers inside the canvas.
+const GateCtx = createContext<Gate | null>(null)
+const MOD = modKey(typeof navigator !== 'undefined' ? navigator.platform : '')
 
 // `live` are the router's routes while a node is dragged; without a router (the wasm did not load) a moved node's lines take the cheap Manhattan route.
 function effective(data: LayoutResult, ovr: Ovr, live: Route[] | null) {
@@ -96,45 +102,149 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     lightAt.current.lerp(to, 1 - Math.exp(-6 * Math.min(dt, 0.1)))
     light.current?.position.copy(lightAt.current)
   })
+  const gate = useContext(GateCtx)!
+  // move the view by a screen offset in px, the way a drag would
+  const panBy = (dx: number, dy: number) => {
+    const g = cam.goal, c = cam.cur
+    const upp = c.H / gl.domElement.clientHeight
+    const sy = Math.sin(c.yaw), cy = Math.cos(c.yaw)
+    const mx = -dx * upp * cy + dy * upp * (-sy) / Math.sin(c.pitch)
+    const mz = dx * upp * sy + dy * upp * (-cy) / Math.sin(c.pitch)
+    g.tx += mx; g.tz += mz; c.tx += mx; c.tz += mz
+  }
+  const zoomBy = (f: number) => { cam.goal.H = Math.min(200, Math.max(3, cam.goal.H * f)) }
+  // flat and iso turn about the vertical only; 3D tilts too
+  const turnBy = (dyaw: number, dpitch: number) => {
+    const g = cam.goal
+    g.yaw += dyaw
+    if (cam.mode === '3d') g.pitch = Math.min(1.5, Math.max(0.15, g.pitch + dpitch))
+  }
+  const settle = () => { cam.goal.yaw = settleYaw(cam.mode, cam.goal.yaw, PRESET[cam.mode].yaw) }
+
   const startCamDrag = (e: ThreeEvent<PointerEvent>) => {
-    const action = dragAction(controls, cam.mode, e.nativeEvent.button)
+    const ne = e.nativeEvent
+    if (ne.pointerType === 'touch') {
+      // one finger in a page that scrolls is the page's (with a hint); two fingers are handled below
+      if (!gate.engaged()) { gate.hint(); return }
+      if (gate.fingers > 1) return
+    }
+    const action = dragAction(controls, cam.mode, ne.button, ne.shiftKey, ne.pointerType)
     if (action === 'none') return
-    let lx = e.nativeEvent.clientX, ly = e.nativeEvent.clientY
-    const orbit = action === 'orbit'
-    const span = gesture(action)
+    let lx = ne.clientX, ly = ne.clientY
+    const span = gesture(action, { via: ne.pointerType === 'touch' ? 'touch' : 'drag', mode: () => cam.mode, swapped: ne.pointerType !== 'touch' && isSwapped(ne.button, ne.shiftKey) })
     const move = (ev: PointerEvent) => {
-      span.touch()
+      if (ev.pointerId !== ne.pointerId) return
       const dx = ev.clientX - lx, dy = ev.clientY - ly
       lx = ev.clientX; ly = ev.clientY
-      const g = cam.goal, c = cam.cur
-      if (orbit) {
-        g.yaw -= dx * 0.005; g.pitch = Math.min(1.5, Math.max(0.15, g.pitch + dy * 0.005))
-      } else {
-        const upp = c.H / gl.domElement.clientHeight
-        const sy = Math.sin(c.yaw), cy = Math.cos(c.yaw)
-        const mx = -dx * upp * cy + dy * upp * (-sy) / Math.sin(c.pitch)
-        const mz = dx * upp * sy + dy * upp * (-cy) / Math.sin(c.pitch)
-        g.tx += mx; g.tz += mz; c.tx += mx; c.tz += mz
-      }
+      if (gate.fingers > 1) return // a second finger is down: the two-finger gesture has the view
+      span.touch()
+      if (action === 'turn') turnBy(-dx * TURN_PER_PX, dy * TURN_PER_PX)
+      else panBy(dx, dy)
     }
-    const up = () => { span.end(); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
+    const up = (ev: PointerEvent) => {
+      if (ev.pointerId !== ne.pointerId) return
+      if (action === 'turn') settle()
+      span.end()
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up)
+    }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up)
   }
 
   useEffect(() => {
     const el = gl.domElement
-    const span = gesture('zoom', WHEEL_IDLE_MS)
-    // zoom off: leave the event alone so an embedding page scrolls over the scene
-    const wheel = (e: WheelEvent) => {
-      if (wheelAction(controls) === 'pass') return
-      e.preventDefault()
-      span.touch()
-      cam.goal.H = Math.min(200, Math.max(3, cam.goal.H * Math.exp(e.deltaY * 0.001)))
+    const mode = () => cam.mode
+    const wheelSpan = {
+      zoom: gesture('zoom', { idleMs: WHEEL_IDLE_MS, mode }),
+      pinch: gesture('zoom', { idleMs: WHEEL_IDLE_MS, via: 'pinch', mode }),
+      pan: gesture('pan', { idleMs: WHEEL_IDLE_MS, mode }),
+      turn: gesture('turn', { idleMs: WHEEL_IDLE_MS, mode, swapped: true }),
     }
-    el.addEventListener('wheel', wheel, { passive: false })
-    return () => { el.removeEventListener('wheel', wheel); span.end() }
-  }, [cam, gl, controls])
+    const touchSpan = { zoom: gesture('zoom', { via: 'touch', mode }), turn: gesture('turn', { via: 'touch', mode }), pan: gesture('pan', { via: 'touch', mode }) }
 
+    // a page that scrolls keeps one finger for its own scrolling until the diagram is held
+    const touchAction = () => { el.style.touchAction = gate.engaged() ? 'none' : 'pan-x pan-y' }
+    touchAction()
+
+    const wheel = (e: WheelEvent) => {
+      gate.setInput(wheelInput(e))
+      const a = wheelAction(controls, e, gate.engaged(), cam.mode)
+      if (a === 'pass') return
+      if (a === 'hint') { gate.hint(); return }
+      e.preventDefault()
+      const { dx, dy } = wheelPx(e, el.clientHeight)
+      if (a === 'zoom') {
+        // a trackpad pinch is a ctrl wheel in small steps; cmd/ctrl + a mouse wheel is the key form
+        if (isPinch(e)) wheelSpan.pinch.touch(); else wheelSpan.zoom.touch()
+        zoomBy(wheelZoom(dy))
+      } else if (a === 'turn') {
+        wheelSpan.turn.touch()
+        turnBy(...wheelTurn(dx, dy))
+      } else {
+        wheelSpan.pan.touch()
+        panBy(...wheelPan(dx, dy, e.shiftKey))
+      }
+    }
+
+    // two fingers on a touch screen: pinch zooms, a twist turns, the middle moves the view (in 3D, up and down tilts)
+    const touches = new Map<number, { x: number; y: number; x0: number; y0: number }>()
+    let last: Pair | null = null
+    const pair = () => { const [p, q] = [...touches.values()]; return pairOf(p, q) }
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') {
+        gate.setInput(gate.input === 'touch' ? 'mouse' : gate.input)
+        gate.hold(true, 'click')
+        return
+      }
+      gate.setInput('touch')
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY })
+      gate.fingers = touches.size
+      if (touches.size === 2) { gate.hold(true, 'touch'); last = pair() }
+    }
+    const tmove = (e: PointerEvent) => {
+      const t = touches.get(e.pointerId)
+      if (!t) return
+      t.x = e.clientX; t.y = e.clientY
+      if (touches.size !== 2 || !last) return
+      const now = pair()
+      const m = twoFingers(last, now, cam.mode)
+      // every part moves the view; a part is only counted (a span) once it is more than a finger's jitter
+      if (controls.zoom) { zoomBy(m.zoom); if (Math.abs(m.zoom - 1) > 0.004) touchSpan.zoom.touch() }
+      if (controls.pan) {
+        turnBy(m.yaw, m.pitch); if (Math.abs(m.yaw) > 0.004 || Math.abs(m.pitch) > 0.004) touchSpan.turn.touch()
+        panBy(...m.pan); if (Math.hypot(...m.pan) > 1) touchSpan.pan.touch()
+      }
+      last = now
+    }
+    const tup = (e: PointerEvent) => {
+      const t = touches.get(e.pointerId)
+      if (!t) return
+      touches.delete(e.pointerId)
+      // a tap (no second finger, hardly moved, not taken by the page's scrolling) takes hold
+      if (e.type === 'pointerup' && !last && touches.size === 0 && Math.hypot(t.x - t.x0, t.y - t.y0) < 10) gate.hold(true, 'touch')
+      gate.fingers = touches.size
+      if (touches.size < 2 && last) { last = null; touchSpan.zoom.end(); touchSpan.turn.end(); touchSpan.pan.end(); settle() }
+    }
+    // let go on Esc or a press outside the diagram
+    const outside = (e: PointerEvent) => { if (gate.el && !gate.el.contains(e.target as Node)) gate.hold(false, 'outside') }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') gate.hold(false, 'esc') }
+
+    gate.listeners.add(touchAction)
+    el.addEventListener('wheel', wheel, { passive: false })
+    el.addEventListener('pointerdown', down, true)
+    window.addEventListener('pointermove', tmove)
+    window.addEventListener('pointerup', tup); window.addEventListener('pointercancel', tup)
+    window.addEventListener('pointerdown', outside, true); window.addEventListener('keydown', esc)
+    window.addEventListener('resize', touchAction); window.addEventListener('scroll', touchAction, { passive: true })
+    return () => {
+      gate.listeners.delete(touchAction)
+      el.removeEventListener('wheel', wheel); el.removeEventListener('pointerdown', down, true)
+      window.removeEventListener('pointermove', tmove)
+      window.removeEventListener('pointerup', tup); window.removeEventListener('pointercancel', tup)
+      window.removeEventListener('pointerdown', outside, true); window.removeEventListener('keydown', esc)
+      window.removeEventListener('resize', touchAction); window.removeEventListener('scroll', touchAction)
+      for (const g of [...Object.values(wheelSpan), ...Object.values(touchSpan)]) g.end()
+    }
+  }, [cam, gl, controls, gate])
 
   return (
     <>
@@ -217,7 +327,11 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     return raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY), out) ? out : null
   }
 
+  const gate = useContext(GateCtx)!
   const startNodeDrag = (e: ThreeEvent<PointerEvent>, id: string) => {
+    const ne = e.nativeEvent
+    // a right-drag or Shift + drag over a node turns (or moves) the view like one on the background; one finger in a page that scrolls is the page's
+    if (ne.button !== 0 || ne.shiftKey || (ne.pointerType === 'touch' && !gate.engaged())) return
     e.stopPropagation()
     const b = boxes.get(id)!
     const planeY = baseOf(b, th.tray.thickness) + nodeHeight(th, b)
@@ -226,8 +340,9 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     const gx = p0.x / S + W / 2 - b.x, gy = p0.z / S + H / 2 - b.y
     const parent = b.parent ? data.boxes.find(x => x.id === b.parent) : undefined
     setCursor('grabbing')
-    const span = gesture('move')
+    const span = gesture('move', { via: ne.pointerType === 'touch' ? 'touch' : 'drag', mode: () => cam.mode })
     const move = (ev: PointerEvent) => {
+      if (ev.pointerId !== ne.pointerId || gate.fingers > 1) return // two fingers: the view's pinch and twist, not the node
       span.touch()
       const p = groundPoint(ev.clientX, ev.clientY, planeY)
       if (!p) return
@@ -241,8 +356,12 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
       ovr.current = { ...ovr.current, [id]: { x, y } }
       setVer(v => v + 1)
     }
-    const up = () => { span.end(); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); setCursor(cursorFor('node', controls, hasClick)) }
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
+    const up = (ev: PointerEvent) => {
+      if (ev.pointerId !== ne.pointerId) return
+      span.end(); setCursor(cursorFor('node', controls, hasClick))
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up)
+    }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up)
   }
 
   return (
@@ -348,9 +467,11 @@ export interface SceneViewProps {
   onEdgeStats?: (s: EdgeStats) => void
   /** The look: tokens for colours, materials, labels and lines. Default Classic. */
   theme?: Theme
+  /** Called when the reader switches input (a trackpad, a mouse wheel, a touch screen), for the gesture card (BON-78). */
+  onInput?: (input: Input) => void
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats, theme = CLASSIC }: SceneViewProps) {
+export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats, theme = CLASSIC, onInput }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
   const [inkStore] = useState(() => new InkStore())
   const [own] = useState(createCamera)
@@ -358,22 +479,60 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
   const ctl = controls ?? ALL_ON
   useEffect(() => { if (c.mode !== mode) c.setMode(mode) }, [c, mode])
   const themeKey = useMemo(() => JSON.stringify(theme), [theme])
+
+  // BON-78: whether the diagram has the gestures (hold.ts), the hint, and the ring while it is held
+  const [gate] = useState(() => new Gate())
+  const box = useRef<HTMLDivElement>(null)
+  const [held, setHeld] = useState(false)
+  const [hint, setHint] = useState<string | null>(null)
+  const [radii, setRadii] = useState<Radii>([0, 0, 0, 0])
+  const inputCb = useRef(onInput)
+  inputCb.current = onInput
+  useEffect(() => {
+    // the diagram's whole box (the component's, toolbar included): a press there does not let go
+    gate.el = box.current?.closest<HTMLElement>('[data-bonkei]') ?? box.current
+    gate.mode = () => c.mode
+    gate.onInput = i => inputCb.current?.(i)
+    let t = 0
+    const onHold = () => {
+      const show = gate.held && inScroller(gate.el)
+      if (show && box.current) setRadii(clipRadii(box.current))
+      setHeld(show)
+      if (gate.held) { clearTimeout(t); setHint(null) }
+    }
+    gate.listeners.add(onHold)
+    gate.onHint = () => {
+      setHint(hintText(gate.input, ctl.zoom, MOD))
+      clearTimeout(t); t = window.setTimeout(() => setHint(null), HINT_MS)
+    }
+    return () => { clearTimeout(t); gate.listeners.delete(onHold); gate.onHint = () => {} }
+  }, [gate, c, ctl.zoom])
+  const [chipX, chipY] = chipAt(radii)
+
   return (
-    <>
+    // no browser menu over the diagram: a right-drag (or Ctrl-click on a Mac) is a gesture here
+    <div ref={box} onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
         {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
             and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
-        <InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
+        <GateCtx.Provider value={gate}><InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
           <ToneSetup />
           <Rig cam={c} fpsRef={fpsRef} />
           {data && ('kind' in data
             ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
             : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
-        </ThemeProvider></InkCtx.Provider>
+        </ThemeProvider></InkCtx.Provider></GateCtx.Provider>
       </Canvas>
+      {held && (
+        // the ring follows the corners of whatever clips the diagram; the chip keeps clear of a big rounded corner
+        <div data-bonkei-held="" style={{ position: 'absolute', inset: 0, boxShadow: `inset 0 0 0 2px ${UI.on}`, borderRadius: radii.map(r => r + 'px').join(' '), pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', left: chipX, top: chipY, padding: '3px 8px', borderRadius: 6, background: UI.panel, color: UI.muted, font: '12px system-ui, sans-serif' }}>Esc to let go</div>
+        </div>
+      )}
+      <div role="status" aria-live="polite" style={{ position: 'absolute', inset: 0, display: hint ? 'grid' : 'none', placeItems: 'center', background: 'rgba(0, 0, 0, 0.55)', color: UI.text, font: '15px system-ui, sans-serif', pointerEvents: 'none' }}>{hint}</div>
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}
-    </>
+    </div>
   )
 }

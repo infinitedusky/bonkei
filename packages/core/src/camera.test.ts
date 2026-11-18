@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createCamera } from './camera.ts'
+import { createCamera, nearestTurn, PRESET } from './camera.ts'
 import { S } from './scale.ts'
 
 test('setMode on one camera leaves another untouched', () => {
@@ -127,4 +127,31 @@ test('content framing is only for a tight fit: the default fit ignores it', () =
   a.content = [{ x0: 0, z0: 0, x1: 1, z1: 1 }]
   a.fit(800, 400); b.fit(800, 400)
   assert.deepEqual(a.goal, b.goal)
+})
+
+test('square() puts a turned and tilted view back on its own heading, the short way round (BON-78)', () => {
+  const c = createCamera()
+  c.setMode('3d')
+  c.goal.yaw += 0.9; c.goal.pitch = 1.2
+  c.square()
+  assert.equal(c.goal.yaw, PRESET['3d'].yaw)
+  assert.equal(c.goal.pitch, PRESET['3d'].pitch)
+  // turned three and a bit full turns: no spinning back through all of them
+  c.setMode('iso')
+  c.goal.yaw = PRESET.iso.yaw + 6 * Math.PI + 0.4
+  c.square()
+  assert.ok(Math.abs(c.goal.yaw - (PRESET.iso.yaw + 6 * Math.PI)) < 1e-9)
+})
+
+test('fit() alone keeps a turned view turned: a new layout does not undo the reader\'s turn', () => {
+  const c = createCamera()
+  c.goal.yaw = PRESET.iso.yaw + Math.PI / 2
+  c.fit(100, 80)
+  assert.equal(c.goal.yaw, PRESET.iso.yaw + Math.PI / 2)
+})
+
+test('nearestTurn: the target heading plus whole turns, nearest the current one', () => {
+  assert.equal(nearestTurn(0.1, 0), 0)
+  assert.ok(Math.abs(nearestTurn(2 * Math.PI + 0.1, 0) - 2 * Math.PI) < 1e-9)
+  assert.ok(Math.abs(nearestTurn(-7, 0) + 2 * Math.PI) < 1e-9)
 })
