@@ -1,5 +1,5 @@
 // <Bonkei />: a diagram in one component. Decisions: LOG.md, "The Bonkei component and render() (BON-51)".
-import { Component, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type KeyboardEvent, type CSSProperties } from 'react'
+import { Component, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type KeyboardEvent, type CSSProperties, type PointerEvent as RPointerEvent, type WheelEvent as RWheelEvent } from 'react'
 import { SpanStatusCode } from '@opentelemetry/api'
 import { SceneView, type EdgeStats } from './SceneView'
 import { CROSSING_STYLES, type CrossingStyle } from './edges3d.ts'
@@ -10,6 +10,7 @@ import { DEFAULTS, mergeOptions, resolveControls, type BonkeiError, type BonkeiO
 import type { GraphInput } from './model'
 import { instant, tracer } from './telemetry'
 import { UI } from './palette'
+import { gestureRows, wheelInput, type Input } from './controls'
 import { resolveTheme, themeByName } from './theme'
 import { loadFont } from './fonts.ts'
 
@@ -72,9 +73,35 @@ export function ErrorStrip({ error }: { error: BonkeiError }) {
   )
 }
 
-/** Flat / iso / 3D as a radiogroup, plus fit. The crossing-style and avoid-crossings groups show only when their props are given. */
-export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, onAvoid}: { mode: Mode; onPick: (m: Mode) => void; onFit: () => void; crossings?: CrossingStyle; onCrossings?: (c: CrossingStyle) => void; avoid?: AvoidCrossings; onAvoid?: (a: AvoidCrossings) => void}) {
+const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'
+
+/** The card behind the toolbar's "?" (BON-78): what each gesture does, for the input the reader last used. */
+export function GestureCard({ input, mode, onClose }: { input: Input; mode: Mode; onClose?: () => void }) {
+  return (
+    <div role="dialog" aria-label="How to move the diagram" style={{ ...panel, width: 300, padding: '10px 12px', boxShadow: '0 8px 24px #0008' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 8 }}>
+        <b style={{ flex: 1 }}>Move around</b>
+        <span style={{ color: UI.muted, fontSize: 12 }}>{input}</span>
+        {onClose && <button type="button" aria-label="Close" onClick={onClose} style={{ border: 0, background: 'transparent', cursor: 'pointer', padding: '0 0 0 10px', color: UI.muted, font: '13px system-ui, sans-serif' }}>×</button>}
+      </div>
+      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <tbody>
+          {gestureRows(input, mode, MOD).map(([g, a]) => (
+            <tr key={g}><td style={{ padding: '3px 10px 3px 0', color: UI.muted, whiteSpace: 'nowrap' }}>{g}</td><td style={{ padding: '3px 0' }}>{a}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${UI.border}`, color: UI.muted, fontSize: 12 }}>Fit shows the whole diagram and puts it back square.</div>
+    </div>
+  )
+}
+
+/** Flat / iso / 3D as a radiogroup, plus fit and "?" (the gesture card). The crossing-style and avoid-crossings groups show only when their props are given. */
+export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, onAvoid, input = 'trackpad', helpOpen, onHelp }: { mode: Mode; onPick: (m: Mode) => void; onFit: () => void; crossings?: CrossingStyle; onCrossings?: (c: CrossingStyle) => void; avoid?: AvoidCrossings; onAvoid?: (a: AvoidCrossings) => void; input?: Input; helpOpen?: boolean; onHelp?: (open: boolean) => void }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = helpOpen ?? ownOpen
+  const setOpen = (o: boolean) => { setOwnOpen(o); onHelp?.(o) }
   const btn = (on: boolean): CSSProperties => ({
     padding: '4px 10px', border: 0, borderRadius: 4, cursor: 'pointer', font: '13px system-ui, sans-serif',
     background: on ? UI.on : 'transparent', color: UI.text,
@@ -88,7 +115,8 @@ export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, on
     refs.current[i]?.focus()
   }
   return (
-    <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6 }}>
+    <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+    <div style={{ display: 'flex', gap: 6 }}>
       <div role="radiogroup" aria-label="View" onKeyDown={key} style={{ ...panel, display: 'flex', padding: 2 }}>
         {MODES.map(({ mode: m, label }, i) => (
           <button key={m} ref={el => { refs.current[i] = el }} type="button" role="radio" aria-checked={m === mode}
@@ -111,6 +139,11 @@ export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, on
         </div>
       )}
       <button type="button" aria-label="Fit the diagram" onClick={onFit} style={{ ...panel, ...btn(false), border: `1px solid ${UI.border}`, background: UI.panel }}>Fit</button>
+      <button type="button" aria-label="How to move the diagram" aria-expanded={open} onClick={() => setOpen(!open)}
+        onKeyDown={e => { if (e.key === 'Escape') setOpen(false) }}
+        style={{ ...panel, ...btn(open), border: `1px solid ${UI.border}`, background: open ? UI.on : UI.panel, width: 30, padding: '4px 0' }}>?</button>
+    </div>
+    {open && <GestureCard input={input} mode={mode} onClose={() => setOpen(false)} />}
     </div>
   )
 }
@@ -325,12 +358,17 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     cbs.current.onError?.(e)
   }, [])
 
+  // the input the reader last used, for the gesture card: a touch screen, else a trackpad on a Mac, else a mouse, until they use one
+  const [input, setInput] = useState<Input>(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'touch' : MOD === '⌘' ? 'trackpad' : 'mouse')
+  const onPointerDown = (e: RPointerEvent) => { if (e.pointerType === 'touch') setInput('touch'); else if (input === 'touch') setInput('mouse') }
+  const onWheel = (e: RWheelEvent) => setInput(wheelInput(e))
+
   return (
-    <div ref={box} data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
+    <div ref={box} data-bonkei={status} onPointerDownCapture={onPointerDown} onWheelCapture={onWheel} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <SceneBoundary resetKey={prepared?.key ?? ''} onError={onRenderError}>
         <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false} theme={theme}
           controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} />
-        {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit}
+        {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit} input={input}
           {...(opts.crossingControls ? { crossings, onCrossings: pickCrossings, avoid, onAvoid: pickAvoid } : {})} />}
       </SceneBoundary>
       {!prepared && !error && <Loading />}

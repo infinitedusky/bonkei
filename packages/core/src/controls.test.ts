@@ -2,7 +2,7 @@ import { test, beforeEach, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { trace } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { ALL_ON, cursorFor, dragAction, gesture, wheelAction, WHEEL_IDLE_MS } from './controls.ts'
+import { ALL_ON, cursorFor, dragAction, gesture, gestureRows, settleYaw, wheelAction, wheelInput, WHEEL_IDLE_MS } from './controls.ts'
 import { resolveControls } from './options.ts'
 
 const exporter = new InMemorySpanExporter()
@@ -12,20 +12,52 @@ const controlSpans = () => exporter.getFinishedSpans().filter(s => s.name === 'b
 
 const off = resolveControls(false)
 
-test('the wheel zooms only when zoom is on', () => {
-  assert.equal(wheelAction(ALL_ON), 'zoom')
-  assert.equal(wheelAction({ ...ALL_ON, zoom: false }), 'pass')
+test('pinch and cmd/ctrl + wheel zoom when zoom is on', () => {
+  for (const k of [{ ctrlKey: true, metaKey: false }, { ctrlKey: false, metaKey: true }]) {
+    assert.equal(wheelAction(ALL_ON, k, false), 'zoom')
+    assert.equal(wheelAction({ ...ALL_ON, zoom: false }, k, true), 'pass')
+  }
 })
 
-test('a ground drag orbits in 3d with the primary button and pans otherwise', () => {
-  assert.equal(dragAction(ALL_ON, '3d', 0), 'orbit')
-  assert.equal(dragAction(ALL_ON, '3d', 2), 'pan')
-  assert.equal(dragAction(ALL_ON, 'iso', 0), 'pan')
-  assert.equal(dragAction(ALL_ON, 'flat', 0), 'pan')
+test('a plain wheel moves an engaged diagram, and asks for a hint otherwise', () => {
+  const plain = { ctrlKey: false, metaKey: false }
+  assert.equal(wheelAction(ALL_ON, plain, true), 'pan')
+  assert.equal(wheelAction(ALL_ON, plain, false), 'hint')
+  assert.equal(wheelAction({ ...ALL_ON, pan: false }, plain, true), 'pass')
+})
+
+test('a ground drag pans, and turns with Shift or the secondary button, in every view', () => {
+  assert.equal(dragAction(ALL_ON, 0, false), 'pan')
+  assert.equal(dragAction(ALL_ON, 0, true), 'turn')
+  assert.equal(dragAction(ALL_ON, 2, false), 'turn')
 })
 
 test('a ground drag does nothing when pan is off', () => {
-  for (const mode of ['flat', 'iso', '3d'] as const) assert.equal(dragAction({ ...ALL_ON, pan: false }, mode, 0), 'none')
+  assert.equal(dragAction({ ...ALL_ON, pan: false }, 0, false), 'none')
+  assert.equal(dragAction({ ...ALL_ON, pan: false }, 2, true), 'none')
+})
+
+test('flat and iso settle on a quarter turn; 3d stays put', () => {
+  const q = Math.PI / 2, iso = Math.PI / 4
+  assert.equal(settleYaw('iso', iso + 0.3 * q, iso), iso)
+  assert.ok(Math.abs(settleYaw('iso', iso + 0.7 * q, iso) - (iso + q)) < 1e-9)
+  assert.ok(Math.abs(settleYaw('flat', -0.6 * q, 0) + q) < 1e-9)
+  assert.equal(settleYaw('3d', 1.234, 0.4), 1.234)
+})
+
+test('a wheel event tells a mouse from a trackpad', () => {
+  assert.equal(wheelInput({ deltaMode: 1, deltaX: 0, deltaY: 3, ctrlKey: false }), 'mouse')
+  assert.equal(wheelInput({ deltaMode: 0, deltaX: 0, deltaY: 100, ctrlKey: false }), 'mouse')
+  assert.equal(wheelInput({ deltaMode: 0, deltaX: 0, deltaY: 4.5, ctrlKey: false }), 'trackpad')
+  assert.equal(wheelInput({ deltaMode: 0, deltaX: 2, deltaY: 100, ctrlKey: false }), 'trackpad')
+  assert.equal(wheelInput({ deltaMode: 0, deltaX: 0, deltaY: 100, ctrlKey: true }), 'trackpad')
+})
+
+test('the card has a turn row for every input, and tilt only for touch in 3d', () => {
+  for (const input of ['trackpad', 'mouse', 'touch'] as const) assert.ok(gestureRows(input, 'iso', '⌘').some(([, a]) => a.startsWith('Turn')))
+  assert.ok(gestureRows('touch', '3d', '⌘').some(([, a]) => a === 'Tilt'))
+  assert.ok(!gestureRows('touch', 'iso', '⌘').some(([, a]) => a === 'Tilt'))
+  assert.ok(gestureRows('mouse', 'flat', 'Ctrl').some(([g]) => g === 'Ctrl + scroll'))
 })
 
 test('grab only when move is on, zoom-in only when drillIn is on', () => {
