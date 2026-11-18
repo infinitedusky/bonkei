@@ -1,12 +1,12 @@
 // The theme as the scene uses it: the context, materials, ink outlines, label plates, patterns and landscape forms.
 // Everything here reads tokens from the Theme; nothing checks a theme's name.
 import * as THREE from 'three'
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { createContext, use, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Edges, Text } from '@react-three/drei'
 import type { Shape } from './model.ts'
 import { CLASSIC, inkPx, type Pattern, type Plate, type Theme } from './theme.ts'
-import { FONTS } from './fonts.ts'
+import { loadFont } from './fonts.ts'
 import { TEXT_LAYER } from './scale.ts'
 import { MAT_DEFAULTS } from './mat.ts'
 
@@ -32,7 +32,10 @@ export function ToneSetup() {
   useLayoutEffect(() => { gl.toneMapping = th.light.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping }, [gl, th.light.toneMapping])
   return null
 }
-export const fontUrl = (t: Theme) => (t.label.font ? FONTS[t.label.font] : undefined)
+/** The font URL for drei's <Text>: undefined (drei's default) when the theme names none, or when the bundled file could not be loaded.
+ * Call it while rendering: it suspends (React 19 `use`) until the theme's font has been fetched, inside the Suspense drei's <Text> needs anyway.
+ * The font is looked for only then, never on import (fonts.ts). */
+export const fontUrl = (t: Theme): string | undefined => (t.label.font ? use(loadFont(t.label.font)).url : undefined)
 
 // ---- materials ----
 const grads = new Map<number, THREE.DataTexture>()

@@ -11,6 +11,7 @@ import type { GraphInput } from './model'
 import { instant, tracer } from './telemetry'
 import { UI } from './palette'
 import { resolveTheme, themeByName } from './theme'
+import { loadFont } from './fonts.ts'
 
 /** What a mounted view can be told to do. */
 export interface BonkeiViewHandle {
@@ -217,6 +218,10 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
       'bonkei.theme.variables': look.variables, 'bonkei.theme.unknown': unknown,
     })
     if (look.problem) cbs.current.onWarning?.({ kind: 'theme', message: look.problem.message, line: 0 })
+    // the theme's font file missing (labels drawn in the default font, fonts.ts): a warning too, once per look
+    let alive = true
+    if (theme.label.font) loadFont(theme.label.font).then(f => { if (alive && f.problem) cbs.current.onWarning?.({ kind: 'theme', message: f.problem, line: 0 }) })
+    return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lookKey])
   const resolvedKey = JSON.stringify(resolveControls(opts.controls))

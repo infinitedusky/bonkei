@@ -1,6 +1,6 @@
 // Bonkei as an installable package (BON-52): the peer range follows React Three Fiber's, OpenTelemetry needs no install,
 // ELK is fetched on the first layout (not on import), and the wasm is looked for in a fixed order. The built output itself
-// (exports map, chunks, the script-tag bundle) is checked by scripts/dist.test.mjs after `pnpm build`.
+// (exports map, chunks, the script-tag bundle, dist/fonts) is checked by scripts/dist.test.mjs after `pnpm build`.
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -9,6 +9,7 @@ import { trace, SpanStatusCode } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { layout, elkLoaded, elkInfo, setElkImport } from './layout.ts'
 import { findWasm, loadAvoid, wasmInfo } from './avoid.ts'
+import { findFont, fontFileUrl, isFont, loadFont } from './fonts.ts'
 import { parse } from './parser.ts'
 
 const exporter = new InMemorySpanExporter()
@@ -109,4 +110,40 @@ test('the wasm is loaded once: a later loadAvoid() makes no new bonkei.wasm.load
   assert.equal(wasmInfo.source, 'url') // Node: libavoid-js reads the file beside its own module
   await loadAvoid()
   assert.equal(spans('bonkei.wasm.load').length, 0)
+})
+
+// fonts.ts: found like the wasm, but a missing font means drei's default font, never a label that does not draw
+const ttf = fs.readFileSync(new URL('./fonts/ZenOldMincho-Bold-latin.ttf', import.meta.url))
+test('font: the URL is the file beside the module, made only when asked for; an unknown name has none', () => {
+  assert.equal(fontFileUrl('mincho'), new URL('./fonts/ZenOldMincho-Bold-latin.ttf', import.meta.url).href)
+  assert.equal(fontFileUrl('comic'), undefined)
+  assert.ok(isFont(ttf))
+  assert.ok(!isFont(new TextEncoder().encode('<!doctype html>')))
+})
+
+test('font: the file when it is a font; else no URL (the default font) and why, never a rejection', async () => {
+  const ok = await findFont('mincho', 'http://x/fonts/a.ttf', async () => new Uint8Array(ttf))
+  assert.ok(ok.url && !ok.problem)
+  const missing = await findFont('mincho', 'http://x/.vite/deps/fonts/a.ttf', async () => { throw new Error('404 Not Found') })
+  assert.equal(missing.url, undefined)
+  assert.match(missing.problem!, /could not be loaded from http:\/\/x\/\.vite\/deps\/fonts\/a\.ttf \(404 Not Found\)/)
+  const html = await findFont('mincho', 'http://x/fonts/a.ttf', async () => new TextEncoder().encode('<!doctype html>'))
+  assert.match(html.problem!, /not a font file/)
+  assert.match((await findFont('mincho', undefined, async () => new Uint8Array(ttf))).problem!, /no URL/)
+})
+
+test('font: loaded once, inside a bonkei.font.load span; a failure is a bonkei.font.fallback event', async () => {
+  const real = globalThis.fetch
+  let calls = 0
+  globalThis.fetch = (async () => { calls++; return new Response('nope', { status: 404, statusText: 'Not Found' }) }) as typeof fetch
+  try {
+    const a = await loadFont('mincho'), b = await loadFont('mincho')
+    assert.equal(calls, 1)
+    assert.equal(a, b)
+    assert.equal(a.url, undefined)
+    const [span] = spans('bonkei.font.load')
+    assert.equal(span.attributes['bonkei.font'], 'mincho')
+    assert.equal(span.attributes['bonkei.font.fallback'], true)
+    assert.deepEqual(span.events.map(e => e.name), ['bonkei.font.fallback'])
+  } finally { globalThis.fetch = real }
 })

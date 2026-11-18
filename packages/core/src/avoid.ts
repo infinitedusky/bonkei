@@ -51,8 +51,8 @@ let wasmUrl: string | undefined
 export function setAvoidWasm(url: string) { wasmUrl = url }
 // Where the wasm is, by setting: an ES module bundled by the host finds it from `import.meta.url` (the pattern below is the one Vite,
 // webpack and Rollup turn into an asset). The script-tag bundle has no `import.meta.url`, so it takes `libavoid.wasm` from beside the
-// script that loaded it, read while that script runs (BON-52).
-const scriptSrc = typeof document !== 'undefined' && document.currentScript && 'src' in document.currentScript ? (document.currentScript as HTMLScriptElement).src : ''
+// script that loaded it, read while that script runs (BON-52). fonts.ts finds `fonts/` from the same base.
+export const scriptSrc = typeof document !== 'undefined' && document.currentScript && 'src' in document.currentScript ? (document.currentScript as HTMLScriptElement).src : ''
 function defaultWasmUrl(): string | undefined {
   if (typeof document === 'undefined') return undefined // Node: libavoid-js reads the file itself
   if (import.meta.url) return new URL('./libavoid.wasm', import.meta.url).href
