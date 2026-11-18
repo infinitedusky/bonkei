@@ -347,3 +347,15 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **Core's look is unchanged.** The prototype's LED track round a tunnel's trench was a scene change with fixed colours outside the theme tokens; the tunnel reads as a dip in iso without it, so it is not in this build.
 
 **Consequences.** Every feature task from here on writes or updates its page in `docs/guide/` and tries the feature there (CONTRIBUTING.md). A renamed option, an export without JSDoc, or an option with no live example fails a check. The Pages build now runs `npm install` against the registry. A core dependency change rewrites the docs lock's two tarball entries.
+
+## 2026-11-18 — 3D drags to turn; Shift swaps (BON-78)
+
+**Context.** BON-78 gives every view map-like gestures: a two-finger drag or a plain wheel moves the diagram, pinch or cmd/ctrl + wheel zooms, and a drag on the background moves it. A first pass made 3D the same as flat and iso, with turning on Shift + drag or a right-drag. The person tried it in Storybook.
+
+**Decision.** In 3D, a drag on the background turns and tilts the view, and the wheel (or two-finger drag) moves it. Holding Shift swaps both: Shift + drag moves the view, and Shift + wheel turns it (sideways turns, up and down tilts). A right-drag in 3D moves the view, like Shift + drag. Flat and iso are unchanged: drag moves, Shift + drag or right-drag turns, and the turn settles on the nearest quarter turn. Pinch and cmd/ctrl + wheel zoom in every view. The rules are `dragAction(controls, mode, button, shift)` and `wheelAction(controls, keys, engaged, mode)` in `controls.ts`, and the gesture card's rows follow them.
+
+**Alternatives considered.**
+- The same drag in every view (drag moves, Shift turns): consistent, but turning is what 3D is for, and it put the main 3D gesture behind a modifier.
+- Turning on the right button only: a Mac has no right button without a modifier, and Ctrl-click opens the menu.
+
+**Consequences.** One modifier, Shift, always means "the other thing" in 3D. The card shows different rows in 3D, so a reader switching views sees what changed.
