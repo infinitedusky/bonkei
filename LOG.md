@@ -270,12 +270,12 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 
 **Consequences.** Running an app or Storybook on its own needs `pnpm --filter bonkei build` first (the root scripts do it). A Fiber bump means copying its React range. The first PR's size comment has no base numbers to compare with, as main has no `.size-limit.mjs`. React 18 hosts cannot use Bonkei.
 
-## 2026-11-17 — Quieter defaults: start flat, a short toolbar (BON-161)
+## 2026-11-17 — Quieter defaults: a short toolbar (BON-161)
 
-**Context.** A Bonkei diagram dropped into a docs page opened in iso, and its toolbar carried the view switch, Fit, the crossing-style group (No hop / Bridge / Tunnel / Portal) and the avoid-crossings group (Off / Some / Strong). In a docs page the crossing style and how hard lines avoid crossing are the author's choices, not the reader's, and a row of unfamiliar buttons gets in the way. Readers expect a diagram to start flat; depth is something the author opts into.
+**Context.** A Bonkei diagram dropped into a docs page opened in iso, and its toolbar carried the view switch, Fit, the crossing-style group (No hop / Bridge / Tunnel / Portal) and the avoid-crossings group (Off / Some / Strong). In a docs page the crossing style and how hard lines avoid crossing are the author's choices, not the reader's, and a row of unfamiliar buttons gets in the way.
 
 **Decision.**
-- **Default `mode` is `flat`.** This replaces the `iso` default in "Diagram options and errors (BON-51)" and the "else `iso`" in "The Bonkei component and render() (BON-51)". A mode set by prop, by `render()` option or in `config.bonkei.mode` still wins.
+- **The default `mode` stays `iso`** (BON-51 unchanged). Depth is what sets Bonkei apart, so a diagram leads with it; an author who wants a plain diagram sets `flat` by prop, by `render()` option or in `config.bonkei.mode`.
 - **The toolbar is View + Fit by default.** This replaces BON-100's always-on crossing groups. A new option, `crossingControls: boolean` (default `false`), turns both crossing groups on together: one switch, set by prop, by `render()` option or by `config.bonkei.crossingControls`, merged props over frontmatter like every other key. `toolbar: false` still hides everything, crossing groups included.
 - **Setting `crossings` / `avoidCrossings` never depends on the controls showing.** The component keeps their state as before and `SceneView` draws it; only the `Toolbar` props are left out when `crossingControls` is off. `crossings: 'bridge'` with no controls draws bridges.
 - **Bonkei's own viewer passes `crossingControls` itself**, so it keeps showing every group.
@@ -284,6 +284,6 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 **Alternatives considered.**
 - `toolbar: 'full'`, or a per-group `toolbar` object: a step towards the rearrangeable toolbar the brief rules out, and it mixes a mode string into a boolean.
 - Two booleans, one per group: the brief asks for one switch.
-- Keeping `iso` as the default: depth should be the author's choice, and flat is what readers expect.
+- Making `flat` the default: depth is what sets Bonkei apart, and an author who wants a plain diagram can set `flat`. The person tried flat as the default (BON-162) and chose iso (BON-165).
 
-**Consequences.** Embeds that relied on iso without setting it now open flat, and embeds that relied on the toolbar's crossing groups lose them until they set `crossingControls`. This is a change in behaviour, made before the package is published. Tests: `options.test.ts` (defaults, the frontmatter key and its warning, the merge). Stories: `Bonkei / Overlay Toolbar`, `Overlay Toolbar With Crossing Controls`, `Bridges Without Controls`.
+**Consequences.** Embeds that relied on the toolbar's crossing groups lose them until they set `crossingControls`. This is a change in behaviour, made before the package is published. Tests: `options.test.ts` (defaults, the frontmatter key and its warning, the merge). Stories: `Bonkei / Overlay Toolbar`, `Overlay Toolbar With Crossing Controls`, `Bridges Without Controls`.

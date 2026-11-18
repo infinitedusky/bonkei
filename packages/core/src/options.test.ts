@@ -76,8 +76,17 @@ test('props override frontmatter key by key', () => {
   assert.equal(mergeOptions({ controls: true }, fm).controls, true)
   // a prop for one key leaves the others to the frontmatter
   assert.deepEqual(mergeOptions({ mode: '3d' }, fm), { mode: '3d', labels: 'top', toolbar: false, controls: false, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
-  // nothing set anywhere: the defaults (flat; no crossing controls)
-  assert.deepEqual(mergeOptions(), { mode: 'flat', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
+  // nothing set anywhere: the defaults (iso; no crossing controls)
+  assert.deepEqual(mergeOptions(), { mode: 'iso', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
+})
+
+test('the default mode is iso, and flat is set by a prop or by the frontmatter', () => {
+  assert.equal(DEFAULTS.mode, 'iso')
+  assert.equal(mergeOptions().mode, 'iso')
+  assert.equal(mergeOptions({ mode: 'flat' }).mode, 'flat')
+  const fm = readFrontmatter('---\nconfig:\n  bonkei:\n    mode: flat\n---\nA')
+  assert.deepEqual(fm.warnings, [])
+  assert.equal(mergeOptions({}, fm.options).mode, 'flat')
 })
 
 test('crossingControls is read from frontmatter, and a non-boolean warns with its line', () => {

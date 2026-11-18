@@ -66,7 +66,7 @@ export default { title: 'Bonkei' }
 
 /** A flowchart, ready, with the toolbar (View + Fit; crossingControls adds the crossing groups). Events are logged bottom-left. */
 export const Flowchart = {
-  args: { mode: 'flat' as Mode, labels: 'top' as const, toolbar: true, crossingControls: false },
+  args: { mode: 'iso' as Mode, labels: 'top' as const, toolbar: true, crossingControls: false },
   argTypes: { mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] }, labels: { control: 'inline-radio', options: ['top', 'billboard'] } },
   render: (args: { mode: Mode; labels: 'top' | 'billboard'; toolbar: boolean; crossingControls: boolean }) => {
     const [log, setLog] = useState<string[]>([])

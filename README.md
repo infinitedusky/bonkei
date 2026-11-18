@@ -83,7 +83,7 @@ Props of `<Bonkei />`, and the options of `render(element, source, options)`:
 | Option | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `source` | `string \| GraphInput` | (required) | Mermaid text (frontmatter allowed) or a hand-built graph. For `render` it is the second argument. |
-| `mode` | `'flat' \| 'iso' \| '3d'` | `'flat'` | The camera mode. Sets the first view; changing it moves the view. Flat by default: the author opts into depth. |
+| `mode` | `'flat' \| 'iso' \| '3d'` | `'iso'` | The camera mode. Sets the first view; changing it moves the view. Iso by default; set `'flat'` for a plain diagram. |
 | `labels` | `'top' \| 'billboard'` | `'top'` | Labels lie on top of the shapes, or face the camera. |
 | `toolbar` | `boolean` | `true` | Show the built-in Flat / Iso / 3D switch and Fit. |
 | `crossingControls` | `boolean` | `false` | Also show the crossing-style (No hop / Bridge / Tunnel / Portal) and Avoid crossings (Off / Some / Strong) groups in the toolbar; needs `toolbar`. |

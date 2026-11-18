@@ -68,7 +68,7 @@ export type BonkeiOptions = DiagramOptions & {
   onReady?: (ready: ReadyInfo) => void
 }
 
-export const DEFAULTS: Readonly<ResolvedOptions> = Object.freeze({ mode: 'flat', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
+export const DEFAULTS: Readonly<ResolvedOptions> = Object.freeze({ mode: 'iso', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
 
 const MODES: readonly Mode[] = ['flat', 'iso', '3d']
 const LABELS: readonly LabelMode[] = ['top', 'billboard']
