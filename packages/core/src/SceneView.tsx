@@ -170,7 +170,9 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       const a = wheelAction(controls, e, gate.engaged(), cam.mode)
       if (a === 'pass') return
       if (a === 'hint') { gate.hint(); return }
+      // every other wheel is stopped from its first event: the browser decides on a sideways swipe's Back from the first ones
       e.preventDefault()
+      if (a === 'block') { gate.hint(); return }
       const { dx, dy } = wheelPx(e, el.clientHeight)
       if (a === 'zoom') {
         // a trackpad pinch is a ctrl wheel in small steps; cmd/ctrl + a mouse wheel is the key form
@@ -511,8 +513,9 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
   const [chipX, chipY] = chipAt(radii)
 
   return (
-    // no browser menu over the diagram: a right-drag (or Ctrl-click on a Mac) is a gesture here
-    <div ref={box} onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%' }}>
+    // no browser menu over the diagram: a right-drag (or Ctrl-click on a Mac) is a gesture here; a swipe that reaches its edge
+    // does not chain to the page (only the diagram's own box: the host page's html and body are not ours)
+    <div ref={box} onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />

@@ -36,6 +36,20 @@ test('a plain wheel or two-finger drag moves a diagram that has the gestures, an
   }
 })
 
+test('a mostly sideways wheel over a diagram not held is stopped (no Back) and hinted; a mostly vertical one is left to the page', () => {
+  for (const mode of MODES) {
+    // a trackpad swipe sideways: small fractional px steps
+    assert.equal(wheelAction(ALL_ON, { ...plain, deltaX: -0.5, deltaY: 0 }, false, mode), 'block')
+    assert.equal(wheelAction(ALL_ON, { ...plain, deltaX: 3.25, deltaY: -1.5 }, false, mode), 'block')
+    assert.equal(wheelAction(ALL_ON, { ...plain, deltaX: 1, deltaY: 4 }, false, mode), 'hint')
+    assert.equal(wheelAction(ALL_ON, { ...plain, deltaX: 2, deltaY: -2 }, false, mode), 'hint')
+    assert.equal(wheelAction(ALL_ON, { ...plain, deltaX: 0, deltaY: 0 }, false, mode), 'hint')
+    // held, sideways moves as before; with pan off it is still the page's
+    assert.equal(wheelAction(ALL_ON, { ...plain, deltaX: -0.5, deltaY: 0 }, true, mode), 'pan')
+    assert.equal(wheelAction({ ...ALL_ON, pan: false }, { ...plain, deltaX: -0.5, deltaY: 0 }, false, mode), 'pass')
+  }
+})
+
 test('3d: Shift + wheel turns; flat and iso keep moving (sideways)', () => {
   const shift = { ...plain, shiftKey: true }
   assert.equal(wheelAction(ALL_ON, shift, true, '3d'), 'turn')

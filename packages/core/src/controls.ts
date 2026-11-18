@@ -8,19 +8,20 @@ import { instant, tracer } from './telemetry.ts'
 
 export const ALL_ON: Readonly<ResolvedControls> = Object.freeze({ zoom: true, pan: true, move: true, drillIn: true })
 
-/** The keys held during a wheel event. */
-export interface WheelKeys { ctrlKey: boolean; metaKey: boolean; shiftKey?: boolean }
+/** The keys held during a wheel event, and its deltas (any unit: only which way it mostly goes counts). */
+export interface WheelKeys { ctrlKey: boolean; metaKey: boolean; shiftKey?: boolean; deltaX?: number; deltaY?: number }
 
 /**
  * A wheel over the scene. A trackpad pinch arrives as a wheel with ctrlKey, so pinch and cmd/ctrl + wheel
  * zoom. A plain wheel or a two-finger drag moves the view, but only once the diagram has the gestures
- * (`engaged`): a diagram in a page that scrolls lets the page scroll and asks for a hint instead, until it
- * is clicked. In 3D, Shift turns the wheel into turning. `pass` leaves the event to the page.
+ * (`engaged`): a diagram in a page that scrolls lets the page scroll and asks for a hint instead (`hint`), until it
+ * is clicked. A mostly sideways one there is stopped as well as hinted (`block`): the page scrolls up and down, and a
+ * sideways swipe left to it is the browser's Back. In 3D, Shift turns the wheel into turning. `pass` leaves the event to the page.
  */
-export function wheelAction(controls: ResolvedControls, keys: WheelKeys, engaged: boolean, mode: Mode): 'zoom' | 'pan' | 'turn' | 'hint' | 'pass' {
+export function wheelAction(controls: ResolvedControls, keys: WheelKeys, engaged: boolean, mode: Mode): 'zoom' | 'pan' | 'turn' | 'hint' | 'block' | 'pass' {
   if (keys.ctrlKey || keys.metaKey) return controls.zoom ? 'zoom' : 'pass'
   if (!controls.pan) return 'pass'
-  if (!engaged) return 'hint'
+  if (!engaged) return Math.abs(keys.deltaX ?? 0) > Math.abs(keys.deltaY ?? 0) ? 'block' : 'hint'
   return mode === '3d' && keys.shiftKey ? 'turn' : 'pan'
 }
 
