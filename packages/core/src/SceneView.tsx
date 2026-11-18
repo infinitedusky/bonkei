@@ -50,6 +50,7 @@ class Gate {
     return d.scrollHeight > d.clientHeight + 1
   }
   mode: Mode = 'iso'
+  fingers = 0 // touches down on the canvas; a node drag gives way once there are two
   hold(on: boolean, how: 'click' | 'touch' | 'esc' | 'outside' = 'click') {
     if (this.held === on) return
     this.held = on
@@ -224,7 +225,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       gate.input = e.pointerType === 'touch' ? 'touch' : gate.input === 'touch' ? 'mouse' : gate.input
       gate.mode = cam.mode
       if (e.pointerType !== 'touch') { gate.hold(true, 'click'); return }
-      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); gate.fingers = touches.current.size
       if (touches.current.size === 2) { gate.hold(true, 'touch'); last = two() }
     }
     const tmove = (e: PointerEvent) => {
@@ -246,6 +247,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     }
     const tup = (e: PointerEvent) => {
       if (!touches.current.delete(e.pointerId)) return
+      gate.fingers = touches.current.size
       if (touches.current.size < 2 && last) { last = null; pinch.end(); twist.end(); slide.end(); settle() }
     }
     // let go on Esc or a press outside the diagram
@@ -349,6 +351,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     return raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY), out) ? out : null
   }
 
+  const gate = useContext(GateCtx)!
   const startNodeDrag = (e: ThreeEvent<PointerEvent>, id: string) => {
     e.stopPropagation()
     const b = boxes.get(id)!
@@ -358,8 +361,9 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     const gx = p0.x / S + W / 2 - b.x, gy = p0.z / S + H / 2 - b.y
     const parent = b.parent ? data.boxes.find(x => x.id === b.parent) : undefined
     setCursor('grabbing')
-    const span = gesture('move')
+    const span = gesture('move', undefined, e.nativeEvent.pointerType === 'touch' ? 'touch' : 'drag', () => cam.mode)
     const move = (ev: PointerEvent) => {
+      if (gate.fingers > 1) return
       span.touch()
       const p = groundPoint(ev.clientX, ev.clientY, planeY)
       if (!p) return
