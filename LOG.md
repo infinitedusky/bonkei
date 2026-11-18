@@ -287,3 +287,16 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - Making `flat` the default: depth is what sets Bonkei apart, and an author who wants a plain diagram can set `flat`. The person tried flat as the default (BON-162) and chose iso (BON-165).
 
 **Consequences.** Embeds that relied on the toolbar's crossing groups lose them until they set `crossingControls`. This is a change in behaviour, made before the package is published. Tests: `options.test.ts` (defaults, the frontmatter key and its warning, the merge). Stories: `Bonkei / Overlay Toolbar`, `Overlay Toolbar With Crossing Controls`, `Bridges Without Controls`.
+
+## 2026-11-18 — Embeds: script tag and VitePress (BON-53, prototype)
+
+**Context.** Bonkei is to drop into docs people already have: a plain HTML page, VitePress, and (research only) Mintlify.
+
+**Decision.**
+- **Script tag.** The IIFE entry defines `<bonkei-diagram>` (`customElements.get`-guarded, so two copies do not throw) and `Bonkei.run({ querySelector })` for `<pre class="mermaid">`, which is never automatic. Source is the element's text, dedented; `mode`, `theme` and `height` attributes map to options; the element is `display:block` and gets 420 px when it has no content height. `examples/html` is one static page; `copy-bundle.mjs` puts the script, wasm and fonts beside it.
+- **VitePress.** `@bonkei/vitepress` (private): `bonkeiMarkdown(md, { height })` overrides the fence rule and chains to the previous one; only flowcharts and sequence diagrams (after frontmatter) are claimed. A fence's `{height=600}` arrives in `token.attrs` (VitePress's markdown-it-attrs strips it from `token.info`), so the plugin reads both. The Vue component renders an empty box of the set height on the server and loads `bonkei` with a dynamic `import()` in `onMounted`; `update()` on a changed source, `destroy()` on unmount. The package is plain ESM JS with `.d.ts` files, no build.
+- **react, react-dom, three are dependencies of the plugin**, not peers: a Vue site has none, `bonkei` needs them as peers, and the plugin's own dependencies satisfy them. `vitepress` and `vue` are peers.
+- **Mintlify.** Written in `examples/vitepress/mintlify.md`; not tried.
+- **Smoke.** `scripts/smoke/embeds.mjs` runs the HTML page and the VitePress example (dev, and build + preview) from the packed tarballs; the plugin's `bonkei` dependency is pointed at the packed core with npm `overrides`.
+
+**Consequences.** Under `vitepress dev` (Vite 5) the wasm file is not served as a file: the loader logs it and bonkei draws from its inlined copy (BON-52's known quirk); build + preview fetch the file. Two installs (one line in config, one in the theme) cannot be avoided without patching VitePress. Dark mode does not follow the site's switch (not in this task).
