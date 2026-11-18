@@ -12,11 +12,8 @@ let timer: ReturnType<typeof setTimeout> | undefined
 
 onMounted(async () => {
   const { render, CLASSIC } = await import('bonkei')
-  // the same light trench rim as every other diagram on the site (see TRENCH_RIM in config.ts)
-  const theme = { ...CLASSIC, edge: { ...CLASSIC.edge, rim: '#ffe3a3', rimWidth: 3.5 } }
   handle = render(host.value!, text.value, {
     ...(props.options ?? {}),
-    theme,
     onError: e => { problems.value = [`${e.kind}${e.line ? ' line ' + e.line : ''}: ${e.message}`] },
     onWarning: w => { problems.value = [...problems.value, `warning, line ${w.line}: ${w.message}`] },
     onReady: () => { problems.value = [] },

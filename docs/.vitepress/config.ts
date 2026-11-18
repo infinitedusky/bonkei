@@ -35,7 +35,6 @@ function liveFences(md: any) {
     const token = tokens[idx]
     const attrs = parseInfo(token.info)
     if (attrs) for (const [k, v] of token.attrs ?? []) attrs[k] = v || 'true'
-    if (attrs && !('editor' in attrs) && isSupported(token.content)) token.content = withTrenchRim(token.content)
     if (!attrs || !LIVE_KEYS.some(k => k in attrs)) return previous(tokens, idx, opts, env, self)
     const source = md.utils.escapeHtml(encodeURIComponent(token.content))
     const height = Number(attrs.height) > 0 ? Number(attrs.height) : 300

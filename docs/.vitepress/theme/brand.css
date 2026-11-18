@@ -62,3 +62,4 @@
 
 /* the cream paper shows when the page is scrolled past its ends (overscroll), not white */
 html, body { background-color: #EFE6D0; }
+html { overscroll-behavior: none; } /* no rubber-band past the top or bottom: nothing behind the page can show */
