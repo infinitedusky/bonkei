@@ -75,9 +75,25 @@ test('props override frontmatter key by key', () => {
   assert.equal(mergeOptions({ toolbar: true }, fm).toolbar, true)
   assert.equal(mergeOptions({ controls: true }, fm).controls, true)
   // a prop for one key leaves the others to the frontmatter
-  assert.deepEqual(mergeOptions({ mode: '3d' }, fm), { mode: '3d', labels: 'top', toolbar: false, controls: false, crossings: 'none', avoidCrossings: 'some' })
-  // nothing set anywhere: the defaults
-  assert.deepEqual(mergeOptions(), { mode: 'iso', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some' })
+  assert.deepEqual(mergeOptions({ mode: '3d' }, fm), { mode: '3d', labels: 'top', toolbar: false, controls: false, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
+  // nothing set anywhere: the defaults (flat; no crossing controls)
+  assert.deepEqual(mergeOptions(), { mode: 'flat', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
+})
+
+test('crossingControls is read from frontmatter, and a non-boolean warns with its line', () => {
+  const fm = readFrontmatter('---\nconfig:\n  bonkei:\n    crossingControls: true\n    crossings: bridge\n---\nA')
+  assert.deepEqual(fm.options, { crossingControls: true, crossings: 'bridge' })
+  assert.deepEqual(fm.warnings, [])
+  const bad = readFrontmatter('---\nconfig:\n  bonkei:\n    crossingControls: yes\n---\nA')
+  assert.deepEqual(bad.options, {})
+  assert.deepEqual(bad.warnings.map(w => [w.kind, w.line, w.text]), [['frontmatter', 4, 'crossingControls: yes']])
+})
+
+test('crossingControls: a prop beats the frontmatter, and a crossing style alone does not turn it on', () => {
+  assert.equal(mergeOptions({ crossingControls: false }, { crossingControls: true }).crossingControls, false)
+  assert.equal(mergeOptions({}, { crossingControls: true }).crossingControls, true)
+  assert.equal(mergeOptions({ crossings: 'bridge' }).crossingControls, false)
+  assert.equal(mergeOptions({ crossings: 'bridge' }).crossings, 'bridge')
 })
 
 test('a controls object in props replaces the frontmatter one whole', () => {

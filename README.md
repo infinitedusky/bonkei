@@ -83,12 +83,13 @@ Props of `<Bonkei />`, and the options of `render(element, source, options)`:
 | Option | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `source` | `string \| GraphInput` | (required) | Mermaid text (frontmatter allowed) or a hand-built graph. For `render` it is the second argument. |
-| `mode` | `'flat' \| 'iso' \| '3d'` | `'iso'` | The camera mode. Sets the first view; changing it moves the view. |
+| `mode` | `'flat' \| 'iso' \| '3d'` | `'flat'` | The camera mode. Sets the first view; changing it moves the view. Flat by default: the author opts into depth. |
 | `labels` | `'top' \| 'billboard'` | `'top'` | Labels lie on top of the shapes, or face the camera. |
-| `toolbar` | `boolean` | `true` | Show the built-in flat/iso/3D switch and the fit button. |
+| `toolbar` | `boolean` | `true` | Show the built-in Flat / Iso / 3D switch and Fit. |
+| `crossingControls` | `boolean` | `false` | Also show the crossing-style (No hop / Bridge / Tunnel / Portal) and Avoid crossings (Off / Some / Strong) groups in the toolbar; needs `toolbar`. |
 | `controls` | `boolean \| { zoom?, pan?, move?, drillIn? }` | `true` | The reader's controls: all on, all off, or per control (one left out is on). |
-| `crossings` | `'none' \| 'bridge' \| 'tunnel' \| 'portal'` | `'none'` | How a line gets past another where two cross: not at all (they cross flat), a hop over it, an open trough under it, or a pair of portals. The toolbar switches it, and the diagram redraws at once. |
-| `avoidCrossings` | `'off' \| 'some' \| 'strong'` | `'some'` | How hard lines avoid crossing each other. `some` keeps every line on its most direct route; `strong` lets a line take a short sideways jog to cross fewer lines. The toolbar switches it, and the lines are routed again at once. |
+| `crossings` | `'none' \| 'bridge' \| 'tunnel' \| 'portal'` | `'none'` | How a line gets past another where two cross: not at all (they cross flat), a hop over it, an open trough under it, or a pair of portals. With `crossingControls` on, the reader can switch it too, and the diagram redraws at once. |
+| `avoidCrossings` | `'off' \| 'some' \| 'strong'` | `'some'` | How hard lines avoid crossing each other. `some` keeps every line on its most direct route; `strong` lets a line take a short sideways jog to cross fewer lines. With `crossingControls` on, the reader can switch it too, and the lines are routed again at once. |
 | `theme` | `string \| Theme` | from the frontmatter, else `'classic'` | The look: `'classic'`, `'bonkei'` or `'bonkei-landscape'` (`THEME_NAMES`), or a whole `Theme` object (copy one of `CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE` and change it). Wins over the frontmatter's `config.theme`. An unknown name draws in Classic and warns. |
 | `fit` | `'default' \| 'tight'` | `'default'` | `tight` frames what the view really shows (the diagram's boxes as the camera sees them) with a small margin, centres it, and frames it again when the container changes size. |
 | `minLabelPx` | `number` | `0` | When showing the whole diagram would make node labels smaller than this many pixels (a phone), open zoomed in on the largest tray instead. `fit()` still shows everything. |
@@ -119,6 +120,7 @@ config:
     toolbar: false
     crossings: tunnel
     avoidCrossings: strong
+    crossingControls: true
     controls:
       zoom: false
 ---
@@ -161,7 +163,7 @@ A `Graph` works as a source too. `direction` and `groups` are optional (they def
 
 Sizing: Bonkei fills its container (`width: 100%; height: 100%`). Give the container a height; one with no height draws nothing and `onReady` does not fire. The root carries `data-bonkei="loading|ready|error"` for styling and tests.
 
-Telemetry: Bonkei emits OpenTelemetry spans through `@opentelemetry/api` when the page registers an SDK, and does nothing otherwise. The spans are `bonkei.prepare` (with a `bonkei.layout` child; under it `bonkei.elk.load` on the first layout and `bonkei.route`, with `bonkei.wasm.load` and its `bonkei.wasm.fallback` event when the inline copy was used; `bonkei.theme.requested` when the frontmatter names a theme, and a `bonkei.frontmatter_warning` event per warning with its `bonkei.warning.kind`), `bonkei.theme` (each look a diagram is drawn in: the theme, where it came from, how many variables, and `bonkei.theme.unknown`), `bonkei.first_frame` (with `bonkei.theme`), `bonkei.mode_change`, `bonkei.node_click`, `bonkei.control` and `bonkei.render_error`.
+Telemetry: Bonkei emits OpenTelemetry spans through `@opentelemetry/api` when the page registers an SDK, and does nothing otherwise. The spans are `bonkei.prepare` (with a `bonkei.layout` child; under it `bonkei.elk.load` on the first layout and `bonkei.route`, with `bonkei.wasm.load` and its `bonkei.wasm.fallback` event when the inline copy was used; `bonkei.theme.requested` when the frontmatter names a theme, and a `bonkei.frontmatter_warning` event per warning with its `bonkei.warning.kind`), `bonkei.theme` (each look a diagram is drawn in: the theme, where it came from, how many variables, and `bonkei.theme.unknown`), `bonkei.first_frame` (with `bonkei.theme`, `bonkei.mode` (the view it opened in) and `bonkei.crossing_controls`), `bonkei.mode_change`, `bonkei.node_click`, `bonkei.control` and `bonkei.render_error`.
 
 ## Packages
 

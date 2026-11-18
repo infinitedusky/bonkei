@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Bonkei, ErrorCard, ErrorStrip, Loading, Toolbar } from './Bonkei'
 import { render, type BonkeiHandle } from './render'
 import type { Mode } from './camera'
+import type { CrossingStyle } from './edges3d'
+import type { AvoidCrossings } from './avoid'
 import type { GraphInput } from './model'
 
 // Made-up sample: a small shop backend, not a real system.
@@ -41,6 +43,15 @@ const sampleGraph = (): GraphInput => ({
   edges: [{ id: 'e', from: 'a', to: 'b', label: 'made up' }],
 })
 const SAMPLE_BROKEN = '???\n!!!' // made up: nothing readable
+// Made-up sample: two sources that each feed three sinks, so their lines cross (routed with avoidCrossings off).
+const SAMPLE_CROSSING = `flowchart TD
+  A --> C
+  A --> D
+  B --> C
+  B --> D
+  A --> E
+  B --> E
+`
 
 const Frame = ({ children, h = '100vh' }: { children: React.ReactNode; h?: string }) => (
   <div style={{ width: '100%', height: h, background: '#0f1218' }}>{children}</div>
@@ -53,11 +64,11 @@ const Log = ({ lines }: { lines: string[] }) => (
 
 export default { title: 'Bonkei' }
 
-/** A flowchart, ready, with the toolbar. Events are logged bottom-left. */
+/** A flowchart, ready, with the toolbar (View + Fit; crossingControls adds the crossing groups). Events are logged bottom-left. */
 export const Flowchart = {
-  args: { mode: 'iso' as Mode, labels: 'top' as const, toolbar: true },
+  args: { mode: 'flat' as Mode, labels: 'top' as const, toolbar: true, crossingControls: false },
   argTypes: { mode: { control: 'inline-radio', options: ['flat', 'iso', '3d'] }, labels: { control: 'inline-radio', options: ['top', 'billboard'] } },
-  render: (args: { mode: Mode; labels: 'top' | 'billboard'; toolbar: boolean }) => {
+  render: (args: { mode: Mode; labels: 'top' | 'billboard'; toolbar: boolean; crossingControls: boolean }) => {
     const [log, setLog] = useState<string[]>([])
     const add = (s: string) => setLog(l => [...l, s])
     return (
@@ -84,6 +95,9 @@ export const Sequence = {
     )
   },
 }
+
+/** The author picks bridges and no avoiding; the reader sees bridges and only View + Fit in the toolbar. */
+export const BridgesWithoutControls = { render: () => <Frame><Bonkei source={SAMPLE_CROSSING} crossings="bridge" avoidCrossings="off" /></Frame> }
 
 /** Options from frontmatter: flat, billboard labels, no toolbar. */
 export const FromFrontmatter = { render: () => <Frame><Bonkei source={SAMPLE_FRONTMATTER} /></Frame> }
@@ -178,9 +192,19 @@ export const OverlayRenderErrorCard = {
 export const OverlayErrorStrip = {
   render: () => <Over><ErrorStrip error={{ kind: 'parse', message: 'no nodes found; first unreadable line: 2: !!!', line: 2 }} /></Over>,
 }
+/** The default toolbar: the View radiogroup and Fit, nothing else. */
 export const OverlayToolbar = {
   render: () => {
-    const [m, setM] = useState<Mode>('iso')
+    const [m, setM] = useState<Mode>('flat')
     return <Over><Toolbar mode={m} onPick={setM} onFit={() => {}} /></Over>
+  },
+}
+/** The toolbar with crossingControls on: View, Crossings, Avoid crossings and Fit. */
+export const OverlayToolbarWithCrossingControls = {
+  render: () => {
+    const [m, setM] = useState<Mode>('flat')
+    const [c, setC] = useState<CrossingStyle>('none')
+    const [a, setA] = useState<AvoidCrossings>('some')
+    return <Over><Toolbar mode={m} onPick={setM} onFit={() => {}} crossings={c} onCrossings={setC} avoid={a} onAvoid={setA} /></Over>
   },
 }

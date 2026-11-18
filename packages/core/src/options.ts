@@ -22,6 +22,8 @@ export interface DiagramOptions {
   crossings?: CrossingStyle
   /** How hard the router tries to keep lines from crossing: 'off', 'some' (default) or 'strong'. Costs routing time when the diagram is drawn. */
   avoidCrossings?: AvoidCrossings
+  /** Show the crossing-style and avoid-crossings groups in the toolbar. Default false. */
+  crossingControls?: boolean
 }
 export type ResolvedOptions = Required<DiagramOptions>
 
@@ -66,7 +68,7 @@ export type BonkeiOptions = DiagramOptions & {
   onReady?: (ready: ReadyInfo) => void
 }
 
-export const DEFAULTS: Readonly<ResolvedOptions> = Object.freeze({ mode: 'iso', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some' })
+export const DEFAULTS: Readonly<ResolvedOptions> = Object.freeze({ mode: 'flat', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
 
 const MODES: readonly Mode[] = ['flat', 'iso', '3d']
 const LABELS: readonly LabelMode[] = ['top', 'billboard']
@@ -168,6 +170,7 @@ export function readFrontmatter(src: string): Frontmatter {
     else if (key === 'crossings') options.crossings = oneOf(key, v, CROSSING_STYLES)
     else if (key === 'avoidCrossings') options.avoidCrossings = oneOf(key, v, AVOID_CROSSINGS)
     else if (key === 'toolbar') options.toolbar = bool(['bonkei', key], v)
+    else if (key === 'crossingControls') options.crossingControls = bool(['bonkei', key], v)
     else if (key === 'controls') {
       if (typeof v === 'boolean') { options.controls = v; continue }
       if (!isMap(v)) { warn(`config.bonkei.controls must be true, false or a mapping of ${CONTROLS.join(', ')}; got ${show(v)}`, lineOf(['config', 'bonkei', key])); continue }
@@ -178,7 +181,7 @@ export function readFrontmatter(src: string): Frontmatter {
         if (b !== undefined) c[name as ControlName] = b
       }
       options.controls = c
-    } else warn(`unknown option config.bonkei.${key}; known: mode, labels, toolbar, controls, crossings, avoidCrossings`, lineOf(['config', 'bonkei', key]))
+    } else warn(`unknown option config.bonkei.${key}; known: mode, labels, toolbar, controls, crossings, avoidCrossings, crossingControls`, lineOf(['config', 'bonkei', key]))
   }
   for (const k of Object.keys(options) as (keyof DiagramOptions)[]) if (options[k] === undefined) delete options[k]
   return { body, lineOffset, options, theme, warnings }
@@ -194,6 +197,7 @@ export function mergeOptions(props: DiagramOptions = {}, fm: DiagramOptions = {}
     toolbar: props.toolbar ?? fm.toolbar ?? DEFAULTS.toolbar,
     crossings: props.crossings ?? fm.crossings ?? DEFAULTS.crossings,
     avoidCrossings: props.avoidCrossings ?? fm.avoidCrossings ?? DEFAULTS.avoidCrossings,
+    crossingControls: props.crossingControls ?? fm.crossingControls ?? DEFAULTS.crossingControls,
     controls: typeof controls === 'boolean' ? controls : { ...controls },
   }
 }
