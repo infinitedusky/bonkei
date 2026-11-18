@@ -22,7 +22,7 @@ flowchart LR
   Cdn --> Cache[(Cache)]
 ```
 ````
-```tsx [React]
+```tsx twoslash [React]
 import { Bonkei } from 'bonkei'
 
 const source = `flowchart LR

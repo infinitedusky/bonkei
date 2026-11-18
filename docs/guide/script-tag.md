@@ -33,7 +33,7 @@ flowchart LR
   Build --> Test --> Ship
 ```
 ````
-```tsx [React]
+```tsx twoslash [React]
 import { Bonkei } from 'bonkei'
 <div style={{ height: 360 }}><Bonkei source={'flowchart LR\n  Build --> Test --> Ship'} /></div>
 ```
