@@ -44,22 +44,59 @@ jobs:
           SMOKE_CHROMIUM: bundled
 
   size:
+    # Budgets: packages/core/.size-limit.mjs. The PR comment shows each entry's size against its limit; the job fails when one is over.
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
+    env:
+      NO_COLOR: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: andresz1/size-limit-action@v1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter bonkei build
+      - name: Sizes against the budget
+        id: budget
+        working-directory: packages/core
+        run: |
+          set +e
+          pnpm exec size-limit > size-limit.txt
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat size-limit.txt
+      - uses: marocchino/sticky-pull-request-comment@v3.0.5
+        with:
+          header: size-budget
+          path: packages/core/size-limit.txt
+          message: |
+            ## Size budget (packages/core/.size-limit.mjs) ${{ steps.budget.outputs.status == '0' && '✅ within budget' || '❌ over budget' }}
+            ```
+            {{{content}}}
+            ```
+      # Against the base branch only once it has a size-limit config (main gets one with BON-52). The action's
+      # package_manager input is in v1.8.0 (the v1 tag predates it): it installs and builds the base with pnpm.
+      - name: Does the base branch have a size-limit config?
+        id: base
+        run: |
+          git fetch origin "$BASE" --depth=1
+          if git cat-file -e FETCH_HEAD:packages/core/.size-limit.mjs 2>/dev/null; then echo "config=true" >> "$GITHUB_OUTPUT"; fi
+        env:
+          BASE: ${{ github.base_ref }}
+      - if: steps.base.outputs.config == 'true'
+        uses: andresz1/size-limit-action@v1.8.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           package_manager: pnpm
           directory: packages/core
-          build_script: build
+          # this branch is installed and built above; skip_step applies to it only, the base is still installed and built
+          skip_step: build
+      - name: Fail if a budget is exceeded
+        if: steps.budget.outputs.status != '0'
+        run: exit 1
 
   preview:
     # Every PR gets an installable build of bonkei and examples/vite as a StackBlitz template (pkg.pr.new; the GitHub app must be installed).
