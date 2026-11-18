@@ -53,6 +53,10 @@ console.log(THEME_NAMES)
 
 In frontmatter it is Mermaid's own key: `config.theme: bonkei`.
 
+## The floor on this site
+
+Every diagram in these docs has a medium-grey floor (`ground.bg`, with its grid), set once for the site, so a tunnel's dark slot shows against it. The Classic look's own floor is near black. A diagram's own `themeVariables` win over it.
+
 ## Changing one thing
 
 `config.themeVariables` lays single tokens over the theme, by dotted path. `node.form: landscape` stands a landscape form on each node.

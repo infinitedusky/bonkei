@@ -11,9 +11,12 @@ let handle: { update(s: string): void; destroy(): void } | undefined
 let timer: ReturnType<typeof setTimeout> | undefined
 
 onMounted(async () => {
-  const { render } = await import('bonkei')
+  const { render, CLASSIC } = await import('bonkei')
+  // the same medium-grey floor as every other diagram on the site (see FLOOR in config.ts)
+  const theme = { ...CLASSIC, ground: { ...CLASSIC.ground, bg: '#8a8f98', grid: ['#9aa0ab', '#9298a3'] as [string, string] } }
   handle = render(host.value!, text.value, {
     ...(props.options ?? {}),
+    theme,
     onError: e => { problems.value = [`${e.kind}${e.line ? ' line ' + e.line : ''}: ${e.message}`] },
     onWarning: w => { problems.value = [...problems.value, `warning, line ${w.line}: ${w.message}`] },
     onReady: () => { problems.value = [] },
