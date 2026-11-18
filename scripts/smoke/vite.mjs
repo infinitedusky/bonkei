@@ -3,7 +3,7 @@
 // Two passes: the example as committed (current Vite), then the same app pinned to Vite 5 + plugin-react 4, where dev pre-bundling
 // hides the wasm file and bonkei falls back to its inlined chunk, and hides the font file (labels in drei's default font). The app draws the default look and the Bonkei theme; the theme's
 // font file must be fetched with status 200 (BON-159). In the current-Vite pass the temp copy also gets a second page, defaults.html
-// (scripts/smoke/defaults.mjs), checked under `vite dev`: diagrams start flat unless iso or 3D is set by option or frontmatter, the
+// (scripts/smoke/defaults.mjs), checked under `vite dev`: diagrams start iso unless flat or 3D is set by option or frontmatter, the
 // default toolbar is Flat / Iso / 3D and Fit, and the crossing controls show only with crossingControls (BON-161). examples/vite
 // itself is not changed. Run after `pnpm --filter bonkei build`.
 import { execSync, spawn } from 'node:child_process'

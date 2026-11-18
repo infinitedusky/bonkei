@@ -1,5 +1,5 @@
 // The quieter defaults in a fresh app (BON-161): a second page the Vite smoke test writes into its temp copy of examples/vite
-// (never into examples/vite itself). Five made-up diagrams of one crossing sample: no options, mode="iso", mode: 3d in the
+// (never into examples/vite itself). Five made-up diagrams of one crossing sample: no options, mode="flat", mode: 3d in the
 // frontmatter, crossingControls, and crossings="bridge" avoidCrossings="off" without controls. checkDefaults reads each case's
 // toolbar from the DOM and its EdgeStats from window.__cases[name].
 import { chromium } from 'playwright'
@@ -40,7 +40,7 @@ function Defaults() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 8 }}>
       {box('none', false, <Bonkei source={X} {...report('none')} />)}
-      {box('iso', false, <Bonkei source={X} mode="iso" {...report('iso')} />)}
+      {box('flat', false, <Bonkei source={X} mode="flat" {...report('flat')} />)}
       {box('3d', false, <Bonkei source={THREE_D} {...report('3d')} />)}
       {box('bridge', false, <Bonkei source={X} crossings="bridge" avoidCrossings="off" {...report('bridge')} />)}
       {box('controls', true, <Bonkei source={X} crossingControls {...report('controls')} />)}
@@ -51,8 +51,8 @@ function Defaults() {
 createRoot(document.getElementById('root')!).render(<Defaults />)
 `
 
-const CASES = ['none', 'iso', '3d', 'controls', 'bridge']
-const VIEW = { none: 'Flat', iso: 'Iso', '3d': '3D', controls: 'Flat', bridge: 'Flat' }
+const CASES = ['none', 'flat', '3d', 'controls', 'bridge']
+const VIEW = { none: 'Iso', flat: 'Flat', '3d': '3D', controls: 'Iso', bridge: 'Iso' }
 
 /** Opens `${url}defaults.html` and checks each case's starting view, the default toolbar's buttons and the opt-in crossing controls. */
 export async function checkDefaults(url) {
