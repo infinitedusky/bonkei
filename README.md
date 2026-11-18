@@ -36,6 +36,20 @@ fonts/ZenOldMincho-Bold-latin.ttf   (the Bonkei themes' labels; OFL-ZenOldMincho
 
 Like the wasm, the font is looked for beside the script that loaded `bonkei.global.js`. Leave `fonts/` out and Bonkei-theme labels fall back to the default font, with a warning to `onWarning`.
 
+The script also defines a `<bonkei-diagram>` element, so a page needs no code at all (BON-53; `examples/html`):
+
+```html
+<script src="bonkei.global.js"></script>
+<bonkei-diagram height="480" theme="bonkei">
+  flowchart LR
+    A --> B
+</bonkei-diagram>
+```
+
+Its text is the diagram (indented as you like; write `<` and `&` in labels as `&lt;` and `&amp;`). `height` (a number is px; 420 px when nothing else gives it a height), `mode` and `theme` are attributes; it fires `bonkei-ready` and `bonkei-error`. Removed, it releases its scene; added later, it draws. `<pre class="mermaid">` blocks become diagrams only when the page asks: `Bonkei.run({ querySelector: 'pre.mermaid' })` converts the flowcharts and sequence diagrams and leaves any other type as it is.
+
+In a VitePress site, `@bonkei/vitepress` (`packages/vitepress`, not yet published) draws ` ```mermaid ` fences that hold a flowchart or a sequence diagram as Bonkei scenes; see its README and `examples/vitepress`. For Mintlify, what it allows and the likely route are in `examples/vitepress/mintlify.md`.
+
 With React:
 
 ```tsx
@@ -163,13 +177,16 @@ A `Graph` works as a source too. `direction` and `groups` are optional (they def
 
 Sizing: Bonkei fills its container (`width: 100%; height: 100%`). Give the container a height; one with no height draws nothing and `onReady` does not fire. The root carries `data-bonkei="loading|ready|error"` for styling and tests.
 
-Telemetry: Bonkei emits OpenTelemetry spans through `@opentelemetry/api` when the page registers an SDK, and does nothing otherwise. The spans are `bonkei.prepare` (with a `bonkei.layout` child; under it `bonkei.elk.load` on the first layout and `bonkei.route`, with `bonkei.wasm.load` and its `bonkei.wasm.fallback` event when the inline copy was used; `bonkei.theme.requested` when the frontmatter names a theme, and a `bonkei.frontmatter_warning` event per warning with its `bonkei.warning.kind`), `bonkei.theme` (each look a diagram is drawn in: the theme, where it came from, how many variables, and `bonkei.theme.unknown`), `bonkei.first_frame` (with `bonkei.theme`, `bonkei.mode` (the view it opened in) and `bonkei.crossing_controls`), `bonkei.mode_change`, `bonkei.node_click`, `bonkei.control` and `bonkei.render_error`.
+Telemetry: Bonkei emits OpenTelemetry spans through `@opentelemetry/api` when the page registers an SDK, and does nothing otherwise. The spans are `bonkei.prepare` (with a `bonkei.layout` child; under it `bonkei.elk.load` on the first layout and `bonkei.route`, with `bonkei.wasm.load` and its `bonkei.wasm.fallback` event when the inline copy was used; `bonkei.theme.requested` when the frontmatter names a theme, and a `bonkei.frontmatter_warning` event per warning with its `bonkei.warning.kind`), `bonkei.theme` (each look a diagram is drawn in: the theme, where it came from, how many variables, and `bonkei.theme.unknown`), `bonkei.first_frame` (with `bonkei.theme`, `bonkei.mode` (the view it opened in) and `bonkei.crossing_controls`), `bonkei.mode_change`, `bonkei.node_click`, `bonkei.control` and `bonkei.render_error`. The script tag adds `bonkei.element.connect` / `bonkei.element.disconnect` (a `<bonkei-diagram>` added or removed), `bonkei.element.bad_height` and `bonkei.run` (how many blocks it converted and skipped); `@bonkei/vitepress` adds `bonkei.vitepress.load` (the ms to load Bonkei on a page with a diagram, status ERROR when it could not).
 
 ## Packages
 
 The repo is a pnpm workspace (`pnpm-workspace.yaml`); the root `bonkei-workspace` is a private shell.
 
 - `packages/core` — **`bonkei`**: the engine and its public API (`<Bonkei />`, `render()`), built by tsdown into `dist/` (ESM, types, the script-tag bundle). Private for now; it will be published later. The apps, Storybook and `examples/vite` use the built `dist/`, not the source.
+- `packages/vitepress` — **`@bonkei/vitepress`** (private, not yet published): a markdown-it plugin and a Vue component that draw ` ```mermaid ` flowcharts and sequence diagrams in VitePress (BON-53).
+- `examples/html` — one static HTML page with the script tag and `<bonkei-diagram>` elements (BON-53).
+- `examples/vitepress` — a VitePress docs site with the plugin, and the Mintlify notes (BON-53).
 - `examples/vite` — a fresh `npm create vite` React app with `bonkei` added: what CI's smoke test installs the packed tarball into, and each PR's StackBlitz template on pkg.pr.new. Its other pieces (parser, layout, renderer, camera) are in `bonkei/internal`, which is internal and unstable.
 - `apps/playground` — **`@bonkei/playground`** (private): the viewer, its stories, Storybook and the screen map.
 - `apps/site` — **`@bonkei/site`** (private): the marketing site, its stills and OG images, and the capture page behind `pnpm capture`.
@@ -182,7 +199,7 @@ pnpm dev          # core rebuilt on save (tsdown --watch) + both apps: site at h
 pnpm build        # build core, type-check everything, build both apps, assemble dist/ (site) + dist/app/ (viewer), check it
 pnpm check:package # build core, then publint, are-the-types-wrong and the dist checks
 pnpm size         # build core, then the size budget (packages/core/.size-limit.mjs)
-pnpm smoke        # after building core: pack it, install into a clean examples/vite, draw under vite dev and preview, then the script-tag page
+pnpm smoke        # after building core: pack it, install into a clean examples/vite, draw under vite dev and preview, the script-tag page, then the embeds (examples/html, examples/vitepress)
 pnpm preview      # serve the assembled dist/ at /
 pnpm storybook    # stories: node shape, subgraph, full sample, sequence, site screens
 pnpm capture      # regenerate apps/site/public/*.png from the real scene (needs Chrome; CHROME_PATH to override)

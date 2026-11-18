@@ -81,6 +81,7 @@ test('the script-tag bundle evaluates without throwing, as a page loads it (docu
   let Bonkei
   assert.doesNotThrow(() => { Bonkei = new Function('globalThis', 'window', 'self', 'document', `${g}; return Bonkei`)(sandbox, sandbox, sandbox, document) })
   assert.equal(typeof Bonkei.render, 'function')
+  assert.equal(typeof Bonkei.run, 'function') // BON-53; <bonkei-diagram> is defined only where customElements exists
 })
 
 test('the tarball holds dist and nothing from src', () => {

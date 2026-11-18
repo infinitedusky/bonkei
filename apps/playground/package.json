@@ -7,8 +7,8 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types scripts/*.test.ts",
-    "storybook": "node scripts/copy-embed.mjs && storybook dev -p 6006",
-    "build-storybook": "node scripts/copy-embed.mjs && storybook build",
+    "storybook": "node scripts/copy-embed.mjs && node scripts/build-vitepress-embed.mjs && storybook dev -p 6006",
+    "build-storybook": "node scripts/copy-embed.mjs && node scripts/build-vitepress-embed.mjs && storybook build",
     "measure": "node --experimental-strip-types scripts/measure-edges.ts",
     "predev": "node scripts/copy-embed.mjs",
     "prebuild": "node scripts/copy-embed.mjs"
