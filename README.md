@@ -16,9 +16,9 @@ Bonkei turns Mermaid into one Three.js scene (Mermaid → ELK → react-three-fi
 npm install bonkei react react-dom three
 ```
 
-Nothing else: `@opentelemetry/api` comes with Bonkei, and a default Vite config works as it is (`examples/vite` is such an app). The layout engine (ELK) and the line router (`libavoid.wasm`) are fetched when the first diagram is laid out, not with the page. Bonkei finds the wasm beside its own module; if your bundler moves it (Vite 5's dev pre-bundling does), it falls back to a lazy chunk holding the same bytes. `setAvoidWasm(url)` from `bonkei/internal` points elsewhere.
+Nothing else: `@opentelemetry/api` comes with Bonkei, and a default Vite config works as it is (`examples/vite` is such an app). The layout engine (ELK) and the line router (`libavoid.wasm`) are fetched when the first diagram is laid out, not with the page. Bonkei finds the wasm beside its own module; if your bundler moves it (Vite 5's dev pre-bundling does), it falls back to a lazy chunk holding the same bytes. `setAvoidWasm(url)` from `bonkei/internal` points elsewhere. The Bonkei themes' label font (Zen Old Mincho, SIL OFL, in `dist/fonts/` with its licence) is found the same way, beside the module, and fetched only when a theme first uses it; if your bundler moves it, the labels use the default font and `onWarning` says so.
 
-With a script tag and no build step, load `bonkei.global.js` (React, three and ELK inside) with `libavoid.wasm` in the same folder, and call `Bonkei.render(element, source, options)`:
+With a script tag and no build step, load `bonkei.global.js` (React, three and ELK inside) with `libavoid.wasm` and the `fonts/` folder in the same folder, and call `Bonkei.render(element, source, options)`:
 
 ```html
 <div id="diagram" style="height:480px"></div>
@@ -26,7 +26,15 @@ With a script tag and no build step, load `bonkei.global.js` (React, three and E
 <script>Bonkei.render(document.getElementById('diagram'), 'flowchart LR\n  A --> B')</script>
 ```
 
-Both files are in the package's `dist/`.
+All three are in the package's `dist/`, laid out as they should be served:
+
+```
+bonkei.global.js
+libavoid.wasm
+fonts/ZenOldMincho-Bold-latin.ttf   (the Bonkei themes' labels; OFL-ZenOldMincho.txt beside it)
+```
+
+Like the wasm, the font is looked for beside the script that loaded `bonkei.global.js`. Leave `fonts/` out and Bonkei-theme labels fall back to the default font, with a warning to `onWarning`.
 
 With React:
 
