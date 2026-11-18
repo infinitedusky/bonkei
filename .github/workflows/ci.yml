@@ -99,7 +99,7 @@ jobs:
         run: exit 1
 
   preview:
-    # Every PR gets an installable build of bonkei and examples/vite as a StackBlitz template (pkg.pr.new; the GitHub app must be installed).
+    # Every PR gets an installable build of bonkei and examples/vite and @bonkei/vitepress, with examples/vite and examples/vitepress as StackBlitz templates (pkg.pr.new; the GitHub app must be installed).
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -114,4 +114,7 @@ jobs:
       # pkg-pr-new skips packages with "private": true. The flag stays in the repo as a guard against npm publish; it is dropped in this checkout only.
       - run: npm pkg delete private
         working-directory: packages/core
-      - run: pnpm exec pkg-pr-new publish './packages/core' --template './examples/vite' --comment=update
+      - run: npm pkg delete private
+        working-directory: packages/vitepress
+      # Two templates: examples/vite (React) and examples/vitepress (a Vue docs site). Not yet run in CI: the second template's workspace:* dependency is untested with pkg.pr.new.
+      - run: pnpm exec pkg-pr-new publish './packages/core' './packages/vitepress' --template './examples/vite' --template './examples/vitepress' --comment=update
