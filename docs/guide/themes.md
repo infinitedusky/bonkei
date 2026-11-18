@@ -70,6 +70,19 @@ flowchart LR
 
 A name that does not exist falls back to `classic` and reports a warning through [`onWarning`](./errors); so does a variable that does not exist.
 
+### The trench light
+
+A tunnel's trench is lit by the theme: a light along the floor, a wash on the walls and a light rim round the lip. Classic's is a cool blue-grey like its grid, Bonkei's is warm. A diagram can change any part:
+
+| Token | What it is |
+| --- | --- |
+| `edge.rim`, `edge.rimWidth` | The rim round the lip: its colour and width. |
+| `edge.glow.core`, `edge.glow.coreWidth` | The bright line along the floor. |
+| `edge.glow.halo`, `edge.glow.haloWidth`, `edge.glow.haloOpacity` | The soft, wider glow round that line. |
+| `edge.glow.wash`, `edge.glow.washIntensity` | The faint light on the trench walls. |
+
+[Edge styles](./edge-styles#the-trench-light) shows a diagram with its own rim.
+
 ## The theme objects
 
 `CLASSIC`, `BONKEI` and `BONKEI_LANDSCAPE` are frozen `Theme` objects, for passing as `theme` or as a base to copy and edit. Their fields are in the [Theme](/api/interfaces/Theme) reference.

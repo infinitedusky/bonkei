@@ -155,6 +155,32 @@ flowchart LR
 </figure>
 </div>
 
+### The trench light
+
+A tunnel is a trench cut into the ground, and the theme lights it so it does not read as a dark dip: a light runs along the floor where it meets the walls, the walls take a faint wash of the same colour, and a light rim outlines the lip. Turn the tunnel diagram above to iso or 3D to see it. Only the trench is lit; the blocks and lines beside it are not.
+
+A diagram can set its own rim, and the diagram's value wins over the theme's. This one asks for a thin red rim with `edge.rim` and `edge.rimWidth`:
+
+```mermaid {height=300}
+---
+config:
+  bonkei:
+    crossings: tunnel
+    avoidCrossings: off
+    toolbar: false
+  themeVariables:
+    edge.rim: "#ff3030"
+    edge.rimWidth: 1.5
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+The other parts are tokens too: `edge.glow.core`, `edge.glow.coreWidth`, `edge.glow.halo`, `edge.glow.haloWidth`, `edge.glow.haloOpacity`, `edge.glow.wash` and `edge.glow.washIntensity`. See [Themes](./themes).
+
 ## Avoiding crossings
 
 `avoidCrossings` sets how hard the router keeps lines apart: `off`, `some` (default) or `strong`. Stronger costs routing time when the diagram first draws. The same graph, drawn with bridges, at each level. On this graph the higher levels slide lines alongside each other rather than remove the crossing, which is why a crossing can be harder to find there.
