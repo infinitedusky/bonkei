@@ -61,6 +61,20 @@ export const Quiet = () => (
 )
 ```
 
+## Edge statistics
+
+`<Bonkei />` also takes `onEdgeStats`, which reports the edge counts and the time spent planning lines on every new layout, drag frame and style change. It is a React prop only; `render()` does not take it.
+
+```tsx twoslash
+import { Bonkei } from 'bonkei'
+
+export const Measured = () => (
+  <div style={{ height: 300 }}>
+    <Bonkei source={'flowchart LR\n  A --> B'} onEdgeStats={s => console.log(s)} />
+  </div>
+)
+```
+
 ## The ref handle
 
 A ref gives `setMode()` and `fit()`.
