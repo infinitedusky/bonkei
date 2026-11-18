@@ -119,3 +119,11 @@ test('no preset has a negative number, so the rule above takes nothing a preset 
   const nums = (o: unknown): number[] => (typeof o === 'number' ? [o] : o && typeof o === 'object' ? Object.values(o).flatMap(nums) : [])
   for (const t of Object.values(PRESETS)) assert.ok(nums(t).every(n => n >= 0), t.name)
 })
+
+test('the trench light is theme data: every preset has a glow, and a diagram can set its parts and its rim', () => {
+  for (const t of [CLASSIC, BONKEI, BONKEI_LANDSCAPE]) { assert.equal(typeof t.edge.glow.core, 'string'); assert.equal(typeof t.edge.rim, 'string') }
+  const r = withVariables(BONKEI, { 'edge.glow.core': '#ffffff', 'edge.glow.haloWidth': 5, 'edge.rim': '#123456', 'edge.rimWidth': 1 })
+  assert.deepEqual(r.problems, [])
+  assert.equal(r.theme.edge.glow.core, '#ffffff'); assert.equal(r.theme.edge.rim, '#123456'); assert.equal(r.theme.edge.rimWidth, 1)
+  assert.match(withVariables(BONKEI, { 'edge.glow': 1 }).problems[0].message, /group of tokens/)
+})

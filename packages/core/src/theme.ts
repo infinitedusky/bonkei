@@ -6,6 +6,9 @@ export type Pattern = 'plain' | 'hishi' | 'flower' | 'stone'
 export interface Plate { style: 'plain' | 'cartouche'; text: string; plate: string; border: string }
 
 /** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
+/** The light in a tunnel's trench: a track where the floor meets the walls (a core line and a wider, fainter halo) and a wash on the walls. A null colour leaves that part out. */
+export interface Glow { core: string | null; coreWidth: number; halo: string | null; haloWidth: number; haloOpacity: number; wash: string | null; washIntensity: number }
+
 export interface Theme {
   name: string
   ground: {
@@ -46,7 +49,7 @@ export interface Theme {
   // Ink follows the drawing's on-screen scale: width in px = token width x (px per world unit / ref), kept between min (px, for an outline;
   // other lines get it in proportion to their own width) and the token width. ref null: fixed widths, as in Classic.
   ink: { ref: number | null; min: number }
-  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface. flat: lines lie on the surface under them and the arrowhead is a flat triangle
+  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface. flat: lines lie on the surface under them and the arrowhead is a flat triangle
   seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
 }
 
@@ -78,7 +81,7 @@ export const CLASSIC: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: null, min: 1 },
-  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: null, rimWidth: 1.5, flat: false },
+  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: '#ffe3a3', rimWidth: 3.5, glow: { core: '#ffe2b0', coreWidth: 3.5, halo: '#ffc873', haloWidth: 11, haloOpacity: 0.28, wash: '#ffb55a', washIntensity: 0.3 }, flat: false },
   seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 })
 
@@ -104,7 +107,7 @@ export const BONKEI: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: 40, min: 1 },
-  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false },
+  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#ffe3a3', rimWidth: 3.5, glow: { core: '#ffe2b0', coreWidth: 3.5, halo: '#ffc873', haloWidth: 11, haloOpacity: 0.28, wash: '#ffb55a', washIntensity: 0.3 }, flat: false },
   seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
 })
 

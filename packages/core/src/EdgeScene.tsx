@@ -90,13 +90,18 @@ export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: 
   const wall = useMemo(() => new THREE.Color(color).multiplyScalar(0.55), [color])
   const floor = useMemo(() => new THREE.Color(color).multiplyScalar(0.3), [color])
   const rim = useMemo(() => new THREE.Color(color).multiplyScalar(0.2), [color])
+  // the light along the floor where it meets the walls (theme.edge.glow); no point light, it blows out the neighbouring block
+  const g = th.edge.glow
+  const ledPts = useMemo(() => shape.getPoints(16).map(p => [p.x, top - slot.depth + 0.015, -p.y] as [number, number, number]), [shape, top, slot.depth])
   const hidden = useMemo(() => new THREE.MeshBasicMaterial({ visible: false }), [])
-  const wallMat = useMemo(() => new THREE.MeshStandardMaterial({ color: wall, side: THREE.DoubleSide, roughness: 1 }), [wall])
+  const wallMat = useMemo(() => new THREE.MeshStandardMaterial({ color: wall, side: THREE.DoubleSide, roughness: 1, ...(g.wash ? { emissive: g.wash, emissiveIntensity: g.washIntensity } : {}) }), [wall, g.wash, g.washIntensity])
   return (
     <>
       <mesh geometry={walls} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow material={[hidden, wallMat]} />
       <mesh geometry={flat} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow><meshStandardMaterial color={floor} roughness={1} /></mesh>
       <Line points={[...outline, outline[0]]} color={th.edge.rim ?? rim} lineWidth={th.edge.rimWidth} />
+      {g.halo && <Line points={[...ledPts, ledPts[0]]} color={g.halo} lineWidth={g.haloWidth} transparent opacity={g.haloOpacity} depthWrite={false} />}
+      {g.core && <Line points={[...ledPts, ledPts[0]]} color={g.core} lineWidth={g.coreWidth} />}
     </>
   )
 }
