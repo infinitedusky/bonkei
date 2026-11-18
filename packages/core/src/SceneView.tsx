@@ -16,7 +16,7 @@ import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
 import { UI } from './palette'
-import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gesture, hintText, isPinch, isSwapped, modKey, pairOf, settleYaw, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, type Input, type Pair, type Radii } from './controls'
+import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gesture, hintText, holdable, isPinch, isSwapped, modKey, pairOf, settleYaw, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, type Input, type Pair, type Radii } from './controls'
 import { Gate, HINT_MS, clipRadii, inScroller } from './hold'
 import type { NodeClick, ResolvedControls } from './options'
 
@@ -189,16 +189,17 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     const touches = new Map<number, { x: number; y: number; x0: number; y0: number }>()
     let last: Pair | null = null
     const pair = () => { const [p, q] = [...touches.values()]; return pairOf(p, q) }
+    const take = (how: 'click' | 'touch') => { if (holdable(controls)) gate.hold(true, how) }
     const down = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') {
         gate.setInput(gate.input === 'touch' ? 'mouse' : gate.input)
-        gate.hold(true, 'click')
+        take('click')
         return
       }
       gate.setInput('touch')
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY })
       gate.fingers = touches.size
-      if (touches.size === 2) { gate.hold(true, 'touch'); last = pair() }
+      if (touches.size === 2) { take('touch'); last = pair() }
     }
     const tmove = (e: PointerEvent) => {
       const t = touches.get(e.pointerId)
@@ -220,7 +221,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       if (!t) return
       touches.delete(e.pointerId)
       // a tap (no second finger, hardly moved, not taken by the page's scrolling) takes hold
-      if (e.type === 'pointerup' && !last && touches.size === 0 && Math.hypot(t.x - t.x0, t.y - t.y0) < 10) gate.hold(true, 'touch')
+      if (e.type === 'pointerup' && !last && touches.size === 0 && Math.hypot(t.x - t.x0, t.y - t.y0) < 10) take('touch')
       gate.fingers = touches.size
       if (touches.size < 2 && last) { last = null; touchSpan.zoom.end(); touchSpan.turn.end(); touchSpan.pan.end(); settle() }
     }

@@ -24,6 +24,12 @@ export function wheelAction(controls: ResolvedControls, keys: WheelKeys, engaged
   return mode === '3d' && keys.shiftKey ? 'turn' : 'pan'
 }
 
+/**
+ * Whether a click (or a tap) takes hold of a diagram in a page that scrolls. Holding hands it the plain wheel and one
+ * finger, which only moving the view (`pan`) or a node (`move`) use; with both off there is nothing to hold, so no ring.
+ */
+export const holdable = (controls: ResolvedControls) => controls.pan || controls.move
+
 /** `swapped`: the gesture was reached with Shift or the secondary button, not by its plain form. */
 export const isSwapped = (button: number, shift: boolean) => button === 2 || shift
 

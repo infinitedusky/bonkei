@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { trace } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import {
-  ALL_ON, chipAt, cursorFor, dragAction, fitUsed, gesture, gestureRows, guessInput, helpToggled, hintShown, hintText, holdChanged, insetRadii,
+  ALL_ON, chipAt, cursorFor, dragAction, fitUsed, gesture, gestureRows, guessInput, helpToggled, hintShown, hintText, holdChanged, holdable, insetRadii,
   isPinch, isSwapped, modKey, pairOf, settleYaw, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, WHEEL_IDLE_MS,
 } from './controls.ts'
 import { resolveControls } from './options.ts'
@@ -91,6 +91,14 @@ test('one finger on a touch screen moves in every view', () => {
 
 test('a background drag does nothing when pan is off', () => {
   for (const mode of MODES) for (const pt of ['mouse', 'touch']) assert.equal(dragAction({ ...ALL_ON, pan: false }, mode, 0, false, pt), 'none')
+})
+
+test('a click takes hold only when holding gives the diagram something: moving the view or a node', () => {
+  assert.equal(holdable(ALL_ON), true)
+  assert.equal(holdable({ ...ALL_ON, pan: false }), true) // one finger still drags a node
+  assert.equal(holdable({ ...ALL_ON, move: false }), true)
+  assert.equal(holdable({ ...ALL_ON, pan: false, move: false }), false) // zoom and drill-in work without holding
+  assert.equal(holdable(off), false)
 })
 
 test('flat and iso settle on the nearest quarter turn from their own heading; 3d stays put', () => {
