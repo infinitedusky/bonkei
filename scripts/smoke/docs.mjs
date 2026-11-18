@@ -36,7 +36,7 @@ for (const e of entries) { const r = await text(e.md.replace('/docs/api.md', '/d
 ok('agents: every listed page has a .md beside it', mdPages.every(([, r]) => r.status === 200 && r.body.length > 50), mdPages.filter(([, r]) => r.status !== 200).map(([e]) => e.md).join(', '))
 ok('agents: llms-full.txt holds every listed page', full.status === 200 && mdPages.every(([e]) => full.body.includes(`url: https://bonkei.dev${e.md}`)), `${full.body.length} bytes`)
 const edge = mdPages.find(([e]) => e.md.endsWith('/guide/edge-styles.md'))?.[1].body ?? ''
-ok('agents: the Edge styles .md has its diagrams as mermaid fences and no HTML chrome', (edge.match(/```mermaid/g) ?? []).length >= 9 && !/<nav|<header|<script|<aside/.test(edge))
+ok('agents: the Edge styles .md has its mermaid fences (the per-value rows are components, so only the source, main and crossing-controls fences are in it) and no HTML chrome', (edge.match(/```mermaid/g) ?? []).length >= 3 && !/<nav|<header|<script|<aside/.test(edge))
 const EXPORTS = ['Bonkei', 'render', 'isBonkeiError', 'CLASSIC', 'BONKEI', 'BONKEI_LANDSCAPE', 'THEME_NAMES', 'BonkeiProps', 'BonkeiViewHandle', 'BonkeiHandle', 'BonkeiOptions', 'DiagramOptions', 'Controls', 'Theme', 'BonkeiError', 'BonkeiWarning', 'NodeClick', 'ReadyInfo', 'Mode', 'LabelMode', 'Graph', 'GraphInput', 'GNode', 'GGroup', 'GEdge', 'Shape', 'Dropped', 'CrossingStyle', 'AvoidCrossings']
 const missing = EXPORTS.filter(n => !new RegExp(`^# (Function|Variable|Interface|Type Alias): ${n}(\\(\\))?$`, 'm').test(full.body))
 ok('agents: every public export has its page in llms-full.txt (signature and description)', missing.length === 0, missing.join(', ') || `${EXPORTS.length} exports`)
