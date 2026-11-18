@@ -1,24 +1,25 @@
-# Bonkei's docs at bonkei.dev/docs/ (BON-178)
+# Pan, zoom and turn the way people expect (BON-78)
 
-Bonkei's official documentation, a VitePress site in `docs/`, published at bonkei.dev/docs/ and linked from the site's header.
+Moving around a diagram now works like a map or a design tool, the same in the viewer, the site, the docs and every story.
 
-- **Installed like a user would.** `docs/` is not a workspace member. `scripts/docs-install.mjs` packs `bonkei` and `@bonkei/vitepress` and `npm install`s the tarballs; `docs/package-lock.json` pins everything else. The API reference is TypeDoc on the installed `dist/index.d.ts`; `twoslash` samples are type-checked against it, so a renamed option fails the docs build and names the page.
-- **Pages.** Getting started for React, plain JavaScript, a script tag and VitePress; diagram types (flowchart and sequence draw, any other type stays a code block); options and frontmatter; the reader's controls; edge styles (with live `onEdgeStats` counts); themes; errors and warnings; the script-tag element and the VitePress plugin; the API reference (29 exports). Every example is a live diagram drawn from a ```` ```mermaid ```` fence; the home, Introduction and Diagram types pages have an editable playground.
-- **For agents.** `llms.txt`, `llms-full.txt` (every page and every export's signature and description) and a `.md` beside every page, through `vitepress-plugin-llms`; a Copy page button on every page.
-- **Core.** Each public export's declaration has its JSDoc (tsdown dropped the comments on `export … from` lines); `dist.test.mjs` fails for an export without one.
-- **Telemetry.** `bonkei.docs.playground.edit` (status ERROR with the problem when an edit fails), `bonkei.docs.copy_markdown`, `bonkei.docs.script_tag.load`, through `@opentelemetry/api` (a no-op unless the site registers an SDK); Bonkei's and the plugin's own spans as before.
-- **Checks.** `pnpm build` builds the docs into `dist/docs/` and `check-pages.mjs` guards them. `pnpm smoke` ends with `pnpm docs:smoke`: coverage, a broken sample, every page in Chrome (diagrams drawn = mermaid fences in its `.md`, no console errors, agent files, playground, Copy page, telemetry, 390/820/1024 px, a touch drag), and the four getting-started pages followed word for word in empty projects.
+- **Trackpad and mouse.** A two-finger drag or the scroll wheel moves the diagram (⇧ for sideways); pinch or ⌘/Ctrl + scroll zooms. Flat and iso: a background drag moves, ⇧ + drag or a right-drag turns, settling on the nearest quarter turn. 3D: a drag turns and tilts, ⇧ + drag or a right-drag moves, ⇧ + scroll turns, so 3D no longer needs a right mouse button.
+- **Touch.** One finger moves, pinch zooms, a twist turns (flat and iso settle square), and in 3D two fingers up or down tilt. A node drag gives way to a second finger.
+- **Fit** shows the whole diagram and puts it back square, the short way round (`camera.square()`; also the handle's `fit()`).
+- **"?" beside Fit** opens a card of the gestures for the input last used (trackpad, mouse or touch) and the view; Esc or × closes it.
+- **A diagram in a page that scrolls** lets the page scroll past it with a short hint; a click (tap, or two fingers) takes hold, shown by a ring that follows the corners of the box that clips the diagram and "Esc to let go", until Esc or a press outside. Pinch and ⌘/Ctrl + scroll always zoom.
+- **No right-click menu** over a diagram.
+- **Telemetry.** `bonkei.control` gains `via`, `swapped` and `mode` (and `orbit` is now `turn`); new spans `bonkei.control.hint`, `bonkei.control.hold`, `bonkei.help`, `bonkei.fit`.
 
-Where to look: decisions in LOG.md ("The docs, installed like a user's app (BON-178)"); manual test plan in TESTING.md (same task); stories **Mockups / Docs** and **Docs (built)**; the rule that a feature ships with its docs page in CONTRIBUTING.md.
+Where to look: `packages/core/src/controls.ts` (the rules, pure, tested in `controls.test.ts`), `hold.ts` (taking hold), `SceneView.tsx` (the wiring), `Bonkei.tsx` (the card and "?"), `camera.ts` (`square`, `nearestTurn`). Decisions in LOG.md ("Pan, zoom and turn the way people expect (BON-78)"); manual test plan in TESTING.md (same title); stories **Mockups / BON-78 Gestures** (Card, Toolbar With Card, Full Page, In A Page with a corner radius); docs in `docs/guide/controls.md` ("Gestures") and the README.
 
 ## Risks: what this could break, and how you would notice
 
-- **The Pages deploy now needs npm and the registry for the docs.** `pnpm build` runs `npm install` in `docs/`; a registry outage or a removed package fails the build, and so the deploy of the site and viewer too. You would see the Pages workflow fail at `pnpm build` in `docs-install`.
-- **The docs lock drifts from the workspace's.** VitePress, Vue and the plugins in `docs/` are pinned by `docs/package-lock.json`, not `pnpm-lock.yaml`; Dependabot-style updates of one do not touch the other. A core dependency change rewrites the two tarball entries of the docs lock: commit it with the change.
-- **Two VitePress sites now use the plugin** (`examples/vitepress` and `docs/`), with different VitePress versions possible. A plugin change that works in one can break the other; `pnpm smoke` runs both.
-- **CI time.** The smoke job builds the docs twice (once on a copy, to prove a broken sample fails) and installs four fresh projects: several minutes more. The check job's `pnpm build` builds the docs once.
-- **vitepress-plugin-llms quirks we work round.** It drops the `/docs/` base from the API section links in `llms.txt` (`buildEnd` puts it back) and its Copy page button asks for `/docs.md` on the home page (the home page has its own button, `CopyHomePage.vue`). A plugin update that fixes or changes either shows in the docs smoke's `agents:` and `copy as Markdown` lines.
-- **Light only.** `appearance: false`: there is no dark switch until the diagrams follow it.
-- **Touch on a real phone is not automated.** The smoke drags with Chrome's touch emulation; a real phone is step 11 of the test plan.
+- **Readers used to wheel-to-zoom.** A plain wheel now moves the diagram instead of zooming; a mouse user zooms with ⌘/Ctrl + wheel. You would hear "zoom stopped working"; the "?" card and the hint say how.
+- **"Does this page scroll?" is guessed.** A diagram counts as in a page that scrolls when an ancestor or the document can scroll. A host whose page scrolls in a way this misses (a custom scroller with `overflow: hidden` and scripted scrolling) gets a diagram that takes the wheel at once; one that falsely looks scrollable shows the hint in a full-page app. You would see a hint where none is needed, or a page stuck under the pointer.
+- **Touch on a page that scrolls.** One finger scrolls the page until the diagram is tapped. A host's own `touch-action` on the canvas is overridden by the diagram's inline style. On a real device, a diagram that moves with one finger before a tap, or a page that will not scroll over it, is the sign.
+- **Trackpad pinch detection** relies on browsers sending a pinch as a wheel with `ctrlKey` (Chrome, Safari, Firefox, Edge do). Ctrl + a mouse wheel zooms too, so a browser that differs only changes the `via` attribute, not what happens.
+- **Spans.** Dashboards counting `bonkei.control` with `orbit` must use `turn`. The new `via`, `swapped` and `mode` attributes are added, none removed.
+- **Bundle.** The main chunk grows 3.9 kB gzip (192.8 kB); its size limit goes from 190 to 197 kB. The size check shows it.
+- **Real hardware is not automated.** The checks drive Chrome with synthetic wheel, mouse and CDP touch events; a Mac trackpad, a mouse with Ctrl-click and a phone are steps 2–8 of the test plan.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
