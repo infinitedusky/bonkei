@@ -60,7 +60,7 @@ export interface ModeChange { source: 'toolbar' | 'handle' | 'prop' }
 // The theme a diagram's frontmatter asks for (config.theme, config.themeVariables), as written.
 export interface ThemeRequest { name?: string; variables?: Record<string, unknown> }
 
-/** Everything you can pass to <Bonkei /> or render(): diagram options plus callbacks. */
+/** Everything you can pass to `<Bonkei />` or render(): diagram options plus callbacks. */
 export type BonkeiOptions = DiagramOptions & {
   /** How the camera frames the diagram: 'default' leaves generous margins; 'tight' fits its real extent with a small one. */
   fit?: 'default' | 'tight'

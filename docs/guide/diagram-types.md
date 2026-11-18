@@ -29,6 +29,11 @@ sequenceDiagram
   A-->>U: Welcome
 ```
 
+## Try your own
+
+<BonkeiPlayground :height="300" source="flowchart TD
+  Edit --> See" />
+
 ## Every other type
 
 A type Bonkei does not draw is left to the site. In VitePress it shows as a code block, with no error and no empty box. This fence is a pie chart:

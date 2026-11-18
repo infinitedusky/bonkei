@@ -5,6 +5,7 @@ import CopyOrDownloadAsMarkdownButtons from 'vitepress-plugin-llms/vitepress-com
 import TwoslashFloatingVue from '@shikijs/vitepress-twoslash/client'
 import '@shikijs/vitepress-twoslash/style.css'
 import BonkeiLive from './BonkeiLive.vue'
+import BonkeiPlayground from './BonkeiPlayground.vue'
 import ScriptTagDemo from './ScriptTagDemo.vue'
 import './brand.css'
 
@@ -14,6 +15,7 @@ export default {
     enhanceAppWithBonkei(app)
     app.component('CopyOrDownloadAsMarkdownButtons', CopyOrDownloadAsMarkdownButtons)
     app.component('BonkeiLive', BonkeiLive)
+    app.component('BonkeiPlayground', BonkeiPlayground)
     app.component('ScriptTagDemo', ScriptTagDemo)
     app.use(TwoslashFloatingVue)
   },

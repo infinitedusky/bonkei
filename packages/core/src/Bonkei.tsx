@@ -21,7 +21,7 @@ export interface BonkeiViewHandle {
   fit(): void
 }
 
-/** The props of <Bonkei />: a source plus BonkeiOptions. */
+/** The props of `<Bonkei />`: a source plus BonkeiOptions. */
 export type BonkeiProps = BonkeiOptions & {
   /** Edge counts and the time spent planning them, on every new layout, drag frame and style change. */
   onEdgeStats?: (s: EdgeStats) => void

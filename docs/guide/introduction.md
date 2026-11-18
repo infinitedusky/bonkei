@@ -13,6 +13,16 @@ flowchart LR
 
 This diagram is live. Sample data: every diagram on this site is made up.
 
+## Try it
+
+Edit the Mermaid on the left; the diagram on the right follows.
+
+<BonkeiPlayground :height="320" source="sequenceDiagram
+  participant U as User
+  participant A as App
+  U->>A: Edit the text
+  A-->>U: The diagram changes" />
+
 ## Pick your way in
 
 | You have | Read | You write |
@@ -30,6 +40,6 @@ Flowcharts and sequence diagrams. Any other Mermaid type is left alone: see [Dia
 
 ## Read these docs with an agent
 
-Every page here is also plain Markdown. [`/docs/llms.txt`](/docs/llms.txt) lists the pages, [`/docs/llms-full.txt`](/docs/llms-full.txt) holds them all in one file, and a page's Markdown is at its address plus `.md`. Each page has a **Copy page** button.
+Every page here is also plain Markdown. [`/docs/llms.txt`](/llms.txt) lists the pages, [`/docs/llms-full.txt`](/llms-full.txt) holds them all in one file, and a page's Markdown is at its address plus `.md`. Each page has a **Copy page** button.
 
 The examples run against the real package: this site installs `bonkei` and `@bonkei/vitepress` from their packed tarballs, the way your app will, and every code sample is type-checked against them when the docs build.

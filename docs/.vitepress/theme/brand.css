@@ -34,3 +34,11 @@
   .vp-doc div[class*='language-'] { margin-left: -24px; margin-right: -24px; }
 }
 @media (max-width: 959px) { .vp-doc table { display: block; overflow-x: auto; } }
+
+/* playground: editor beside the diagram on wide screens, stacked on narrow */
+.bonkei-playground { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 12px; align-items: start; margin: 16px 0; }
+.bonkei-editor { width: 100%; box-sizing: border-box; height: 100%; min-height: 220px; resize: vertical; padding: 12px; font: 13px/1.55 ui-monospace, Menlo, monospace; color: #e9e2d2; background: #2A2622; border: 1px solid #cdbd98; border-radius: 8px; tab-size: 2; }
+.bonkei-playground .bonkei-diagram { margin: 0; }
+.bonkei-problems { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; font-size: 12px; color: #C8452C; }
+.bonkei-problems li { margin: 0; }
+@media (max-width: 767px) { .bonkei-playground { grid-template-columns: minmax(0, 1fr); } .bonkei-editor { min-height: 160px; } }

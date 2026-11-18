@@ -13,6 +13,10 @@
     "test": "pnpm -r test",
     "size": "pnpm --filter bonkei build && pnpm --filter bonkei size",
     "check:package": "pnpm --filter bonkei build && pnpm --filter bonkei check",
+    "docs:install": "node scripts/docs-install.mjs",
+    "docs:build": "node scripts/build-docs.mjs",
+    "docs:dev": "node scripts/docs-install.mjs && cd docs && npm run dev",
+    "docs:smoke": "node scripts/smoke/docs.mjs",
     "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs && node scripts/smoke/embeds.mjs"
   },
   "devDependencies": {

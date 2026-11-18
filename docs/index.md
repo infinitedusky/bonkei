@@ -30,6 +30,16 @@ flowchart LR
 
 <p class="cap">Live, drawn by the VitePress plugin from the fence in this page's Markdown. Drag it; the toolbar switches the view. Sample data, made up.</p>
 
+## Try it: edit the Mermaid
+
+Change the text and the diagram follows. A line Bonkei cannot use is reported under the editor and the last good diagram stays.
+
+<BonkeiPlayground :height="340" source="flowchart LR
+  Idea[An idea] --> Draft
+  Draft --> Review{Good?}
+  Review -->|yes| Ship
+  Review -->|no| Draft" />
+
 <CopyOrDownloadAsMarkdownButtons />
 
-This site is also an agent's way in: [`/docs/llms.txt`](/docs/llms.txt) lists every page, [`/docs/llms-full.txt`](/docs/llms-full.txt) holds them all, and every page has a Markdown copy beside it (add `.md` to its address).
+This site is also an agent's way in: [`/docs/llms.txt`](/llms.txt) lists every page, [`/docs/llms-full.txt`](/llms-full.txt) holds them all, and every page has a Markdown copy beside it (add `.md` to its address).

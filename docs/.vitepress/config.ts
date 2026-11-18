@@ -20,7 +20,7 @@ export default defineConfig({
   base: '/docs/',
   appearance: false, // light only until diagrams follow the dark switch
   cleanUrls: true,
-  ignoreDeadLinks: [/^\/docs\/(bonkei|llms)/], // files served beside the pages: the script-tag bundle, llms.txt
+  ignoreDeadLinks: [/^\/(bonkei|llms)/], // files served beside the pages: the script-tag bundle, llms.txt
   lastUpdated: false,
   head: [['link', { rel: 'icon', href: '/docs/favicon.svg' }]],
   themeConfig: {

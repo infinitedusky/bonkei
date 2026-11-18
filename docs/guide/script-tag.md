@@ -14,7 +14,7 @@ cp node_modules/bonkei/dist/bonkei.global.js node_modules/bonkei/dist/libavoid.w
 cp -r node_modules/bonkei/dist/fonts public/
 ```
 
-Serve `bonkei.global.js`, `libavoid.wasm` and `fonts/` from the same folder. The script finds the other two beside itself. Until Bonkei is on npm, these docs serve the same three files from the package they installed: [`bonkei.global.js`](/docs/bonkei/bonkei.global.js), [`libavoid.wasm`](/docs/bonkei/libavoid.wasm), `fonts/`.
+Serve `bonkei.global.js`, `libavoid.wasm` and `fonts/` from the same folder. The script finds the other two beside itself. Until Bonkei is on npm, these docs serve the same three files from the package they installed: [`bonkei.global.js`](/bonkei/bonkei.global.js), [`libavoid.wasm`](/bonkei/libavoid.wasm), `fonts/`.
 
 ## Write a page
 
