@@ -42,6 +42,7 @@ export default function App() {
   return (
     <div style={{ position: 'relative', height: '100%' }}>
       <Bonkei source={debounced} labels={labelMode} theme={theme === FROM_SOURCE ? undefined : theme === UNKNOWN ? 'nope' : theme}
+        crossingControls
         onReady={r => setMs(r.layoutMs)}
         onError={() => setMs(null)}
         onEdgeStats={setEdges}
