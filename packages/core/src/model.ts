@@ -1,9 +1,15 @@
+/** The shape of a node. */
 export type Shape = 'rect' | 'round' | 'cylinder' | 'diamond'
+/** Where labels sit: on top of the shapes, or billboarded towards the camera. */
 export type LabelMode = 'top' | 'billboard'
+/** A node in a graph. */
 export interface GNode { id: string; label: string; shape: Shape; parent?: string }
+/** A group (subgraph) in a graph. */
 export interface GGroup { id: string; label: string; parent?: string }
+/** An edge in a graph. */
 export interface GEdge { id: string; from: string; to: string; label?: string }
 // A source line the parser could not use. `line` is 1-based, counted in the source as given.
+/** A source line the parser could not use, with its reason. */
 export interface Dropped { line: number; text: string; reason: string }
 // Reasons a line is dropped, shared by the flowchart and sequence parsers.
 export const REASON = {
@@ -12,6 +18,7 @@ export const REASON = {
   strayEnd: 'stray end',
   unclosed: 'unclosed subgraph',
 } as const
+/** A finished graph, as parsed from Mermaid. */
 export interface Graph {
   direction: 'TD' | 'LR'
   nodes: GNode[]
@@ -20,6 +27,7 @@ export interface Graph {
   dropped?: Dropped[]
 }
 // What a hand-built source may be: `prepare` fills in direction, groups and dropped.
+/** A graph you build by hand; direction and groups are optional. */
 export type GraphInput = Omit<Graph, 'direction' | 'groups' | 'dropped'> & Partial<Pick<Graph, 'direction' | 'groups' | 'dropped'>>
 
 // layout output (layout plane = x, y in px; scene maps y -> world z)

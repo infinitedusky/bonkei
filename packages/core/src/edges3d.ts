@@ -3,6 +3,7 @@
 // Imported by node tests: explicit .ts extensions, no .tsx.
 import { TRAY, NODE_H, S } from './scale.ts'
 
+/** How two crossing lines are drawn: none (they cross as lines), bridge, tunnel or portal. */
 export type CrossingStyle = 'none' | 'bridge' | 'tunnel' | 'portal'
 export const CROSSING_STYLES: readonly CrossingStyle[] = ['none', 'bridge', 'tunnel', 'portal']
 

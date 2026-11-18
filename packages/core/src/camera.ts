@@ -1,5 +1,6 @@
 import { S } from './scale.ts'
 
+/** The camera mode: flat, iso or 3d. */
 export type Mode = 'flat' | 'iso' | '3d'
 const D = Math.PI / 180
 // One perspective camera for every view. "Flat" and "iso" use a ~1deg fov (visually orthographic,

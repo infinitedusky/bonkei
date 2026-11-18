@@ -8,13 +8,13 @@ export { Bonkei } from './Bonkei'
 export { render } from './render'
 
 // Props, options and handles
-/** The props of <Bonkei />: a source plus BonkeiOptions. */
+/** The props of `<Bonkei />`: a source plus BonkeiOptions. */
 export type { BonkeiProps } from './Bonkei'
-/** Methods on a <Bonkei /> ref: setMode() and fit(). */
+/** Methods on a `<Bonkei />` ref: setMode() and fit(). */
 export type { BonkeiViewHandle } from './Bonkei'
 /** The handle render() returns: update(source), setMode(), destroy(). */
 export type { BonkeiHandle } from './render'
-/** Everything you can pass to <Bonkei /> or render(): diagram options plus callbacks. */
+/** Everything you can pass to `<Bonkei />` or render(): diagram options plus callbacks. */
 export type { BonkeiOptions } from './options'
 /** The options that may also come from the diagram's frontmatter (config.bonkei). */
 export type { DiagramOptions } from './options'

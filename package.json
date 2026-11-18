@@ -6,14 +6,19 @@
   "packageManager": "pnpm@10.12.4",
   "scripts": {
     "dev": "pnpm --filter bonkei build && pnpm --parallel --filter bonkei --filter \"./apps/*\" dev",
-    "build": "pnpm --filter bonkei build && pnpm -r typecheck && pnpm --filter \"./apps/*\" build && node scripts/assemble-pages.mjs && node scripts/check-pages.mjs",
+    "build": "pnpm --filter bonkei build && pnpm -r typecheck && pnpm --filter \"./apps/*\" build && node scripts/build-docs.mjs && node scripts/assemble-pages.mjs && node scripts/check-pages.mjs",
     "preview": "pnpm --filter @bonkei/site exec vite preview --outDir ../../dist",
     "storybook": "pnpm --filter bonkei build && pnpm --filter @bonkei/playground storybook",
     "capture": "pnpm --filter @bonkei/site capture",
     "test": "pnpm -r test",
     "size": "pnpm --filter bonkei build && pnpm --filter bonkei size",
     "check:package": "pnpm --filter bonkei build && pnpm --filter bonkei check",
-    "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs && node scripts/smoke/embeds.mjs"
+    "docs:install": "node scripts/docs-install.mjs",
+    "docs:build": "node scripts/build-docs.mjs",
+    "docs:dev": "node scripts/docs-install.mjs && npm --prefix docs run dev",
+    "docs:check": "node scripts/smoke/docs-coverage.mjs && node scripts/smoke/docs-break.mjs",
+    "docs:smoke": "node scripts/smoke/docs-run.mjs",
+    "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs && node scripts/smoke/embeds.mjs && node scripts/smoke/docs-run.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

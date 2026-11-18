@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sketch: the docs at phone and tablet sizes</title>
+<style>
+  body { margin: 0; padding: 20px; font: 14px/1.5 -apple-system, system-ui, sans-serif; background: #2b2722; color: #e9e2d2; }
+  .note { background: #fff6c8; color: #6b5a14; padding: 6px 12px; border-radius: 4px; font-size: 12px; margin-bottom: 16px; }
+  .bar { display: flex; gap: 8px; margin-bottom: 18px; }
+  .bar button { font: inherit; padding: 5px 12px; border-radius: 14px; border: 1px solid #6b6256; background: #3a342d; color: #e9e2d2; cursor: pointer; }
+  .bar button.on { background: #24508F; border-color: #24508F; }
+  .row { display: flex; gap: 28px; align-items: flex-start; overflow-x: auto; padding-bottom: 20px; }
+  figure { margin: 0; flex: none; }
+  figcaption { font-size: 12px; color: #b9b1a3; margin-bottom: 6px; }
+  iframe { border: 1px solid #6b6256; border-radius: 10px; background: #EFE6D0; display: block; }
+</style>
+</head>
+<body>
+<div class="note">Sketch. The same pages at the sizes Storybook already checks the site at: Phone 390, Tablet 820 (portrait), Tablet 1024 (landscape). Each frame is the real sketch file, so it reflows like the page would.</div>
+<div class="bar">
+  <button class="on" data-p="docs-feature.html">Feature page</button>
+  <button data-p="docs-home.html">Docs home</button>
+  <button data-p="docs-api.html">API page</button>
+</div>
+<div class="row">
+  <figure><figcaption>Phone 390 × 844: nav folds into ☰ and a search icon; Menu bar for the sidebar; diagrams full width, toolbar wraps; values in two columns; table scrolls sideways</figcaption><iframe width="390" height="844"></iframe></figure>
+  <figure><figcaption>Tablet 820 × 1180: header nav stays; sidebar behind the Menu bar; outline behind "On this page"</figcaption><iframe width="820" height="1180"></iframe></figure>
+  <figure><figcaption>Tablet 1024 × 768: sidebar shows; outline behind "On this page"</figcaption><iframe width="1024" height="768"></iframe></figure>
+</div>
+<script>
+  const frames = [...document.querySelectorAll('iframe')]
+  const show = p => frames.forEach(f => { f.src = p })
+  document.querySelectorAll('.bar button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.bar button').forEach(x => x.classList.toggle('on', x === b)); show(b.dataset.p)
+  })
+  show('docs-feature.html')
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+node_modules
+.packs
+dist
+cache
+/api
+/public/bonkei
