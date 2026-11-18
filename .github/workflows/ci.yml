@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # first: the apps import bonkei from packages/core/dist, so their typecheck needs the build
+      - name: Build the package, then lint it (publint, are-the-types-wrong)
+        run: pnpm check:package
+      - run: pnpm -r typecheck
+      - run: pnpm test
+      - name: The apps and Storybook, built against packages/core/dist
+        run: pnpm build && pnpm --filter @bonkei/playground build-storybook
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter bonkei build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Packed tarball in a clean copy of examples/vite (dev and build), then the script-tag page
+        run: pnpm smoke
+        env:
+          SMOKE_CHROMIUM: bundled
+
+  size:
+    # Budgets: packages/core/.size-limit.mjs. The PR comment shows each entry's size against its limit; the job fails when one is over.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      NO_COLOR: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter bonkei build
+      - name: Sizes against the budget
+        id: budget
+        working-directory: packages/core
+        run: |
+          set +e
+          pnpm exec size-limit > size-limit.txt
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat size-limit.txt
+      - uses: marocchino/sticky-pull-request-comment@v3.0.5
+        with:
+          header: size-budget
+          path: packages/core/size-limit.txt
+          message: |
+            ## Size budget (packages/core/.size-limit.mjs) ${{ steps.budget.outputs.status == '0' && '✅ within budget' || '❌ over budget' }}
+            ```
+            {{{content}}}
+            ```
+      # Against the base branch only once it has a size-limit config (main gets one with BON-52). The action's
+      # package_manager input is in v1.8.0 (the v1 tag predates it): it installs and builds the base with pnpm.
+      - name: Does the base branch have a size-limit config?
+        id: base
+        run: |
+          git fetch origin "$BASE" --depth=1
+          if git cat-file -e FETCH_HEAD:packages/core/.size-limit.mjs 2>/dev/null; then echo "config=true" >> "$GITHUB_OUTPUT"; fi
+        env:
+          BASE: ${{ github.base_ref }}
+      - if: steps.base.outputs.config == 'true'
+        uses: andresz1/size-limit-action@v1.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          package_manager: pnpm
+          directory: packages/core
+          # this branch is installed and built above; skip_step applies to it only, the base is still installed and built
+          skip_step: build
+      - name: Fail if a budget is exceeded
+        if: steps.budget.outputs.status != '0'
+        run: exit 1
+
+  preview:
+    # Every PR gets an installable build of bonkei and examples/vite as a StackBlitz template (pkg.pr.new; the GitHub app must be installed).
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter bonkei build
+      # pkg-pr-new skips packages with "private": true. The flag stays in the repo as a guard against npm publish; it is dropped in this checkout only.
+      - run: npm pkg delete private
+        working-directory: packages/core
+      - run: pnpm exec pkg-pr-new publish './packages/core' --template './examples/vite' --comment=update

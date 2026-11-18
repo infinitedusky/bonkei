@@ -11,6 +11,8 @@ import { AvoidLib } from 'libavoid-js'
 import type { Avoid, Router, ShapeRef, ConnRef } from 'libavoid-js'
 import type { Box, LayoutResult, Route } from './model.ts'
 import { straighten, refine, type StraightenCache } from './monotone.ts'
+import { withSpan } from './telemetry.ts'
+import type { Span } from '@opentelemetry/api'
 
 export interface AvoidTune {
   /** Space kept between a line and a block it passes (px of layout). */
@@ -47,10 +49,53 @@ let loading: Promise<Avoid> | null = null
 let wasmUrl: string | undefined
 /** Where the browser finds libavoid.wasm. By default the file beside this module (`./libavoid.wasm`), which Vite, webpack and Rollup turn into an asset; call this before the first layout to point elsewhere. */
 export function setAvoidWasm(url: string) { wasmUrl = url }
-/** Loads the wasm once. Rejects if it cannot load (the caller falls back to ELK's routes); a later call tries again. */
-export function loadAvoid(): Promise<Avoid> {
-  // Node loads the wasm from disk itself; a bundled page needs a URL, and libavoid-js's own default does not survive bundling
-  loading ??= AvoidLib.load(wasmUrl ?? (typeof document !== 'undefined' ? new URL('./libavoid.wasm', import.meta.url).href : undefined)).then(() => AvoidLib.getInstance()).catch(e => { loading = null; throw e })
+// Where the wasm is, by setting: an ES module bundled by the host finds it from `import.meta.url` (the pattern below is the one Vite,
+// webpack and Rollup turn into an asset). The script-tag bundle has no `import.meta.url`, so it takes `libavoid.wasm` from beside the
+// script that loaded it, read while that script runs (BON-52). fonts.ts finds `fonts/` from the same base.
+export const scriptSrc = typeof document !== 'undefined' && document.currentScript && 'src' in document.currentScript ? (document.currentScript as HTMLScriptElement).src : ''
+function defaultWasmUrl(): string | undefined {
+  if (typeof document === 'undefined') return undefined // Node: libavoid-js reads the file itself
+  if (import.meta.url) return new URL('./libavoid.wasm', import.meta.url).href
+  return scriptSrc ? new URL('libavoid.wasm', scriptSrc).href : undefined
+}
+/** How the wasm was found: 'set' (setAvoidWasm), 'url' (the file beside the module or the script) or 'inline' (the lazy base64 chunk). */
+export type WasmSource = 'set' | 'url' | 'inline'
+/** How the wasm was found on the last successful load, and how long that load took (ms); null and 0 until it has loaded. */
+export const wasmInfo: { source: WasmSource | null; ms: number } = { source: null, ms: 0 }
+/** The order the wasm is looked for in (BON-52), apart from the loading so it can be tested. A URL set with setAvoidWasm is the only one tried.
+ * Otherwise the default URL; if that fails (Vite 5's dev pre-bundling moves the module away from the file), the same bytes from `inline()`,
+ * a lazy chunk holding them as base64. `onFallback` hears the first failure. When nothing loads, the first error is the one thrown. */
+export async function findWasm(
+  load: (url?: string) => Promise<unknown>,
+  where: { set?: string; url?: string },
+  inline: () => Promise<string | null>,
+  onFallback?: (e: unknown) => void,
+): Promise<WasmSource> {
+  if (where.set) { await load(where.set); return 'set' }
+  try {
+    await load(where.url)
+    return 'url'
+  } catch (e) {
+    const b64 = await inline().catch(() => null)
+    if (!b64) throw e
+    onFallback?.(e)
+    await load('data:application/wasm;base64,' + b64)
+    return 'inline'
+  }
+}
+// The base64 chunk only exists in the build (tsdown.config.ts); run from src (node tests, scripts) there is none.
+const inlineWasm = (): Promise<string | null> => import('virtual:libavoid-inline').then(m => m.default, () => null)
+/** Loads the wasm once, inside a `bonkei.wasm.load` span (source, ms; a `bonkei.wasm.fallback` event when the file was missing and the
+ * inline copy was used). Rejects if it cannot load (the caller falls back to ELK's routes); a later call tries again. A host never has to configure anything. */
+export function loadAvoid(parent?: Span): Promise<Avoid> {
+  loading ??= withSpan('bonkei.wasm.load', { 'bonkei.wasm_set': !!wasmUrl }, async span => {
+    const t = performance.now()
+    const source = await findWasm(u => AvoidLib.load(u), { set: wasmUrl, url: defaultWasmUrl() }, inlineWasm,
+      e => span.addEvent('bonkei.wasm.fallback', { 'bonkei.error': e instanceof Error ? e.message : String(e) }))
+    Object.assign(wasmInfo, { source, ms: performance.now() - t })
+    span.setAttributes({ 'bonkei.wasm_source': source, 'bonkei.wasm_load_ms': wasmInfo.ms })
+    return AvoidLib.getInstance()
+  }, parent).catch(e => { loading = null; throw e })
   return loading
 }
 /** The loaded module, or null while it has not loaded. */
