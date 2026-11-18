@@ -46,11 +46,11 @@ class BonkeiDiagram extends HTMLElement {
     else { this.#handle?.destroy(); this.#handle = null; this.#draw() } // mode or theme: a new view
   }
 
-  // height="600" sets the box; with none, a stylesheet's height wins, and a box that is still 0 tall gets the default.
+  // height="600" sets the box; with none, a stylesheet's height wins, and a box with no content height (a border does not count) gets the default.
   #applyHeight() {
     const h = this.getAttribute('height')
     if (h) this.style.height = px(h)
-    else if (!this.style.height && this.offsetHeight === 0) this.style.height = `${DEFAULT_HEIGHT}px`
+    else if (!this.style.height && this.clientHeight === 0) this.style.height = `${DEFAULT_HEIGHT}px`
   }
   #draw() {
     if (this.#handle || this.#source === null) return
