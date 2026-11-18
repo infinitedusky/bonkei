@@ -36,10 +36,24 @@ for (const e of entries) { const r = await text(e.md.replace('/docs/api.md', '/d
 ok('agents: every listed page has a .md beside it', mdPages.every(([, r]) => r.status === 200 && r.body.length > 50), mdPages.filter(([, r]) => r.status !== 200).map(([e]) => e.md).join(', '))
 ok('agents: llms-full.txt holds every listed page', full.status === 200 && mdPages.every(([e]) => full.body.includes(`url: https://bonkei.dev${e.md}`)), `${full.body.length} bytes`)
 const edge = mdPages.find(([e]) => e.md.endsWith('/guide/edge-styles.md'))?.[1].body ?? ''
-ok('agents: the Edge styles .md has its mermaid fences (the per-value rows are components, so only the source, main and crossing-controls fences are in it) and no HTML chrome', (edge.match(/```mermaid/g) ?? []).length >= 3 && !/<nav|<header|<script|<aside/.test(edge))
+ok('agents: the Edge styles .md has its diagrams as mermaid fences and no HTML chrome', (edge.match(/```mermaid/g) ?? []).length >= 13 && !/<nav|<header|<script|<aside/.test(edge))
 const EXPORTS = ['Bonkei', 'render', 'isBonkeiError', 'CLASSIC', 'BONKEI', 'BONKEI_LANDSCAPE', 'THEME_NAMES', 'BonkeiProps', 'BonkeiViewHandle', 'BonkeiHandle', 'BonkeiOptions', 'DiagramOptions', 'Controls', 'Theme', 'BonkeiError', 'BonkeiWarning', 'NodeClick', 'ReadyInfo', 'Mode', 'LabelMode', 'Graph', 'GraphInput', 'GNode', 'GGroup', 'GEdge', 'Shape', 'Dropped', 'CrossingStyle', 'AvoidCrossings']
 const missing = EXPORTS.filter(n => !new RegExp(`^# (Function|Variable|Interface|Type Alias): ${n}(\\(\\))?$`, 'm').test(full.body))
 ok('agents: every public export has its page in llms-full.txt (signature and description)', missing.length === 0, missing.join(', ') || `${EXPORTS.length} exports`)
+
+// the diagrams a page draws are the supported (flowchart, graph, sequenceDiagram) ```mermaid fences at its top level (fences inside a longer
+// fence, like the Markdown tab of a code group, are source shown as text, not diagrams)
+function drawnFences(md) {
+  let n = 0; const lines = md.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(`{3,})(.*)$/.exec(lines[i]); if (!m) continue
+    const body = []; i++
+    while (i < lines.length && !(lines[i].startsWith(m[1]) && lines[i].trim() === m[1])) body.push(lines[i++])
+    if (/^mermaid(\s|$)/.test(m[2].trim()) && /^\s*(flowchart|graph|sequenceDiagram)\b/.test(body.join('\n').replace(/^\s*---[ \t]*\n[\s\S]*?\n---[ \t]*\n/, '').replace(/^(\s*%%[^\n]*\n)+/, ''))) n++
+  }
+  return n
+}
+const mdOf = u => u === '/docs/' ? '/docs/index.md' : u === '/docs/api/' ? '/docs/api.md' : u + '.md'
 
 // ---- pages in a browser
 const launch = () => chromium.launch(process.env.SMOKE_CHROMIUM === 'bundled' ? { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] } : { channel: 'chrome' })
@@ -63,6 +77,8 @@ for (const u of pageUrls) {
     drew = await page.waitForFunction(n => [...document.querySelectorAll('.bonkei-diagram')].filter(e => e.querySelector('[data-bonkei=ready] canvas') || e.matches('[data-bonkei=ready]') && e.querySelector('canvas')).length + document.querySelectorAll('[data-bonkei=error]').length >= n, total, { timeout: 90000 }).then(() => true, () => false)
     await page.waitForTimeout(400)
   }
+  const fences = drawnFences((await text(mdOf(u))).body)
+  ok(`page ${u}: every diagram is a mermaid fence in its .md (${total} drawn, ${fences} fences)`, total === fences)
   const cards = await page.locator('[data-bonkei=error]').count()
   const wantCards = u.endsWith('/guide/errors') ? 1 : 0
   diagrams += total; if (total) pagesWith++
