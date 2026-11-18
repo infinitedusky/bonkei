@@ -53,6 +53,29 @@
   .pager a { flex: 0 0 48%; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; text-decoration: none; color: var(--blue); font-size: 14px; }
   .pager a small { display: block; color: var(--mute); }
   .edit { margin-top: 28px; font-size: 13px; color: var(--mute); }
+  .localnav, .burger, .searchicon { display: none; }
+  .localnav { position: sticky; top: 0; z-index: 2; justify-content: space-between; padding: 8px 16px; font-size: 13px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .localnav span { color: var(--dim); }
+  /* VitePress's own breakpoints: under 1280 the outline goes into the bar; under 960 the sidebar does too; under 768 the nav folds. */
+  @media (max-width: 1279px) { .wrap { grid-template-columns: 240px 1fr; } aside.toc { display: none; } }
+  @media (max-width: 959px) {
+    .wrap { grid-template-columns: 1fr; } aside.side { display: none; }
+    .localnav { display: flex; }
+    main { padding: 24px 24px 60px; max-width: none; }
+  }
+  @media (max-width: 767px) {
+    header { padding: 0 16px; gap: 12px; } header nav, .search { display: none; }
+    .searchicon, .burger { display: block; font-size: 18px; color: var(--text); } .searchicon { margin-left: auto; }
+    main { padding: 20px 16px 50px; }
+    h1 { font-size: 26px; }
+    .diagram { height: 280px; }
+    .tb { left: 8px; right: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .grid4 { grid-template-columns: 1fr 1fr; }
+    .tableswrap { overflow-x: auto; } table { min-width: 520px; }
+    pre { font-size: 12px; }
+    .tip { white-space: normal; width: 260px; }
+    .pager { flex-direction: column; gap: 10px; } .pager a { flex: none; text-align: left !important; }
+  }
 </style>
 </head>
 <body>
@@ -68,7 +91,9 @@
     <a href="#">Viewer ↗</a>
     <a href="#">GitHub</a>
   </nav>
+  <span class="searchicon">⌕</span><span class="burger">☰</span>
 </header>
+<div class="localnav"><span>☰ Menu</span><span>On this page ›</span></div>
 
 <div class="wrap">
   <aside class="side">
@@ -141,12 +166,12 @@ flowchart LR
 
     <h2 id="avoid">Avoiding crossings</h2>
     <p><code>avoidCrossings</code> sets how hard the router keeps lines apart: <code>off</code>, <code>some</code> (default) or <code>strong</code>. Stronger costs routing time when the diagram first draws.</p>
-    <table>
+    <div class="tableswrap"><table>
       <tr><th>Option</th><th>Values</th><th>Default</th><th>Frontmatter</th></tr>
       <tr><td><code>crossings</code></td><td>none · bridge · tunnel · portal</td><td>none</td><td><code>config.bonkei.crossings</code></td></tr>
       <tr><td><code>avoidCrossings</code></td><td>off · some · strong</td><td>some</td><td><code>config.bonkei.avoidCrossings</code></td></tr>
       <tr><td><code>crossingControls</code></td><td>true · false</td><td>false</td><td><code>config.bonkei.crossingControls</code></td></tr>
-    </table>
+    </table></div>
 
     <h2 id="in-code">From code</h2>
 <pre><span class="k">import</span> { render } <span class="k">from</span> <span class="s">'bonkei'</span>
