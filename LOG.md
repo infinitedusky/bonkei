@@ -322,3 +322,11 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **Tools:** VitePress 1.6 (2.0 is alpha), its built-in local search, TypeDoc with typedoc-vitepress-theme for the API reference, Twoslash so code samples are type-checked against the installed package.
 
 **Consequences.** Every feature task from here on includes its docs page. A renamed option breaks the docs build.
+
+## 2026-11-18 — What building the docs showed (BON-127 prototype)
+
+- **One install line for VitePress.** `npm install vitepress` and then `npm install @bonkei/vitepress` gives the site two Reacts (VitePress's search peer pulls React 18, the plugin brings 19) and the diagram crashes on `useState`. One command (`npm install vitepress @bonkei/vitepress`) lets npm choose one. The getting-started smoke follows the page word for word and caught it. The plugin's README should say the same.
+- **The types carry the descriptions only if the declarations do.** tsdown drops the `/** */` on `export { X } from` lines in `index.ts`, so the API reference had no descriptions until each exported declaration had its own JSDoc (done in core). A new export needs its JSDoc on the declaration, or `llms-full.txt` lists it with none.
+- **Editable examples.** The home and Introduction pages hold a playground: edit Mermaid, the diagram follows (`render()`'s `update()`, errors shown under the editor).
+- **`scripts/serve-dist.mjs`** serves `dist/` like Pages (clean URLs, `$PORT`); the prototype and the docs smoke set-up use it.
+- **vitepress-plugin-llms** drops the site base from nested sidebar sections (the API groups) in `llms.txt`; `buildEnd` puts `/docs/` back. Index pages need `excludeIndexPage: false`.
