@@ -36,6 +36,7 @@ export const TUNE: Readonly<AvoidTune> = Object.freeze({ buffer: 10, nudge: 10, 
 
 /** How hard the router tries not to cross lines. The cost is paid when the lines are routed (about 1 s on 50 nodes at 'some'); a drag frame always routes without it. */
 export const AVOID_CROSSINGS = ['off', 'some', 'strong'] as const
+/** How hard the router keeps lines from crossing: off, some or strong. */
 export type AvoidCrossings = typeof AVOID_CROSSINGS[number]
 export const CROSSING_COST: Readonly<Record<AvoidCrossings, number>> = Object.freeze({ off: 0, some: 1000, strong: 3000 })
 /** How many more lines a direct route may cross than the route libavoid found before the line keeps libavoid's route, sideways

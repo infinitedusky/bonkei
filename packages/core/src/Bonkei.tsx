@@ -21,6 +21,7 @@ export interface BonkeiViewHandle {
   fit(): void
 }
 
+/** The props of <Bonkei />: a source plus BonkeiOptions. */
 export type BonkeiProps = BonkeiOptions & {
   /** Edge counts and the time spent planning them, on every new layout, drag frame and style change. */
   onEdgeStats?: (s: EdgeStats) => void
@@ -148,6 +149,7 @@ class SceneBoundary extends Component<{ resetKey: string; onError: (e: BonkeiErr
   }
 }
 
+/** The diagram as a React component; fills its container. */
 export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(props, ref) {
   const { source } = props
   const [camera] = useState(createCamera)

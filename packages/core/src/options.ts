@@ -9,10 +9,12 @@ import { AVOID_CROSSINGS, type AvoidCrossings } from './avoid.ts'
 
 export type ControlName = 'zoom' | 'pan' | 'move' | 'drillIn'
 // One setting for the reader's controls: all on, all off, or per control (a key left out means on).
+/** The reader's controls: true/false for all, or one switch per control. */
 export type Controls = boolean | Partial<Record<ControlName, boolean>>
 export type ResolvedControls = Record<ControlName, boolean>
 
 // The options a diagram's frontmatter may set (under `config.bonkei`) and props may override.
+/** The options that may also come from the diagram's frontmatter (config.bonkei). */
 export interface DiagramOptions {
   mode?: Mode
   labels?: LabelMode
@@ -28,6 +30,7 @@ export interface DiagramOptions {
 export type ResolvedOptions = Required<DiagramOptions>
 
 // A BonkeiError means nothing can be drawn. It goes to `onError`.
+/** What onError receives when nothing could be drawn (kind: parse, graph, layout or render). */
 export interface BonkeiError {
   kind: 'parse' | 'layout' | 'graph' | 'render'
   message: string
@@ -35,6 +38,7 @@ export interface BonkeiError {
   text?: string
 }
 // A BonkeiWarning is a problem the diagram is drawn despite. It goes to `onWarning`.
+/** What onWarning receives for a dropped line, a bad frontmatter key or an unknown theme or theme variable; the diagram still draws. */
 export interface BonkeiWarning {
   kind: 'dropped' | 'frontmatter' | 'theme'
   message: string
@@ -42,11 +46,13 @@ export interface BonkeiWarning {
   text?: string
 }
 // Reported to `onReady` on the first frame drawn with a diagram's data.
+/** What onReady receives once a new source's first frame is drawn. */
 export interface ReadyInfo { layoutMs: number; nodes: number; edges: number; dropped: number }
 /** @deprecated use ReadyInfo */
 export type Ready = ReadyInfo
 
 // What was clicked: a flowchart node or group, or a sequence participant.
+/** What onNodeClick receives for a node, a group or a sequence participant. */
 export interface NodeClick { id: string; label: string; kind: 'node' | 'group' | 'participant' }
 // Who moved the view: the built-in toolbar, the imperative handle, or a changed `mode` option.
 export interface ModeChange { source: 'toolbar' | 'handle' | 'prop' }
@@ -54,6 +60,7 @@ export interface ModeChange { source: 'toolbar' | 'handle' | 'prop' }
 // The theme a diagram's frontmatter asks for (config.theme, config.themeVariables), as written.
 export interface ThemeRequest { name?: string; variables?: Record<string, unknown> }
 
+/** Everything you can pass to <Bonkei /> or render(): diagram options plus callbacks. */
 export type BonkeiOptions = DiagramOptions & {
   /** How the camera frames the diagram: 'default' leaves generous margins; 'tight' fits its real extent with a small one. */
   fit?: 'default' | 'tight'
