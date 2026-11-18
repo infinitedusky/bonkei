@@ -15,7 +15,7 @@ npx serve examples/html                 # any static server
 
 - **`<bonkei-diagram>`.** Its text is a Mermaid flowchart or sequence diagram (indent it as you like). Attributes: `height`
   (a number is px; default 420 px when nothing else gives the element a height), `mode` (`flat`, `iso`, `3d`), `theme`
-  (`classic`, `bonkei`, `bonkei-landscape`). It is `display: block`. It fires `bonkei-ready` and `bonkei-error` events.
+  (`classic`, `bonkei`, `bonkei-landscape`). It is `display: block` unless your CSS gives it a display. The script tag may go in `<head>` or at the end of `<body>`. It fires `bonkei-ready` and `bonkei-error` events.
   Removed from the page it releases its scene; one added later draws. Loading the script twice is harmless.
 - **`Bonkei.run({ querySelector })`.** Never automatic. Turns each matching block (default `pre.mermaid`) that holds a flowchart
   or a sequence diagram into a `<bonkei-diagram>`; any other type (a pie chart, say) is left as it is. Returns how many it converted.
