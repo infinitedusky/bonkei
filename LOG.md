@@ -306,3 +306,18 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **Stories.** `Script tag / Elements`, `Elements After Run`, `Elements Added And Removed`, `Element With A Bad Source` frame `examples/html`; `VitePress / Diagrams Page`, `Diagrams Page Before Scripts` (sandboxed, no JS: the reserved boxes), `Page Without A Diagram`, `Mintlify Notes` frame the built `examples/vitepress`.
 
 **Consequences.** Under `vitepress dev` (Vite 5) the wasm file is not served as a file: the loader logs it and Bonkei draws from its inline copy (BON-52's known quirk); build + preview fetch the file. The script-tag bundle grows by about 1 kB gzip (855.2 kB of its 880 kB). VitePress diagrams do not follow the site's dark/light switch (not in this task). `@bonkei/vitepress` is not in the pkg.pr.new preview yet (publishing is not in this task).
+
+## 2026-11-17 — The docs are where a feature is tried (BON-127, decided before the build)
+
+**Context.** BON-127 makes Bonkei's official docs, a VitePress site at bonkei.dev/docs/. The person also wants one real app that uses Bonkei the way a user does, to try each change by hand.
+
+**Decision.**
+- **A feature is tried by hand on its own docs page.** The task that builds a feature writes that page, with its cases as live diagrams; the docs' smoke test serves the task's pages against the task's Bonkei; the page ships with the merge. No separate test section: what is tried is what readers get.
+- **Installed from packed packages.** The docs install `bonkei` and `@bonkei/vitepress` from `pnpm pack` tarballs (the embeds smoke recipe), never by workspace link. pnpm `injected` was tried and turned down: it copies the whole package folder, `src/` included, ignoring `files`.
+- **Until Bonkei is on npm**, getting started is written with the real install lines and checked with the packed package.
+- **Diagram types:** one page says what Bonkei draws (flowcharts and sequence diagrams today); a type gets its own page when it ships.
+- **Light only** until diagrams follow VitePress's dark switch.
+- **The Sample app smoke set-up stays**: it is the only check of the React path.
+- **Tools:** VitePress 1.6 (2.0 is alpha), its built-in local search, TypeDoc with typedoc-vitepress-theme for the API reference, Twoslash so code samples are type-checked against the installed package.
+
+**Consequences.** Every feature task from here on includes its docs page. A renamed option breaks the docs build.
