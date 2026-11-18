@@ -10,6 +10,8 @@ Bonkei turns Mermaid into one Three.js scene (Mermaid → ELK → react-three-fi
 
 ## Use it
 
+The documentation is at **https://bonkei.dev/docs/**: getting started for React, plain JavaScript, a script tag and VitePress, every option, control, edge style, theme and error with live diagrams, and the API reference. Agents can read it without a browser: [`llms.txt`](https://bonkei.dev/docs/llms.txt), [`llms-full.txt`](https://bonkei.dev/docs/llms-full.txt), and any page's Markdown at its address plus `.md`.
+
 `bonkei` exports one component, one function and their types. It is an ESM package with TypeScript types; importing it runs nothing. Your app supplies `react`, `react-dom` (React 19: the same range React Three Fiber accepts, today `>=19 <19.4`) and `three`:
 
 ```bash
@@ -190,6 +192,7 @@ The repo is a pnpm workspace (`pnpm-workspace.yaml`); the root `bonkei-workspace
 - `examples/vite` — a fresh `npm create vite` React app with `bonkei` added: what CI's smoke test installs the packed tarball into, and each PR's StackBlitz template on pkg.pr.new. Its other pieces (parser, layout, renderer, camera) are in `bonkei/internal`, which is internal and unstable.
 - `apps/playground` — **`@bonkei/playground`** (private): the viewer, its stories, Storybook and the screen map.
 - `apps/site` — **`@bonkei/site`** (private): the marketing site, its stills and OG images, and the capture page behind `pnpm capture`.
+- `docs` — the docs site at bonkei.dev/docs/ (VitePress, BON-178). **Not a workspace member**: it installs `bonkei` and `@bonkei/vitepress` from `pnpm pack` tarballs with npm (`docs/package-lock.json` pins the rest), the way a user would.
 
 Both apps import the engine only through its public `bonkei` exports (stories may also use `bonkei/internal`); core never imports from an app.
 
@@ -197,10 +200,13 @@ Both apps import the engine only through its public `bonkei` exports (stories ma
 pnpm install
 pnpm dev          # core rebuilt on save (tsdown --watch) + both apps: site at http://localhost:5173/, viewer at /app/, script-tag page at /app/embed/
 SITE_PORT=6100 VIEWER_PORT=6101 pnpm dev   # any ports; /app goes to that viewer
-pnpm build        # build core, type-check everything, build both apps, assemble dist/ (site) + dist/app/ (viewer), check it
+pnpm build        # build core, type-check everything, build both apps and the docs, assemble dist/ (site) + dist/app/ (viewer) + dist/docs/ (docs), check it
+pnpm docs:dev     # pack core and the VitePress plugin, npm install the tarballs into docs/, generate the API pages, vitepress dev
+pnpm docs:build   # the same, then vitepress build into docs/.vitepress/dist
+pnpm docs:smoke   # build the docs, then every page, the agent files, coverage, a broken sample, and the four getting-started pages followed word for word
 pnpm check:package # build core, then publint, are-the-types-wrong and the dist checks
 pnpm size         # build core, then the size budget (packages/core/.size-limit.mjs)
-pnpm smoke        # after building core: pack it, install into a clean examples/vite, draw under vite dev and preview, the script-tag page, then the embeds (examples/html, examples/vitepress)
+pnpm smoke        # after building core: pack it, install into a clean examples/vite, draw under vite dev and preview, the script-tag page, the embeds (examples/html, examples/vitepress), then the docs (pnpm docs:smoke)
 pnpm preview      # serve the assembled dist/ at /
 pnpm storybook    # stories: node shape, subgraph, full sample, sequence, site screens
 pnpm capture      # regenerate apps/site/public/*.png from the real scene (needs Chrome; CHROME_PATH to override)
@@ -213,7 +219,7 @@ In dev, the viewer's plain page at http://localhost:5173/app/plain.html drives `
 
 Public site: https://bonkei.dev/ (viewer at https://bonkei.dev/app/). It deploys to GitHub Pages through `.github/workflows/pages.yml`. Every push to main deploys; the workflow can still be run by hand from the Actions tab (`workflow_dispatch`). The custom domain is set once in the repository's Settings → Pages (source: GitHub Actions).
 
-Two Vite apps, one Pages artifact: `apps/site` is the marketing site (`index.html`, code in `apps/site/src/`), and `apps/playground` is the viewer (`index.html`, `apps/playground/src/main.tsx`). `pnpm build` builds both and `scripts/assemble-pages.mjs` puts the site at `dist/` and the viewer at `dist/app/`; builds, `pnpm preview` and dev serve the site at `/` and the viewer at `/app/` (in dev the site's dev server proxies `/app` to the viewer's own server). `pnpm build` ends with `scripts/check-pages.mjs`, which fails the build (and so the deploy) if anything in `dist/` mentions merman, if a page points at a file that is not in `dist/`, if `dist/index.html` lacks the `https://bonkei.dev/` `og:url` and `og:image` or a Bonkei title, if the viewer's title does not say Bonkei, or if `dist/CNAME` is not `bonkei.dev`.
+Two Vite apps, one Pages artifact: `apps/site` is the marketing site (`index.html`, code in `apps/site/src/`), and `apps/playground` is the viewer (`index.html`, `apps/playground/src/main.tsx`). `pnpm build` builds both, `scripts/build-docs.mjs` builds the docs, and `scripts/assemble-pages.mjs` puts the site at `dist/`, the viewer at `dist/app/` and the docs at `dist/docs/`; builds, `pnpm preview` and dev serve the site at `/` and the viewer at `/app/` (in dev the site's dev server proxies `/app` to the viewer's own server). `pnpm build` ends with `scripts/check-pages.mjs`, which fails the build (and so the deploy) if anything in `dist/` mentions merman, if a page points at a file that is not in `dist/`, if `dist/index.html` lacks the `https://bonkei.dev/` `og:url` and `og:image` or a Bonkei title, if the viewer's title does not say Bonkei, if `dist/CNAME` is not `bonkei.dev`, or if the docs lack their index, `llms.txt`, `llms-full.txt`, a page's `.md` or the script-tag files, point at a missing file or at the workspace, or the site's header has no Docs link. `node scripts/serve-dist.mjs` serves `dist/` like Pages on `$PORT` (clean URLs, `/docs/` included).
 
 Stack: Vite, React, react-three-fiber, drei (troika text), elkjs. Parser, ELK layout (`packages/core/src/layout.ts`, swappable behind `layout(graph)`) and sequence layout (`packages/core/src/seq.ts`) are our own.
 

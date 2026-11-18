@@ -1,21 +1,24 @@
-# Embeds: script tag and a VitePress plugin (BON-53)
+# Bonkei's docs at bonkei.dev/docs/ (BON-178)
 
-Bonkei now drops into docs people already have.
+Bonkei's official documentation, a VitePress site in `docs/`, published at bonkei.dev/docs/ and linked from the site's header.
 
-- **Script tag** (`bonkei.global.js`): a `<bonkei-diagram>` element (text is the diagram; `height`, `mode`, `theme` attributes; `bonkei-ready` / `bonkei-error` events; cleaned up when removed, drawn when added), and `Bonkei.run()` that turns `<pre class="mermaid">` flowcharts and sequence diagrams into diagrams, only when the page calls it. `examples/html` is one static page with nothing else.
-- **VitePress**: `@bonkei/vitepress` (`packages/vitepress`, private) draws ` ```mermaid ` flowcharts and sequence diagrams as Bonkei scenes and leaves other fences to the site. The server HTML holds each diagram's box (site-wide `height`, or `{height=600}` on a fence); Bonkei, React and three load only on pages with a diagram. `examples/vitepress` is a working site.
-- **Mintlify**: researched, written in `examples/vitepress/mintlify.md`; not built.
+- **Installed like a user would.** `docs/` is not a workspace member. `scripts/docs-install.mjs` packs `bonkei` and `@bonkei/vitepress` and `npm install`s the tarballs; `docs/package-lock.json` pins everything else. The API reference is TypeDoc on the installed `dist/index.d.ts`; `twoslash` samples are type-checked against it, so a renamed option fails the docs build and names the page.
+- **Pages.** Getting started for React, plain JavaScript, a script tag and VitePress; diagram types (flowchart and sequence draw, any other type stays a code block); options and frontmatter; the reader's controls; edge styles (with live `onEdgeStats` counts); themes; errors and warnings; the script-tag element and the VitePress plugin; the API reference (29 exports). Every example is a live diagram drawn from a ```` ```mermaid ```` fence; the home, Introduction and Diagram types pages have an editable playground.
+- **For agents.** `llms.txt`, `llms-full.txt` (every page and every export's signature and description) and a `.md` beside every page, through `vitepress-plugin-llms`; a Copy page button on every page.
+- **Core.** Each public export's declaration has its JSDoc (tsdown dropped the comments on `export … from` lines); `dist.test.mjs` fails for an export without one.
+- **Telemetry.** `bonkei.docs.playground.edit` (status ERROR with the problem when an edit fails), `bonkei.docs.copy_markdown`, `bonkei.docs.script_tag.load`, through `@opentelemetry/api` (a no-op unless the site registers an SDK); Bonkei's and the plugin's own spans as before.
+- **Checks.** `pnpm build` builds the docs into `dist/docs/` and `check-pages.mjs` guards them. `pnpm smoke` ends with `pnpm docs:smoke`: coverage, a broken sample, every page in Chrome (diagrams drawn = mermaid fences in its `.md`, no console errors, agent files, playground, Copy page, telemetry, 390/820/1024 px, a touch drag), and the four getting-started pages followed word for word in empty projects.
 
-Where to look: decisions in LOG.md ("Embeds: script tag and VitePress (BON-53)"); manual test plan in TESTING.md (same title); stories `Script tag / Elements*` and `VitePress / *`; tests `packages/core/src/embed.test.ts`, `packages/vitepress/src/index.test.js`, and `scripts/smoke/embeds.mjs` in `pnpm smoke`.
+Where to look: decisions in LOG.md ("The docs, installed like a user's app (BON-178)"); manual test plan in TESTING.md (same task); stories **Mockups / Docs** and **Docs (built)**; the rule that a feature ships with its docs page in CONTRIBUTING.md.
 
 ## Risks: what this could break, and how you would notice
 
-- **The script-tag bundle defines a global element name.** A page that already defines `<bonkei-diagram>` keeps its own (the definition is guarded); ours then does nothing there. You would notice no diagram and no error.
-- **`pre.mermaid` on pages that also load Mermaid.js.** `Bonkei.run()` takes the flowchart and sequence blocks; if Mermaid ran first, the blocks hold SVG, not source, and are skipped as unsupported. `bonkei.run`'s `skipped` count shows it.
-- **VitePress fence rule.** The plugin wraps whatever `fence` rule exists when `markdown.config` runs. A Mermaid plugin that installs its rule *after* ours would take every mermaid fence back; you would see Mermaid's SVG instead of a scene. `onFence` shows what ours claimed.
-- **React 19 inside a Vue site.** The plugin brings React 19; VitePress's `@docsearch/react` wants React < 19, so install prints a peer warning. A site using Algolia search could break; you would notice on the search box.
-- **Vite 5 dev wasm.** Under `vitepress dev` the wasm is drawn from the inline copy and the console logs the fallback; build + preview fetch the file. If a later VitePress moves files again, `bonkei.wasm.fallback` and `routingError` say so.
-- **CI time.** `pnpm smoke` now also installs and builds a VitePress site twice (dev, build + preview): a few minutes more on the smoke job. Storybook's build also builds the VitePress example first.
-- **Workspace.** `examples/vitepress` joined the pnpm workspace, so the lockfile grew (VitePress and its tree); `pnpm install --frozen-lockfile` in CI uses the committed lock.
+- **The Pages deploy now needs npm and the registry for the docs.** `pnpm build` runs `npm install` in `docs/`; a registry outage or a removed package fails the build, and so the deploy of the site and viewer too. You would see the Pages workflow fail at `pnpm build` in `docs-install`.
+- **The docs lock drifts from the workspace's.** VitePress, Vue and the plugins in `docs/` are pinned by `docs/package-lock.json`, not `pnpm-lock.yaml`; Dependabot-style updates of one do not touch the other. A core dependency change rewrites the two tarball entries of the docs lock: commit it with the change.
+- **Two VitePress sites now use the plugin** (`examples/vitepress` and `docs/`), with different VitePress versions possible. A plugin change that works in one can break the other; `pnpm smoke` runs both.
+- **CI time.** The smoke job builds the docs twice (once on a copy, to prove a broken sample fails) and installs four fresh projects: several minutes more. The check job's `pnpm build` builds the docs once.
+- **vitepress-plugin-llms quirks we work round.** It drops the `/docs/` base from the API section links in `llms.txt` (`buildEnd` puts it back) and its Copy page button asks for `/docs.md` on the home page (the home page has its own button, `CopyHomePage.vue`). A plugin update that fixes or changes either shows in the docs smoke's `agents:` and `copy as Markdown` lines.
+- **Light only.** `appearance: false`: there is no dark switch until the diagrams follow it.
+- **Touch on a real phone is not automated.** The smoke drags with Chrome's touch emulation; a real phone is step 11 of the test plan.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
