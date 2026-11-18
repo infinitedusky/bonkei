@@ -1,7 +1,8 @@
 // Smoke test (BON-53): the embeds, from the packed tarballs (not the workspace link).
 //  1. examples/html with bonkei.global.js, libavoid.wasm and fonts/ from the tarball: two <bonkei-diagram> draw; one added later
 //     draws and a removed one is cleaned up; a moved one draws again; a broken one shows the error card and fires bonkei-error;
-//     loading the script twice does not throw; pre.mermaid blocks stay text until Bonkei.run(), then only the flowchart converts.
+//     loading the script twice does not throw; pre.mermaid blocks stay text until Bonkei.run(), then only the flowchart converts;
+//     with the script in <head> an element still draws, keeps its stylesheet's display, and a removed height attribute is dropped.
 //  2. examples/vitepress with @bonkei/vitepress and bonkei installed from tarballs: under `vitepress dev` and under `vitepress build` +
 //     `preview`, the diagrams page draws a flowchart, a sequence diagram and a 600 px one; a pie fence is left as the site renders it;
 //     the home page (no diagram) downloads no Bonkei, React or three. In the build, the server-rendered HTML holds a box of the set
@@ -108,6 +109,28 @@ const ready = (page, sel, n) => page.waitForFunction(([s, n]) => [...document.qu
     ok('html: after Bonkei.run() the flowchart block is a diagram and the pie stays text', await ready(page, 'body > bonkei-diagram', 3) && await pre() === 1 && /pie/.test(await page.locator('pre.mermaid').innerText()) && /1 converted/.test(await page.locator('#converted').innerText()))
     ok('html: no console errors', errors.length === 0, errors.slice(0, 2).join(' | '))
     await page.screenshot({ path: path.join(tmp, 'html.png') })
+
+    // BON-171: the script in <head>, before the elements; a page stylesheet's display and height; a removed height attribute
+    fs.writeFileSync(path.join(dir, 'head.html'), `<!doctype html><html><head><script src="bonkei.global.js"></script>
+<style>.hide { display: none; height: 250px } .grid { display: grid }</style></head><body>
+<bonkei-diagram id="first">
+  flowchart TD
+    A --> B
+</bonkei-diagram>
+<bonkei-diagram id="hidden" class="hide">flowchart TD
+  A --> B</bonkei-diagram>
+<bonkei-diagram id="grid" class="grid" height="300">flowchart TD
+  A --> B</bonkei-diagram>
+</body></html>`)
+    const head = await open(browser, `http://localhost:${port}/head.html`)
+    ok('html: with the script in <head>, an element still reads its text and draws', await ready(head.page, '#first', 1),
+      await head.page.locator('#first').innerText().then(t => t.slice(0, 60).replace(/\n/g, ' ')))
+    const css = await head.page.evaluate(() => ({ hidden: getComputedStyle(document.getElementById('hidden')).display, hiddenH: document.getElementById('hidden').style.height, grid: getComputedStyle(document.getElementById('grid')).display }))
+    ok('html: an element keeps the display and height its page stylesheet gives it', css.hidden === 'none' && css.hiddenH === '' && css.grid === 'grid', JSON.stringify(css))
+    const heights = await head.page.evaluate(() => { const g = document.getElementById('grid'), a = g.getBoundingClientRect().height; g.removeAttribute('height'); return [a, g.getBoundingClientRect().height].map(Math.round) })
+    ok('html: removing the height attribute drops that height (back to the default)', near(heights[0], 300) && near(heights[1], 420), heights.join(' → '))
+    ok('html: no console errors on the <head> page', head.errors.length === 0, head.errors.slice(0, 2).join(' | '))
+    await head.page.close()
   } finally { await browser.close(); server.close() }
 }
 
