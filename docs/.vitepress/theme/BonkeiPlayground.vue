@@ -27,8 +27,8 @@ onMounted(async () => {
       problems.value = [...problems.value, `warning${w.line ? ', line ' + w.line : ''}: ${w.message}`]
       edit?.addEvent('bonkei.docs.playground.warning', { 'bonkei.warning.kind': w.kind, 'bonkei.warning.message': w.message })
     },
+    // problems are cleared when an edit starts (below), not here: onWarning comes before onReady, and the warnings must stay
     onReady: r => {
-      problems.value = []
       edit?.setAttributes({ 'bonkei.nodes': r.nodes, 'bonkei.edges': r.edges }); edit?.end(); edit = undefined
     },
   })
@@ -49,6 +49,6 @@ onBeforeUnmount(() => { clearTimeout(timer); edit?.end(); handle?.destroy() })
   <div class="bonkei-playground">
     <textarea v-model="text" class="bonkei-editor" spellcheck="false" aria-label="Mermaid source" rows="9"></textarea>
     <div ref="host" class="bonkei-diagram bonkei-live" :style="{ height: (height ?? 340) + 'px', position: 'relative' }"></div>
-    <ul class="bonkei-problems" aria-live="polite"><li v-for="p in problems" :key="p"><code>{{ p }}</code></li></ul>
+    <ul class="bonkei-problems" aria-live="polite"><li v-for="(p, i) in problems" :key="i"><code>{{ p }}</code></li></ul>
   </div>
 </template>

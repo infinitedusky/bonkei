@@ -153,6 +153,12 @@ for (const u of pageUrls) {
     ok(`playground ${u}: a broken edit reports the problem under the editor and keeps the last diagram`, /parse|line/i.test(problem) && kept && errors.length === 0, problem.slice(0, 80))
     const s = (await spans(page)).filter(s => s.name === 'bonkei.docs.playground.edit')
     ok(`telemetry ${u}: each playground edit is a bonkei.docs.playground.edit span, the broken one with status ERROR`, s.length === 2 && s[0].status !== 2 && s[0].ended && s[0].attributes['bonkei.nodes'] === 3 && s[1].status === 2 && /parse|line/i.test(s[1].message), JSON.stringify(s.map(x => [x.status, x.message])))
+    // an edit that draws with a warning (a line Bonkei does not support yet) keeps the warning under the editor once the diagram is ready
+    await page.locator('.bonkei-editor').first().fill('flowchart LR\n  A --> B\n  click A callback')
+    await page.waitForFunction(() => window.__spans.filter(s => s.name === 'bonkei.docs.playground.edit' && s.ended).length >= 3, null, { timeout: 30000 }).catch(() => {})
+    await page.waitForTimeout(500)
+    const warned = await page.locator('.bonkei-problems li').allInnerTexts()
+    ok(`playground ${u}: a warning stays under the editor after the diagram draws`, warned.length === 1 && /^warning, line 3:/.test(warned[0]), JSON.stringify(warned))
   }
   if (u === '/docs/') {
     const cards = await page.locator('.VPFeature').allInnerTexts()
