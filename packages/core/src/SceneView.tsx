@@ -171,7 +171,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   useEffect(() => {
     const el = gl.domElement
     gate.el = el.closest<HTMLElement>('[data-bonkei]') ?? el.parentElement?.parentElement?.parentElement ?? el.parentElement
-    const zoomSpan = gesture('zoom', WHEEL_IDLE_MS, 'wheel'), pinchWheel = gesture('zoom', WHEEL_IDLE_MS, 'pinch'), panSpan = gesture('pan', WHEEL_IDLE_MS, 'wheel', () => cam.mode), turnSpan = gesture('turn', WHEEL_IDLE_MS, 'wheel', () => cam.mode, true), pinch = gesture('zoom', undefined, 'touch', () => cam.mode), twist = gesture('turn', undefined, 'touch', () => cam.mode), slide = gesture('pan', undefined, 'touch', () => cam.mode)
+    const zoomSpan = gesture('zoom', WHEEL_IDLE_MS, 'wheel', () => cam.mode), pinchWheel = gesture('zoom', WHEEL_IDLE_MS, 'pinch', () => cam.mode), panSpan = gesture('pan', WHEEL_IDLE_MS, 'wheel', () => cam.mode), turnSpan = gesture('turn', WHEEL_IDLE_MS, 'wheel', () => cam.mode, true), pinch = gesture('zoom', undefined, 'touch', () => cam.mode), twist = gesture('turn', undefined, 'touch', () => cam.mode), slide = gesture('pan', undefined, 'touch', () => cam.mode)
     // a page that scrolls keeps one finger for its own scrolling until the diagram is held
     const touchAction = () => { el.style.touchAction = gate.engaged() ? 'none' : 'pan-x pan-y' }
     touchAction()
