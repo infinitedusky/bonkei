@@ -81,7 +81,7 @@ export const CLASSIC: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: null, min: 1 },
-  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: '#ffe3a3', rimWidth: 3.5, glow: { core: '#ffe2b0', coreWidth: 3.5, halo: '#ffc873', haloWidth: 11, haloOpacity: 0.28, wash: '#ffb55a', washIntensity: 0.3 }, flat: false },
+  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: '#c4d3f5', rimWidth: 3.5, glow: { core: '#c4d3f5', coreWidth: 3.5, halo: '#6f8fd0', haloWidth: 11, haloOpacity: 0.3, wash: '#5878b8', washIntensity: 0.3 }, flat: false },
   seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 })
 
