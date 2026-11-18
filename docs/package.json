@@ -1,0 +1,31 @@
+{
+  "name": "bonkei-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "api": "typedoc && node scripts/prepare.mjs",
+    "dev": "npm run api && vitepress dev",
+    "build": "npm run api && vitepress build",
+    "preview": "vitepress preview"
+  },
+  "dependencies": {
+    "@bonkei/vitepress": "file:.packs/bonkei-vitepress-0.0.0.tgz",
+    "@opentelemetry/api": "^1.9.0",
+    "bonkei": "file:.packs/bonkei-0.0.0.tgz"
+  },
+  "overrides": {
+    "bonkei": "file:.packs/bonkei-0.0.0.tgz"
+  },
+  "devDependencies": {
+    "@shikijs/vitepress-twoslash": "~2.5.0",
+    "@types/react": "^19.2.0",
+    "@types/three": "^0.170.0",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.14.1",
+    "typedoc-vitepress-theme": "^1.1.4",
+    "typescript": "^5.7.2",
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-llms": "^1.15.0",
+    "vue": "^3.5.0"
+  }
+}
