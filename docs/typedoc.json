@@ -1,0 +1,19 @@
+{
+  "entryPoints": ["node_modules/bonkei/dist/index.d.ts"],
+  "tsconfig": "tsconfig.typedoc.json",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
+  "out": "api",
+  "entryFileName": "index",
+  "readme": "none",
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "excludeInternal": true,
+  "skipErrorChecking": true,
+  "docsRoot": ".",
+  "name": "API",
+  "disableSources": true,
+  "useCodeBlocks": true,
+  "expandObjects": true,
+  "parametersFormat": "table",
+  "interfacePropertiesFormat": "table"
+}

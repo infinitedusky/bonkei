@@ -1,0 +1,36 @@
+/* bonkei.dev brand on VitePress's default theme: cream paper, sumi ink, blue links, Zen Old Mincho headings. Light only. */
+@font-face { font-family: 'Zen Old Mincho'; font-weight: 400 900; font-display: swap; src: url('/docs/bonkei/fonts/ZenOldMincho-Bold-latin.ttf') format('truetype'); } /* the font that ships inside the bonkei package */
+:root {
+  --vp-c-bg: #EFE6D0; --vp-c-bg-alt: #f4ecda; --vp-c-bg-elv: #f4ecda; --vp-c-bg-soft: #f4ecda;
+  --vp-c-divider: #cdbd98; --vp-c-border: #cdbd98; --vp-c-gutter: #cdbd98;
+  --vp-c-text-1: #2A2622; --vp-c-text-2: #5d554b; --vp-c-text-3: #857a6b;
+  --vp-c-brand-1: #24508F; --vp-c-brand-2: #1d4276; --vp-c-brand-3: #24508F; --vp-c-brand-soft: rgba(36, 80, 143, .12);
+  --vp-c-default-soft: #e9dfc6;
+  --vp-code-block-bg: #2A2622; --vp-code-block-color: #e9e2d2;
+  --vp-font-family-base: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --vp-home-hero-name-color: #2A2622;
+}
+.vp-doc h1, .vp-doc h2, .vp-doc h3, .VPHero .name, .VPHero .text, .VPNavBarTitle .title { font-family: 'Zen Old Mincho', Georgia, serif; }
+.vp-doc h2 { border-top-color: #cdbd98; }
+.VPButton.brand { background: #2A2622; border-color: #2A2622; color: #EFE6D0; }
+.VPButton.brand:hover { background: #24508F; border-color: #24508F; }
+.VPNavBar .divider-line, .VPNavBar { background: #f4ecda; }
+
+/* diagrams */
+.bonkei-diagram { border: 1px solid var(--vp-c-divider); border-radius: 8px; overflow: hidden; margin: 16px 0 6px; max-width: 100%; touch-action: pan-y; }
+.bonkei-live-fig { margin: 0; }
+.bonkei-live-fig figcaption { font-size: 12px; color: var(--vp-c-text-3); text-align: center; margin: 4px 0 12px; }
+.bonkei-events { list-style: none; padding: 8px 12px; margin: 0 0 16px; border: 1px dashed var(--vp-c-divider); border-radius: 6px; font-size: 12px; min-height: 40px; }
+.bonkei-events li { margin: 0; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+.grid4 .bonkei-diagram { margin: 0; }
+.grid4 .cap, .cap { font-size: 12px; color: var(--vp-c-text-2); text-align: center; margin-top: 4px; }
+.grid4 > div { min-width: 0; }
+.vp-doc table { display: table; width: 100%; }
+.vp-doc .table-wrap { overflow-x: auto; }
+
+@media (max-width: 767px) {
+  .grid4 { grid-template-columns: 1fr 1fr; }
+  .vp-doc div[class*='language-'] { margin-left: -24px; margin-right: -24px; }
+}
+@media (max-width: 959px) { .vp-doc table { display: block; overflow-x: auto; } }
