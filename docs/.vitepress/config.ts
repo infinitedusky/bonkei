@@ -61,6 +61,7 @@ export default defineConfig({
     editLink: { pattern: 'https://github.com/infinitedusky/bonkei/edit/main/docs/:path', text: 'Edit this page on GitHub' },
   },
   markdown: {
+    theme: { light: 'github-dark', dark: 'github-dark' }, // the code panel is sumi (dark) in the brand
     config: md => {
       // the Bonkei plugin claims flowchart and sequence fences; onFence counts every fence at build time
       bonkeiMarkdown(md, { height: 360, onFence: e => { fences[e.claimed ? 'claimed' : 'passed']++ } })

@@ -23,7 +23,7 @@ const diagram = render(el, 'flowchart LR\n  Build --> Test --> Ship', { mode: 'i
 diagram.update('flowchart LR\n  Build --> Test --> Ship --> Monitor') // same view, new source
 diagram.setMode('flat')
 diagram.fit()
-diagram.destroy() // unmounts; later calls do nothing
+// diagram.destroy() // unmounts the diagram; later calls do nothing
 ```
 ````md [Markdown]
 ```mermaid {height=360}

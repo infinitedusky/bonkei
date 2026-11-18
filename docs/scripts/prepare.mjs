@@ -11,7 +11,10 @@ for (const f of walk(path.join(docs, 'api')).filter(f => f.endsWith('.md'))) {
   if (text.startsWith('---')) continue
   const lines = text.split('\n')
   const title = lines.find(l => l.startsWith('# '))?.slice(2).replace(/[:`]/g, '').trim() ?? 'API'
-  const prose = lines.filter((l, i) => i > 0 && l.trim() && !/^(#|```|\||- |\[|function |type |interface |const |class |   )/.test(l) && !/^\)|^[A-Za-z]+(\?)?:/.test(l))
+  // the first sentence of prose after the declaration's code block (the JSDoc summary TypeDoc writes there)
+  const afterCode = lines.slice(lines.findIndex(l => l.startsWith('```')) + 1)
+  const rest = afterCode.slice(afterCode.findIndex(l => l.startsWith('```')) + 1)
+  const prose = rest.filter(l => l.trim() && !/^(#|```|\||- |\[)/.test(l))
   const desc = (prose[0] ?? `The ${title} export of bonkei.`).replace(/[`*]|\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/"/g, "'").trim()
   fs.writeFileSync(f, `---\ndescription: "${title.replace(/"/g, "'")}: ${desc}"\n---\n\n${text}`)
 }
