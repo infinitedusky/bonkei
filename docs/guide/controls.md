@@ -37,7 +37,7 @@ The same in every view, on this page, in the viewer, on the site and in the stor
 
 In 3D, Shift swaps drag and scroll: a drag turns and ⇧ + drag moves; the scroll wheel moves and ⇧ + scroll turns. 3D can be moved without a right mouse button.
 
-**In a page that scrolls**, like this one, a diagram does not trap the page: scrolling over it scrolls the page, and a short hint says how to take hold ("Click to move the diagram"; on touch, "Tap, or use two fingers"). A click (or a tap, or two fingers) gives the diagram its gestures, shown by a ring that follows the rounded corners of whatever box clips the diagram and "Esc to let go", until you press Esc or click outside it. Pinch and ⌘/Ctrl + scroll zoom either way. A diagram that fills a page that does not scroll always has its gestures.
+**In a page that scrolls**, like this one, a diagram does not trap the page: scrolling over it scrolls the page, and a short hint says how to take hold ("Click to move the diagram"; on touch, "Tap, or use two fingers"). A click (or a tap, or two fingers) gives the diagram its gestures, shown by a ring that follows the rounded corners of whatever box clips the diagram and "Esc to let go", until you press Esc or click outside it. Pinch and ⌘/Ctrl + scroll zoom either way. A sideways two-finger swipe over the diagram is never handed to the page, so it does not make the browser go back a page; until the diagram is held it only shows the hint. A diagram that fills a page that does not scroll always has its gestures.
 
 The browser's right-click menu never opens over a diagram: a right-drag (and Ctrl-click on a Mac) is a gesture there.
 
