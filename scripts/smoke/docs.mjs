@@ -8,8 +8,8 @@
 //  - the playground: an edit redraws, a broken edit is reported under the editor and the last diagram stays
 //  - Copy page puts exactly the page's .md on the clipboard (home and Edge styles)
 //  - telemetry: the playground's edits, a failed edit and Copy page are spans (a recording stand-in for an OpenTelemetry SDK)
-//  - at 390, 820 and 1024 px nothing scrolls sideways and every diagram fits the width; at 390 the nav folds into a menu and a touch
-//    drag turns a diagram
+//  - at 390, 820 and 1024 px nothing scrolls sideways and every diagram fits the width; at 390 the nav folds into a menu, and a
+//    tap takes hold of a diagram (BON-78: a page that scrolls keeps one finger until then) and a touch drag then moves it
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -175,7 +175,7 @@ for (const u of pageUrls) {
 }
 ok(`all pages: ${diagrams} diagrams on ${pagesWith} pages drew`, diagrams >= 40)
 
-// ---- phone and tablets: no sideways scroll, diagrams fit the width; the nav folds into a menu on the phone; a touch drag turns a diagram
+// ---- phone and tablets: no sideways scroll, diagrams fit the width; the nav folds into a menu on the phone; a tap and a touch drag move a diagram
 for (const [w, h] of [[390, 844], [820, 1180], [1024, 768]]) {
   for (const u of ['/docs/', '/docs/guide/edge-styles', '/docs/guide/options', '/docs/api/functions/render', '/docs/reference/vitepress-plugin']) {
     const { page, ctx } = await open(u, { viewport: { width: w, height: h }, hasTouch: true, isMobile: w < 1024 })
@@ -189,18 +189,23 @@ for (const [w, h] of [[390, 844], [820, 1180], [1024, 768]]) {
     const folded = w >= 768 || (m.burger && m.navLinks === 'none')
     ok(`${w} px ${u}: no sideways scroll, diagrams fit the width${w < 768 ? ', nav folded into a menu' : ''}`, m.sw <= m.iw + 1 && m.wide === 0 && folded, JSON.stringify(m))
     if (w === 390 && u.endsWith('/guide/edge-styles')) {
-      // a one-finger drag across the first diagram turns it (Chrome's touch emulation, the closest an automated run gets to a phone)
+      // a tap takes hold of the first diagram, then a one-finger drag across it moves it (Chrome's touch emulation, the closest an
+      // automated run gets to a phone). Before the tap the page keeps one finger for its scrolling (BON-78).
       const box = page.locator('.bonkei-diagram').first()
       await box.scrollIntoViewIfNeeded()
       const r = await box.boundingBox()
-      const before = await box.screenshot()
       const cdp = await ctx.newCDPSession(page)
       const y = r.y + r.height / 2, pt = x => [{ x, y, id: 1 }]
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(r.x + r.width * 0.3) })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      await page.waitForTimeout(300)
+      ok('390 px: a tap takes hold of a diagram', await box.locator('[data-bonkei-held]').count() === 1)
+      const before = await box.screenshot()
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(r.x + r.width * 0.3) })
       for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(r.x + r.width * (0.3 + i * 0.04)) })
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
       await page.waitForTimeout(800)
-      ok('390 px: a touch drag across a diagram turns it', !before.equals(await box.screenshot()))
+      ok('390 px: a touch drag across a held diagram moves it', !before.equals(await box.screenshot()))
     }
     await ctx.close()
   }
