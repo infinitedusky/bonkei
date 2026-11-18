@@ -148,7 +148,8 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     const ne = e.nativeEvent
     // one finger in a page that scrolls is the page's; two fingers are handled below
     if (ne.pointerType === 'touch' && (!gate.engaged() || touches.current.size > 1)) { if (!gate.engaged()) gate.hint(); return }
-    const action = dragAction(controls, cam.mode, ne.button, ne.shiftKey)
+    // one finger always moves, in 3D too: a touch screen has no Shift, and two fingers turn and tilt
+    const action = ne.pointerType === 'touch' ? (controls.pan ? 'pan' : 'none') : dragAction(controls, cam.mode, ne.button, ne.shiftKey)
     if (action === 'none') return
     let lx = ne.clientX, ly = ne.clientY
     const span = gesture(action, undefined, ne.pointerType === 'touch' ? 'touch' : 'drag', () => cam.mode, isSwapped(ne.button, ne.shiftKey))
