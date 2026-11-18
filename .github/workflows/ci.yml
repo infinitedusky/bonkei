@@ -38,7 +38,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter bonkei build
       - run: pnpm exec playwright install --with-deps chromium
-      - name: Packed tarball in a clean copy of examples/vite (dev and build), then the script-tag page
+      - name: Packed tarball in a clean copy of examples/vite (dev and build), the script-tag page, then the embeds (examples/html, examples/vitepress)
         run: pnpm smoke
         env:
           SMOKE_CHROMIUM: bundled

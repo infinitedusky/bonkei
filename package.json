@@ -13,7 +13,7 @@
     "test": "pnpm -r test",
     "size": "pnpm --filter bonkei build && pnpm --filter bonkei size",
     "check:package": "pnpm --filter bonkei build && pnpm --filter bonkei check",
-    "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs"
+    "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs && node scripts/smoke/embeds.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
