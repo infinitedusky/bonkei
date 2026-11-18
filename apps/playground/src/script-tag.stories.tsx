@@ -16,7 +16,8 @@ function Framed({ src, note }: { src: string; note: string }) {
   )
 }
 
-/** bonkei.global.js with libavoid.wasm beside it: the lines are routed by libavoid; the page says how long it took. */
+/** bonkei.global.js with libavoid.wasm and fonts/ beside it: the default look on top, the Bonkei theme (labels in its bundled font) below;
+ * the lines are routed by libavoid; the page says how long it took. */
 export const ScriptTag: Story = {
   render: () => <Framed src="embed/index.html" note="A plain HTML page: one <script src=&quot;bonkei.global.js&quot;>, then Bonkei.render(el, source)." />,
 }
