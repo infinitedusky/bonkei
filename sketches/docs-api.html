@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sketch: docs, API reference (render)</title>
+<style>
+  :root { --bg:#EFE6D0; --panel:#f4ecda; --line:#cdbd98; --text:#2A2622; --dim:#5d554b; --mute:#857a6b; --blue:#24508F; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.6 -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  .note { background: #fff6c8; border-bottom: 1px dashed #b9a24a; padding: 6px 16px; font-size: 12px; color: #6b5a14; }
+  header { display: flex; align-items: center; gap: 24px; height: 56px; padding: 0 24px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .logo { font-family: 'Zen Old Mincho', Georgia, serif; font-weight: 700; font-size: 18px; display: flex; gap: 8px; align-items: center; }
+  .logo i { width: 22px; height: 22px; border: 2px solid var(--text); border-radius: 3px; display: inline-block; transform: skewY(-12deg); }
+  .search { flex: 0 0 220px; margin-left: 8px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--mute); font-size: 13px; background: var(--bg); }
+  header nav { margin-left: auto; display: flex; gap: 20px; font-size: 14px; }
+  header nav a { color: var(--text); text-decoration: none; } header nav a.on { color: var(--blue); font-weight: 600; }
+  .wrap { display: grid; grid-template-columns: 240px 1fr; max-width: 1300px; margin: 0 auto; }
+  aside { border-right: 1px solid var(--line); padding: 24px 20px; font-size: 14px; min-height: calc(100vh - 90px); }
+  aside h4 { margin: 16px 0 4px; font-size: 13px; } aside h4:first-child { margin-top: 0; }
+  aside a { display: block; color: var(--dim); text-decoration: none; padding: 2px 0; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  aside a.on { color: var(--blue); font-weight: 600; }
+  main { padding: 32px 48px 80px; max-width: 860px; }
+  h1 { font-family: ui-monospace, Menlo, monospace; font-size: 28px; margin: 0 0 4px; }
+  .kind { font-size: 12px; color: var(--mute); }
+  h2 { font-family: 'Zen Old Mincho', Georgia, serif; font-size: 20px; margin: 30px 0 8px; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+  pre { background: #2A2622; color: #e9e2d2; padding: 14px 16px; border-radius: 8px; font: 13px/1.55 ui-monospace, Menlo, monospace; }
+  pre .k { color: #e7a07a; } pre .s { color: #a9c98b; } pre .t { color: #9ec3e6; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--dim); }
+  td a { color: var(--blue); }
+  .diagram { height: 220px; border: 1px solid var(--line); border-radius: 8px; background: #f7f0de; display: flex; align-items: center; justify-content: center; color: var(--mute); font-size: 13px; }
+  .gen { margin-top: 30px; font-size: 12px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
+  .localnav, .burger, .searchicon { display: none; }
+  .localnav { position: sticky; top: 0; padding: 8px 16px; font-size: 13px; color: var(--dim); background: var(--panel); border-bottom: 1px solid var(--line); }
+  @media (max-width: 959px) { .wrap { grid-template-columns: 1fr; } aside { display: none; } .localnav { display: block; } main { padding: 24px; max-width: none; } }
+  @media (max-width: 767px) {
+    header { padding: 0 16px; } header nav, .search { display: none; }
+    .searchicon, .burger { display: block; font-size: 18px; } .searchicon { margin-left: auto; }
+    main { padding: 20px 16px 50px; } h1 { font-size: 24px; }
+    pre { font-size: 12px; overflow-x: auto; white-space: pre; }
+    table, tbody, tr, td { display: block; } tr:first-child { display: none; } tr { border-bottom: 1px solid var(--line); padding: 6px 0; } td { border: none; padding: 2px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="note">Sketch, made-up content. The API reference is generated from Bonkei's own types, so every export has a page; the example on each page is written by hand and is live.</div>
+<header>
+  <div class="logo"><i></i>Bonkei <span style="font-weight:400;color:var(--mute);font-size:14px">docs</span></div>
+  <div class="search">Search docs… ⌘K</div>
+  <nav><a href="docs-feature.html">Guide</a><a class="on" href="docs-api.html">API</a><a href="#">bonkei.dev ↗</a><a href="#">Viewer ↗</a><a href="#">GitHub</a></nav>
+  <span class="searchicon">⌕</span><span class="burger">☰</span>
+</header>
+<div class="localnav">☰ Menu · API</div>
+<div class="wrap">
+  <aside>
+    <h4>Components and mounting</h4><a href="#">Bonkei</a><a class="on" href="#">render</a>
+    <h4>Props, options, handles</h4><a href="#">BonkeiProps</a><a href="#">BonkeiOptions</a><a href="#">DiagramOptions</a><a href="#">Controls</a><a href="#">BonkeiHandle</a><a href="#">BonkeiViewHandle</a>
+    <h4>Themes</h4><a href="#">Theme</a><a href="#">CLASSIC</a><a href="#">BONKEI</a><a href="#">BONKEI_LANDSCAPE</a><a href="#">THEME_NAMES</a>
+    <h4>Events</h4><a href="#">BonkeiError</a><a href="#">BonkeiWarning</a><a href="#">NodeClick</a><a href="#">ReadyInfo</a><a href="#">isBonkeiError</a>
+    <h4>Modes, labels, lines</h4><a href="#">Mode</a><a href="#">LabelMode</a><a href="#">CrossingStyle</a><a href="#">AvoidCrossings</a>
+    <h4>Hand-built graphs</h4><a href="#">GraphInput</a><a href="#">Graph</a><a href="#">GNode</a><a href="#">GGroup</a><a href="#">GEdge</a><a href="#">Shape</a><a href="#">Dropped</a>
+    <h4>Script tag</h4><a href="#">&lt;bonkei-diagram&gt;</a><a href="#">Bonkei.run</a>
+    <h4>VitePress plugin</h4><a href="#">bonkeiMarkdown</a><a href="#">enhanceAppWithBonkei</a>
+  </aside>
+  <main>
+    <div class="kind">Function · from <code>bonkei</code></div>
+    <h1>render()</h1>
+    <p>Mount a diagram into any DOM element without touching React; returns a handle.</p>
+<pre><span class="k">function</span> render(el: <span class="t">HTMLElement</span>, source: <span class="t">string</span> | <span class="t">GraphInput</span>, options?: <span class="t">BonkeiOptions</span>): <span class="t">BonkeiHandle</span></pre>
+
+    <h2>Parameters</h2>
+    <table>
+      <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>el</code></td><td><code>HTMLElement</code></td><td>The element to draw in. The diagram fills it.</td></tr>
+      <tr><td><code>source</code></td><td><code>string</code> | <a href="#">GraphInput</a></td><td>Mermaid text, or a graph built by hand.</td></tr>
+      <tr><td><code>options</code></td><td><a href="#">BonkeiOptions</a></td><td>Diagram options and callbacks. Options here win over the diagram's frontmatter.</td></tr>
+    </table>
+
+    <h2>Returns</h2>
+    <p><a href="#" style="color:var(--blue)">BonkeiHandle</a>: <code>update(source)</code>, <code>setMode(mode)</code>, <code>destroy()</code>.</p>
+
+    <h2>Example</h2>
+<pre><span class="k">import</span> { render } <span class="k">from</span> <span class="s">'bonkei'</span>
+
+<span class="k">const</span> handle = render(document.getElementById(<span class="s">'diagram'</span>), <span class="s">`flowchart LR
+  Build --> Test --> Ship`</span>, { mode: <span class="s">'flat'</span>, onError: e => console.warn(e.message) })</pre>
+    <div class="diagram">live: the example above, drawn</div>
+
+    <h2>See also</h2>
+    <p><a href="#" style="color:var(--blue)">Getting started: plain JavaScript</a> · <a href="#" style="color:var(--blue)">Options and frontmatter</a></p>
+    <div class="gen">Signature, parameters and types generated from the installed package. Description from its doc comment. Example by hand.</div>
+  </main>
+</div>
+</body>
+</html>
