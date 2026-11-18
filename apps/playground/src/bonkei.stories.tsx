@@ -103,7 +103,7 @@ type Story = StoryObj
 
 // ---- Stories ----
 
-/** A made-up docs page with the diagram in a 760×380 box. It starts flat; the toolbar shows Flat / Iso / 3D and Fit. */
+/** A made-up docs page with the diagram in a 760×380 box. It starts in iso; the toolbar shows Flat / Iso / 3D and Fit. */
 export const InADocsPage: Story = {
   render: () => (
     <div style={page}>
@@ -151,12 +151,12 @@ export const CrossingStyleWithoutControls: Story = {
   ),
 }
 
-/** Where a diagram starts: flat with no mode, iso from the prop, 3D from the frontmatter. */
+/** Where a diagram starts: iso with no mode (the default), flat from the prop, 3D from the frontmatter. */
 export const StartsInEachView: Story = {
   render: () => (
     <div style={page}>
-      <Box label="a small shop backend, no mode (starts flat)"><Bonkei source={FLOW} /></Box>
-      <Box label='a small shop backend, mode="iso"'><Bonkei source={FLOW} mode="iso" /></Box>
+      <Box label="a small shop backend, no mode (starts in iso, the default)"><Bonkei source={FLOW} /></Box>
+      <Box label='a small shop backend, mode="flat"'><Bonkei source={FLOW} mode="flat" /></Box>
       <Box label="a small shop backend, frontmatter config.bonkei.mode: 3d"><Bonkei source={FRONTMATTER_3D} /></Box>
       <pre style={tag}>{FRONTMATTER_3D}</pre>
     </div>
