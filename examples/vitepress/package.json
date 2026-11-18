@@ -1,0 +1,17 @@
+{
+  "name": "bonkei-example-vitepress",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "dependencies": {
+    "@bonkei/vitepress": "workspace:*"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.0"
+  }
+}
