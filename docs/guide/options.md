@@ -119,8 +119,16 @@ The toolbar shows the view (Flat, Iso, 3D) and Fit. `toolbar: false` removes it;
 
 `fit: 'tight'` frames the diagram's real extent with a small margin. `minLabelPx` opens zoomed in on the largest tray when the whole diagram would make node labels smaller than that many pixels, which suits a phone. Both are props, shown here live:
 
-<BonkeiLive :height="260" :options="{ fit: 'tight' }" label="fit: 'tight'" source="flowchart LR
+`fit` side by side, the same diagram: `default` leaves generous margins, `tight` fills the box with the diagram's real extent.
+
+<div class="grid2">
+<BonkeiLive :height="240" :options="{ fit: 'default', toolbar: false }" label="fit: 'default'" source="flowchart LR
   A --> B --> C" />
+<BonkeiLive :height="240" :options="{ fit: 'tight', toolbar: false }" label="fit: 'tight'" source="flowchart LR
+  A --> B --> C" />
+</div>
+
+`minLabelPx`, on a diagram too wide for its labels to be readable at once: it opens zoomed in on the largest tray.
 
 <BonkeiLive :height="260" :options="{ minLabelPx: 12 }" label="minLabelPx: 12" source="flowchart LR
   subgraph One
