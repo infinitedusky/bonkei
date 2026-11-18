@@ -15,7 +15,8 @@ const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 const file = p => [p, p + '.html', path.join(p, 'index.html')].find(f => fs.existsSync(f) && fs.statSync(f).isFile())
 
 http.createServer((q, r) => {
-  let url = decodeURIComponent(q.url.split('?')[0])
+  let url
+  try { url = decodeURIComponent(q.url.split('?')[0]) } catch { r.writeHead(400); return r.end('bad request') } // a malformed %-escape
   if (mount !== '/') {
     if (url === mount) { r.writeHead(301, { location: mount + '/' }); return r.end() }
     url = url.startsWith(mount + '/') ? url.slice(mount.length) : null

@@ -22,6 +22,10 @@ const port = await freePort()
 const server = spawn(process.execPath, [path.join(root, 'scripts/serve-dist.mjs'), path.join(root, 'docs/.vitepress/dist'), '/docs/'], { env: { ...process.env, PORT: String(port) }, stdio: 'ignore' })
 try {
   for (let i = 0; i < 40; i++) { try { await fetch(`http://localhost:${port}/docs/`); break } catch { await new Promise(r => setTimeout(r, 250)) } }
+  // serve-dist answers a malformed %-escape with 400 and keeps serving (it used to crash on one)
+  const bad = await fetch(`http://localhost:${port}/docs/%E0%A4%A`).then(r => r.status, () => 0)
+  const after = await fetch(`http://localhost:${port}/docs/`).then(r => r.status, () => 0)
+  step('the server survives a malformed URL', () => { console.log(`malformed: ${bad}, then /docs/: ${after}`); if (bad !== 400 || after !== 200) throw new Error() })
   step('every page', () => node('scripts/smoke/docs.mjs', [`http://localhost:${port}`]))
 } finally { server.kill('SIGTERM') }
 step('getting started, word for word', () => node('scripts/smoke/docs-getting-started.mjs'))
