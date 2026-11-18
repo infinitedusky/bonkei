@@ -318,6 +318,7 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **Diagram types:** one page says what Bonkei draws (flowcharts and sequence diagrams today); a type gets its own page when it ships.
 - **Light only** until diagrams follow VitePress's dark switch.
 - **The Sample app smoke set-up stays**: it is the only check of the React path.
+- **Written for agents as much as people** (the person, 2026-11-17): `vitepress-plugin-llms` (llmstxt.org) makes `llms.txt`, `llms-full.txt` and a `.md` beside every page, and a Copy as Markdown button; diagrams stay as their mermaid source in the Markdown. The generated API reference is Markdown, so it is in those files too. Turned down for now: an MCP server for the docs.
 - **Tools:** VitePress 1.6 (2.0 is alpha), its built-in local search, TypeDoc with typedoc-vitepress-theme for the API reference, Twoslash so code samples are type-checked against the installed package.
 
 **Consequences.** Every feature task from here on includes its docs page. A renamed option breaks the docs build.
