@@ -2,12 +2,16 @@
 // plus bonkei and three), draw a diagram and check libavoid routed it, under `vite dev` and under `vite build` + `vite preview`.
 // Two passes: the example as committed (current Vite), then the same app pinned to Vite 5 + plugin-react 4, where dev pre-bundling
 // hides the wasm file and bonkei falls back to its inlined chunk, and hides the font file (labels in drei's default font). The app draws the default look and the Bonkei theme; the theme's
-// font file must be fetched with status 200 (BON-159). Run after `pnpm --filter bonkei build`.
+// font file must be fetched with status 200 (BON-159). In the current-Vite pass the temp copy also gets a second page, defaults.html
+// (scripts/smoke/defaults.mjs), checked under `vite dev`: diagrams start flat unless iso or 3D is set by option or frontmatter, the
+// default toolbar is Flat / Iso / 3D and Fit, and the crossing controls show only with crossingControls (BON-161). examples/vite
+// itself is not changed. Run after `pnpm --filter bonkei build`.
 import { execSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { check, freePort } from './check.mjs'
+import { checkDefaults, DEFAULTS_HTML, DEFAULTS_TSX } from './defaults.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const sh = (cmd, cwd) => execSync(cmd, { cwd, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', env: { ...process.env, CI: '1' } })
@@ -63,10 +67,21 @@ for (const v of variants) {
   if (!v.pin) {
     console.log('--- tsc in the host app (types for bonkei and bonkei/internal)')
     fs.writeFileSync(path.join(app, 'src/types-check.ts'), `import { Bonkei, render, type BonkeiProps } from 'bonkei'\nimport { parse, layout } from 'bonkei/internal'\nexport const t = [Bonkei, render, parse, layout] as const\nexport type P = BonkeiProps\n`)
+    // the defaults page (BON-161), in the temp copy only: Vite dev serves an extra HTML page without config, and tsc checks it too
+    fs.writeFileSync(path.join(app, 'defaults.html'), DEFAULTS_HTML)
+    fs.writeFileSync(path.join(app, 'src/defaults.tsx'), DEFAULTS_TSX)
     try { console.log(sh('npx tsc -b', app) || 'tsc passed') } catch (e) { fail(e.stdout || e.message) }
   }
 
   const dev = await run(app, ['dev'], `${v.name} dev`, path.join(tmp, `${slug}-dev.png`), v.devFont)
+  if (!v.pin) {
+    console.log('--- defaults page under vite dev (BON-161)')
+    const { p, url } = await serve(app, ['dev'])
+    try {
+      const d = await checkDefaults(url)
+      summary.push(`${v.name}: defaults page ${d.failed ? 'FAILED' : 'ok'} (starting view, four-button toolbar, opt-in crossing controls)`)
+    } finally { p.kill('SIGTERM') }
+  }
   console.log('--- vite build')
   const built = sh(`node node_modules/vite/bin/vite.js build`, app)
   console.log(built.split('\n').filter(l => /dist\//.test(l)).join('\n'))
@@ -82,5 +97,5 @@ for (const v of variants) {
   const fontVia = r => r.fontWarnings.length ? 'default font (file not found)' : `file (${r.fontResponses.map(x => x.status).join(',')})`
   summary.push(`${v.name}: dev wasm via ${dev.wasmSource}, font via ${fontVia(dev)}; build wasm via ${prod.wasmSource}, font via ${fontVia(prod)}`)
 }
-console.log('\nwasm and font path taken:\n  ' + summary.join('\n  '))
+console.log('\nwasm and font path taken, and the defaults page:\n  ' + summary.join('\n  '))
 console.log('screenshots in', tmp)
