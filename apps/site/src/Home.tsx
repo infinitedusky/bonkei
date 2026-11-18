@@ -44,6 +44,7 @@ export function Home({ name = 'Bonkei', live, themesLive }: { name?: string; liv
         <nav className="site-nav">
           <a className="site-logo" href="#"><Logo size={40} title={name} />{name}</a>
           <div className="site-links">
+            <a href={BASE + "docs/"}>Docs</a>
             <a href="#how">How it works</a>
             <a href="#views">Views</a>
             <a href="#themes">Themes</a>
