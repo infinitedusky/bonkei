@@ -66,6 +66,31 @@ if (exists('app/index.html')) {
 if (!exists('CNAME')) fail('CNAME: missing')
 else if (read('CNAME').trim() !== DOMAIN) fail(`CNAME: is ${JSON.stringify(read('CNAME').trim())}, want ${DOMAIN}`)
 
+// 6. The docs (BON-127): the index, the agent files and one page are there, every root-relative link of the docs' pages points at a
+// file in dist/, and nothing in them points at the workspace (the docs install the packed packages, never packages/*).
+{
+  for (const f of ['docs/index.html', 'docs/llms.txt', 'docs/llms-full.txt', 'docs/guide/introduction.html', 'docs/guide/introduction.md', 'docs/api/index.html', 'docs/bonkei/bonkei.global.js', 'docs/bonkei/libavoid.wasm'])
+    if (!exists(f)) fail(`${f}: missing`)
+  const pages = files.filter(f => /^docs\/.*\.html$/.test(f))
+  for (const page of pages) {
+    for (const [, url] of read(page).matchAll(/\b(?:src|href)=["']?(\/[^"'\s>]*)/g)) {
+      if (url.startsWith('//')) continue
+      let rel = decodeURIComponent(url.replace(/[?#].*$/, '')).slice(1)
+      if (rel === '' || rel.endsWith('/')) rel += 'index.html'
+      else if (!path.extname(rel)) rel += exists(rel + '.html') ? '.html' : '/index.html'
+      if (!exists(rel) || fs.statSync(path.join(DIST, rel)).isDirectory()) fail(`${page}: ${url} → no file dist/${rel}`)
+    }
+  }
+  for (const f of files.filter(f => f.startsWith('docs/') && /\.(html|js|css|md|txt)$/.test(f))) {
+    const m = /packages\/(core|vitepress)\/|workspace:|\/Users\/|\.packs\//.exec(read(f))
+    if (m) fail(`${f}: points at the workspace or this machine (${m[0]})`)
+  }
+  if (exists('docs/llms.txt') && !/guide\/edge-styles\.md/.test(read('docs/llms.txt'))) fail('docs/llms.txt: does not list the Edge styles page')
+  // the home page is drawn by React, so the link is in the site's script, not in index.html
+  const siteJs = files.filter(f => /^assets\/site-.*\.js$/.test(f)).map(read).join('\n')
+  if (!/href:\w+\+["']docs\/["']/.test(siteJs)) fail('the site: no Docs link to /docs/ in its header')
+}
+
 if (fails.length) {
   for (const f of fails) console.error(`check-pages: ${f}`)
   console.error(`check-pages: ${fails.length} problem(s) in dist/`)
