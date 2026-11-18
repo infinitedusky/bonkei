@@ -7,11 +7,10 @@ description: Add Bonkei to a VitePress site with @bonkei/vitepress, so mermaid f
 This site is built this way.
 
 ```sh
-npm install vitepress
-npm install @bonkei/vitepress
+npm install vitepress @bonkei/vitepress
 ```
 
-`@bonkei/vitepress` brings `bonkei`, `react`, `react-dom` and `three` with it.
+`@bonkei/vitepress` brings `bonkei`, `react`, `react-dom` and `three` with it. Install both in one command: VitePress's search asks for React 18 as a peer, and installed first and alone, npm gives the site that copy next to the plugin's React 19, which crashes the diagram. One command lets npm choose one React.
 
 ## Two files
 
