@@ -196,6 +196,7 @@ Both apps import the engine only through its public `bonkei` exports (stories ma
 ```bash
 pnpm install
 pnpm dev          # core rebuilt on save (tsdown --watch) + both apps: site at http://localhost:5173/, viewer at /app/, script-tag page at /app/embed/
+SITE_PORT=6100 VIEWER_PORT=6101 pnpm dev   # any ports; /app goes to that viewer
 pnpm build        # build core, type-check everything, build both apps, assemble dist/ (site) + dist/app/ (viewer), check it
 pnpm check:package # build core, then publint, are-the-types-wrong and the dist checks
 pnpm size         # build core, then the size budget (packages/core/.size-limit.mjs)
@@ -205,6 +206,8 @@ pnpm storybook    # stories: node shape, subgraph, full sample, sequence, site s
 pnpm capture      # regenerate apps/site/public/*.png from the real scene (needs Chrome; CHROME_PATH to override)
 pnpm test         # unit tests: parser, options, prepare, camera, controls
 ```
+
+`SITE_PORT` and `VIEWER_PORT` default to 5173 and 5174 and are read from the shell, not from `.env` files. A set `SITE_PORT` is strict: the site fails to start if the port is taken instead of moving to another; the viewer is always strict. So several copies (prototypes, smoke tests, your own) can run at once, each site showing its own viewer at /app.
 
 In dev, the viewer's plain page at http://localhost:5173/app/plain.html drives `render()` and its handle on a page with no React of its own.
 

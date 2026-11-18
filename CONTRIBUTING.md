@@ -1,6 +1,6 @@
 # Contributing
 
-Small, early project: PRs and issues welcome. `pnpm install && pnpm dev`, then open the viewer at http://localhost:5173/app/ (the bare http://localhost:5173/ is the marketing site). Pick something from the list below, or from the open issues.
+Small, early project: PRs and issues welcome. `pnpm install && pnpm dev`, then open the viewer at http://localhost:5173/app/ (the bare http://localhost:5173/ is the marketing site; to run several copies at once, set `SITE_PORT` and `VIEWER_PORT` as the README's dev section shows). Pick something from the list below, or from the open issues.
 
 After any change that alters what the scene looks like, re-run `pnpm capture` and commit the regenerated `apps/site/public/*.png`. It needs a local Chrome; set `CHROME_PATH` to use a different binary.
 
