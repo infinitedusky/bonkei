@@ -12,8 +12,8 @@ let timer: ReturnType<typeof setTimeout> | undefined
 
 onMounted(async () => {
   const { render, CLASSIC } = await import('bonkei')
-  // the same medium-grey floor as every other diagram on the site (see FLOOR in config.ts)
-  const theme = { ...CLASSIC, ground: { ...CLASSIC.ground, bg: '#8a8f98', grid: ['#9aa0ab', '#9298a3'] as [string, string] } }
+  // the same light trench rim as every other diagram on the site (see TRENCH_RIM in config.ts)
+  const theme = { ...CLASSIC, edge: { ...CLASSIC.edge, rim: '#ffe3a3', rimWidth: 3.5 } }
   handle = render(host.value!, text.value, {
     ...(props.options ?? {}),
     theme,

@@ -16,15 +16,15 @@ const typedocSidebar = strip(typedocRaw as any[])
 // Fences that need more than the plugin's {height mode theme}: {editor} (an editable starting source), {tag} (drawn by the script tag's
 // <bonkei-diagram>), {live} / {events} / {stats} / {fit=…} / {minLabelPx=…} (drawn by render() with those props, events logged, onEdgeStats
 // counted). The fence stays an ordinary ```mermaid fence in the page's Markdown, so llms.txt, the .md and Copy page carry its source.
-// A medium-grey floor in every diagram of these docs, so a tunnel's dark slot shows against it (the Classic look's floor is near black).
+// A light rim round the lip of every tunnel's trench (the theme's edge.rim; Classic's own rim is a dark shade of the floor), so the trench shows.
 // Laid over each fence's own frontmatter as config.themeVariables when the page is rendered; the page's Markdown (.md, llms files) stays as written.
-const FLOOR = { 'ground.bg': '#8a8f98', 'ground.grid.0': '#9aa0ab', 'ground.grid.1': '#9298a3' }
+const TRENCH_RIM = { 'edge.rim': '#ffe3a3', 'edge.rimWidth': 3.5 }
 const FRONTMATTER = /^\s*---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*\r?\n/
-function withFloor(source: string): string {
+function withTrenchRim(source: string): string {
   const m = FRONTMATTER.exec(source)
   const doc: any = m ? load(m[1]) ?? {} : {}
   doc.config = doc.config ?? {}
-  doc.config.themeVariables = { ...FLOOR, ...(doc.config.themeVariables ?? {}) }
+  doc.config.themeVariables = { ...TRENCH_RIM, ...(doc.config.themeVariables ?? {}) }
   return `---\n${dump(doc)}---\n${m ? source.slice(m[0].length) : source}`
 }
 
@@ -35,7 +35,7 @@ function liveFences(md: any) {
     const token = tokens[idx]
     const attrs = parseInfo(token.info)
     if (attrs) for (const [k, v] of token.attrs ?? []) attrs[k] = v || 'true'
-    if (attrs && !('editor' in attrs) && isSupported(token.content)) token.content = withFloor(token.content)
+    if (attrs && !('editor' in attrs) && isSupported(token.content)) token.content = withTrenchRim(token.content)
     if (!attrs || !LIVE_KEYS.some(k => k in attrs)) return previous(tokens, idx, opts, env, self)
     const source = md.utils.escapeHtml(encodeURIComponent(token.content))
     const height = Number(attrs.height) > 0 ? Number(attrs.height) : 300

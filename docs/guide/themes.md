@@ -53,9 +53,9 @@ console.log(THEME_NAMES)
 
 In frontmatter it is Mermaid's own key: `config.theme: bonkei`.
 
-## The floor on this site
+## The trench rim on this site
 
-Every diagram in these docs has a medium-grey floor (`ground.bg`, with its grid), set once for the site, so a tunnel's dark slot shows against it. The Classic look's own floor is near black. A diagram's own `themeVariables` win over it.
+Every diagram in these docs has a light rim round the lip of a tunnel's trench (`edge.rim`, with `edge.rimWidth`), set once for the site, so the trench shows against the dark floor. The Classic look's own rim is a dark shade of the floor. A diagram's own `themeVariables` win over it.
 
 ## Changing one thing
 
