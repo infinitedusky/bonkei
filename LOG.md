@@ -186,6 +186,26 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 
 **Consequences.** Blocks can sit up to 240 px off where ELK put them. While a node is dragged, a line still turns back if the drop leaves no direct route. The drag never slides other blocks, because they would jump under the pointer.
 
+## 2026-11-17 — Bonkei on bonkei.dev (BON-105)
+
+**Context.** The site is to go live on its own domain, bonkei.dev, served by GitHub Pages from the renamed infinitedusky/bonkei repository. The build still targeted the old Pages subpath (`/merman/` and `/merman/app/`), its link preview pointed at infinitedusky.github.io/merman/, and the page titles, the home page and the GitHub links still said merman. Served from the root of bonkei.dev, every asset URL would have 404ed.
+
+**Decision.**
+- The site serves at `/` and the viewer at `/app/` on bonkei.dev. Both apps build with those bases in every mode (dev, build and preview), so `apps/site/vite.config.ts` has `base: '/'` and `apps/playground/vite.config.ts` has `base: '/app/'`. The site's `/app` proxy to the viewer's dev server is for dev only; preview turns it off so it serves the built viewer from `dist/app/`.
+- The visible name is **Bonkei**: page titles, `og:title`, the home page's nav, hero and footer. Its links go to https://github.com/infinitedusky/bonkei. `VITE_SITE_URL` is `https://bonkei.dev/`, so `og:url` is `https://bonkei.dev/` and `og:image` is `https://bonkei.dev/og.png`.
+- The custom domain lives in the repository's Pages settings, because Actions-based Pages deploys ignore a CNAME file in the artifact. `apps/site/public/CNAME` (`bonkei.dev`) is shipped anyway, as a record of the domain in the repo and in case publishing ever switches to a branch.
+- `scripts/check-pages.mjs` runs at the end of the root `pnpm build` and guards the artifact: it fails the build, and so the deploy, if `dist/` mentions merman, a page points at a missing file, the bonkei.dev `og:url`/`og:image` or a Bonkei title is missing, or `dist/CNAME` is not `bonkei.dev`.
+- `.github/workflows/pages.yml` runs on every push to main and on `workflow_dispatch`, with `concurrency.cancel-in-progress: false` so a deploy that has started finishes and queued runs collapse to the latest.
+
+This supersedes the 'Names (BON-50)' entry's choice to keep the site's copy, its page titles and the `/merman/` base, and the `/merman/` and `/merman/app/` bases set in 'The Pages artifact and the dev proxy (BON-50)'.
+
+**Alternatives considered.**
+- Keep the `/merman/` subpath and redirect the domain's root to it: the old name would stay in every public URL, and a static Pages site can only redirect with a meta-refresh page.
+- Set the base through an environment variable: one site, one domain, so a variable only adds a way to build a wrong artifact; the check would still be needed.
+- Filter the push trigger by path (deploy only when the apps change): the brief asks for every merge to main to publish.
+
+**Consequences.** The old infinitedusky.github.io/merman/ URLs stop working. Internal names still say merman: the Storybook flow `merman.flow.json`, the dev-only capture page (`apps/site/dev/capture.html`) and `sketches/`. None of them reach `dist/`.
+
 ## 2026-11-17 — Themes: Classic, Bonkei, Bonkei · landscape, and the brand home (BON-117)
 
 **Context.** BON-116 gives Bonkei its own look, drawn from Utagawa Yoshishige's 1848 tray-landscape prints: a logo, a home page in the brand, and two themes the library draws per diagram. Classic must not change by a pixel. A prototype (`prototype/bonkei-themes-in-the-real-engine-tpvd`) proved the engine side; this is the real build of it.
@@ -207,13 +227,3 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 **Telemetry.** New `bonkei.theme` span per look drawn (`bonkei.theme`, `.source` prop/frontmatter/default, `.requested`, `.variables`, `.unknown`); `bonkei.prepare` carries `bonkei.theme.requested` / `.variables` and a `bonkei.frontmatter_warning` event (with `bonkei.warning.kind`) per bad theme name or variable; `bonkei.first_frame` carries `bonkei.theme`.
 
 **Consequences.** Adding a look is a preset plus, for a new capability, a token. Known limits (follow-ups outside this task): the toolbar and error card stay dark on cream; forms are flat cut-outs from low angles; round bowls need a layout change.
-
-## 2026-11-17 — Site name: Bonkei (BON-116)
-
-**Context.** BON-116's brief listed renaming the site from merman as out of scope, so the brand build kept "merman" on the site. The approved mockup and prototype call it Bonkei everywhere; BON-122 corrects the brief.
-
-**Decision.** The visible name of the site and the viewer is **Bonkei**: the nav, hero copy and footer (`Home`'s `name` default), the page titles and `og:title`, the viewer's title, the brand stories, and the GitHub links' target (the repository is `infinitedusky/bonkei`). The GitHub Pages base `/merman/` (site) and `/merman/app/` (viewer), `assemble-pages.mjs` and `pages.yml` stay until the domain is set; `og.png`, the poster and the stills are not re-shot. This supersedes the "site's copy, its page titles ... stay as they are" line of "Names (BON-50)" for the name only; the `/merman/` base it kept still stays.
-
-**Alternatives considered.** Renaming the base path in the same change: it moves the public address, which waits on the domain.
-
-**Consequences.** The site says Bonkei while its address is still `/merman/`; the OG image and stills may still show the old name until they are re-shot.
