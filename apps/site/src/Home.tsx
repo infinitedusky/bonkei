@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import sample from './sample.mmd?raw'
 import { Hero } from './Hero'
+import { Logo } from './Marks'
+import { Themes } from './Themes'
+// headings in Zen Old Mincho (SIL OFL), served with the site: the Latin subsets only
+import '@fontsource/zen-old-mincho/latin-400.css'
+import '@fontsource/zen-old-mincho/latin-700.css'
+import '@fontsource/zen-old-mincho/latin-900.css'
 import './site.css'
 
 const FIRST_ISSUES = [
@@ -12,7 +18,7 @@ const FIRST_ISSUES = [
 ]
 
 const BASE = import.meta.env.BASE_URL
-const GH = 'https://github.com/infinitedusky/merman'
+const GH = 'https://github.com/infinitedusky/bonkei'
 
 const Ctas = () => (
   <div className="site-ctas">
@@ -25,18 +31,22 @@ const Still = ({ src, alt }: { src: string; alt: string }) => (
   <img className="site-still" src={BASE + src} width={800} height={500} alt={alt} loading="lazy" />
 )
 
-// The marketing site's one page. `live`: true forces the live hero, false the poster, unset auto-detects.
-// Keep this file free of static imports of the scene (SceneView, camera, layout, three): Hero lazy-loads it.
-export function Home({ name = 'merman', live }: { name?: string; live?: boolean }) {
+// The marketing site's one page, in the brand drawn from the bonkei prints: cream paper, ink, serif headings, the
+// tray-landscape logo. The hero stays in the Classic look. `live`: true forces the live hero, false the poster, unset
+// auto-detects; `themesLive` the same for the Themes section's scene (unset: when it comes near the screen, with WebGL).
+// Keep this file free of static imports of the scene (SceneView, camera, layout, three): Hero and Themes lazy-load it.
+export function Home({ name = 'Bonkei', live, themesLive }: { name?: string; live?: boolean; themesLive?: boolean }) {
   const [showSrc, setShowSrc] = useState(false)
+  const [srcAll, setSrcAll] = useState(false) // phone: the source starts as a few lines
   return (
     <div className="site">
       <div className="site-wrap">
         <nav className="site-nav">
-          <a className="site-logo" href="#"><i />{name}</a>
+          <a className="site-logo" href="#"><Logo size={40} title={name} />{name}</a>
           <div className="site-links">
             <a href="#how">How it works</a>
             <a href="#views">Views</a>
+            <a href="#themes">Themes</a>
             <a href="#sequence">Sequence</a>
             <a href="#status">Status</a>
             <a className="gh" href={GH}>GitHub</a>
@@ -49,18 +59,24 @@ export function Home({ name = 'merman', live }: { name?: string; live?: boolean 
           <p className="site-sub">Paste the flowchart or sequence diagram you already have. {name} lays it out and shows it flat, isometric or in 3D, with nothing to redraw.</p>
           <Ctas />
           <div className="site-hint">Runs in your browser. Best on desktop.</div>
-          <Hero live={live} source={sample} onSource={() => { setShowSrc(true); document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' }) }} />
+          <div className="site-hero-stage">
+            <Hero live={live} source={sample} onSource={() => { setShowSrc(true); document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' }) }} />
+            <a className="site-try" href="#themes">try a theme ↓</a>
+          </div>
         </header>
 
         <div className="site-proof">
-          <span>flowcharts</span><span>·</span><span>sequence diagrams</span><span>·</span><span>Three.js + ELK</span><span>·</span><span>no account, no upload</span>
+          <span>flowcharts</span><span>·</span><span>sequence diagrams</span><span>·</span><span>themes</span><span>·</span><span>Three.js + ELK</span><span>·</span><span>no account, no upload</span>
         </div>
 
         <section id="how">
           <h2>Keep the text. Get the scene.</h2>
           <p className="site-lead">Your diagrams already live in READMEs and docs as Mermaid. You don't have to move them into a drawing tool: the same text becomes a 3D scene.</p>
           <div className={'site-split' + (showSrc ? ' flash' : '')}>
-            <pre>{sample.replace(/^%%.*\n/, '')}</pre>
+            <div className="site-src">
+              <pre className={srcAll ? '' : 'clamp'}>{sample.replace(/^%%.*\n/, '')}</pre>
+              <button type="button" className="site-srcmore" onClick={() => setSrcAll(v => !v)}>{srcAll ? 'Show less' : 'Show all'}</button>
+            </div>
             <Still src="still-iso.png" alt="The flowchart from the source beside it, rendered isometrically" />
           </div>
           <div className="site-note">Edit the source, and the scene re-lays itself out as you type.</div>
@@ -74,6 +90,12 @@ export function Home({ name = 'merman', live }: { name?: string; live?: boolean 
             <div className="site-card"><Still src="still-iso.png" alt="The flowchart seen isometrically, with subgraphs as trays" /><h3>Isometric</h3><p>Subgraphs become trays and nodes have depth, so you see the structure at a glance.</p></div>
             <div className="site-card"><Still src="still-3d.png" alt="The flowchart in perspective 3D" /><h3>3D</h3><p>Orbit, zoom and fly into a subgraph to walk through a big system.</p></div>
           </div>
+        </section>
+
+        <section id="themes">
+          <h2>Use themes to see how far you can go</h2>
+          <p className="site-lead">The same diagram, the same layout, a different world. Pick a built-in theme, or override one setting for one diagram. A diagram names its theme in its own frontmatter.</p>
+          <Themes live={themesLive} />
         </section>
 
         <section id="sequence">
@@ -109,6 +131,7 @@ export function Home({ name = 'merman', live }: { name?: string; live?: boolean 
         </section>
 
         <footer className="site-footer">
+          <Logo size={44} title={name} />
           <span>{name} · MIT</span><a href={GH}>GitHub</a><a href={GH + '/blob/main/CONTRIBUTING.md'}>Contributing</a>
           <span className="r">Built with Mermaid syntax, ELK and Three.js. Not affiliated with Mermaid.</span>
         </footer>

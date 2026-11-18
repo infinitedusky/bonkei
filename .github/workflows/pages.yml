@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   workflow_dispatch:
-  # MER-10: add push: { branches: [main] } to publish on merge
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,7 +12,9 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # Queued runs collapse to the latest, but a deploy that has started finishes
+  # rather than being cancelled halfway (as in GitHub's Pages starter workflow).
+  cancel-in-progress: false
 
 jobs:
   build:

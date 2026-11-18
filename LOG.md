@@ -186,6 +186,48 @@ The site's copy, its page titles and the `/merman/` Pages base stay as they are;
 
 **Consequences.** Blocks can sit up to 240 px off where ELK put them. While a node is dragged, a line still turns back if the drop leaves no direct route. The drag never slides other blocks, because they would jump under the pointer.
 
+## 2026-11-17 — Bonkei on bonkei.dev (BON-105)
+
+**Context.** The site is to go live on its own domain, bonkei.dev, served by GitHub Pages from the renamed infinitedusky/bonkei repository. The build still targeted the old Pages subpath (`/merman/` and `/merman/app/`), its link preview pointed at infinitedusky.github.io/merman/, and the page titles, the home page and the GitHub links still said merman. Served from the root of bonkei.dev, every asset URL would have 404ed.
+
+**Decision.**
+- The site serves at `/` and the viewer at `/app/` on bonkei.dev. Both apps build with those bases in every mode (dev, build and preview), so `apps/site/vite.config.ts` has `base: '/'` and `apps/playground/vite.config.ts` has `base: '/app/'`. The site's `/app` proxy to the viewer's dev server is for dev only; preview turns it off so it serves the built viewer from `dist/app/`.
+- The visible name is **Bonkei**: page titles, `og:title`, the home page's nav, hero and footer. Its links go to https://github.com/infinitedusky/bonkei. `VITE_SITE_URL` is `https://bonkei.dev/`, so `og:url` is `https://bonkei.dev/` and `og:image` is `https://bonkei.dev/og.png`.
+- The custom domain lives in the repository's Pages settings, because Actions-based Pages deploys ignore a CNAME file in the artifact. `apps/site/public/CNAME` (`bonkei.dev`) is shipped anyway, as a record of the domain in the repo and in case publishing ever switches to a branch.
+- `scripts/check-pages.mjs` runs at the end of the root `pnpm build` and guards the artifact: it fails the build, and so the deploy, if `dist/` mentions merman, a page points at a missing file, the bonkei.dev `og:url`/`og:image` or a Bonkei title is missing, or `dist/CNAME` is not `bonkei.dev`.
+- `.github/workflows/pages.yml` runs on every push to main and on `workflow_dispatch`, with `concurrency.cancel-in-progress: false` so a deploy that has started finishes and queued runs collapse to the latest.
+
+This supersedes the 'Names (BON-50)' entry's choice to keep the site's copy, its page titles and the `/merman/` base, and the `/merman/` and `/merman/app/` bases set in 'The Pages artifact and the dev proxy (BON-50)'.
+
+**Alternatives considered.**
+- Keep the `/merman/` subpath and redirect the domain's root to it: the old name would stay in every public URL, and a static Pages site can only redirect with a meta-refresh page.
+- Set the base through an environment variable: one site, one domain, so a variable only adds a way to build a wrong artifact; the check would still be needed.
+- Filter the push trigger by path (deploy only when the apps change): the brief asks for every merge to main to publish.
+
+**Consequences.** The old infinitedusky.github.io/merman/ URLs stop working. Internal names still say merman: the Storybook flow `merman.flow.json`, the dev-only capture page (`apps/site/dev/capture.html`) and `sketches/`. None of them reach `dist/`.
+
+## 2026-11-17 — Themes: Classic, Bonkei, Bonkei · landscape, and the brand home (BON-117)
+
+**Context.** BON-116 gives Bonkei its own look, drawn from Utagawa Yoshishige's 1848 tray-landscape prints: a logo, a home page in the brand, and two themes the library draws per diagram. Classic must not change by a pixel. A prototype (`prototype/bonkei-themes-in-the-real-engine-tpvd`) proved the engine side; this is the real build of it.
+
+**Decisions.**
+- **A theme is data** (`theme.ts`, plain TS): one typed, JSON-serialisable `Theme` (ground, light, node, tray, label, ink, edge, seq). The scene reads tokens only (`look.tsx`: `ThemeProvider`, `Mat`, `Ink`, `PlateText`, canvas-drawn tray patterns and paper grain, landscape forms); nothing in scene code names a theme. Classic holds the colours that were in `palette.ts` `SCENE` (removed). *Turned down:* a component set per theme, which would fork the scene and is what BON-32 rules out.
+- **Picked per diagram, Mermaid's way**: `config.theme` and `config.themeVariables` in the frontmatter (outside `config.bonkei`, where Mermaid keeps them), or the `theme` prop (a name or a whole `Theme`), which wins over the frontmatter name; the frontmatter's variables apply on top of either. `resolveTheme()` is that rule, pure and tested. *Turned down:* variables in props too (one way to override per diagram is enough for now; BON-32 owns the editor).
+- **Variables are checked**: a dotted path (`edge.flat`, `tray.colors.0`, or nested maps) must exist, keep the token's type (a nullable token takes null or the type the presets give it), and, for word tokens (`node.form`, `tray.sides.#`, ...), be one of the words. A bad one is skipped and warned (`kind: 'theme'`, with its frontmatter line). An unknown name draws in Classic and warns (line 0 when it came from the prop). *Turned down:* failing the diagram, which would punish a typo in a look.
+- **Presets are frozen** and exported (`CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE`, `THEME_NAMES`, type `Theme`): new public names. Frozen because every diagram on a page shares them; copy to edit.
+- **A new look remounts the scene under the canvas** (keyed by the whole token object): the ink pass rescales line widths in place, and only a remount gives each line its token width back. The camera and the first-frame fit stay outside the keyed subtree, so the view keeps its place; drags made before a theme switch are dropped.
+- **Ink follows the drawing's scale** (`ink: { ref, min }`, Classic `ref: null` = fixed widths): outline, edge and silhouette widths, cartouche borders and the landscape forms' strokes (re-rasterised in quarter-octave steps) all use `inkPx`, so the ink reads the same on a phone and a desktop.
+- **Landscape forms are billboarded SVG cut-outs** on a raised plinth (the node's footprint, a step darker than what it stands on). Lines dock at the plinth's mid-height. Forms write no depth and paint back to front, and landscape label plates join the transparent pass after them, so a label is never hidden behind another node's form (seen in 3D on the mockup sample: Cache's bonsai covered Postgres's label). *Turned down:* modelled meshes (more faithful from low angles, much more work per form).
+- **Tray titles go to a free corner** (`tray.titles: 'free'`, Classic `fixed`): the first corner no node or child tray (grown by a form's overhang) covers, kept while it stays free so it does not jump during a drag (`titles.ts`).
+- **A tight fit frames what the view shows** (`fit="tight"`): the top-level boxes' corners, on the ground and at the tallest form, projected on the screen's axes, and the camera centred on them (`projectedFit`). The prototype framed the bounding rectangle turned by the yaw, which left a diagonal diagram small in a wide frame (the Themes section at 1280 px). Only with `tight` and only for the whole diagram; flying into a tray and the default fit are unchanged. `minLabelPx` opens a phone on the largest tray with readable labels; `fit()` shows the whole.
+- **The home page is `Home.tsx` in the brand**, not a copy beside it: cream paper, ink, Zen Old Mincho headings (`@fontsource/zen-old-mincho`, Latin subsets, served with the site instead of the prototype's Google Fonts request), the logo in nav and footer, the small mark as favicon (site and viewer), every section kept, the hero still Classic and its poster unchanged, and a Themes section after Views. The site's name stays merman (renaming is out of scope). The Themes section's scene is a lazy chunk (`ThemesScene.tsx`) mounted when the section comes near the screen, so the first paint and phones never wait for it; without WebGL 2 it says so.
+
+**Measured.** Classic: 0 differing pixels (exact, no fuzz) against the branch base in flat, iso and 3D on the playground's first sample, canvas only. 60 fps with the Bonkei themes on the large sample on the person's machine (prototype). Tests: `theme.test.ts`, `titles.test.ts`, camera (tight, projected, minLabel), options and diagram (theme request, warnings, span attributes), `flatLine`.
+
+**Telemetry.** New `bonkei.theme` span per look drawn (`bonkei.theme`, `.source` prop/frontmatter/default, `.requested`, `.variables`, `.unknown`); `bonkei.prepare` carries `bonkei.theme.requested` / `.variables` and a `bonkei.frontmatter_warning` event (with `bonkei.warning.kind`) per bad theme name or variable; `bonkei.first_frame` carries `bonkei.theme`.
+
+**Consequences.** Adding a look is a preset plus, for a new capability, a token. Known limits (follow-ups outside this task): the toolbar and error card stay dark on cream; forms are flat cut-outs from low angles; round bowls need a layout change.
+
 ## 2026-11-17 — Bonkei as an installable package (BON-52)
 
 **Context.** `bonkei` was consumed only as source inside this workspace ("Source consumption (BON-50)"), on React 18, with ELK in the main import and `@opentelemetry/api` as a peer. People should be able to `npm install` it into a current React app and have it work, and a reviewer should be able to try each PR the way a user would.

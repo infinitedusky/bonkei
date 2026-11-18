@@ -81,6 +81,9 @@ Props of `<Bonkei />`, and the options of `render(element, source, options)`:
 | `controls` | `boolean \| { zoom?, pan?, move?, drillIn? }` | `true` | The reader's controls: all on, all off, or per control (one left out is on). |
 | `crossings` | `'none' \| 'bridge' \| 'tunnel' \| 'portal'` | `'none'` | How a line gets past another where two cross: not at all (they cross flat), a hop over it, an open trough under it, or a pair of portals. The toolbar switches it, and the diagram redraws at once. |
 | `avoidCrossings` | `'off' \| 'some' \| 'strong'` | `'some'` | How hard lines avoid crossing each other. `some` keeps every line on its most direct route; `strong` lets a line take a short sideways jog to cross fewer lines. The toolbar switches it, and the lines are routed again at once. |
+| `theme` | `string \| Theme` | from the frontmatter, else `'classic'` | The look: `'classic'`, `'bonkei'` or `'bonkei-landscape'` (`THEME_NAMES`), or a whole `Theme` object (copy one of `CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE` and change it). Wins over the frontmatter's `config.theme`. An unknown name draws in Classic and warns. |
+| `fit` | `'default' \| 'tight'` | `'default'` | `tight` frames what the view really shows (the diagram's boxes as the camera sees them) with a small margin, centres it, and frames it again when the container changes size. |
+| `minLabelPx` | `number` | `0` | When showing the whole diagram would make node labels smaller than this many pixels (a phone), open zoomed in on the largest tray instead. `fit()` still shows everything. |
 | `onError` | `(error: BonkeiError) => void` | | Nothing could be drawn. |
 | `onWarning` | `(warning: BonkeiWarning) => void` | | Something was skipped; the diagram still draws. |
 | `onModeChange` | `(mode: Mode, change: { source }) => void` | | The view moved to another mode. |
@@ -92,7 +95,7 @@ How lines are drawn (flowcharts): every line meets a node at the middle of one o
 What the callbacks mean:
 
 - **`onError` fires only when nothing could be drawn**: once per failure, with `kind` `parse` (no node or participant could be read; `line` names the first unreadable line), `graph` (a hand-built graph with no nodes or an edge to an unknown id), `layout` (the layout failed) or `render` (drawing failed, e.g. no WebGL). The diagram shows an inline message instead; nothing is thrown. A failed update keeps the last diagram and shows a strip. `isBonkeiError(x)` tells a `BonkeiError` from anything else.
-- **`onWarning` fires once per dropped line or bad frontmatter key, and the diagram still draws.** `kind` is `dropped` (with the reason, e.g. `not supported yet`) or `frontmatter`; `line` counts the source as you wrote it, frontmatter included.
+- **`onWarning` fires once per dropped line, bad frontmatter key, unknown theme or bad theme variable, and the diagram still draws.** `kind` is `dropped` (with the reason, e.g. `not supported yet`), `frontmatter` or `theme` (`line` 0 when the name came from the `theme` prop); `line` counts the source as you wrote it, frontmatter included.
 - `onReady({ layoutMs, nodes, edges, dropped })` fires once per new source, after its first frame is drawn, already framed. `layoutMs` is layout time only (not parsing, not drawing).
 - `onModeChange(mode, { source })` reports where the change came from: `toolbar`, `handle` (`setMode()`) or `prop` (a changed `mode`). The first view is not a change.
 - `onNodeClick({ id, label, kind })` fires for nodes, groups and sequence participants (`kind`: `node`, `group`, `participant`), on a click rather than a drag, whatever `controls` say.
@@ -115,6 +118,30 @@ flowchart TD
   A --> B
 ```
 
+### Themes
+
+A theme is the diagram's whole look as data: colours, light, materials, outlines, tray sides, label plates and lines (`Theme`, JSON). Three come built in:
+
+- **Classic** (`classic`, the default): the dark scene Bonkei has always drawn.
+- **Bonkei** (`bonkei`): drawn from the 1848 tray-landscape prints. Cream paper ground, ink outlines, flat washes, tray sides patterned by how deep they are nested, labels on plaques, and lines in ink that keep their steps, tunnels, portals and arrowheads.
+- **Bonkei · landscape** (`bonkei-landscape`): Bonkei, with every node a house, bonsai, rock or peak (by shape) on a raised plinth in its footprint, its label in front.
+
+A diagram names its theme in its frontmatter, Mermaid's way, and can override single settings for itself alone with `themeVariables` (dotted token paths, or nested maps):
+
+```mermaid
+---
+config:
+  theme: bonkei
+  themeVariables:
+    edge.flat: true        # lines lie on the surface under them
+    tray.colors.0: "#e9dfc6"
+---
+flowchart LR
+  A --> B
+```
+
+Or pass `theme` to the component (`<Bonkei source={src} theme="bonkei-landscape" />`); it wins over the frontmatter's name, and the frontmatter's `themeVariables` still apply on top. A name nobody knows, a variable that does not exist, or a value of the wrong type or not one of a token's words (`node.form: castle`), or a negative number draws in Classic or skips that variable, and goes to `onWarning` with `kind: 'theme'`. The built-in themes are frozen; to make your own, copy one (`{ ...BONKEI, edge: { ...BONKEI.edge, color: '#333' } }`) and pass it as `theme`. In the Bonkei themes the ink follows the drawing's scale (`ink`), so outlines, patterns and labels stay in proportion from a phone to a desktop.
+
 A `Graph` works as a source too. `direction` and `groups` are optional (they default to `TD` and none), and an inline object is fine: it is compared by content, so re-creating it on every render does not lay it out again.
 
 ```tsx
@@ -126,7 +153,7 @@ A `Graph` works as a source too. `direction` and `groups` are optional (they def
 
 Sizing: Bonkei fills its container (`width: 100%; height: 100%`). Give the container a height; one with no height draws nothing and `onReady` does not fire. The root carries `data-bonkei="loading|ready|error"` for styling and tests.
 
-Telemetry: Bonkei emits OpenTelemetry spans through `@opentelemetry/api` when the page registers an SDK, and does nothing otherwise. The spans are `bonkei.prepare` (with a `bonkei.layout` child; under it `bonkei.elk.load` on the first layout and `bonkei.route`, with `bonkei.wasm.load` and its `bonkei.wasm.fallback` event when the inline copy was used), `bonkei.first_frame`, `bonkei.mode_change`, `bonkei.node_click`, `bonkei.control` and `bonkei.render_error`.
+Telemetry: Bonkei emits OpenTelemetry spans through `@opentelemetry/api` when the page registers an SDK, and does nothing otherwise. The spans are `bonkei.prepare` (with a `bonkei.layout` child; under it `bonkei.elk.load` on the first layout and `bonkei.route`, with `bonkei.wasm.load` and its `bonkei.wasm.fallback` event when the inline copy was used; `bonkei.theme.requested` when the frontmatter names a theme, and a `bonkei.frontmatter_warning` event per warning with its `bonkei.warning.kind`), `bonkei.theme` (each look a diagram is drawn in: the theme, where it came from, how many variables, and `bonkei.theme.unknown`), `bonkei.first_frame` (with `bonkei.theme`), `bonkei.mode_change`, `bonkei.node_click`, `bonkei.control` and `bonkei.render_error`.
 
 ## Packages
 
@@ -142,11 +169,11 @@ Both apps import the engine only through its public `bonkei` exports (stories ma
 ```bash
 pnpm install
 pnpm dev          # core rebuilt on save (tsdown --watch) + both apps: site at http://localhost:5173/, viewer at /app/, script-tag page at /app/embed/
-pnpm build        # build core, type-check everything, build both apps, assemble dist/ (site) + dist/app/ (viewer)
+pnpm build        # build core, type-check everything, build both apps, assemble dist/ (site) + dist/app/ (viewer), check it
 pnpm check:package # build core, then publint, are-the-types-wrong and the dist checks
 pnpm size         # build core, then the size budget (packages/core/.size-limit.mjs)
 pnpm smoke        # after building core: pack it, install into a clean examples/vite, draw under vite dev and preview, then the script-tag page
-pnpm preview      # serve the assembled dist/ under /merman/
+pnpm preview      # serve the assembled dist/ at /
 pnpm storybook    # stories: node shape, subgraph, full sample, sequence, site screens
 pnpm capture      # regenerate apps/site/public/*.png from the real scene (needs Chrome; CHROME_PATH to override)
 pnpm test         # unit tests: parser, options, prepare, camera, controls
@@ -154,9 +181,9 @@ pnpm test         # unit tests: parser, options, prepare, camera, controls
 
 In dev, the viewer's plain page at http://localhost:5173/app/plain.html drives `render()` and its handle on a page with no React of its own.
 
-Public site: https://infinitedusky.github.io/merman/ (live after the first deploy). It deploys to GitHub Pages through `.github/workflows/pages.yml`. For now that workflow runs only when started by hand (`workflow_dispatch`), so merging to main publishes nothing.
+Public site: https://bonkei.dev/ (viewer at https://bonkei.dev/app/). It deploys to GitHub Pages through `.github/workflows/pages.yml`. Every push to main deploys; the workflow can still be run by hand from the Actions tab (`workflow_dispatch`). The custom domain is set once in the repository's Settings → Pages (source: GitHub Actions).
 
-Two Vite apps, one Pages artifact: `apps/site` is the marketing site (`index.html`, code in `apps/site/src/`), and `apps/playground` is the viewer (`index.html`, `apps/playground/src/main.tsx`). `pnpm build` builds both and `scripts/assemble-pages.mjs` puts the site at `dist/` and the viewer at `dist/app/`; builds and `pnpm preview` serve them under `/merman/`. In dev they are served under `/`: the site's dev server proxies `/app` to the viewer's own server.
+Two Vite apps, one Pages artifact: `apps/site` is the marketing site (`index.html`, code in `apps/site/src/`), and `apps/playground` is the viewer (`index.html`, `apps/playground/src/main.tsx`). `pnpm build` builds both and `scripts/assemble-pages.mjs` puts the site at `dist/` and the viewer at `dist/app/`; builds, `pnpm preview` and dev serve the site at `/` and the viewer at `/app/` (in dev the site's dev server proxies `/app` to the viewer's own server). `pnpm build` ends with `scripts/check-pages.mjs`, which fails the build (and so the deploy) if anything in `dist/` mentions merman, if a page points at a file that is not in `dist/`, if `dist/index.html` lacks the `https://bonkei.dev/` `og:url` and `og:image` or a Bonkei title, if the viewer's title does not say Bonkei, or if `dist/CNAME` is not `bonkei.dev`.
 
 Stack: Vite, React, react-three-fiber, drei (troika text), elkjs. Parser, ELK layout (`packages/core/src/layout.ts`, swappable behind `layout(graph)`) and sequence layout (`packages/core/src/seq.ts`) are our own.
 

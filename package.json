@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.12.4",
   "scripts": {
     "dev": "pnpm --filter bonkei build && pnpm --parallel --filter bonkei --filter \"./apps/*\" dev",
-    "build": "pnpm --filter bonkei build && pnpm -r typecheck && pnpm --filter \"./apps/*\" build && node scripts/assemble-pages.mjs",
+    "build": "pnpm --filter bonkei build && pnpm -r typecheck && pnpm --filter \"./apps/*\" build && node scripts/assemble-pages.mjs && node scripts/check-pages.mjs",
     "preview": "pnpm --filter @bonkei/site exec vite preview --outDir ../../dist",
     "storybook": "pnpm --filter bonkei build && pnpm --filter @bonkei/playground storybook",
     "capture": "pnpm --filter @bonkei/site capture",
