@@ -11,6 +11,7 @@
 //  - at 390, 820 and 1024 px nothing scrolls sideways and every diagram fits the width; at 390 the nav folds into a menu and a touch
 //    drag turns a diagram
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { chromium } from 'playwright'
 
@@ -44,8 +45,10 @@ const edge = mdPages.find(([e]) => e.md.endsWith('/guide/edge-styles.md'))?.[1].
 ok('agents: the Edge styles .md has its diagrams as mermaid fences and no HTML chrome', (edge.match(/```mermaid/g) ?? []).length >= 13 && !/<nav|<header|<script|<aside|<Bonkei(Live|Playground)|<Copy/.test(edge.replace(/^(`{3,})[^\n]*\n[\s\S]*?^\1$/gm, '')))
 // every export of the installed package, read from its types: each has a page in llms-full.txt with its signature (a declaration block, or an
 // interface's property table) and its description
-const dts = fs.readFileSync(path.join(root, 'docs/node_modules/bonkei/dist/index.d.ts'), 'utf8')
-const EXPORTS = [...dts.matchAll(/^export \{([^}]*)\}/gm)].flatMap(m => m[1].split(',')).map(s => s.trim().replace(/^type\s+/, '').split(/\s+as\s+/).pop()).filter(Boolean)
+const ts = createRequire(path.join(root, 'docs/package.json'))('typescript')
+const dts = path.join(root, 'docs/node_modules/bonkei/dist/index.d.ts')
+const program = ts.createProgram([dts], { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, target: ts.ScriptTarget.ES2022, skipLibCheck: true, jsx: ts.JsxEmit.ReactJSX })
+const EXPORTS = program.getTypeChecker().getExportsOfModule(program.getTypeChecker().getSymbolAtLocation(program.getSourceFile(dts))).map(e => e.name)
 const section = n => { const m = new RegExp(`^# (Function|Variable|Interface|Type Alias): ${n}(\\(\\))?$([\\s\\S]*?)(?=^# |^---$|(?![\\s\\S]))`, 'm').exec(full.body); return m?.[3] ?? '' }
 const missing = EXPORTS.filter(n => { const s = section(n); const description = s.replace(/```[\s\S]*?```/g, '').split('\n').map(l => l.trim()).find(l => l && !/^(#|\||---)/.test(l)); return !(/```ts/.test(s) || /^## Properties\n\n\|/m.test(s)) || !description })
 ok('agents: every public export has its signature and description in llms-full.txt', EXPORTS.length >= 29 && missing.length === 0, missing.join(', ') || `${EXPORTS.length} exports`)
@@ -151,7 +154,12 @@ for (const u of pageUrls) {
     const s = (await spans(page)).filter(s => s.name === 'bonkei.docs.playground.edit')
     ok(`telemetry ${u}: each playground edit is a bonkei.docs.playground.edit span, the broken one with status ERROR`, s.length === 2 && s[0].status !== 2 && s[0].ended && s[0].attributes['bonkei.nodes'] === 3 && s[1].status === 2 && /parse|line/i.test(s[1].message), JSON.stringify(s.map(x => [x.status, x.message])))
   }
-  if (u === '/docs/') await copyPage(page, u, 'home')
+  if (u === '/docs/') {
+    const cards = await page.locator('.VPFeature').allInnerTexts()
+    const want = ['<Bonkei />', 'render(element, source)', '<bonkei-diagram>', 'mermaid fences']
+    ok('home: the four cards say what each way in is, whole', cards.length === 4 && want.every((w, i) => cards[i]?.includes(w)), JSON.stringify(cards))
+    await copyPage(page, u, 'home')
+  }
   if (u.endsWith('/guide/edge-styles')) await copyPage(page, u, 'Edge styles')
   if (u.endsWith('/guide/script-tag')) {
     const s = (await spans(page)).filter(s => s.name === 'bonkei.docs.script_tag.load')
