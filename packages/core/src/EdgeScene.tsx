@@ -90,13 +90,17 @@ export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: 
   const wall = useMemo(() => new THREE.Color(color).multiplyScalar(0.55), [color])
   const floor = useMemo(() => new THREE.Color(color).multiplyScalar(0.3), [color])
   const rim = useMemo(() => new THREE.Color(color).multiplyScalar(0.2), [color])
+  // an LED track where the floor meets the walls: a bright core, a soft halo round it, and a warm wash on the walls, so the trench reads against the surface
+  const ledPts = useMemo(() => shape.getPoints(16).map(p => [p.x, top - slot.depth + 0.015, -p.y] as [number, number, number]), [shape, top, slot.depth])
   const hidden = useMemo(() => new THREE.MeshBasicMaterial({ visible: false }), [])
-  const wallMat = useMemo(() => new THREE.MeshStandardMaterial({ color: wall, side: THREE.DoubleSide, roughness: 1 }), [wall])
+  const wallMat = useMemo(() => new THREE.MeshStandardMaterial({ color: wall, side: THREE.DoubleSide, roughness: 1, emissive: '#ffb55a', emissiveIntensity: 0.3 }), [wall])
   return (
     <>
       <mesh geometry={walls} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow material={[hidden, wallMat]} />
       <mesh geometry={flat} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow><meshStandardMaterial color={floor} roughness={1} /></mesh>
       <Line points={[...outline, outline[0]]} color={th.edge.rim ?? rim} lineWidth={th.edge.rimWidth} />
+      <Line points={[...ledPts, ledPts[0]]} color="#ffc873" lineWidth={11} transparent opacity={0.28} depthWrite={false} />
+      <Line points={[...ledPts, ledPts[0]]} color="#ffe2b0" lineWidth={3.5} />
     </>
   )
 }
