@@ -5,6 +5,7 @@ import type { Shape } from './model.ts'
 export type Pattern = 'plain' | 'hishi' | 'flower' | 'stone'
 export interface Plate { style: 'plain' | 'cartouche'; text: string; plate: string; border: string }
 
+/** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
 export interface Theme {
   name: string
   ground: {
@@ -55,6 +56,7 @@ function deepFreeze<T>(o: T): T {
   return o
 }
 
+/** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const CLASSIC: Theme = deepFreeze({
   name: 'classic',
   ground: { bg: '#0f1218', grid: ['#1d2433', '#161c28'], grain: 0, lit: true },
@@ -80,6 +82,7 @@ export const CLASSIC: Theme = deepFreeze({
   seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 })
 
+/** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const BONKEI: Theme = deepFreeze({
   name: 'bonkei',
   ground: { bg: '#EFE6D0', grid: null, grain: 0.25, lit: false },
@@ -106,10 +109,12 @@ export const BONKEI: Theme = deepFreeze({
 })
 
 // Bonkei with a landscape form standing on each node's footprint, and its label pulled in front of the form.
+/** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const BONKEI_LANDSCAPE: Theme = deepFreeze({ ...BONKEI, name: 'bonkei-landscape', node: { ...BONKEI.node, form: 'landscape' }, label: { ...BONKEI.label, toward: 0.7 } })
 
 /** The built-in themes by the name a diagram or the `theme` prop uses. */
 export const PRESETS: Readonly<Record<string, Theme>> = Object.freeze({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE })
+/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape. */
 export const THEME_NAMES = Object.keys(PRESETS)
 
 // Tokens that take one of a few words. A path segment `#` stands for any array index.

@@ -22,6 +22,7 @@ export type PrepareError = BonkeiError & { warnings: BonkeiWarning[] }
 
 const ERROR_KINDS: readonly BonkeiError['kind'][] = ['parse', 'layout', 'graph', 'render']
 
+/** Tells a BonkeiError from any other thrown value. */
 export function isBonkeiError(x: unknown): x is BonkeiError {
   return typeof x === 'object' && x !== null
     && typeof (x as BonkeiError).message === 'string'

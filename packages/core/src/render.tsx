@@ -6,6 +6,7 @@ import type { Mode } from './camera'
 import type { GraphInput } from './model'
 import type { BonkeiOptions } from './options'
 
+/** The handle render() returns: update(source), setMode(), destroy(). */
 export interface BonkeiHandle extends BonkeiViewHandle {
   /** Draw a new source in the same view (same camera). A failed update keeps the last diagram. */
   update(source: string | GraphInput): void

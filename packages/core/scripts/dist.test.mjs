@@ -88,3 +88,19 @@ test('the tarball holds dist and nothing from src', () => {
   assert.deepEqual(pkg.files, ['dist'])
   assert.ok(!esm.some(f => f.endsWith('.ts') && !f.endsWith('.d.ts')))
 })
+
+// BON-178: the docs' API reference and llms-full.txt read each export's description from dist/index.d.ts. tsdown drops a /** */ written
+// on an `export { X } from` line, so the comment must sit on the declaration itself; this fails for an export that has none.
+test('every public export carries its description (JSDoc) in dist/index.d.ts', async () => {
+  const { default: ts } = await import('typescript')
+  const file = new URL('index.d.ts', dist).pathname
+  const program = ts.createProgram([file], { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, target: ts.ScriptTarget.ES2022, skipLibCheck: true, jsx: ts.JsxEmit.ReactJSX })
+  const checker = program.getTypeChecker()
+  const exports = checker.getExportsOfModule(checker.getSymbolAtLocation(program.getSourceFile(file)))
+  assert.ok(exports.length >= 29, `${exports.length} exports`)
+  const bare = exports.filter(e => {
+    const s = e.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(e) : e
+    return !ts.displayPartsToString(s.getDocumentationComment(checker)).trim()
+  }).map(e => e.name)
+  assert.deepEqual(bare, [], `exports without a description: ${bare.join(', ')}`)
+})
