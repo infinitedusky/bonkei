@@ -1,4 +1,5 @@
-// Smoke test (BON-52): a static HTML page, no build step, loading only the global bundle (and the wasm beside it).
+// Smoke test (BON-52): a static HTML page, no build step, loading only the global bundle (and the wasm and fonts/ beside it).
+// It draws two diagrams, the default look and the Bonkei theme, whose font must be fetched from fonts/ with status 200 (BON-159).
 // Second pass: the same page with libavoid.wasm missing still draws, with ELK's routes and routingError saying why.
 // Run after `pnpm --filter bonkei build`. `node scripts/smoke/script-tag.mjs <dir>` serves an existing folder instead.
 import fs from 'node:fs'
@@ -13,10 +14,11 @@ const page = (withWasm) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bonkei-tag-'))
   fs.copyFileSync(path.join(dist, 'bonkei.global.js'), path.join(dir, 'bonkei.global.js'))
   if (withWasm) fs.copyFileSync(path.join(dist, 'libavoid.wasm'), path.join(dir, 'libavoid.wasm'))
+  fs.cpSync(path.join(dist, 'fonts'), path.join(dir, 'fonts'), { recursive: true })
   fs.copyFileSync(path.join(root, 'scripts/smoke/script-tag.html'), path.join(dir, 'index.html'))
   return dir
 }
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm' }
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.ttf': 'font/ttf' }
 async function serve(dir, run) {
   const port = await freePort()
   const server = http.createServer((q, r) => {

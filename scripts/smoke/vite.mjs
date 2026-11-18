@@ -1,7 +1,8 @@
 // Smoke test (BON-52): pack bonkei, install the tarball into a clean copy of examples/vite (what `npm create vite` gives a new user,
 // plus bonkei and three), draw a diagram and check libavoid routed it, under `vite dev` and under `vite build` + `vite preview`.
 // Two passes: the example as committed (current Vite), then the same app pinned to Vite 5 + plugin-react 4, where dev pre-bundling
-// hides the wasm file and bonkei falls back to its inlined chunk. Run after `pnpm --filter bonkei build`.
+// hides the wasm file and bonkei falls back to its inlined chunk, and hides the font file (labels in drei's default font). The app draws the default look and the Bonkei theme; the theme's
+// font file must be fetched with status 200 (BON-159). Run after `pnpm --filter bonkei build`.
 import { execSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -29,14 +30,15 @@ const serve = async (app, args) => {
   p.kill('SIGTERM')
   throw new Error(`vite ${args[0]} did not start`)
 }
-const run = async (app, args, label, shot) => {
+const run = async (app, args, label, shot, font) => {
   const { p, url } = await serve(app, args)
-  try { return await check(url, { label, shot }) } finally { p.kill('SIGTERM') }
+  try { return await check(url, { label, shot, font }) } finally { p.kill('SIGTERM') }
 }
 
 const variants = [
-  { name: 'current vite', pin: null },
-  { name: 'vite 5', pin: 'vite@5 @vitejs/plugin-react@4' },
+  { name: 'current vite', pin: null, devFont: 'file' },
+  // Vite 5 dev answers the moved font URL (.vite/deps/fonts/…) with 200 and an HTML page: the labels use drei's default font, with a warning
+  { name: 'vite 5', pin: 'vite@5 @vitejs/plugin-react@4', devFont: 'fallback' },
 ]
 const summary = []
 for (const v of variants) {
@@ -64,7 +66,7 @@ for (const v of variants) {
     try { console.log(sh('npx tsc -b', app) || 'tsc passed') } catch (e) { fail(e.stdout || e.message) }
   }
 
-  const dev = await run(app, ['dev'], `${v.name} dev`, path.join(tmp, `${slug}-dev.png`))
+  const dev = await run(app, ['dev'], `${v.name} dev`, path.join(tmp, `${slug}-dev.png`), v.devFont)
   console.log('--- vite build')
   const built = sh(`node node_modules/vite/bin/vite.js build`, app)
   console.log(built.split('\n').filter(l => /dist\//.test(l)).join('\n'))
@@ -74,8 +76,11 @@ for (const v of variants) {
   const entry = assets.filter(f => /^index-.*\.js$/.test(f))
   if (elk.length !== 1) fail(`expected one ELK chunk in the build, found: ${elk}`)
   for (const f of entry) if (fs.readFileSync(path.join(app, 'dist/assets', f), 'utf8').includes('org.eclipse.elk.')) fail(`ELK code inside the entry chunk ${f}`)
-  const prod = await run(app, ['preview'], `${v.name} preview`, path.join(tmp, `${slug}-build.png`))
-  summary.push(`${v.name}: dev wasm via ${dev.wasmSource}, build wasm via ${prod.wasmSource}`)
+  // the font is an asset file of its own in the build, not inlined into a chunk
+  if (!assets.some(f => /^ZenOldMincho-Bold-latin-.*\.ttf$/.test(f))) fail(`no font asset in the build: ${assets}`)
+  const prod = await run(app, ['preview'], `${v.name} preview`, path.join(tmp, `${slug}-build.png`), 'file')
+  const fontVia = r => r.fontWarnings.length ? 'default font (file not found)' : `file (${r.fontResponses.map(x => x.status).join(',')})`
+  summary.push(`${v.name}: dev wasm via ${dev.wasmSource}, font via ${fontVia(dev)}; build wasm via ${prod.wasmSource}, font via ${fontVia(prod)}`)
 }
-console.log('\nwasm path taken:\n  ' + summary.join('\n  '))
+console.log('\nwasm and font path taken:\n  ' + summary.join('\n  '))
 console.log('screenshots in', tmp)

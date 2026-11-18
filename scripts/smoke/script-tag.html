@@ -1,22 +1,40 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Bonkei by script tag</title>
-<style>html,body{margin:0;height:100%;background:#0a0a0f}#d{position:fixed;inset:0}
-#s{position:fixed;left:8px;bottom:8px;margin:0;color:#7f8aa3;font:11px ui-monospace,monospace;pointer-events:none}</style></head>
+<style>html,body{margin:0;height:100%;background:#0a0a0f}#d,#b{position:fixed;left:0;right:0;height:50%}#d{top:0}#b{bottom:0}
+#s{position:fixed;left:8px;bottom:8px;margin:0;color:#7f8aa3;font:11px ui-monospace,monospace;pointer-events:none;white-space:pre}</style></head>
 <body>
 <div id="d"></div>
+<div id="b"></div>
 <pre id="s">sample data: a made-up client / API / database flow · routing…</pre>
 <script src="bonkei.global.js"></script>
 <script>
-  // window.__stats / __error are what the smoke test reads; #s shows the same to a person.
+  // Two diagrams of the same sample: the default look (top) and the Bonkei theme (bottom), whose labels use the font in fonts/
+  // beside the script. window.__diagrams / __error are what the smoke test reads; #s shows the same to a person.
   var s = document.getElementById('s')
-  Bonkei.render(document.getElementById('d'), 'flowchart TD\n  A[Client] --> B[API]\n  B --> C[(Database)]\n  B --> D{Cache}\n  D --> C', {
-    onEdgeStats: function (st) {
-      window.__stats = st
-      s.textContent = 'sample data: a made-up client / API / database flow\n' + (st.routingError
+  var source = 'flowchart TD\n  A[Client] --> B[API]\n  B --> C[(Database)]\n  B --> D{Cache}\n  D --> C'
+  var all = window.__diagrams = {}
+  function show() {
+    var lines = ['sample data: a made-up client / API / database flow']
+    for (var name in all) {
+      var d = all[name], st = d.stats
+      lines.push(name + ': ' + (!st ? 'routing…' : st.routingError
         ? 'libavoid did not load, ELK routes shown: ' + st.routingError
-        : 'libavoid routed the lines in ' + st.routerBuildMs.toFixed(1) + ' ms')
-    },
-    onError: function (e) { window.__error = e.message; s.textContent = 'error: ' + e.message }
-  })
+        : 'libavoid routed the lines in ' + st.routerBuildMs.toFixed(1) + ' ms') + (d.warnings.length ? ' · ' + d.warnings.join('; ') : ''))
+    }
+    s.textContent = lines.join('\n')
+  }
+  function options(name, extra) {
+    var d = all[name] = { stats: null, ready: false, warnings: [] }
+    var o = {
+      onEdgeStats: function (st) { d.stats = st; show() },
+      onReady: function () { d.ready = true },
+      onWarning: function (w) { d.warnings.push(w.message); show() },
+      onError: function (e) { window.__error = name + ': ' + e.message; s.textContent = 'error: ' + e.message }
+    }
+    for (var k in extra) o[k] = extra[k]
+    return o
+  }
+  Bonkei.render(document.getElementById('d'), source, options('default', {}))
+  Bonkei.render(document.getElementById('b'), source, options('bonkei', { theme: 'bonkei' }))
 </script>
 </body></html>
