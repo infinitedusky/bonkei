@@ -11,7 +11,8 @@ export const ELEMENT_NAME = 'bonkei-diagram'
 /**
  * <bonkei-diagram mode="iso" theme="bonkei" height="600">flowchart TD …</bonkei-diagram>
  * The text is the source (read once, dedented, then cleared). `mode` and `theme` map to the options, `height` sets the box;
- * with no height the element keeps a stylesheet's height, or gets DEFAULT_HEIGHT if it has none. It is display:block.
+ * with no height the element keeps a stylesheet's height, or gets DEFAULT_HEIGHT if it has none. It is display:block unless the
+ * page's CSS gives it a display. The script may load in <head>: the source is then read once the page is parsed.
  * Fires `bonkei-ready` and `bonkei-error` (detail: what onReady / onError receive). Removed from the page, it destroys its view;
  * put back (or moved), it draws again from the same source.
  */
@@ -20,10 +21,22 @@ const makeElement = () => class BonkeiDiagramElement extends HTMLElement {
   static observedAttributes = ['mode', 'theme', 'height']
   #source: string | null = null
   #handle: BonkeiHandle | null = null
+  #waiting = false
+  #ownHeight = false // true once this element (not the page) has written style.height
 
   connectedCallback() {
+    // With the script in <head> (or anywhere before the element), the element connects at its start tag, before the parser has
+    // reached its text: read the source once the page is parsed.
+    if (this.#source === null && document.readyState === 'loading') {
+      if (!this.#waiting) {
+        this.#waiting = true
+        document.addEventListener('DOMContentLoaded', () => { this.#waiting = false; if (this.isConnected) this.connectedCallback() }, { once: true })
+      }
+      return
+    }
     if (this.#source === null) { this.#source = dedent(this.textContent ?? ''); this.textContent = '' }
-    if (!this.style.display) this.style.display = 'block'
+    // an element is display:inline unless the page's CSS says otherwise; a page that hides it or lays it out its own way keeps that
+    if (!this.style.display && getComputedStyle(this).display === 'inline') this.style.display = 'block'
     this.#applyHeight()
     this.#draw()
     instant('bonkei.element.connect', {
@@ -43,17 +56,24 @@ const makeElement = () => class BonkeiDiagramElement extends HTMLElement {
 
   attributeChangedCallback(name: string, old: string | null, value: string | null) {
     if (!this.isConnected || this.#source === null || old === value) return
-    if (name === 'height') this.#applyHeight()
-    else { this.#handle?.destroy(); this.#handle = null; this.#draw() } // mode or theme: a fresh view
+    if (name === 'height') {
+      // a removed or unreadable height does not keep the old one: back to the default (measuring now would measure the drawn scene)
+      if (this.#ownHeight && !cssHeight(value)) this.style.height = `${DEFAULT_HEIGHT}px`
+      this.#applyHeight()
+    } else { this.#handle?.destroy(); this.#handle = null; this.#draw() } // mode or theme: a fresh view
   }
 
   #applyHeight() {
     const attr = this.getAttribute('height')
     const h = cssHeight(attr)
     if (attr !== null && !h) instant('bonkei.element.bad_height', { 'bonkei.element.height': attr })
-    if (h) this.style.height = h
-    // a box with no content height of its own (a border does not count) gets the default, so the scene has room to draw
-    else if (!this.style.height && this.clientHeight === 0) this.style.height = `${DEFAULT_HEIGHT}px`
+    if (h) { this.style.height = h; this.#ownHeight = true; return }
+    if (this.style.height) return
+    // a box with no content height of its own (a border does not count) gets the default, so the scene has room to draw;
+    // a hidden one (display:none, clientHeight 0) keeps a height its stylesheet gives it
+    const cs = getComputedStyle(this)
+    const noHeight = cs.display === 'none' ? cs.height === 'auto' : this.clientHeight === 0
+    if (noHeight) { this.style.height = `${DEFAULT_HEIGHT}px`; this.#ownHeight = true }
   }
 
   #draw() {
