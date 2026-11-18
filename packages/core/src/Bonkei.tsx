@@ -10,7 +10,8 @@ import { DEFAULTS, mergeOptions, resolveControls, type BonkeiError, type BonkeiO
 import type { GraphInput } from './model'
 import { instant, tracer } from './telemetry'
 import { UI } from './palette'
-import { fitUsed, gestureRows, guessInput, helpToggled, modKey, type HelpHow, type Input } from './controls'
+import { fitUsed, gestureRows, helpToggled, modKey, type HelpHow, type Input } from './controls'
+import { firstInput } from './hold'
 import { resolveTheme, themeByName } from './theme'
 import { loadFont } from './fonts.ts'
 
@@ -114,7 +115,7 @@ export interface ToolbarProps {
 /** Flat / iso / 3D as a radiogroup, plus Fit and "?" (the gesture card). The crossing-style and avoid-crossings groups show only when their props are given. */
 export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, onAvoid, input: given, helpOpen, onHelp }: ToolbarProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
-  const [guess] = useState(() => guessInput(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, typeof navigator !== 'undefined' ? navigator.platform : ''))
+  const [guess] = useState(firstInput)
   const input = given ?? guess
   const [ownOpen, setOwnOpen] = useState(false)
   const open = helpOpen ?? ownOpen

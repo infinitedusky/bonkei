@@ -34,7 +34,8 @@ export function clipRadii(el: HTMLElement): Radii {
   return [0, 0, 0, 0]
 }
 
-function firstInput(): Input {
+/** The input to assume before the reader uses one, from the device (`guessInput`). */
+export function firstInput(): Input {
   const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
   return guessInput(coarse, typeof navigator !== 'undefined' ? navigator.platform : '')
 }
