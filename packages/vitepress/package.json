@@ -1,0 +1,30 @@
+{
+  "name": "@bonkei/vitepress",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "```mermaid fences that hold a flowchart or a sequence diagram become Bonkei scenes in VitePress.",
+  "exports": {
+    ".": { "types": "./src/index.d.ts", "default": "./src/index.js" },
+    "./client": { "types": "./src/client.d.ts", "default": "./src/client.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["src"],
+  "scripts": {
+    "test": "node --test src/*.test.js"
+  },
+  "dependencies": {
+    "bonkei": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "three": "^0.170.0"
+  },
+  "peerDependencies": {
+    "vitepress": "^1.6.0",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "markdown-it": "^14.1.0"
+  }
+}
