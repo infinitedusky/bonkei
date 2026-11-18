@@ -10,10 +10,19 @@ hero:
     - { theme: brand, text: Get started, link: /guide/introduction }
     - { theme: alt, text: API reference, link: /api/ }
 features:
-  - { title: React, details: A <Bonkei /> component that fills its container., link: /guide/react }
-  - { title: Plain JavaScript, details: render(element, source) mounts a diagram without React., link: /guide/javascript }
-  - { title: Script tag, details: One file and a <bonkei-diagram> element. No build step., link: /guide/script-tag }
-  - { title: VitePress, details: Your mermaid fences become Bonkei scenes., link: /guide/vitepress }
+  # details are HTML in VitePress: a tag is written with entities, and each value is quoted so its commas stay in it
+  - title: React
+    details: "A <code>&lt;Bonkei /&gt;</code> component that fills its container."
+    link: /guide/react
+  - title: Plain JavaScript
+    details: "<code>render(element, source)</code> mounts a diagram without React in your code."
+    link: /guide/javascript
+  - title: Script tag
+    details: "One file and a <code>&lt;bonkei-diagram&gt;</code> element. No build step."
+    link: /guide/script-tag
+  - title: VitePress
+    details: "Your <code>mermaid</code> fences become Bonkei scenes."
+    link: /guide/vitepress
 ---
 
 <div class="home-demo">
