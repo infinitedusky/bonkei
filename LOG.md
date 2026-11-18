@@ -306,3 +306,23 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **Stories.** `Script tag / Elements`, `Elements After Run`, `Elements Added And Removed`, `Element With A Bad Source` frame `examples/html`; `VitePress / Diagrams Page`, `Diagrams Page Before Scripts` (sandboxed, no JS: the reserved boxes), `Page Without A Diagram`, `Mintlify Notes` frame the built `examples/vitepress`.
 
 **Consequences.** Under `vitepress dev` (Vite 5) the wasm file is not served as a file: the loader logs it and Bonkei draws from its inline copy (BON-52's known quirk); build + preview fetch the file. The script-tag bundle grows by about 1 kB gzip (855.2 kB of its 880 kB). VitePress diagrams do not follow the site's dark/light switch (not in this task). `@bonkei/vitepress` is not in the pkg.pr.new preview yet (publishing is not in this task).
+
+## 2026-11-17 — Dev servers on any port (BON-126)
+
+**Context.** In dev the site proxied `/app` to a viewer on a fixed port, 5174 (BON-117 added an undocumented `PLAYGROUND_PORT` override). Prototypes and smoke tests each run their own copy of the site and viewer, so with two copies running, `/app` showed whichever viewer held the port, or nothing.
+
+**Decision.**
+- **Two repo-owned variables, read from the shell by both configs: `SITE_PORT` and `VIEWER_PORT`.** `pnpm dev` runs both apps with the same environment, so `SITE_PORT=6100 VIEWER_PORT=6101 pnpm dev` starts a matched pair. They are read inside each `defineConfig` callback, so a test can set them and call the config. They replace `PLAYGROUND_PORT`.
+- **Defaults are today's ports.** The viewer listens on `VIEWER_PORT` (default 5174) and is always strict. The site proxies `/app` (with `ws: true`, so HMR passes through) to `http://localhost:${VIEWER_PORT}`. It listens on `SITE_PORT` with `strictPort` only when that is set. When it is unset the site's port is left to Vite (5173), so a plain `pnpm dev` behaves as before.
+- **A bad value throws.** Anything that is not an integer 1–65535 stops the server with an error naming the variable.
+- **Dev server only.** Only `server` changes. `base`, `build` and `preview` are untouched.
+- The three-line `port()` parser is duplicated in each config, because apps never import each other.
+- Tests: `apps/playground/vite.config.test.ts` and `apps/site/vite.config.test.ts` (defaults, chosen ports, a bad value), run by `pnpm test`.
+
+**Alternatives considered.**
+- Vite's `--port` only: it moves one server, but the site would still not know where the viewer is.
+- The viewer on the site's port + 1: hidden coupling, and it breaks when that port is taken. Tools that hand out ports give two, not a pair.
+- Reading bare `PORT`: too generic. Shells, CI and other tools set it, and it names only one of the two servers.
+- A shared root module for the parser: apps never import each other, and three lines do not justify a package.
+
+**Consequences.** This supersedes the 2026-11-14 entry "The Pages artifact and the dev proxy" on one point: it said the viewer's port 5174 is fixed because the proxy points at it. The default is still 5174, but the proxy now follows `VIEWER_PORT`. The Self Evident prototype command becomes `SITE_PORT=$PORT VIEWER_PORT=$PORT_2 pnpm dev`. A port that is asked for and taken fails loudly instead of drifting. Builds, preview, Pages and Storybook (6006) are unchanged.
