@@ -3,9 +3,10 @@
 // options passed in code, and events. Everything it uses is the installed package's public API.
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-const props = defineProps<{ source: string; options?: Record<string, any>; height?: number; events?: boolean; label?: string }>()
+const props = defineProps<{ source: string; options?: Record<string, any>; height?: number; events?: boolean; stats?: boolean; label?: string }>()
 const el = ref<HTMLElement>()
 const log = ref<string[]>([])
+const counts = ref<any>(null)
 let handle: { destroy(): void } | undefined
 const push = (s: string) => { log.value = [s, ...log.value].slice(0, 6) }
 
@@ -19,6 +20,8 @@ onMounted(async () => {
     o.onWarning = (w: any) => push(`onWarning  ${w.kind}: ${w.message}`)
     o.onError = (e: any) => push(`onError  ${e.kind}: ${e.message}`)
   }
+  // onEdgeStats is a prop of <Bonkei />; render() hands its options on to it, so it works here (the types of render() do not list it)
+  if (props.stats) o.onEdgeStats = (s: any) => { counts.value = s }
   handle = render(el.value!, props.source, o)
 })
 onBeforeUnmount(() => handle?.destroy())
@@ -28,6 +31,10 @@ onBeforeUnmount(() => handle?.destroy())
   <figure class="bonkei-live-fig">
     <div ref="el" class="bonkei-diagram bonkei-live" :style="{ height: (height ?? 300) + 'px', position: 'relative' }"></div>
     <figcaption v-if="label">{{ label }}</figcaption>
+    <p v-if="stats" class="bonkei-stats" aria-live="polite">
+      <template v-if="counts">onEdgeStats: <b>{{ counts.crossings }}</b> crossing{{ counts.crossings === 1 ? '' : 's' }} found<template v-if="options?.crossings && options.crossings !== 'none'">, <b>{{ counts[options.crossings] }}</b> drawn as {{ options.crossings }}<template v-if="counts.skipped">, {{ counts.skipped }} skipped</template></template></template>
+      <template v-else>counting…</template>
+    </p>
     <ol v-if="events" class="bonkei-events" aria-label="Events">
       <li v-if="!log.length"><em>Events appear here: click a node, switch the view.</em></li>
       <li v-for="(l, i) in log" :key="i"><code>{{ l }}</code></li>

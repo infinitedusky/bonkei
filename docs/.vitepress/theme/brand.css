@@ -50,3 +50,10 @@
 .vp-doc div[class*='language-'] { background: #2A2622; }
 .vp-doc [class*='language-'] code { color: #e9e2d2; }
 .vp-doc :not(pre) > code { background: #e9dfc6; color: #2A2622; }
+
+.bonkei-stats { font-size: 12px; color: var(--vp-c-text-2); text-align: center; margin: 2px 0 10px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 12px 0; }
+.grid2 > div, .grid2 > figure { min-width: 0; }
+.grid2 .bonkei-diagram { margin: 0; }
+@media (max-width: 639px) { .grid2 { grid-template-columns: 1fr; } }
+.stack > figure { margin: 0 0 8px; }
