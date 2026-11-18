@@ -71,6 +71,8 @@ async function open(url, opts = {}) {
 }
 for (const u of pageUrls) {
   const { page, errors, ctx } = await open(u)
+  await page.waitForLoadState('networkidle').catch(() => {}) // the script-tag demo adds its element once bonkei.global.js has loaded
+  await page.waitForTimeout(500)
   const total = await page.locator('.bonkei-diagram').count()
   let drew = true
   if (total) {
