@@ -15,7 +15,9 @@ for (const f of walk(path.join(docs, 'api')).filter(f => f.endsWith('.md'))) {
   const afterCode = lines.slice(lines.findIndex(l => l.startsWith('```')) + 1)
   const rest = afterCode.slice(afterCode.findIndex(l => l.startsWith('```')) + 1)
   const prose = rest.filter(l => l.trim() && !/^(#|```|\||- |\[)/.test(l))
-  const desc = (prose[0] ?? `The ${title} export of bonkei.`).replace(/[`*]|\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/"/g, "'").trim()
+  // api/index.md is the list of exports, not an export: it gets its own description
+  const fallback = f === path.join(docs, 'api/index.md') ? 'Every public export of bonkei (functions, variables, interfaces and type aliases), each with its own page.' : `The ${title} export of bonkei.`
+  const desc = (prose[0] ?? fallback).replace(/[`*]|\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/"/g, "'").trim()
   fs.writeFileSync(f, `---\ndescription: "${title.replace(/"/g, "'")}: ${desc}"\n---\n\n${text}`)
 }
 

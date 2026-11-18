@@ -19,7 +19,6 @@
 /* diagrams */
 .bonkei-diagram { border: 1px solid var(--vp-c-divider); border-radius: 8px; overflow: hidden; margin: 16px 0 6px; max-width: 100%; touch-action: pan-y; }
 .bonkei-live-fig { margin: 0; }
-.bonkei-live-fig figcaption { font-size: 12px; color: var(--vp-c-text-3); text-align: center; margin: 4px 0 12px; }
 .bonkei-events { list-style: none; padding: 8px 12px; margin: 0 0 16px; border: 1px dashed var(--vp-c-divider); border-radius: 6px; font-size: 12px; min-height: 40px; }
 .bonkei-events li { margin: 0; }
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }

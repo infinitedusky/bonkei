@@ -3,7 +3,7 @@
 // options passed in code, and events. Everything it uses is the installed package's public API.
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-const props = defineProps<{ source: string; options?: Record<string, any>; height?: number; events?: boolean; stats?: boolean; label?: string }>()
+const props = defineProps<{ source: string; options?: Record<string, any>; height?: number; events?: boolean; stats?: boolean }>()
 const el = ref<HTMLElement>()
 const log = ref<string[]>([])
 const counts = ref<any>(null)
@@ -30,7 +30,6 @@ onBeforeUnmount(() => handle?.destroy())
 <template>
   <figure class="bonkei-live-fig">
     <div ref="el" class="bonkei-diagram bonkei-live" :style="{ height: (height ?? 300) + 'px', position: 'relative' }"></div>
-    <figcaption v-if="label">{{ label }}</figcaption>
     <p v-if="stats" class="bonkei-stats" aria-live="polite">
       <template v-if="counts">onEdgeStats: <b>{{ counts.crossings }}</b> crossing{{ counts.crossings === 1 ? '' : 's' }} found<template v-for="k in ['bridge', 'tunnel', 'portal']" :key="k"><template v-if="counts[k]">, <b>{{ counts[k] }}</b> drawn as {{ k }}</template></template><template v-if="counts.skipped">, {{ counts.skipped }} skipped</template></template>
       <template v-else>counting…</template>
