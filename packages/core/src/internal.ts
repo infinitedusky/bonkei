@@ -9,7 +9,8 @@ export { NodeBody, Label, Tray, baseOf } from './shapes'
 export { CLASSIC, BONKEI, BONKEI_LANDSCAPE, PRESETS, THEME_NAMES, themeByName, withVariables, resolveTheme, inkPx, type Theme, type Plate, type Pattern, type ResolvedTheme } from './theme'
 export { ThemeProvider, useTheme } from './look'
 export { UI } from './palette'
-export { ALL_ON, wheelAction, dragAction, cursorFor, gesture, type Gesture, type Pickable, type Cursor } from './controls'
+export { ALL_ON, wheelAction, dragAction, settleYaw, wheelInput, gestureRows, cursorFor, gesture, type Gesture, type Pickable, type Cursor, type Input } from './controls'
+export { Toolbar, GestureCard } from './Bonkei'
 
 // Camera and scale
 export { createCamera, PRESET, type Camera, type Mode, type Pose } from './camera'

@@ -92,6 +92,8 @@ export function createCamera(): Camera {
       cam.goal.tx = cx; cam.goal.tz = cz; cam.goal.H = cam.fitH(cam.mode)
     },
     fit(width, height, at) {
+      // Fit puts a turned view back square (BON-78)
+      cam.goal.yaw = PRESET[cam.mode].yaw; cam.goal.pitch = PRESET[cam.mode].pitch
       cam.focusOn(at?.cx ?? 0, at?.cz ?? 0, width * S, height * S)
       onWhole = !at
       const proj = onContent(cam.mode)
