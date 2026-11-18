@@ -16,7 +16,7 @@ Run `pnpm --filter @bonkei/playground exec storybook dev -p 6206` (any free port
 5. **Crossing** (bridge, iso), then **Crossing Bridge Flat**. In iso, one line hops over the other. In flat (from above), the hop can't be seen.
 6. **Crossing Tunnel**, **Crossing Tunnel Flat**, **Crossing On Tray**, **Crossing On Tray 3D**. One line dips into an open trough cut in the ground, or in the tray. The trough shows in every view, flat included.
 7. **Crossing Portal**, **Crossing Portal Flat**, **Many Crossings**. One line goes into an oval portal and comes out of a matching one. On Many Crossings, orbiting the camera stays smooth.
-8. **Large Sample** (the 50-node diagram). Use the toolbar's **Avoid crossings** control: Off, Some, Strong.
+8. **Large Sample** (the 50-node diagram). Use the **Avoid crossings** control: Off, Some, Strong. A diagram's toolbar shows it only with `crossingControls` on (BON-161); if this story's toolbar has only Flat / Iso / 3D and Fit, check the levels on **Components / Bonkei / Crossing Styles** (a smaller made-up sample) and on the Large Sample in the viewer (section 2, step 2).
    - At each level, no line turns back on itself: along its run it only ever moves towards its target. No line runs through a block or a tray it does not enter.
    - Going from Off to Some to Strong, the number of crossings drops visibly.
    - Drag a few blocks, including one inside a tray. The lines follow live and never pass through a block. A line turns back only if you drop its block straight behind another block.
@@ -30,7 +30,7 @@ Run `pnpm --filter @bonkei/playground dev -- --port 6207` and open `http://local
 1. Pick **flow: large (~50 nodes)**. Read the readout line under the diagram. It must show `doubling back 0`, `through blocks 0 / foreign trays 0`, and `length/direct` at or below 1.12 (main's value). There must be no `ROUTING FELL BACK TO ELK`.
 2. Click **Off**, **Some** and **Strong** in turn. `doubling back` stays 0 and `crossings` goes down (about 96, 52 and 48).
 3. Drag a block 50 to 100 px and let go. While you drag, `drag frame` stays at a few tens of ms and `through blocks` stays 0.
-4. Pick **Crossings: Bridge / Tunnel / Portal** in the toolbar. The `(bridge/tunnel/portal drawn)` counts change to match, and the crossings are drawn in that style.
+4. Pick **Crossings: Bridge / Tunnel / Portal** in the viewer's toolbar. The `(bridge/tunnel/portal drawn)` counts change to match, and the crossings are drawn in that style. The viewer always shows these controls; in Storybook a diagram shows them only with `crossingControls` on, as in **Components / Bonkei / Crossing Styles** (BON-161).
 5. Pick **flow: small (sample.mmd)** and **flow: checkout**. Repeat step 1. Every count is 0 and `length/direct` is 1.
 6. Pick **seq: login flow**. Sequence diagrams' lines don't change in this task and look as on main.
 
@@ -75,3 +75,18 @@ In this order. The diagrams are made-up sample data.
 6. **Storybook.** `pnpm storybook` (or `pnpm --filter bonkei build && pnpm --filter @bonkei/playground storybook`). Script tag / Script Tag and Script Tag Wasm Missing show the two pages above. Any Bonkei story still draws.
 7. **A fresh app by hand.** `cd examples/vite && npm install ../../packages/core/<packed .tgz> && npm run dev`: the sample diagram draws twice, the default look and the Bonkei theme with serif labels.
 8. **On the PR** (needs the pkg.pr.new GitHub app, BON-109): the size-limit comment shows the six sizes; the pkg.pr.new comment's `npm i https://pkg.pr.new/...` line installs in a new Vite app and draws; its StackBlitz link opens `examples/vite` drawing a diagram; a new commit updates the comment.
+
+# Manual test plan: quieter defaults (BON-161)
+
+How to check by hand that a diagram dropped into a page starts in iso unless the author sets flat or 3D, that its toolbar shows only Flat / Iso / 3D and Fit, and that the crossing controls show only when the author turns them on. Go through it in this order. The diagrams are made-up sample data.
+
+1. **Automated checks first.** `pnpm --filter bonkei test` passes. Then `pnpm --filter bonkei build && pnpm smoke` passes, and in its output, under `--- defaults page under vite dev (BON-161)`, all five `[defaults]` lines say `ok`: `none` (starts Iso, 4 buttons (Flat, Iso, 3D, Fit), no Crossings or Avoid crossings group), `flat` (starts Flat, from `mode="flat"`), `3d` (starts 3D, from the frontmatter), `controls` (starts Iso, both groups present, Off then Bridge gives a bridge count above 0), `bridge` (starts Iso, no crossing groups, a bridge count above 0). The summary at the end says `defaults page ok`.
+2. **Storybook.** Run Storybook as in section 1.
+   - **Components / Bonkei / In A Docs Page**: the diagram starts in iso, and the toolbar has exactly four buttons: Flat, Iso, 3D and Fit. Iso is the one highlighted.
+   - **Components / Bonkei / Starts In Each View**: three diagrams, starting iso (no mode), flat (`mode="flat"`) and 3D (from the frontmatter) in that order; in each the matching View button is highlighted.
+   - **Components / Bonkei / Crossing Styles**: the toolbar shows the View group, **Crossings** (No hop, Bridge, Tunnel, Portal), **Avoid crossings** (Off, Some, Strong) and Fit. Click **Bridge**: one line hops over the other where they cross (seen in Iso). Click Tunnel and Portal: each draws.
+   - **Components / Bonkei / Crossing Style Without Controls**: the crossings are drawn as bridges (it starts in Iso, where the hops show), and the toolbar has only the four buttons Flat, Iso, 3D and Fit.
+   - **Components / Bonkei / Crossings In Frontmatter**: both crossing groups are shown, starting on **Tunnel** and **Strong**.
+   - Core's **Bonkei / Overlay Toolbar**: View (one view highlighted) and Fit, nothing else. **Bonkei / Overlay Toolbar With Crossing Controls**: View, Crossings, Avoid crossings and Fit; clicking in each group moves its highlight.
+3. **The viewer.** Run the viewer as in section 2 and open `/app/`. Every group is in its toolbar: View, Crossings, Avoid crossings and Fit. Section 2 step 2 (Off / Some / Strong, `crossings` goes down) and step 4 (Bridge / Tunnel / Portal, the drawn counts change) still work.
+4. **A fresh app by hand.** `pnpm --filter bonkei build`, `cd packages/core && pnpm pack`, then copy `examples/vite` to a folder outside the repo, `npm install <path to the packed .tgz>` and `npm run dev` in it. Open the page: both diagrams of the sample start in iso, and each toolbar has exactly four buttons: Flat, Iso, 3D and Fit.

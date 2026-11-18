@@ -71,7 +71,7 @@ export function ErrorStrip({ error }: { error: BonkeiError }) {
   )
 }
 
-/** Flat / iso / 3D as a radiogroup, plus fit. */
+/** Flat / iso / 3D as a radiogroup, plus fit. The crossing-style and avoid-crossings groups show only when their props are given. */
 export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, onAvoid}: { mode: Mode; onPick: (m: Mode) => void; onFit: () => void; crossings?: CrossingStyle; onCrossings?: (c: CrossingStyle) => void; avoid?: AvoidCrossings; onAvoid?: (a: AvoidCrossings) => void}) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
   const btn = (on: boolean): CSSProperties => ({
@@ -199,9 +199,9 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   // Props over frontmatter; the frontmatter is read once per prepared source.
   const ctlKey = JSON.stringify(props.controls ?? null)
   const opts = useMemo(
-    () => mergeOptions({ mode: props.mode, labels: props.labels, toolbar: props.toolbar, controls: props.controls, crossings: props.crossings, avoidCrossings: props.avoidCrossings }, prepared?.options),
+    () => mergeOptions({ mode: props.mode, labels: props.labels, toolbar: props.toolbar, controls: props.controls, crossings: props.crossings, avoidCrossings: props.avoidCrossings, crossingControls: props.crossingControls }, prepared?.options),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [props.mode, props.labels, props.toolbar, props.crossings, props.avoidCrossings, ctlKey, prepared])
+    [props.mode, props.labels, props.toolbar, props.crossings, props.avoidCrossings, props.crossingControls, ctlKey, prepared])
   // The look: the theme prop over the frontmatter's config.theme, then config.themeVariables over that (resolveTheme).
   // A bad name or variable in the frontmatter was reported with its line when the source was read; a bad name in the prop is reported here.
   const themeKey = typeof props.theme === 'object' ? JSON.stringify(props.theme) : props.theme ?? ''
@@ -299,6 +299,8 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
 
   const themeName = useRef(theme.name)
   themeName.current = theme.name
+  const crossingControlsRef = useRef(opts.crossingControls)
+  crossingControlsRef.current = opts.crossingControls
   const onFirstFrame = useCallback(() => {
     const p = preparedRef.current
     if (!p) return
@@ -306,6 +308,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     instant('bonkei.first_frame', {
       'bonkei.nodes': p.ready.nodes, 'bonkei.edges': p.ready.edges,
       'bonkei.dropped': p.ready.dropped, 'bonkei.layout_ms': p.ready.layoutMs, 'bonkei.theme': themeName.current,
+      'bonkei.mode': modeRef.current, 'bonkei.crossing_controls': crossingControlsRef.current,
     }, acceptedAt.current)
     cbs.current.onReady?.({ ...p.ready })
   }, [])
@@ -325,7 +328,8 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
       <SceneBoundary resetKey={prepared?.key ?? ''} onError={onRenderError}>
         <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false} theme={theme}
           controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} />
-        {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit} crossings={crossings} onCrossings={pickCrossings} avoid={avoid} onAvoid={pickAvoid} />}
+        {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit}
+          {...(opts.crossingControls ? { crossings, onCrossings: pickCrossings, avoid, onAvoid: pickAvoid } : {})} />}
       </SceneBoundary>
       {!prepared && !error && <Loading />}
       {!prepared && error && <ErrorCard error={error} />}

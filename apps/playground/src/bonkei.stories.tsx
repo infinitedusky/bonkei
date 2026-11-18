@@ -51,6 +51,13 @@ config:
 ---
 ${FLOW}`
 const BROKEN = '???\n!!!'
+const CROSSING = 'flowchart TD\n  A --> C\n  A --> D\n  B --> C\n  B --> D\n  A --> E\n  B --> E'
+const FRONTMATTER_3D = `---
+config:
+  bonkei:
+    mode: 3d
+---
+${FLOW}`
 
 // ---- Shared bits ----
 
@@ -96,7 +103,7 @@ type Story = StoryObj
 
 // ---- Stories ----
 
-/** A made-up docs page with the diagram in a 760×380 box. The toolbar shows by default. */
+/** A made-up docs page with the diagram in a 760×380 box. It starts in iso; the toolbar shows Flat / Iso / 3D and Fit. */
 export const InADocsPage: Story = {
   render: () => (
     <div style={page}>
@@ -117,20 +124,41 @@ export const NoToolbar: Story = {
   ),
 }
 
-/** BON-100: the toolbar's crossing style (No hop / Bridge / Tunnel / Portal, default No hop) and Avoid crossings (off / some / strong, default some). A made-up diagram whose lines cross. */
+/** BON-100: with crossingControls on, the toolbar adds the crossing style (No hop / Bridge / Tunnel / Portal, default No hop) and Avoid crossings (off / some / strong, default some). A made-up diagram whose lines cross. */
 export const CrossingStyles: Story = {
   render: () => (
     <div style={page}>
-      <Box label="made-up lines that cross: pick a crossing style and how hard lines avoid crossing"><Bonkei source={'flowchart TD\n  A --> C\n  A --> D\n  B --> C\n  B --> D\n  A --> E\n  B --> E'} avoidCrossings="off" /></Box>
+      <Box label="made-up lines that cross, crossingControls on: pick a crossing style and how hard lines avoid crossing"><Bonkei source={CROSSING} avoidCrossings="off" crossingControls /></Box>
     </div>
   ),
 }
 
-/** BON-100: frontmatter sets crossings: tunnel and avoidCrossings: strong; the toolbar starts on those. */
+/** BON-100: frontmatter sets crossings: tunnel, avoidCrossings: strong and crossingControls: true; the toolbar shows both crossing groups, starting on those. */
 export const CrossingsInFrontmatter: Story = {
   render: () => (
     <div style={page}>
-      <Box label="frontmatter: crossings tunnel, avoidCrossings strong"><Bonkei source={'---\nconfig:\n  bonkei:\n    crossings: tunnel\n    avoidCrossings: strong\n---\nflowchart TD\n  A --> C\n  A --> D\n  B --> C\n  B --> D'} /></Box>
+      <Box label="frontmatter: crossings tunnel, avoidCrossings strong, crossingControls true"><Bonkei source={'---\nconfig:\n  bonkei:\n    crossings: tunnel\n    avoidCrossings: strong\n    crossingControls: true\n---\nflowchart TD\n  A --> C\n  A --> D\n  B --> C\n  B --> D'} /></Box>
+    </div>
+  ),
+}
+
+/** The author picks bridges and no avoiding, without crossingControls: the lines bridge, and the toolbar shows only Flat / Iso / 3D and Fit. */
+export const CrossingStyleWithoutControls: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="crossing lines, crossings bridge set by the author, no crossing controls"><Bonkei source={CROSSING} crossings="bridge" avoidCrossings="off" /></Box>
+    </div>
+  ),
+}
+
+/** Where a diagram starts: iso with no mode (the default), flat from the prop, 3D from the frontmatter. */
+export const StartsInEachView: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="a small shop backend, no mode (starts in iso, the default)"><Bonkei source={FLOW} /></Box>
+      <Box label='a small shop backend, mode="flat"'><Bonkei source={FLOW} mode="flat" /></Box>
+      <Box label="a small shop backend, frontmatter config.bonkei.mode: 3d"><Bonkei source={FRONTMATTER_3D} /></Box>
+      <pre style={tag}>{FRONTMATTER_3D}</pre>
     </div>
   ),
 }
