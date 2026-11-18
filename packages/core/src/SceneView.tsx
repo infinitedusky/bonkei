@@ -60,6 +60,21 @@ class Gate {
   hint() { hintShown(this.input, this.mode); this.hintListener() }
 }
 const GateCtx = createContext<Gate | null>(null)
+// The ring follows the corners of whatever clips the diagram: the nearest ancestor (the diagram's own box included) that clips and has a
+// border-radius, less how far the diagram's corner sits inside it. [top-left, top-right, bottom-right, bottom-left], px.
+function cornerRadii(el: HTMLElement): [number, number, number, number] {
+  const me = el.getBoundingClientRect()
+  for (let n: HTMLElement | null = el; n; n = n.parentElement) {
+    const cs = getComputedStyle(n)
+    if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue
+    const r = [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map(v => parseFloat(v) || 0)
+    if (!r.some(v => v > 0)) continue
+    const b = n.getBoundingClientRect()
+    const l = me.left - b.left, t = me.top - b.top, rt = b.right - me.right, bt = b.bottom - me.bottom
+    return [Math.max(0, r[0] - Math.max(l, t)), Math.max(0, r[1] - Math.max(rt, t)), Math.max(0, r[2] - Math.max(rt, bt)), Math.max(0, r[3] - Math.max(l, bt))]
+  }
+  return [0, 0, 0, 0]
+}
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'
 
 function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElement | null> }) {
@@ -478,6 +493,9 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
   const [gate] = useState(() => new Gate())
   const [held, setHeld] = useState(false)
   const [hint, setHint] = useState<string | null>(null)
+  const ring = useRef<HTMLDivElement>(null)
+  const [radii, setRadii] = useState<[number, number, number, number]>([0, 0, 0, 0])
+  useEffect(() => { if (held && ring.current) setRadii(cornerRadii(ring.current)) }, [held])
   useEffect(() => {
     let t = 0
     const onHold = () => setHeld(gate.held && gate.inScroller())
@@ -504,8 +522,9 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
             : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
         </ThemeProvider></InkCtx.Provider></GateCtx.Provider>
       </Canvas>
-      {held && <div style={{ position: 'absolute', inset: 0, outline: '2px solid #5b8def', outlineOffset: -2, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', left: 10, top: 10, padding: '3px 8px', borderRadius: 6, background: 'rgba(22, 28, 40, 0.92)', color: '#7f8aa3', font: '12px system-ui, sans-serif' }}>Esc to let go</div>
+      {held && <div ref={ring} style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 2px #5b8def', borderRadius: radii.map(r => r + 'px').join(' '), pointerEvents: 'none' }}>
+        {/* kept clear of a rounded corner: the chip's own corner has to be inside the curve */}
+        <div style={{ position: 'absolute', left: Math.max(10, Math.ceil(Math.max(radii[0], radii[3]) * 0.3) + 4), top: Math.max(10, Math.ceil(Math.max(radii[0], radii[1]) * 0.3) + 4), padding: '3px 8px', borderRadius: 6, background: 'rgba(22, 28, 40, 0.92)', color: '#7f8aa3', font: '12px system-ui, sans-serif' }}>Esc to let go</div>
       </div>}
       {hint && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(0, 0, 0, 0.55)', color: '#e8edf7', font: '15px system-ui, sans-serif', pointerEvents: 'none' }}>{hint}</div>}
       {showFps && <div ref={fpsRef} style={{ position: 'absolute', right: 12, bottom: 10, color: '#7f8aa3', font: '12px monospace' }} />}

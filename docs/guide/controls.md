@@ -35,7 +35,7 @@ The same in every view, on this page, in the viewer and in the stories. Press **
 
 </div>
 
-**In a page that scrolls**, a diagram does not trap the page: scrolling over it scrolls the page and a hint says how to take hold ("Click to move the diagram"; on touch, "Use two fingers to move the diagram"). A click gives the diagram its gestures, shown by a ring and "Esc to let go", until you press Esc or click outside it. Pinch and ⌘/Ctrl + scroll zoom either way. A diagram that fills a page that does not scroll always has its gestures. The right-click menu never opens over a diagram.
+**In a page that scrolls**, a diagram does not trap the page: scrolling over it scrolls the page and a hint says how to take hold ("Click to move the diagram"; on touch, "Use two fingers to move the diagram"). A click gives the diagram its gestures, shown by a blue ring (it follows the rounded corners of whatever box clips the diagram) and "Esc to let go", until you press Esc or click outside it. Pinch and ⌘/Ctrl + scroll zoom either way. A diagram that fills a page that does not scroll always has its gestures. The right-click menu never opens over a diagram.
 
 `controls.pan: false` switches off moving and turning, `controls.zoom: false` zooming; with zoom off, ⌘/Ctrl + scroll is left to the browser and the page.
 

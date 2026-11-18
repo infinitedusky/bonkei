@@ -366,3 +366,4 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **Esc closes the gesture card** wherever focus is, not only when the "?" button has it.
 - **Touch** has its own spans for a twist (`turn`), a two-finger slide (`pan`) and a pinch (`zoom`), all `via: touch`.
 - **One finger moves in 3D too.** On touch there is no Shift, so a one-finger drag is a move in every view (a mouse drag in 3D still turns). Two fingers turn (a twist) and tilt (up and down) in 3D.
+- **The held ring follows the clipping box's corners.** The ring (and the "Esc to let go" chip's offset) takes the border-radius of the nearest ancestor that clips (overflow not visible), less how far the diagram's corner sits inside it, read when the diagram is taken hold of. A rounded card shows a rounded ring; a square box, a square one. Alternative: a fixed 8px radius, which is wrong for any other box.
