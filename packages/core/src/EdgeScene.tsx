@@ -4,16 +4,31 @@ import * as THREE from 'three'
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Text } from '@react-three/drei'
-import { SLOT_W, type EdgePlan, type P3, type PortalPair, type Slot } from './edges3d.ts'
-import { SCENE } from './palette'
+import { SLOT_W, flatLine, type Body, type EdgePlan, type P3, type PortalPair, type Slot } from './edges3d.ts'
+import { useTheme, fontUrl } from './look'
 import { TEXT_LAYER } from './scale.ts'
 import type { LabelMode } from './model'
 
-const PORTAL = '#3fa7ff'
 const v3 = ([x, z, y]: P3) => new THREE.Vector3(x, y, z)
 
-export function Edge({ plan, label, labelMode }: { plan: EdgePlan; label?: string; labelMode: LabelMode }) {
-  const parts = plan.parts.map(p => p.map(v3))
+// An arrowhead with no depth: a triangle lying in the surface, pointing along `dir` (horizontal part).
+function FlatArrow({ tip, dir, color }: { tip: THREE.Vector3; dir: THREE.Vector3; color: string }) {
+  const geo = useMemo(() => {
+    const d = new THREE.Vector3(dir.x, 0, dir.z).normalize(), n = new THREE.Vector3(-d.z, 0, d.x)
+    const b = tip.clone().addScaledVector(d, -0.4)
+    const g = new THREE.BufferGeometry().setFromPoints([tip, b.clone().addScaledVector(n, 0.15), b.clone().addScaledVector(n, -0.15)])
+    return g
+  }, [tip, dir])
+  return <mesh geometry={geo}><meshBasicMaterial color={color} side={THREE.DoubleSide} /></mesh>
+}
+
+export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label?: string; labelMode: LabelMode; bodies?: Body[] }) {
+  const th = useTheme()
+  const flat = th.edge.flat && !!bodies
+  // flat: the whole route (its parts joined) is laid on the surfaces under it; a bridge or tunnel is levelled
+  const parts = flat
+    ? [flatLine(plan.parts.flatMap(p => p), bodies!).map(v3)]
+    : plan.parts.map(p => p.map(v3))
   const last = parts[parts.length - 1]
   const n = last.length
   const dir = new THREE.Vector3().subVectors(last[n - 1], last[n - 2]).normalize()
@@ -28,13 +43,17 @@ export function Edge({ plan, label, labelMode }: { plan: EdgePlan; label?: strin
   }
   return (
     <group>
-      {lines.map((l, i) => <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={SCENE.edge} lineWidth={2} />)}
-      <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
-        <coneGeometry args={[0.13, 0.4, 16]} />
-        <meshBasicMaterial color={SCENE.edge} />
-      </mesh>
+      {lines.map((l, i) => <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={th.edge.color} lineWidth={th.edge.width} />)}
+      {flat
+        ? <FlatArrow tip={tip} dir={dir} color={th.edge.color} />
+        : (
+          <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
+            <coneGeometry args={[0.13, 0.4, 16]} />
+            <meshBasicMaterial color={th.edge.color} />
+          </mesh>
+        )}
       {label && (
-        <Text layers={TEXT_LAYER as any} position={[at.x, at.y + (labelMode === 'top' ? 0.02 : 0.4), at.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} fontSize={0.22} color={SCENE.label} outlineWidth={0.02} outlineColor="#000">{label}</Text>
+        <Text layers={TEXT_LAYER as any} position={[at.x, at.y + (labelMode === 'top' ? 0.02 : 0.4), at.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} font={fontUrl(th)} fontSize={0.22} color={th.edge.label} outlineWidth={0.02} outlineColor={th.edge.labelOutline}>{label}</Text>
       )}
     </group>
   )
@@ -61,6 +80,7 @@ export function stadium(s: { x0: number; x1: number; z0: number; z1: number }, p
 // outline round the lip, all darker than the surface they are cut in; the walls receive shadows. The surface itself
 // has a matching hole (Ground, Tray). The line runs along the floor under the other line.
 export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: number }) {
+  const th = useTheme()
   // a hair inside the hole, so a tray's own cut walls and these never share a plane
   const shape = useMemo(() => { const sh = new THREE.Shape(); stadium(slot, sh, 0.004); return sh }, [slot.x0, slot.x1, slot.z0, slot.z1])
   const walls = useMemo(() => new THREE.ExtrudeGeometry(shape, { depth: slot.depth, bevelEnabled: false, curveSegments: 16 }), [shape, slot.depth])
@@ -76,7 +96,7 @@ export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: 
     <>
       <mesh geometry={walls} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow material={[hidden, wallMat]} />
       <mesh geometry={flat} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow><meshStandardMaterial color={floor} roughness={1} /></mesh>
-      <Line points={[...outline, outline[0]]} color={rim} lineWidth={1.5} />
+      <Line points={[...outline, outline[0]]} color={th.edge.rim ?? rim} lineWidth={th.edge.rimWidth} />
     </>
   )
 }
@@ -103,8 +123,8 @@ const MIN_PX = 24 // smaller than this on screen: a tint
 const MIN_H = 64 // no target is shorter than this
 const SETTLE = 45 // frames to keep drawing after something changed
 
-const mouthMat = () => new THREE.ShaderMaterial({
-  uniforms: { tex: { value: null }, rect: { value: new THREE.Vector4() }, tint: { value: new THREE.Color(SCENE.bg) }, plain: { value: 1 } },
+const mouthMat = (bg: string) => new THREE.ShaderMaterial({
+  uniforms: { tex: { value: null }, rect: { value: new THREE.Vector4() }, tint: { value: new THREE.Color(bg) }, plain: { value: 1 } },
   vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   // the target is sRGB, so sampling decodes to linear; encode back on output or the view comes out too dark.
   // The texture holds only the mouth's screen rectangle `rect` (x, y, w, h in drawing-buffer pixels).
@@ -130,6 +150,8 @@ export interface PortalStats { visible: number; tinted: number; passes: number; 
 // through a is the main camera shifted by (b - a), clipped at b's plane; and the reverse for b. Any axis, either way.
 // `deps` changes whenever something in the scene moved (the plans, the hover).
 export function PortalSystem({ pairs, deps }: { pairs: PortalPair[]; deps: unknown[] }) {
+  const th = useTheme()
+  const PORTAL = th.edge.portal
   const { gl, scene, camera } = useThree()
   const size = useMemo(() => new THREE.Vector2(), [])
   const virt = useMemo(() => new THREE.PerspectiveCamera(), [])
@@ -142,10 +164,10 @@ export function PortalSystem({ pairs, deps }: { pairs: PortalPair[]; deps: unkno
     const side = (f: THREE.Vector3) => new THREE.Vector3(-f.z, 0, f.x)
     const base = { mesh: null, rt: null, rect: [0, 0, 0, 0], area: 0, on: false, plain: true, pending: true, last: -1e9, hidden: 0 }
     return [
-      { ...base, mat: mouthMat(), pos: a, face: d.clone().negate(), side: side(d.clone().negate()), shift: b.clone().sub(a), plane: new THREE.Plane(d.clone(), -d.dot(b)) },
-      { ...base, mat: mouthMat(), pos: b, face: d.clone(), side: side(d), shift: a.clone().sub(b), plane: new THREE.Plane(d.clone().negate(), d.dot(a)) },
+      { ...base, mat: mouthMat(th.ground.bg), pos: a, face: d.clone().negate(), side: side(d.clone().negate()), shift: b.clone().sub(a), plane: new THREE.Plane(d.clone(), -d.dot(b)) },
+      { ...base, mat: mouthMat(th.ground.bg), pos: b, face: d.clone(), side: side(d), shift: a.clone().sub(b), plane: new THREE.Plane(d.clone().negate(), d.dot(a)) },
     ] as Mouth[]
-  }), [pairs])
+  }), [pairs, th.ground.bg])
   useEffect(() => { st.current.settle = SETTLE; return () => mouths.forEach(m => { m.rt?.dispose(); m.mat.dispose() }) }, [mouths])
 
   useFrame(() => {

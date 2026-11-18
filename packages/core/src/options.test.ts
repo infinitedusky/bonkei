@@ -6,9 +6,9 @@ const FM = [
   '---',
   'title: Checkout',
   'config:',
-  '  theme: dark',
+  '  theme: bonkei',
   '  themeVariables:',
-  '    primaryColor: "#ff0000"',
+  '    node.form: landscape',
   '  bonkei:',
   '    mode: flat',
   '    labels: top',
@@ -30,14 +30,21 @@ test('real YAML frontmatter is stripped and the line offset kept', () => {
 
 test('a source without frontmatter is returned as is', () => {
   const src = 'flowchart TD\nA --> B'
-  assert.deepEqual(readFrontmatter(src), { body: src, lineOffset: 0, options: {}, warnings: [] })
+  assert.deepEqual(readFrontmatter(src), { body: src, lineOffset: 0, options: {}, theme: {}, warnings: [] })
 })
 
-test('theme and themeVariables are left untouched', () => {
-  const fm = readFrontmatter('---\nconfig:\n  theme: dark\n  themeVariables:\n    primaryColor: red\n---\nA')
+test('theme and themeVariables are read, and a good one gives no warning', () => {
+  const fm = readFrontmatter('---\nconfig:\n  theme: bonkei\n  themeVariables:\n    node.form: landscape\n    tray:\n      outline: "#000000"\n---\nA')
   assert.deepEqual(fm.options, {})
+  assert.deepEqual(fm.theme, { name: 'bonkei', variables: { 'node.form': 'landscape', 'tray.outline': '#000000' } })
   assert.deepEqual(fm.warnings, [])
   assert.equal(fm.body, 'A')
+})
+
+test('an unknown theme name and an unknown or mistyped variable warn with their line', () => {
+  const fm = readFrontmatter('---\nconfig:\n  theme: dark\n  themeVariables:\n    primaryColor: red\n    edge.width: wide\n---\nA')
+  assert.deepEqual(fm.warnings.map(w => [w.kind, w.line]), [['theme', 3], ['theme', 5], ['theme', 6]])
+  assert.match(fm.warnings[0].message, /unknown theme "dark"/)
 })
 
 test('an unknown key or a bad value gives a frontmatter warning with its line', () => {

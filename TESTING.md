@@ -33,3 +33,32 @@ Run `pnpm --filter @bonkei/playground dev -- --port 6207` and open `http://local
 4. Pick **Crossings: Bridge / Tunnel / Portal** in the toolbar. The `(bridge/tunnel/portal drawn)` counts change to match, and the crossings are drawn in that style.
 5. Pick **flow: small (sample.mmd)** and **flow: checkout**. Repeat step 1. Every count is 0 and `length/direct` is 1.
 6. Pick **seq: login flow**. Sequence diagrams' lines don't change in this task and look as on main.
+
+# Manual test plan: themes and the brand home (BON-117)
+
+The diagrams are made-up sample data (the playground's "flow: bonkei mockup" and "seq: login flow", the site's `sample.mmd`). Run `pnpm --filter bonkei test` first; it must pass.
+
+## 3. The viewer: themes
+
+Run the viewer as in section 2 and open `/app/`.
+
+1. **Classic unchanged.** With the Theme menu on **from source**, pick **flow: small (sample.mmd)** and look at flat, iso and 3D. It looks exactly as on main: dark ground, grid, blue and orange blocks, white lines.
+2. **Bonkei.** Pick **flow: bonkei mockup**, Theme **bonkei**. Flat, iso, 3D: cream paper ground, an ink outline on every block and tray, flat colour washes, tray sides patterned by depth (lozenges, flowers on Billing), labels on cream plaques and tray titles on indigo plaques, ink lines with their steps and arrowheads. Try **Bridge**, **Tunnel**, **Portal** in the toolbar: each still draws.
+3. **Bonkei · landscape.** Theme **bonkei-landscape**, iso then 3D: every node is a house (rect), bonsai (round), rock (cylinder) or peak (diamond) on a raised plinth; each label is in front and readable, also where one node stands behind another; lines meet the plinths.
+4. **Resting on trays.** In 3D, drag the background upwards until you look at the trays almost side-on. Every node and plinth sits on its tray's top (Invoices and Paid? on Billing, on Services), none sunk into it. Do it in both Bonkei themes.
+5. **Tray titles.** In landscape iso, the Billing and Data titles are on a corner no house, bonsai or rock stands on. Drag a node onto a title's corner: the title moves to a free corner and stays there.
+6. **Interactions.** In both themes: drag a node (lines follow), click a tray (the camera flies in), Fit, switch flat / iso / 3D. Pick **seq: login flow**: the sequence diagram draws in paper and ink.
+7. **Unknown name.** Theme **nope (unknown name)**: the diagram is drawn in Classic and a warning at the bottom says `unknown theme "nope"`.
+8. **From the frontmatter.** Theme **from source**, click **source**, and put this before the diagram: `---` / `config:` / `  theme: bonkei` / `  themeVariables:` / `    edge.flat: true` / `---`. The diagram turns Bonkei with lines lying on the surfaces. Change `edge.flat` to `wide`: a warning names line 5 and the lines are back to normal.
+9. **Frame rate.** Pick **flow: large (~50 nodes)** in each Bonkei theme and orbit in 3D: the fps at the start of the readout stays smooth (about 60 on a desktop GPU).
+
+## 4. Storybook: Themes and Mockups / Brand
+
+Run Storybook as in section 1.
+
+1. **Themes / Classic, Bonkei, Landscape × Flat, Iso, 3D**, **From Frontmatter**, **By Prop** (Bonkei · landscape although the frontmatter says classic), **Unknown Theme Warns** (Classic, and the warning box names line 3).
+2. **Themes / Override Beside Default**: two Bonkei diagrams; only the left one (`edge.flat: true`) has its lines lying flat.
+3. **Mockups / Brand / Home**: the new logo and the name **Bonkei** in the nav and the footer, every section (How it works, Views, Themes, Sequence, Status, the final call), the hero in Classic, cream paper, serif headings. In the Themes section click Classic, Bonkei and Bonkei · landscape: the same diagram turns, live, and the frontmatter box shows the theme's name.
+4. **Mockups / Brand / Themes section**: the diagram fills its frame; resize the window and it refits.
+5. **Home 390**, **Home 820**, **Home 1024** (or the viewport menu): every section laid out for the width, nothing wider than the screen; at 820 and 390 the theme choices are chips above a full-width scene; at 390 the scene opens flat on the largest tray with readable labels and a **Fit** button shows the whole diagram. Zoom in and out: outlines, patterns and labels stay in proportion.
+6. **Marks**: the logo from 160 to 32 px, the small mark at 64, 32, 16 px. Build the site (`pnpm build && pnpm preview`): the browser tab shows the small mark and the title "Bonkei: your Mermaid diagrams as a 3D scene"; the viewer's tab says "Bonkei · viewer".
