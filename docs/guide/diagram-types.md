@@ -31,8 +31,10 @@ sequenceDiagram
 
 ## Try your own
 
-<BonkeiPlayground :height="300" source="flowchart TD
-  Edit --> See" />
+```mermaid {editor height=300}
+flowchart TD
+  Edit --> See
+```
 
 ## Every other type
 

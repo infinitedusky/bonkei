@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitepress'
-import { bonkeiMarkdown } from '@bonkei/vitepress'
+import { bonkeiMarkdown, parseInfo } from '@bonkei/vitepress'
 import fs from 'node:fs'
 import { transformerTwoslash } from '@shikijs/vitepress-twoslash'
 import { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
@@ -12,6 +12,32 @@ const typedocSidebar = strip(typedocRaw as any[])
 
 // BON-127: Bonkei's docs. Everything Bonkei here comes from the INSTALLED packages (node_modules/bonkei, @bonkei/vitepress),
 // packed from this checkout by scripts/docs-install.mjs, never from packages/*.
+// Fences that need more than the plugin's {height mode theme}: {editor} (an editable starting source), {tag} (drawn by the script tag's
+// <bonkei-diagram>), {live} / {events} / {stats} / {fit=…} / {minLabelPx=…} (drawn by render() with those props, events logged, onEdgeStats
+// counted). The fence stays an ordinary ```mermaid fence in the page's Markdown, so llms.txt, the .md and Copy page carry its source.
+const LIVE_KEYS = ['editor', 'tag', 'live', 'events', 'stats', 'fit', 'minLabelPx']
+function liveFences(md: any) {
+  const previous = md.renderer.rules.fence
+  md.renderer.rules.fence = (tokens: any[], idx: number, opts: any, env: any, self: any) => {
+    const token = tokens[idx]
+    const attrs = parseInfo(token.info)
+    if (attrs) for (const [k, v] of token.attrs ?? []) attrs[k] = v || 'true'
+    if (!attrs || !LIVE_KEYS.some(k => k in attrs)) return previous(tokens, idx, opts, env, self)
+    const source = md.utils.escapeHtml(encodeURIComponent(token.content))
+    const height = Number(attrs.height) > 0 ? Number(attrs.height) : 300
+    if ('editor' in attrs) return `<BonkeiPlayground source="${source}" :height="${height}" />\n`
+    if ('tag' in attrs) {
+      const a = JSON.stringify(Object.fromEntries(['mode', 'theme'].filter(k => attrs[k]).map(k => [k, attrs[k]])))
+      return `<ScriptTagDemo source="${source}" :height="${height}" :attrs='${a}' />\n`
+    }
+    const o: Record<string, unknown> = {}
+    if (attrs.fit) o.fit = attrs.fit
+    if (attrs.minLabelPx) o.minLabelPx = Number(attrs.minLabelPx)
+    for (const k of ['mode', 'theme']) if (attrs[k]) o[k] = attrs[k]
+    return `<BonkeiLive source="${source}" :height="${height}" :options='${JSON.stringify(o)}' :events="${'events' in attrs}" :stats="${'stats' in attrs}" />\n`
+  }
+}
+
 const fences: Record<string, number> = { claimed: 0, passed: 0 }
 
 export default defineConfig({
@@ -65,6 +91,7 @@ export default defineConfig({
     config: md => {
       // the Bonkei plugin claims flowchart and sequence fences; onFence counts every fence at build time
       bonkeiMarkdown(md, { height: 360, onFence: e => { fences[e.claimed ? 'claimed' : 'passed']++ } })
+      liveFences(md) // after the Bonkei plugin, so it sees the fence first
       md.use(copyOrDownloadAsMarkdownButtons)
     },
     codeTransformers: [

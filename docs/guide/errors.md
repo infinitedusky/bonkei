@@ -13,30 +13,36 @@ Two kinds of problem, and three more events.
 
 A diagram that cannot be parsed:
 
-<BonkeiLive :height="200" :events="true" source="flowchart TD
-  --> -->" />
+```mermaid {events height=200}
+flowchart TD
+  --> -->
+```
 
 ## A warning
 
 The first line the parser cannot use is dropped and the rest draws. Here the frontmatter holds an option Bonkei does not have:
 
-<BonkeiLive :height="260" :events="true" source="---
+```mermaid {events height=260}
+---
 config:
   bonkei:
     mood: happy
 ---
 flowchart LR
-  A --> B" />
+  A --> B
+```
 
 ## onReady, onNodeClick and onModeChange
 
 `onReady` fires once a new source's first frame is drawn, with the layout time and counts. `onNodeClick` fires for a node, a group or a sequence participant. `onModeChange` fires when the view changes, and says who changed it: the `toolbar`, the `handle`, or a changed `prop`. Click a node and switch the view:
 
-<BonkeiLive :height="300" :events="true" source="flowchart LR
+```mermaid {events height=300}
+flowchart LR
   subgraph Team
     A[Design] --> B[Build]
   end
-  B --> C[Ship]" />
+  B --> C[Ship]
+```
 
 ## From code
 

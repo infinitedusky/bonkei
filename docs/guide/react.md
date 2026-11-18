@@ -97,7 +97,9 @@ export function WithButtons() {
 
 Try it here: the same handle drives this live diagram through `render()`.
 
-<BonkeiLive :height="260" :events="true" source="flowchart LR
-  Draw --> Turn --> Fit" />
+```mermaid {events height=260}
+flowchart LR
+  Draw --> Turn --> Fit
+```
 
 Next: [Options and frontmatter](./options).

@@ -17,11 +17,13 @@ This diagram is live. Sample data: every diagram on this site is made up.
 
 Edit the Mermaid on the left; the diagram on the right follows.
 
-<BonkeiPlayground :height="320" source="sequenceDiagram
+```mermaid {editor height=320}
+sequenceDiagram
   participant U as User
   participant A as App
   U->>A: Edit the text
-  A-->>U: The diagram changes" />
+  A-->>U: The diagram changes
+```
 
 ## Pick your way in
 

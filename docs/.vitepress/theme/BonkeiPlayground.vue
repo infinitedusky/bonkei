@@ -4,7 +4,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{ source: string; height?: number; options?: Record<string, any> }>()
-const text = ref(props.source)
+const text = ref(decodeURIComponent(props.source))
 const host = ref<HTMLElement>()
 const problems = ref<string[]>([])
 let handle: { update(s: string): void; destroy(): void } | undefined

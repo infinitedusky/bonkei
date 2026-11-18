@@ -34,11 +34,13 @@ flowchart LR
 
 Change the text and the diagram follows. A line Bonkei cannot use is reported under the editor and the last good diagram stays.
 
-<BonkeiPlayground :height="340" source="flowchart LR
+```mermaid {editor height=340}
+flowchart LR
   Idea[An idea] --> Draft
   Draft --> Review{Good?}
   Review -->|yes| Ship
-  Review -->|no| Draft" />
+  Review -->|no| Draft
+```
 
 <CopyOrDownloadAsMarkdownButtons />
 

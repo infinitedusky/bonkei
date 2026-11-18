@@ -2,17 +2,6 @@
 description: How Bonkei draws two lines that cross (crossings), how hard it tries to keep lines apart (avoidCrossings), how to let the reader choose (crossingControls), and how to count crossings with onEdgeStats.
 ---
 
-<script setup>
-// A web app that reaches the database directly and through the API, and a CDN feeding the API and the cache: one line has to cross another, once.
-const graph = `flowchart LR
-  Web[Web app] --> Api[API] --> Db[(Database)]
-  Web --> Db
-  Cdn[CDN] --> Api
-  Cdn --> Cache[(Cache)]`
-const off = (crossings) => ({ crossings, avoidCrossings: 'off', toolbar: false })
-const avoid = (avoidCrossings) => ({ crossings: 'bridge', avoidCrossings, toolbar: false })
-</script>
-
 # Edge styles
 
 How Bonkei draws two lines that cross, and how hard it tries to keep them apart. The sample on this page is a web app that reaches the database both directly and through the API, while a CDN feeds the API and the cache: the web app's line to the database has to cross the CDN's lines, once, wherever the nodes are put.
@@ -85,25 +74,149 @@ Drag it to turn it; Flat / Iso / 3D and Fit switch the view. It is drawn with `a
 
 ## Crossings
 
-When two lines must cross, `crossings` says how the crossing is drawn. The default is `none`: the lines cross as plain lines. The four below are the same diagram with `avoidCrossings: off`, so the router does not move lines out of each other's way and every crossing is there to see.
+When two lines must cross, `crossings` says how the crossing is drawn. The default is `none`: the lines cross as plain lines. The four below are the same diagram with `avoidCrossings: off`, so the router does not move lines out of each other's way and every crossing is there to see. Each fence carries its own value in its frontmatter. Turn a diagram to the iso or 3D view to see bridge and tunnel: they lift or dip a line, so from straight above (the flat view) only the portal marks the crossing.
 
 <div class="grid2">
-<BonkeiLive :source="graph" :options="off('none')" :stats="true" :height="300" label="none" />
-<BonkeiLive :source="graph" :options="off('bridge')" :stats="true" :height="300" label="bridge" />
-<BonkeiLive :source="graph" :options="off('tunnel')" :stats="true" :height="300" label="tunnel" />
-<BonkeiLive :source="graph" :options="off('portal')" :stats="true" :height="300" label="portal" />
-</div>
+<figure>
 
-Each is set with `avoidCrossings: off`, so the router does not route around the crossing, and the line under it is `onEdgeStats` counting it: see [Counting crossings](#counting-crossings). Turn a diagram to the iso or 3D view to see bridge and tunnel: they lift or dip a line, so from straight above (the flat view) only the portal marks the crossing.
+```mermaid {height=300}
+---
+config:
+  bonkei:
+    crossings: none
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>none</figcaption>
+</figure>
+<figure>
+
+```mermaid {height=300}
+---
+config:
+  bonkei:
+    crossings: bridge
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>bridge</figcaption>
+</figure>
+<figure>
+
+```mermaid {height=300}
+---
+config:
+  bonkei:
+    crossings: tunnel
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>tunnel</figcaption>
+</figure>
+<figure>
+
+```mermaid {height=300}
+---
+config:
+  bonkei:
+    crossings: portal
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>portal</figcaption>
+</figure>
+</div>
 
 ## Avoiding crossings
 
-`avoidCrossings` sets how hard the router keeps lines apart: `off`, `some` (default) or `strong`. Stronger costs routing time when the diagram first draws. The same graph, drawn with bridges, at each level. The line under each is what the router left; on this graph the higher levels slide lines alongside each other rather than remove the crossing, which is why a crossing can be harder to find there.
+`avoidCrossings` sets how hard the router keeps lines apart: `off`, `some` (default) or `strong`. Stronger costs routing time when the diagram first draws. The same graph, drawn with bridges, at each level. On this graph the higher levels slide lines alongside each other rather than remove the crossing, which is why a crossing can be harder to find there.
 
 <div class="grid2">
-<BonkeiLive :source="graph" :options="avoid('off')" :stats="true" :height="300" label="off" />
-<BonkeiLive :source="graph" :options="avoid('some')" :stats="true" :height="300" label="some" />
-<BonkeiLive :source="graph" :options="avoid('strong')" :stats="true" :height="300" label="strong" />
+<figure>
+
+```mermaid {height=300}
+---
+config:
+  bonkei:
+    crossings: bridge
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>off</figcaption>
+</figure>
+<figure>
+
+```mermaid {height=300}
+---
+config:
+  bonkei:
+    crossings: bridge
+    avoidCrossings: some
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>some</figcaption>
+</figure>
+<figure>
+
+```mermaid {height=300}
+---
+config:
+  bonkei:
+    crossings: bridge
+    avoidCrossings: strong
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>strong</figcaption>
+</figure>
 </div>
 
 <div class="table-wrap">
@@ -118,7 +231,7 @@ Each is set with `avoidCrossings: off`, so the router does not route around the 
 
 ## Counting crossings
 
-`<Bonkei />` takes `onEdgeStats`, called whenever the lines are planned (a new layout, a drag, a new style). Its `crossings` is how many pairs of lines cross, and `bridge`, `tunnel` and `portal` how many of them were drawn in that style; `skipped` had no room. It is a React prop only; the counts under the diagrams above are this callback. Try the diagram below: drag a node and the count follows.
+`<Bonkei />` takes `onEdgeStats`, called whenever the lines are planned (a new layout, a drag, a new style). Its `crossings` is how many pairs of lines cross, and `bridge`, `tunnel` and `portal` how many of them were drawn in that style; `skipped` had no room. It is a React prop only; the line under each diagram below is this callback. On this site a fence with `{stats}` shows it. Drag a node and the count follows.
 
 ```tsx twoslash
 import { Bonkei } from 'bonkei'
@@ -132,7 +245,84 @@ export const Counted = () => (
 )
 ```
 
-<BonkeiLive :source="graph" :options="{ crossings: 'bridge', avoidCrossings: 'off' }" :stats="true" :height="320" />
+<div class="grid2">
+<figure>
+
+```mermaid {stats height=240}
+---
+config:
+  bonkei:
+    crossings: none
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>none</figcaption>
+</figure>
+<figure>
+
+```mermaid {stats height=240}
+---
+config:
+  bonkei:
+    crossings: bridge
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>bridge</figcaption>
+</figure>
+<figure>
+
+```mermaid {stats height=240}
+---
+config:
+  bonkei:
+    crossings: tunnel
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>tunnel</figcaption>
+</figure>
+<figure>
+
+```mermaid {stats height=240}
+---
+config:
+  bonkei:
+    crossings: portal
+    avoidCrossings: off
+    toolbar: false
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+<figcaption>portal</figcaption>
+</figure>
+</div>
 
 ## From code
 

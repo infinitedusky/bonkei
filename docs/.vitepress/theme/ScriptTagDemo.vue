@@ -16,7 +16,7 @@ onMounted(async () => {
   d.className = 'bonkei-diagram bonkei-tag'
   d.setAttribute('height', String(props.height ?? 300))
   for (const [k, v] of Object.entries(props.attrs ?? {})) d.setAttribute(k, v)
-  d.textContent = props.source
+  d.textContent = decodeURIComponent(props.source)
   host.value!.appendChild(d)
 })
 </script>

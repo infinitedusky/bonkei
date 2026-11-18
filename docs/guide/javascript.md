@@ -40,8 +40,10 @@ flowchart LR
 
 Live, drawn with `render()`:
 
-<BonkeiLive :height="300" source="flowchart LR
-  Build --> Test --> Ship" />
+```mermaid {live height=300}
+flowchart LR
+  Build --> Test --> Ship
+```
 
 ## The handle
 

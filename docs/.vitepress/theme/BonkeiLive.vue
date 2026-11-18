@@ -22,7 +22,7 @@ onMounted(async () => {
   }
   // onEdgeStats is a prop of <Bonkei />; render() hands its options on to it, so it works here (the types of render() do not list it)
   if (props.stats) o.onEdgeStats = (s: any) => { counts.value = s }
-  handle = render(el.value!, props.source, o)
+  handle = render(el.value!, decodeURIComponent(props.source), o)
 })
 onBeforeUnmount(() => handle?.destroy())
 </script>
@@ -32,7 +32,7 @@ onBeforeUnmount(() => handle?.destroy())
     <div ref="el" class="bonkei-diagram bonkei-live" :style="{ height: (height ?? 300) + 'px', position: 'relative' }"></div>
     <figcaption v-if="label">{{ label }}</figcaption>
     <p v-if="stats" class="bonkei-stats" aria-live="polite">
-      <template v-if="counts">onEdgeStats: <b>{{ counts.crossings }}</b> crossing{{ counts.crossings === 1 ? '' : 's' }} found<template v-if="options?.crossings && options.crossings !== 'none'">, <b>{{ counts[options.crossings] }}</b> drawn as {{ options.crossings }}<template v-if="counts.skipped">, {{ counts.skipped }} skipped</template></template></template>
+      <template v-if="counts">onEdgeStats: <b>{{ counts.crossings }}</b> crossing{{ counts.crossings === 1 ? '' : 's' }} found<template v-for="k in ['bridge', 'tunnel', 'portal']" :key="k"><template v-if="counts[k]">, <b>{{ counts[k] }}</b> drawn as {{ k }}</template></template><template v-if="counts.skipped">, {{ counts.skipped }} skipped</template></template>
       <template v-else>counting…</template>
     </p>
     <ol v-if="events" class="bonkei-events" aria-label="Events">

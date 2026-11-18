@@ -41,8 +41,10 @@ import { Bonkei } from 'bonkei'
 
 The text inside the element is the diagram. A `<` or `&` in a label is written `&lt;` or `&amp;`, as in any HTML. Below is a real `<bonkei-diagram>` element, drawn by the script from these docs:
 
-<ScriptTagDemo :height="360" source="flowchart LR
-  Build --> Test --> Ship" />
+```mermaid {tag height=360}
+flowchart LR
+  Build --> Test --> Ship
+```
 
 Attributes: `mode` (`flat`, `iso`, `3d`), `theme`, `height`. See [Script tag element](/reference/script-tag).
 

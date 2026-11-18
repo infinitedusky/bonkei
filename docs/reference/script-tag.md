@@ -22,9 +22,11 @@ The element's text is the diagram (frontmatter allowed). It is a block element a
 
 Events, on the element: `bonkei-ready` when drawn, and `bonkei-error` with `detail.kind` and `detail.message`. Adding, moving and removing elements works as for any element.
 
-<ScriptTagDemo :height="260" :attrs="{ mode: 'flat', theme: 'bonkei' }" source="flowchart LR
+```mermaid {tag mode=flat theme=bonkei height=260}
+flowchart LR
   mode --> flat
-  theme --> bonkei" />
+  theme --> bonkei
+```
 
 ## The global Bonkei
 
