@@ -1,5 +1,5 @@
 ---
-description: Draw Mermaid's Ishikawa (fishbone) diagrams in Bonkei: the effect as a fish's head, categories as bones, causes along each bone, at any depth, in flat, iso and 3D.
+description: "Draw Mermaid's Ishikawa (fishbone) diagrams in Bonkei: the effect as a fish's head, categories as bones, causes along each bone, at any depth, in flat, iso and 3D."
 ---
 
 # Ishikawa (fishbone) diagrams
