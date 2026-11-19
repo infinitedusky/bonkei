@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import sample from './sample.mmd?raw'
 import { Hero } from './Hero'
+import { How } from './How'
 import { Logo } from './Marks'
 import { Themes } from './Themes'
 // headings in Zen Old Mincho (SIL OFL), served with the site: the Latin subsets only
@@ -33,11 +34,11 @@ const Still = ({ src, alt }: { src: string; alt: string }) => (
 
 // The marketing site's one page, in the brand drawn from the bonkei prints: cream paper, ink, serif headings, the
 // tray-landscape logo. The hero stays in the Classic look. `live`: true forces the live hero, false the poster, unset
-// auto-detects; `themesLive` the same for the Themes section's scene (unset: when it comes near the screen, with WebGL).
-// Keep this file free of static imports of the scene (SceneView, camera, layout, three): Hero and Themes lazy-load it.
-export function Home({ name = 'Bonkei', live, themesLive }: { name?: string; live?: boolean; themesLive?: boolean }) {
+// auto-detects; `themesLive` the same for the Themes section's scene (unset: when it comes near the screen, with WebGL);
+// `howLive` the same for the "Keep the text" section's editor and scene (unset: follows `live`, else the hero's gate).
+// Keep this file free of static imports of the scene (SceneView, camera, layout, three): Hero, How and Themes lazy-load it.
+export function Home({ name = 'Bonkei', live, themesLive, howLive }: { name?: string; live?: boolean; themesLive?: boolean; howLive?: boolean }) {
   const [showSrc, setShowSrc] = useState(false)
-  const [srcAll, setSrcAll] = useState(false) // phone: the source starts as a few lines
   return (
     <div className="site">
       <div className="site-wrap">
@@ -73,14 +74,7 @@ export function Home({ name = 'Bonkei', live, themesLive }: { name?: string; liv
         <section id="how">
           <h2>Keep the text. Get the scene.</h2>
           <p className="site-lead">Your diagrams already live in READMEs and docs as Mermaid. You don't have to move them into a drawing tool: the same text becomes a 3D scene.</p>
-          <div className={'site-split' + (showSrc ? ' flash' : '')}>
-            <div className="site-src">
-              <pre className={srcAll ? '' : 'clamp'}>{sample.replace(/^%%.*\n/, '')}</pre>
-              <button type="button" className="site-srcmore" onClick={() => setSrcAll(v => !v)}>{srcAll ? 'Show less' : 'Show all'}</button>
-            </div>
-            <Still src="still-iso.png" alt="The flowchart from the source beside it, rendered isometrically" />
-          </div>
-          <div className="site-note">Edit the source, and the scene re-lays itself out as you type.</div>
+          <How live={howLive ?? live} flash={showSrc} />
         </section>
 
         <section id="views">

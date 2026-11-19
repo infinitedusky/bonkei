@@ -10,7 +10,7 @@
     "preview": "pnpm --filter @bonkei/site exec vite preview --outDir ../../dist",
     "storybook": "pnpm --filter bonkei build && pnpm --filter @bonkei/playground storybook",
     "capture": "pnpm --filter bonkei build && pnpm --filter @bonkei/site capture",
-    "test": "pnpm -r test && node --test --experimental-strip-types docs/.vitepress/theme/*.test.ts",
+    "test": "pnpm -r test && node --test --experimental-strip-types docs/.vitepress/theme/*.test.ts scripts/smoke/*.test.mjs",
     "size": "pnpm --filter bonkei build && pnpm --filter bonkei size",
     "check:package": "pnpm --filter bonkei build && pnpm --filter bonkei check",
     "docs:install": "node scripts/docs-install.mjs",
