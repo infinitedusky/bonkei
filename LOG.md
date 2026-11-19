@@ -347,3 +347,17 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **Core's look is unchanged.** The prototype's LED track round a tunnel's trench was a scene change with fixed colours outside the theme tokens; the tunnel reads as a dip in iso without it, so it is not in this build.
 
 **Consequences.** Every feature task from here on writes or updates its page in `docs/guide/` and tries the feature there (CONTRIBUTING.md). A renamed option, an export without JSDoc, or an option with no live example fails a check. The Pages build now runs `npm install` against the registry. A core dependency change rewrites the docs lock's two tarball entries.
+
+## 2026-11-18 — The trench light's defaults (BON-181)
+
+**Context.** BON-181 brings back a light inside a tunnel's trench, with three parts: a floor light, a wash on the walls, and a rim round the lip. Each part is a theme token (`edge.glow.*`, `edge.rim`), so a theme or a diagram can recolour it, make it stronger or weaker, or switch it off. The prototype first gave every theme a warm or blue-grey light with a light rim.
+
+**Decision.** The person set the defaults:
+- **Classic:** floor light and wall wash in greyish white, rgb(224,224,224) (`#e0e0e0`), at about 30% strength, and no rim (`edge.rim: none`).
+- **Bonkei and Bonkei · landscape** (the light themes): the trench light is off (`edge.glow: off`), and the rim stays as it is on main, so a Bonkei tunnel looks as it did before.
+
+**Alternatives considered.**
+- A light rim by default in the Bonkei themes (recommended in the hand-over): the person didn't want light on the cream ground.
+- A coloured rim round the lip: the person doesn't want an edge, only light from the trench.
+
+**Consequences.** Only Classic tunnels look different by default. Bonkei users can turn the light on with theme variables. Diagrams without a tunnel are unchanged in every theme.
