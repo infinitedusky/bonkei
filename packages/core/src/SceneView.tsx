@@ -6,7 +6,7 @@ import { reroute, PAD } from './layout'
 import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { instant } from './telemetry'
-import { createCamera, biggestTray, contentOf, PRESET, type Camera, type Mode } from './camera'
+import { createCamera, biggestTray, contentOf, frameOf, PRESET, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
@@ -275,7 +275,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
 }
 
 function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick, crossings, avoidCrossings, onEdgeStats }: {
-  cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void
+  cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number, id?: string) => void
   controls: ResolvedControls; onNodeClick?: (n: NodeClick) => void; hasClick: boolean
   crossings: CrossingStyle; avoidCrossings: AvoidCrossings; onEdgeStats?: (s: EdgeStats) => void
 }) {
@@ -383,7 +383,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
                 if (e.delta >= 4) return
                 e.stopPropagation()
                 onNodeClick?.({ id: b.id, label: b.label, kind: 'group' })
-                if (controls.drillIn) onDrill(pos[0], pos[2], w, h)
+                if (controls.drillIn) onDrill(pos[0], pos[2], w, h, b.id)
               }}
               onPointerOver={e => { e.stopPropagation(); setHover(b.id); setCursor(cursorFor('group', controls, hasClick)) }}
               onPointerOut={() => { setHover(null); setCursor('') }}>
@@ -421,21 +421,30 @@ function NodeLift({ pos, hover, children, onDown, onClick, onOver, onOut }: { po
   )
 }
 
-// On the first frame drawn with each new `data`: fit with the real aspect (known only once the
-// canvas has a size), snap there if this view has never shown a layout, then report it once.
+// On the first frame drawn with each new `data`. The camera's first layout ever is framed (with the real aspect, known only once
+// the canvas has a size) and snapped to. Every later one (a new source, a new theme, another avoid-crossings level) keeps the view:
+// same pose, same tray flown into, lined up on what is on screen (camera.relayout, BON-195). Then it is reported once.
 function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResult | SeqLayout | null; onFirstFrame?: () => void }) {
   const seen = useRef<LayoutResult | SeqLayout | null>(null)
-  const laidOut = useRef(false)
   const cb = useRef(onFirstFrame)
   cb.current = onFirstFrame
   useFrame(({ size }) => {
     if (!data || seen.current === data) return
     seen.current = data
     if (size.width > 0 && size.height > 0) { cam.aspect = size.width / size.height; cam.frameH = size.height }
-    cam.whole = false
     cam.content = 'boxes' in data ? contentOf(data.boxes, data.width, data.height) : []
-    cam.fit(data.width, data.height, 'boxes' in data && cam.minLabel > 0 ? biggestTray(data.boxes, data.width, data.height) : undefined)
-    if (!laidOut.current) { cam.snap(); laidOut.current = true }
+    if (!cam.layout) {
+      cam.whole = false
+      cam.fit(data.width, data.height, 'boxes' in data && cam.minLabel > 0 ? biggestTray(data.boxes, data.width, data.height) : undefined)
+      cam.adopt(frameOf(data))
+      cam.snap()
+    } else {
+      const kept = cam.relayout(frameOf(data))
+      instant('bonkei.relayout_kept_view', {
+        'bonkei.view.anchor': kept.anchor, 'bonkei.view.tray': kept.tray,
+        'bonkei.view.shift': Math.hypot(kept.shiftX, kept.shiftZ), 'bonkei.view.edits': cam.edits, 'bonkei.mode': cam.mode,
+      })
+    }
     cb.current?.()
   })
   return null
@@ -463,7 +472,7 @@ export interface SceneViewProps {
   onNodeClick?: (node: NodeClick) => void
   /** Whether to show the pointer cursor for clicks. Default: whether `onNodeClick` is given. */
   hasClick?: boolean
-  /** Called once per `data`, on the first frame drawn with it (after the fit). */
+  /** Called once per `data`, on the first frame drawn with it (after the camera has framed it, or kept its view for a later one). */
   onFirstFrame?: () => void
   /** How crossing lines get past each other: not at all (default), by a bridge, a tunnel or portals. Steps between heights are always on. */
   crossings?: CrossingStyle

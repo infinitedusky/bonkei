@@ -334,10 +334,11 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   const fit = useCallback(() => {
     const p = preparedRef.current
     if (!p) return
+    const edits = camera.edits
     camera.whole = true
     camera.square()
     camera.fit(p.data.width, p.data.height)
-    fitUsed(modeRef.current)
+    fitUsed(modeRef.current, edits)
   }, [camera])
   const frame = useCallback(() => {
     const p = preparedRef.current
