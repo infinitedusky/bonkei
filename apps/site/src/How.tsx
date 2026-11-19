@@ -20,6 +20,14 @@ class SceneBoundary extends Component<{ onFailed: (message: string) => void; chi
   render() { return this.state.failed ? null : this.props.children }
 }
 
+// Fetch the scene's chunk once the page is idle (BON-209), so scrolling down never waits on it; mounting it still waits
+// for the section to come near the screen.
+function prefetchWhenIdle(load: () => Promise<unknown>) {
+  const run = () => { load().catch(() => {}) } // a failure shows when the section mounts it
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 })
+  else setTimeout(run, 2000)
+}
+
 const START = startOf(sample)
 const BASE = import.meta.env.BASE_URL
 
@@ -79,11 +87,12 @@ export function How({ live, fallback = 'phone', flash = false, initial, failLoad
   useEffect(() => {
     const el = root.current
     if (!el || gate !== 'live') return
+    if (!failLoad && !holdLoad) prefetchWhenIdle(() => import('./HowScene'))
     if (live === true || typeof IntersectionObserver === 'undefined') { setNear(true); return }
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setNear(true); io.disconnect() } }, { rootMargin: '400px 0px' })
     io.observe(el)
     return () => io.disconnect()
-  }, [gate, live])
+  }, [gate, live, failLoad, holdLoad])
 
   const isLive = gate === 'live' && !failed
   const Scene = failLoad ? NoScene : holdLoad ? SlowScene : HowScene

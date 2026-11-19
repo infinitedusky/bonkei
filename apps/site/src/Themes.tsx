@@ -5,6 +5,15 @@ import { THEMES_DIAGRAM } from './themes-sample'
 // Like Hero.tsx, this file has no value import of the scene: the scene chunk is fetched when the section comes
 // near the screen, so the page's first paint (and a phone) never waits for it.
 const ThemesScene = lazy(() => import('./ThemesScene'))
+// Fetch the scene's chunk once the page is idle (BON-209), so scrolling down never waits on it; mounting it still waits
+// for the section to come near the screen.
+function prefetchWhenIdle(load: () => Promise<unknown>) {
+  const run = () => { load().catch(() => {}) } // a failure shows when the section mounts it
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 })
+  else setTimeout(run, 2000)
+}
+
+
 
 export type ThemeId = 'classic' | 'bonkei' | 'bonkei-landscape'
 
@@ -54,6 +63,7 @@ export function Themes({ start = 'bonkei-landscape', source = THEMES_DIAGRAM, li
     if (live === false) return
     if (!hasWebGL2()) { setGl(false); return }
     if (live === true) { setMount(true); return }
+    prefetchWhenIdle(() => import('./ThemesScene'))
     const el = frame.current
     if (!el || typeof IntersectionObserver === 'undefined') { setMount(true); return }
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setMount(true); io.disconnect() } }, { rootMargin: '400px 0px' })
