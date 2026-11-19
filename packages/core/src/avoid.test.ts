@@ -1,0 +1,264 @@
+// The libavoid router (BON-99): side pins, tray closure, docks at a tray, a live drag. Hand-made layouts, so the expected routes are plain.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { loadAvoid, createRouter, TUNE, SLACK, REFINE_PASSES } from './avoid.ts'
+import { layout } from './layout.ts'
+import { straighten, doublesBack, blocked, refine, overlapOf, crossingsOf, unblock, canGoDirect } from './monotone.ts'
+import { measureRoutes } from './routeMetrics.ts'
+import { parse } from './parser.ts'
+import type { Box, LayoutResult, Route } from './model.ts'
+
+const node = (id: string, x: number, y: number, parent?: string, level = 0): Box => ({ id, label: id, kind: 'node', shape: 'rect', x, y, w: 110, h: 56, level, parent })
+const tray = (id: string, x: number, y: number, w: number, h: number): Box => ({ id, label: id, kind: 'group', shape: 'rect', x, y, w, h, level: 0 })
+const edge = (id: string, from: string, to: string): Route => ({ id, from, to, points: [[0, 0], [1, 1]] })
+const lay = (boxes: Box[], routes: Route[]): LayoutResult => ({ boxes, routes, width: 1200, height: 800 })
+const mids = (b: Box): [number, number][] => [[b.x + b.w / 2, b.y], [b.x + b.w / 2, b.y + b.h], [b.x, b.y + b.h / 2], [b.x + b.w, b.y + b.h / 2]]
+const onMid = (p: number[], b: Box) => mids(b).some(m => Math.hypot(m[0] - p[0], m[1] - p[1]) < 0.5)
+const hits = (r: Route, b: Box, shrink = 0) => r.points.slice(1).some((q, i) => {
+  const p = r.points[i]
+  return Math.max(p[0], q[0]) > b.x + shrink && Math.min(p[0], q[0]) < b.x + b.w - shrink && Math.max(p[1], q[1]) > b.y + shrink && Math.min(p[1], q[1]) < b.y + b.h - shrink
+})
+const orthogonal = (r: Route) => r.points.slice(1).every((q, i) => Math.abs(q[0] - r.points[i][0]) < 1e-6 || Math.abs(q[1] - r.points[i][1]) < 1e-6)
+
+const A = await loadAvoid()
+
+test('both ends of every line sit on a side midpoint, and the line is orthogonal', () => {
+  const d = lay([node('a', 100, 100), node('b', 500, 300), node('c', 100, 500)], [edge('e1', 'a', 'b'), edge('e2', 'b', 'c'), edge('e3', 'a', 'c')])
+  const r = createRouter(A, d)
+  const by = new Map(d.boxes.map(b => [b.id, b]))
+  for (const e of r.routes) {
+    assert.ok(onMid(e.points[0], by.get(e.from)!), `${e.id} start`)
+    assert.ok(onMid(e.points.at(-1)!, by.get(e.to)!), `${e.id} end`)
+    assert.ok(orthogonal(e), e.id)
+  }
+  assert.deepEqual(r.stats.failed, [])
+  r.dispose()
+})
+
+test('a line goes around a block that stands in its way', () => {
+  const d = lay([node('a', 100, 300), node('wall', 400, 280, undefined), node('b', 800, 300)], [edge('e', 'a', 'b')])
+  d.boxes[1].h = 120
+  const r = createRouter(A, d)
+  assert.ok(!hits(r.routes[0], d.boxes[1]), 'does not cross the block')
+  r.dispose()
+})
+
+test('a tray nobody enters is closed: a line between nodes outside goes around it', () => {
+  const T = tray('T', 400, 200, 300, 400)
+  const d = lay([T, node('in', 480, 380, 'T', 1), node('l', 100, 380), node('r', 900, 380)], [edge('across', 'l', 'r')])
+  const r = createRouter(A, d)
+  assert.ok(!hits(r.routes[0], T, 1), 'stays outside the tray')
+  assert.deepEqual(r.stats.failed, [])
+  r.dispose()
+})
+
+test('lines that belong to a tray enter and leave it, ending at side midpoints, crossing no node', () => {
+  const T = tray('T', 400, 200, 300, 400)
+  const d = lay([T, node('in', 480, 380, 'T', 1), node('l', 100, 380), node('far', 900, 100)], [edge('into', 'l', 'in'), edge('out', 'in', 'far')])
+  const r = createRouter(A, d)
+  const [into, out] = r.routes
+  assert.ok(hits(into, T, 1) && hits(out, T, 1))
+  assert.ok(onMid(into.points.at(-1)!, d.boxes[1]) && onMid(out.points[0], d.boxes[1]))
+  assert.deepEqual(r.stats.failed, [])
+  r.dispose()
+})
+
+test('a line aligned with another line\'s opening in a tray it does not belong to goes round the tray, not through it', () => {
+  const T = tray('T', 400, 200, 300, 400)
+  const boxes = () => [T, node('in', 480, 380, 'T', 1), node('l', 100, 380), node('r', 900, 380), node('far', 900, 100)]
+  const routes = () => [edge('across', 'l', 'r'), edge('into', 'l', 'in'), edge('out', 'in', 'far')]
+  const r = createRouter(A, lay(boxes(), routes()))
+  assert.ok(!hits(r.routes[0], T, 1), 'the line past stays outside the tray')
+  assert.ok(hits(r.routes[1], T, 1) && hits(r.routes[2], T, 1), 'and the lines that belong enter and leave')
+  for (const e of r.routes) assert.ok(!blocked(boxes(), e), `${e.id} through no foreign tray or block`)
+  assert.deepEqual(r.stats.failed, [])
+  r.dispose()
+})
+
+test('an edge to a tray itself ends at a side midpoint of the tray', () => {
+  const T = tray('T', 400, 200, 300, 400)
+  const d = lay([T, node('in', 480, 380, 'T', 1), node('l', 100, 380)], [edge('toTray', 'l', 'T')])
+  const r = createRouter(A, d)
+  assert.ok(onMid(r.routes[0].points.at(-1)!, T), 'at a tray side midpoint')
+  assert.ok(onMid(r.routes[0].points[0], d.boxes[2]))
+  r.dispose()
+})
+
+test('dragging: the same router re-routes around the moved block, ends stay on midpoints', () => {
+  const d = lay([node('a', 100, 300), node('b', 800, 300), node('m', 450, 100)], [edge('e', 'a', 'b')])
+  const r = createRouter(A, d)
+  const before = r.routes[0].points.length
+  r.move('m', 0, 200) // into the line's way
+  const m = { ...d.boxes[2], y: 300 }
+  assert.ok(!hits(r.routes[0], m), 'goes around the block dropped on its path')
+  assert.ok(onMid(r.routes[0].points[0], d.boxes[0]) && onMid(r.routes[0].points.at(-1)!, d.boxes[1]))
+  assert.ok(r.routes[0].points.length > before, 'it bent')
+  assert.deepEqual(r.at('m'), { x: 450, y: 300 })
+  r.reset()
+  assert.deepEqual(r.at('m'), { x: 450, y: 100 })
+  assert.equal(r.routes[0].points.length, before)
+  r.dispose()
+})
+
+test('layout routes with libavoid: no line through a block or a tray it does not enter, on a nested sample', async () => {
+  const r = await layout(parse(`flowchart TD
+  subgraph P["Payments"]
+    subgraph R["Risk"]
+      F{Fraud} -->|flag| V[Review]
+    end
+    A[Pay API] --> F
+    V -->|approve| C[Charge]
+    C --> V
+  end
+  subgraph Q["Other"]
+    X[Ex] --> Y[Why]
+  end
+  Client --> A
+  Client --> X
+  C --> L[(Ledger)]
+  R --> Audit`))
+  assert.equal(r.stats?.route?.error, null)
+  assert.deepEqual(r.stats?.route?.failed, [])
+  const by = new Map(r.boxes.map(b => [b.id, b]))
+  const anc = (id: string) => { const l: string[] = []; for (let p = by.get(id)?.parent; p; p = by.get(p)?.parent) l.push(p); return l }
+  for (const e of r.routes) for (const b of r.boxes) {
+    if (b.id === e.from || b.id === e.to) continue
+    if (b.kind === 'node') assert.ok(!hits(e, b), `${e.id} through ${b.id}`)
+    else if (!anc(e.from).includes(b.id) && !anc(e.to).includes(b.id)) assert.ok(!hits(e, b, 1), `${e.id} through tray ${b.id}`)
+  }
+})
+
+test('the tuning keeps the router fast to move: no crossing cost while dragging', () => {
+  assert.equal(TUNE.dragCrossing, 0)
+})
+
+test('the avoid-crossings level reads from frontmatter, props override it, and the layout routes at that level', async () => {
+  const { prepare } = await import('./diagram.ts')
+  const { mergeOptions } = await import('./options.ts')
+  const src = '---\nconfig:\n  bonkei:\n    avoidCrossings: strong\n---\nflowchart TD\nA --> B'
+  const p = await prepare(src)
+  assert.equal(p.options.avoidCrossings, 'strong')
+  assert.equal((p.data as LayoutResult).stats?.route?.level, 'strong')
+  assert.equal(mergeOptions({ avoidCrossings: 'off' }, p.options).avoidCrossings, 'off')
+  assert.equal(mergeOptions().avoidCrossings, 'some')
+  assert.equal((await prepare(src, { avoidCrossings: 'off' }) as any).data.stats.route.level, 'off')
+})
+
+test('stronger crossing avoidance never gives more crossings, and no level leaves a line through a block or turning back', async () => {
+  const g = parse(`flowchart TD
+  A --> D
+  B --> C
+  A --> C
+  B --> D
+  C --> E
+  D --> F
+  A --> F
+  B --> E`)
+  const count: number[] = []
+  for (const level of ['off', 'some', 'strong'] as const) {
+    const d = await layout(g, { avoidCrossings: level })
+    assert.equal(d.stats?.route?.level, level)
+    count.push(measureRoutes(d.boxes, d.routes).crossings)
+    assert.equal(measureRoutes(d.boxes, d.routes).throughBlocks, 0)
+    assert.equal(measureRoutes(d.boxes, d.routes).doublingBack, 0, level) // B -> E turned back until E slid aside (BON-102)
+  }
+  // fewer crossings at each step is measured on the 50-node sample (apps/playground/scripts/routes.test.ts); a graph this small can
+  // tie, and off is not compared: there A -> C starts on B -> D's run, which the count does not take for a crossing
+  assert.ok(count[2] <= count[1], `crossings ${count}`)
+})
+
+test('a line libavoid sends back on itself is given the direct route when there is one', () => {
+  // b sits up and to the right of a: a route that leaves a downwards and comes back up doubles back
+  const boxes = [node('a', 100, 400), node('b', 500, 100)]
+  const bad: Route = { id: 'e', from: 'a', to: 'b', points: [[155, 456], [155, 520], [610, 520], [610, 156]] }
+  assert.ok(doublesBack(bad.points))
+  const s = straighten(boxes, [bad], 10)
+  assert.equal(s.changed, 1)
+  assert.ok(!doublesBack(s.routes[0].points), JSON.stringify(s.routes[0].points))
+  assert.ok(onMid(s.routes[0].points[0], boxes[0]) && onMid(s.routes[0].points.at(-1)!, boxes[1]))
+  assert.equal(s.forced, 0)
+})
+
+test('dragging a node out of a tray\'s way: the doors follow and the line goes straight out by the facing side, and reset restores', async () => {
+  const data = await layout(parse(`flowchart LR
+  Client([Client]) --> Pay
+  subgraph Payments
+    Pay[Pay API]
+    subgraph Risk
+      Fraud{Fraud Check}
+      Review[Review]
+    end
+    Pay --> Fraud
+  end
+  Fraud --> Review
+  Fraud --> Ledger[(Ledger)]
+  Ledger --> Payments`))
+  {
+    const ends = 'midpoint'
+    const r = createRouter(A, data, 'some')
+    const sig = () => JSON.stringify(r.routes.map(e => e.points.map(p => p.map(Math.round))))
+    const before = sig()
+    r.move('Ledger', -900, 300) // to the left of and below the trays, the other side from where layout put it
+    const line = r.routes.find(e => e.from === 'Fraud' && e.to === 'Ledger')!
+    assert.ok(line.points.length - 1 <= 4, `${ends}: ${line.points.length - 1} segments, not a loop round the tray`)
+    assert.deepEqual(r.stats.failed, [])
+    r.reset()
+    assert.equal(sig(), before, `${ends}: reset restores the routes`)
+    r.dispose()
+  }
+})
+
+test('refine moves a line off another it lies on, onto a lane beside it, still direct', () => {
+  const boxes = [node('a', 0, 0), node('b', 400, 300), node('c', 0, 40), node('d', 400, 340)]
+  // two lines from the left blocks to the right ones, drawn on top of each other along y = 180
+  const r1: Route = { id: 'r1', from: 'a', to: 'b', points: [[110, 28], [200, 28], [200, 180], [300, 180], [300, 328], [400, 328]] }
+  const r2: Route = { id: 'r2', from: 'c', to: 'd', points: [[110, 68], [200, 68], [200, 180], [300, 180], [300, 368], [400, 368]] }
+  const seg = (r: Route) => r.points.slice(1).map((b, k) => ({ a: r.points[k], b }))
+  assert.ok(overlapOf(r1.points, seg(r2)) > 0)
+  const out = refine(boxes, [r1, r2], 10, 1000).routes
+  assert.equal(overlapOf(out[0].points, seg(out[1])), 0)
+  for (const r of out) { assert.ok(!doublesBack(r.points), r.id); assert.ok(!blocked(boxes, r), r.id) }
+  assert.ok(crossingsOf(out[0].points, seg(out[1])) <= crossingsOf(r1.points, seg(r2)))
+})
+
+test('no level lets a line keep a sideways jog that turns back; strong re-routes more rounds to cross fewer lines (BON-102)', () => {
+  assert.equal(SLACK.off, Infinity)
+  assert.equal(SLACK.some, Infinity)
+  assert.equal(SLACK.strong, Infinity)
+  assert.ok(REFINE_PASSES.strong > REFINE_PASSES.some)
+})
+
+test('a block whose line has no direct route slides across the flow inside its tray until it has one (BON-102)', () => {
+  // a above; a wide tray W (nobody enters it) right below a; b in tray T under W, also under a: every route must go round W and come back
+  const W = tray('W', 100, 200, 400, 200)
+  const T = { ...tray('T', 0, 500, 900, 200) }
+  const a = node('a', 245, 50), b = { ...node('b', 245, 580, 'T', 1) }
+  const boxes = [W, T, a, b]
+  const r: Route = { id: 'e', from: 'a', to: 'b', points: [[300, 106], [300, 150], [520, 150], [520, 540], [300, 540], [300, 580]] }
+  assert.ok(!canGoDirect(boxes, r, 10))
+  // a, at the top, has no room to move (the area is its own width), so b is the one that slides
+  const u = unblock(boxes, [r], 10, 0, 32, 40, { x0: 245, y0: 0, x1: 355, y1: 800 })
+  assert.deepEqual(u.moved, ['b'])
+  const nb = u.boxes.find(x => x.id === 'b')!
+  assert.equal(nb.y, b.y, 'slides across the flow only')
+  assert.ok(nb.x >= T.x + 40 && nb.x + nb.w <= T.x + T.w - 40, 'stays inside its tray')
+  assert.ok(canGoDirect(u.boxes, r, 10))
+  assert.ok(!doublesBack(u.routes[0].points) && !blocked(u.boxes, u.routes[0]), JSON.stringify(u.routes[0].points))
+  // a block with no room to slide stays where it is
+  const tight = [W, { ...T, x: 240, w: 120 }, a, b]
+  assert.deepEqual(unblock(tight, [r], 10, 0, 32, 40, { x0: 245, y0: 0, x1: 355, y1: 800 }).moved, [])
+})
+
+test('lines fanning out from one side midpoint are not counted as lying on each other; two lines on one run are', () => {
+  const boxes = [node('a', 0, 0), node('b', 300, 200), node('c', 300, 400)]
+  const fan = [
+    { id: 'f1', from: 'a', to: 'b', points: [[55, 56], [55, 68], [120, 68], [120, 228], [300, 228]] },
+    { id: 'f2', from: 'a', to: 'c', points: [[55, 56], [55, 68], [140, 68], [140, 428], [300, 428]] },
+  ] as Route[]
+  assert.equal(measureRoutes(boxes, fan).overlaps, 0)
+  const onTop = [
+    { id: 'o1', from: 'b', to: 'a', points: [[300, 228], [200, 228], [200, 28], [110, 28]] },
+    { id: 'o2', from: 'c', to: 'a', points: [[300, 428], [200, 428], [200, 100], [180, 100]] },
+  ] as Route[]
+  assert.equal(measureRoutes(boxes, onTop).overlaps, 1)
+})

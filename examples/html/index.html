@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bonkei by script tag</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1b1b1f; }
+    bonkei-diagram { border: 1px solid #ddd; border-radius: 6px; margin: 1rem 0; }
+    pre.mermaid { background: #f6f6f7; padding: 1rem; border-radius: 6px; }
+    button { font: inherit; margin-right: .5rem; }
+    .note { color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Bonkei by script tag</h1>
+  <p class="note">Sample data: every diagram on this page is made up. The page is static: this file, <code>bonkei.global.js</code>,
+    <code>libavoid.wasm</code> and <code>fonts/</code>. No build step.</p>
+
+  <h2>Flowchart</h2>
+  <!-- The text is the diagram. A < or & in a label must be written &lt; or &amp;, as in any HTML. -->
+  <bonkei-diagram id="flow">
+    flowchart TD
+      A[Client] --> B[API]
+      B --> C[(Database)]
+      B --> D{Cache}
+      D --> C
+  </bonkei-diagram>
+
+  <h2>Sequence diagram, 600 px tall, Bonkei theme</h2>
+  <bonkei-diagram id="seq" height="600" theme="bonkei">
+    sequenceDiagram
+      participant U as User
+      participant A as App
+      participant D as Database
+      U->>A: Log in
+      A->>D: Look up the user
+      D-->>A: Found
+      A-->>U: Welcome
+  </bonkei-diagram>
+
+  <h2>Add and remove</h2>
+  <p>
+    <button id="add">Add a diagram</button>
+    <button id="remove">Remove the last one</button>
+    <span class="note" id="count"></span>
+  </p>
+  <div id="slot"></div>
+
+  <h2>&lt;pre class="mermaid"&gt; blocks, only when the page asks</h2>
+  <p class="note">These stay text until the button calls <code>Bonkei.run({ querySelector: 'pre.mermaid' })</code>.
+    A pie chart is not a type Bonkei draws, so it stays text.</p>
+  <p><button id="run">Convert pre.mermaid blocks</button> <span class="note" id="converted"></span></p>
+  <pre class="mermaid">
+    flowchart LR
+      Build --> Test --> Ship
+  </pre>
+  <pre class="mermaid">
+    pie title Pets
+      "Dogs" : 386
+      "Cats" : 85
+  </pre>
+
+  <script src="bonkei.global.js"></script>
+  <script>
+    var slot = document.getElementById('slot'), n = 0
+    function count() { document.getElementById('count').textContent = slot.children.length + ' added' }
+    document.getElementById('add').onclick = function () {
+      var el = document.createElement('bonkei-diagram')
+      el.setAttribute('height', '300')
+      el.textContent = 'flowchart LR\n  One --> Two --> Three\n  Three --> N' + (++n) + '[Added ' + n + ']'
+      slot.appendChild(el)
+      count()
+    }
+    document.getElementById('remove').onclick = function () {
+      if (slot.lastElementChild) slot.lastElementChild.remove()
+      count()
+    }
+    document.getElementById('run').onclick = function () {
+      document.getElementById('converted').textContent = Bonkei.run({ querySelector: 'pre.mermaid' }) + ' converted'
+    }
+  </script>
+</body>
+</html>
