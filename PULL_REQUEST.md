@@ -1,20 +1,19 @@
-# Tunnels you can see: trench glow and rim (BON-181)
+# The view stays where it is when the diagram changes (BON-195)
 
-A tunnel used to read as a dark dip. Its trench can now be lit: a light along the floor, a wash on the walls and a rim round the lip. Each part can be recoloured, made stronger or weaker, or turned off, by a theme or by one diagram.
+Only the first draw frames a diagram now. After that, a new source or a setting that lays it out again (a theme in the frontmatter or from the theme menu, avoid-crossings, `setTheme`) leaves the camera exactly where the reader put it: position, zoom, angle, and the tray they flew into. Fit and Flat / Iso / 3D frame as before. Same in the viewer, the docs, `render()`, the script tag and the front page, as they all draw through `SceneView`.
 
-- **Defaults.** Classic lights its trench grey-white `#e0e0e0` at 30% strength, with no rim. Bonkei and Bonkei · landscape have the light off and draw exactly as before.
-- **Tokens.** `edge.glow` (`core`, `coreWidth`, `halo`, `haloWidth`, `haloOpacity`, `wash`, `washIntensity`) in every preset; `edge.rim` takes `none`. In a diagram's `config.themeVariables`: `edge.glow: off`, `edge.glow.core/halo/wash: null`, `edge.rim: none`, and the diagram's own rim colour and width win. Other values are validated and go to `onWarning`.
-- **Only the trench is lit.** The light is drawn (lines on the floor, an emissive wash on the walls); no scene light is added.
-- **Docs.** Edge styles, "The trench light": live controls (preset Theme default / Light only / All off, the three parts, colour, strength), with the frontmatter they write under the diagram; a fence with its own teal rim. Themes lists the tokens.
-- **Telemetry.** `bonkei.theme` gains `bonkei.theme.trench`; the docs controls add `bonkei.docs.trench_light.edit`.
+- **Lined up on what is on screen.** A diagram that grows moves its centre, so the camera moves by exactly as much as the nearest on-screen node (else the tray the view is in) moved: nothing on screen slides. If everything on screen was deleted it makes up for the centre's move. Something added out of view stays out of view until Fit.
+- **The tray flown into is followed by id.** Edited, it is still the tray a mode switch frames; deleted, the camera stays still and the next mode switch frames the tray that held it, or the whole diagram.
+- **`render()` handle: `setTheme(theme)`.** `<bonkei-diagram>` uses it when its `theme` attribute changes (it used to destroy and redraw, which reset the view). `mode` still draws afresh.
+- **Telemetry.** `bonkei.relayout_kept_view` per kept layout (anchor, what happened to the tray, how far it moved); `bonkei.fit.after_edits` on `bonkei.fit`; `bonkei.element.theme_change`.
 
-Where to look: `packages/core/src/theme.ts` (tokens, `edge.glow: off`, `trenchParts`), `EdgeScene.tsx` (`Trench`), `theme.test.ts`; `docs/.vitepress/theme/trench.ts` (the controls' rules, tested in `trench.test.ts`) and `TrenchLight.vue`; stories **Themes / Tunnel …**. Decisions in LOG.md ("Tunnels you can see: the trench light and rim (BON-181)"); manual test plan in TESTING.md (same title).
+Where to look: `packages/core/src/camera.ts` (`relayout`, `adopt`, `frameOf`, `focusId`), `SceneView.tsx` (`FirstFrame`), `render.tsx` (`setTheme`), `elementClass.ts`; tests in `camera.test.ts`, `element.test.ts`, `controls.test.ts`. Stories **Components / Bonkei / Edits Keep The View**, **Render Function** (setTheme buttons), **Script tag / Element Theme Changed**. Docs: Guide → JavaScript (the handle), React, Controls ("When the diagram changes"), Reference → Script tag element; README. Decisions in LOG.md ("The view stays where it is when the diagram changes (BON-195)"); manual test plan in TESTING.md (same title).
 
 ## Risks: what this could break, and how you would notice
 
-- **Classic tunnels look different.** Lit, and without the dark rim they had. Anyone comparing Classic tunnel pictures sees the trench change (and only the trench); a reader who wants the old look sets `edge.glow: off` and `edge.rim: null`.
-- **A theme object built by hand before this change** (plain JS, no `edge.glow`): TypeScript now asks for `glow`; without it the trench draws unlit, as before, rather than failing. Copies of a preset (`{ ...CLASSIC.edge, … }`) carry the light. Someone who copied Classic would notice their tunnels are lit now.
-- **The light on bright ground.** In the Bonkei looks the walls hide most of the floor light, so a switched-on light shows mostly as the wash; that is a look, not a fault.
-- **Diagrams without a tunnel** read none of the new tokens; a pixel difference there would be a bug. Compared against main on samples in flat, iso and 3D in all three themes (see below).
+- **A page that relied on each new source re-framing** (a page that swaps whole different diagrams through one view, like the viewer's sample menu) now keeps the old camera; the new diagram can sit partly off-screen until Fit. You would notice a diagram opening zoomed into a corner after a swap; such a page calls `fit()` after `update()`.
+- **Anchor choice.** If the node nearest the centre moves a long way in the new layout (ELK reorders a rank), the view follows it and the rest of the screen changes; a reader sees the node they looked at stay put while its neighbours jump. `bonkei.view.shift` in telemetry shows how far views were moved.
+- **Mode switch after an edit while in a tray** now re-centres on that tray (or its parent, or the whole diagram if it was deleted) instead of keeping a pan made inside it. Someone who panned inside a tray, edited, then switched mode would see the view re-centre on the tray.
+- **Script-tag theme attribute** now keeps the same React tree; a bug in a theme switch that a fresh mount used to hide (state from the old look) would show as a wrong look after changing `theme` on an element.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
