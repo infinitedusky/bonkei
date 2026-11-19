@@ -73,8 +73,8 @@ export function FishScene({ data, labelMode }: { data: FishLayout; labelMode: La
       {data.rods.map((r, i) => <Rod key={'r' + i} r={r} wx={wx} wz={wz} />)}
       <FishHead h={data.head} wx={wx} wz={wz} labelMode={labelMode} />
       {data.pieces.map((p, i) => {
-        const b: Box = { id: String(i), label: p.label, kind: 'node', shape: p.kind === 'cat' ? 'rect' : 'round', x: 0, y: 0, w: p.w, h: p.h, level: 0 }
-        // a cause is a pill, scaled down in height by its depth (its label stays on its top); in a landscape theme it is smaller by depth instead
+        const b: Box = { id: String(i), label: p.label, kind: 'node', shape: p.kind === 'cat' ? 'rect' : 'round', x: 0, y: 0, w: p.w, h: land && p.kind === 'cause' ? p.h * 0.55 : p.h, level: 0 }
+        // a cause is a pill, scaled down in height by its depth (its label stays on its top); in a landscape theme it is a thinner footprint, so the form standing on it is smaller and clears the rows beside it
         const k = p.kind === 'cat' || land ? 1 : pillH(p.depth) / 0.7
         return <group key={i} position={[wx(p.x), 0, wz(p.y)]} scale={[1, k, 1]}><NodeBody b={b} labelMode={labelMode} /></group>
       })}
