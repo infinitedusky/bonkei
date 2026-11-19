@@ -111,7 +111,7 @@ In this order. Every diagram is made-up sample data, labelled so on each page.
 
 In this order. Every diagram on the docs is made-up sample data. The docs install `bonkei` and `@bonkei/vitepress` from packed tarballs, so what you try is what a user gets.
 
-1. **Automated checks first.** `pnpm install`, then `pnpm build`: it ends `check-pages: dist/ ok`. Then `pnpm docs:smoke` (or `SKIP_DOCS_BUILD=1 pnpm docs:smoke` right after a build). Every line says `ok`: coverage (`29 public exports, 29 with an API page`, then each option, event, mode, label and control with the guide pages that show it live), `a sample with a renamed option fails the docs build and the failure names the page` (the output shows `[2561] … 'avoidCrossing' does not exist in type 'BonkeiOptions'` and `file: …/guide/edge-styles.md`), the page checks (`installed:` copies, `agents:` lines, one pair per page, `playground`, `copy as Markdown`, `telemetry`, the `390 / 820 / 1024 px` lines, the touch drag), and the four `getting started` lines.
+1. **Automated checks first.** `pnpm install`, then `pnpm build`: it ends `check-pages: dist/ ok`. Then `pnpm docs:smoke` (or `SKIP_DOCS_BUILD=1 pnpm docs:smoke` right after a build); it is not part of `pnpm smoke` or the PR checks, CI runs it nightly on main, so run it by hand. Every line says `ok`: coverage (`29 public exports, 29 with an API page`, then each option, event, mode, label and control with the guide pages that show it live), `a sample with a renamed option fails the docs build and the failure names the page` (the output shows `[2561] … 'avoidCrossing' does not exist in type 'BonkeiOptions'` and `file: …/guide/edge-styles.md`), the page checks (`installed:` copies, `agents:` lines, one pair per page, `playground`, `copy as Markdown`, `telemetry`, the `390 / 820 / 1024 px` lines, the touch drag), and the four `getting started` lines.
 2. **Serve the build like Pages.** `PORT=6390 node scripts/serve-dist.mjs dist` (any free port above 6200). Open `http://localhost:6390/`: the site's header has **Docs** first; click it and you are on `/docs/`.
 3. **Home** (`/docs/`): the hero, four cards (React, Plain JavaScript, Script tag, VitePress), a live diagram (scroll past it: the page scrolls and a hint shows; click it, then drag: it moves), then the playground. Change a label in the editor: the diagram on the right redraws within a second. Type `--> -->` on a line of its own: a red line under the editor names the problem (`parse line …`), and the last diagram stays with a "Not updated" strip. Press **Copy page** and paste into a text editor: the page's Markdown, the same as `/docs/index.md`. The console shows no errors.
 4. **Introduction**: the same playground test (a sequence diagram this time).
@@ -274,3 +274,26 @@ Open Storybook (`pnpm storybook`, port above 6200) beside the built site. Put ea
 ## 5. The rule
 
 Open `.github/pull_request_template.md` and CONTRIBUTING.md: both say a change to how Bonkei draws retakes the pictures with `pnpm capture` in the same PR. LOG.md's BON-209 entry records the rule.
+
+# Manual test plan: the docs run is nightly, not on every pull request (BON-217)
+
+How to check by hand that a pull request no longer builds the docs or opens every docs page, that the docs run still runs alone with one command, and that it runs nightly on main and by hand from GitHub. First run `pnpm test`: it includes `scripts/smoke/docs-nightly.test.mjs` (`pnpm smoke` ends at the embeds, the PR's smoke step does not mention the docs, `nightly.yml` runs on a schedule and by hand with its own set-up, and the run summary's table).
+
+## 1. On the pull request
+
+1. Open the PR's **Checks** tab, then **CI › smoke**. The step that runs `pnpm smoke` is named `Packed tarball in a clean copy of examples/vite (dev and build), the script-tag page, the embeds (examples/html, examples/vitepress)`: no mention of the docs.
+2. Open that step's log. It ends after the embeds (`examples/vitepress` preview); there is no `== docs smoke:` line anywhere in it. The job takes about fifteen minutes less than on the PR before this one.
+3. No other job on the PR runs `pnpm docs:smoke`.
+
+## 2. By hand, locally
+
+1. `pnpm --filter bonkei build && pnpm smoke`: it ends after the embeds, with no `== docs smoke:` line.
+2. `pnpm docs:smoke`: it starts with `== docs smoke: build the docs` and goes on to `coverage`, `a broken sample fails the build`, `the server survives a malformed URL`, `every page`, `getting started, word for word`, then `docs smoke: all steps ok` (or `N step(s) failed`, and exit code 1). Edge styles fails until BON-197 is in; that is not this change.
+3. Right after that run, `GITHUB_STEP_SUMMARY=/tmp/docs-summary.md SKIP_DOCS_BUILD=1 pnpm docs:smoke`, then open `/tmp/docs-summary.md`: a table headed **The docs run (`pnpm docs:smoke`)** with one row per step (`ok` or **FAILED**) and a closing line (`All 5 steps ok.` or `N of 5 step(s) failed: …`). Without `GITHUB_STEP_SUMMARY` no file is written. Delete the file afterwards.
+
+## 3. On GitHub, after the merge
+
+1. **Actions › Nightly › Run workflow**, branch `main`, **Run workflow**. A run starts with one job, `docs-smoke`: checkout, pnpm, Node 22, `pnpm install`, `pnpm --filter bonkei build`, the Playwright Chromium install, then **The docs run, every page (BON-178)**, whose log starts with `== docs smoke: build the docs`.
+2. When it ends, open the run's **Summary**: the same table as in 2.3, one row per step. A red run names the failed step there.
+3. Press **Run workflow** again while a run is going: the second run waits as pending until the first ends; the first is not cancelled.
+4. The next day after 08:00 UTC, **Actions › Nightly** lists a run triggered by `schedule` on `main`.
