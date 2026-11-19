@@ -1,0 +1,24 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  docs-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter bonkei build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: The docs run (BON-178, moved off pull requests by BON-217)
+        run: pnpm docs:smoke
+        env:
+          SMOKE_CHROMIUM: bundled

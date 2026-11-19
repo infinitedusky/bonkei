@@ -18,7 +18,7 @@
     "docs:dev": "node scripts/docs-install.mjs && npm --prefix docs run dev",
     "docs:check": "node scripts/smoke/docs-coverage.mjs && node scripts/smoke/docs-break.mjs",
     "docs:smoke": "node scripts/smoke/docs-run.mjs",
-    "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs && node scripts/smoke/embeds.mjs && node scripts/smoke/docs-run.mjs"
+    "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs && node scripts/smoke/embeds.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

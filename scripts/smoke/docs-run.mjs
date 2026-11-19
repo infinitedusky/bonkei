@@ -1,4 +1,4 @@
-// The docs' smoke tests in one run (BON-178), part of `pnpm smoke` (or alone: `pnpm docs:smoke`). Needs packages/core built.
+// The docs' smoke tests in one run (BON-178), run nightly on main (.github/workflows/nightly.yml) and by hand with `pnpm docs:smoke`; not part of `pnpm smoke` (BON-217). Needs packages/core built.
 //  1. build the docs from this checkout's packed packages (scripts/build-docs.mjs: pack, npm install the tarballs, TypeDoc, vitepress build)
 //  2. docs-coverage.mjs: every export has an API page, every option, event and control a live example in a guide page
 //  3. docs-break.mjs: a sample that uses an option Bonkei does not have fails the docs build, and the failure names the page
