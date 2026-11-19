@@ -2,7 +2,7 @@
 
 Small, early project: PRs and issues welcome. `pnpm install && pnpm dev`, then open the viewer at http://localhost:5173/app/ (the bare http://localhost:5173/ is the marketing site; to run several copies at once, set `SITE_PORT` and `VIEWER_PORT` as the README's dev section shows). Pick something from the list below, or from the open issues.
 
-After any change that alters what the scene looks like, re-run `pnpm capture` and commit the regenerated `apps/site/public/*.png`. It needs a local Chrome; set `CHROME_PATH` to use a different binary.
+**Any change to how Bonkei draws (shapes, themes, layout, camera, lines, labels) retakes the site's pictures in the same PR:** run `pnpm capture` (it builds core first) and commit the regenerated `apps/site/public/*.png` (`poster.png`, `og.png`, `still-*.png`). The hero shows no picture while loading; the poster is only for devices without WebGL, and the cards and the share image are the other stills, so old ones show wrong looks. It needs a local Chrome; set `CHROME_PATH` to use a different binary.
 
 Map of the code (a pnpm workspace; see the README's Packages list):
 - `packages/core/src/parser.ts`, `packages/core/src/seq.ts`: Mermaid flowchart and sequence parsing (+ sequence layout)

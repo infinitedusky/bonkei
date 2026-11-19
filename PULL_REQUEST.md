@@ -16,4 +16,8 @@ Where to look: `packages/core/src/camera.ts` (`relayout`, `adopt`, `frameOf`, `f
 - **Mode switch after an edit while in a tray** now re-centres on that tray (or its parent, or the whole diagram if it was deleted) instead of keeping a pan made inside it. Someone who panned inside a tray, edited, then switched mode would see the view re-centre on the tray.
 - **Script-tag theme attribute** now keeps the same React tree; a bug in a theme switch that a fresh mount used to hide (state from the old look) would show as a wrong look after changing `theme` on an element.
 
+## Checklist
+
+- [ ] If this changes how Bonkei draws (shapes, themes, layout, camera, lines, labels), the site's pictures are retaken with `pnpm capture` in this PR (`apps/site/public/*.png`: poster, og, still-flat, still-iso, still-3d, still-seq).
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

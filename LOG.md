@@ -401,3 +401,17 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 **Not in this task.** Any change to how Fit or the mode switch frame the diagram; a new control. A `fit: 'tight'` diagram still frames itself again when its container changes size (that is a resize, not a new layout).
 
 **Consequences.** "`fit()` itself does not square: it also runs on each new layout" (BON-78, above) is now only half true: `fit()` still does not square, but it no longer runs on each new layout. Something added out of view stays out of view until the reader moves or presses Fit. Code that drove a view and relied on each new layout re-framing (none in this repo) must call `fit()` itself.
+
+## 2026-11-19 — The hero shows no picture while it loads; every change to how Bonkei draws retakes the pictures (BON-209)
+
+**Context.** The hero painted `poster.png` first and faded the live scene over it. The poster was last retaken on 2026-11-14 and Bonkei has been redrawn many times since, so visitors saw one layout jump to another.
+
+**Decisions.**
+- **Empty stage, then the live scene.** `Hero` starts undecided and paints nothing (same size and background) until `canGoLive()` has run; on a desktop with WebGL2 the scene fades in on its first real frame and `poster.png` is never requested. The poster, caption and "see the source" button show only when `canGoLive()` is false (no WebGL2, ≤760px, coarse pointer) or `live={false}`.
+- **All pictures retaken** with `pnpm capture` (poster, og, still-flat, still-iso, still-3d, still-seq). `pnpm capture` now builds core first (it failed on a fresh checkout without `packages/core/dist`).
+- **Rule:** any change to how Bonkei draws retakes the pictures with `pnpm capture` in the same PR; it is a line in PULL_REQUEST.md and in CONTRIBUTING.md.
+- **Telemetry:** User Timing marks `hero-path-live` / `hero-path-poster` and a `hero-time-to-ready` measure; the site has no telemetry channel to send them to.
+
+**Alternatives considered.** Keeping the poster as a loading screen and keeping it matching (it would have to match code, theme, camera and size exactly); an automated image-diff check (unreliable for 3D, blocks PRs for no real reason).
+
+**Consequences.** About half a second of empty stage on desktop instead of a stale picture. Pictures can still go stale if the rule is ignored; it is a human check.
