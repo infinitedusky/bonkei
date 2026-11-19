@@ -97,7 +97,7 @@ export const TunnelClassicLightOnly = tunnel('classic', 'iso', { 'edge.glow.wash
 export const TunnelBadLightWarns: Story = {
   render: () => {
     const [w, setW] = useState<BonkeiWarning[]>([])
-    const src = trenchSource('classic', own('classic')).replace('\n---\nflowchart', '\n  themeVariables:\n    edge.glow: dim\n    edge.glow.coreWidth: -2\n---\nflowchart')
+    const src = trenchSource('classic', own('classic')).replace('\n---\nflowchart', '\n  themeVariables:\n    edge.glow: dim\n    edge.glow.coreWidth: -2\n    edge.rim: off\n---\nflowchart')
     return (
       <div style={{ height: '100vh', position: 'relative', background: '#888' }}>
         <Bonkei source={src} mode="iso" onWarning={x => setW(p => [...p, x])} />
