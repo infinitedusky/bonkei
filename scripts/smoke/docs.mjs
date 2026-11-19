@@ -4,7 +4,8 @@
 //  - llms.txt lists every page with a description, llms-full.txt holds every page and every export's signature and description, each page
 //    has a .md beside it, the Edge styles .md holds its diagrams as mermaid fences and no HTML chrome
 //  - every page opens with no console errors; every diagram on it draws, and their number is that of the supported mermaid fences in its
-//    .md; the errors page has its one intended error card; the diagram-types page draws flowchart and sequence and shows the pie as code
+//    .md, apart from interactive demos (a root marked data-bonkei-demo="<title>", counted on their own: each needs a heading with that title
+//    in the page's .md, and any other diagram that is not a fence fails, inside a demo or not); the errors page has its one intended error card; the diagram-types page draws flowchart and sequence and shows the pie as code
 //  - the playground: an edit redraws, a broken edit is reported under the editor and the last diagram stays
 //  - Copy page puts exactly the page's .md on the clipboard (home and Edge styles)
 //  - telemetry: the playground's edits, a failed edit and Copy page are spans (a recording stand-in for an OpenTelemetry SDK)
@@ -65,6 +66,20 @@ function drawnFences(md) {
   }
   return n
 }
+// The rule for a page's diagrams: those outside an interactive demo are the page's fences, and each demo (title, number of diagrams in its
+// marked root) has one diagram and a heading of its title in the .md. A bare <Bonkei>, or a second diagram in a demo, is neither.
+function judgeDiagrams({ total, fences, demos, md }) {
+  const headings = [...md.matchAll(/^#{1,6} (.+)$/gm)].map(m => m[1].trim())
+  const undeclared = demos.filter(d => !d.title || d.diagrams !== 1 || !headings.includes(d.title)).map(d => d.title || '(untitled)')
+  return { good: total - demos.reduce((n, d) => n + d.diagrams, 0) === fences && !undeclared.length, undeclared }
+}
+{ // it must tell the cases apart: a stray diagram, an undeclared demo and a second diagram in a demo fail; a declared demo passes
+  const md = '### The trench light\n\n```mermaid\nflowchart LR\n  A --> B\n```\n', demo = { title: 'The trench light', diagrams: 1 }
+  const cases = [['a declared demo and a fence', { total: 2, fences: 1, demos: [demo] }, true], ['a bare diagram beside a demo', { total: 3, fences: 1, demos: [demo] }, false],
+    ['a bare diagram in place of a fence', { total: 1, fences: 1, demos: [] }, true], ['a bare diagram with no fence', { total: 1, fences: 0, demos: [] }, false],
+    ['a demo the .md has no heading for', { total: 2, fences: 1, demos: [{ title: 'Other', diagrams: 1 }] }, false], ['a demo with a second diagram', { total: 3, fences: 1, demos: [{ ...demo, diagrams: 2 }] }, false]]
+  for (const [name, c, want] of cases) ok(`diagram rule: ${name} ${want ? 'passes' : 'fails'}`, judgeDiagrams({ ...c, md }).good === want)
+}
 const mdOf = u => u === '/docs/' ? '/docs/index.md' : u === '/docs/api/' ? '/docs/api.md' : u + '.md'
 
 // ---- a recording stand-in for an OpenTelemetry SDK: @opentelemetry/api finds it on its global and every tracer records into window.__spans
@@ -124,8 +139,10 @@ for (const u of pageUrls) {
   const { page, errors, ctx } = await open(u)
   const { total, drew } = await allDrawn(page)
   if (total) await page.waitForTimeout(400)
-  const fences = drawnFences((await text(mdOf(u))).body)
-  ok(`page ${u}: every diagram is a mermaid fence in its .md (${total} drawn, ${fences} fences)`, total === fences)
+  const md = (await text(mdOf(u))).body, fences = drawnFences(md)
+  const demos = await page.locator('[data-bonkei-demo]').evaluateAll(es => es.map(e => ({ title: e.getAttribute('data-bonkei-demo'), diagrams: e.querySelectorAll('.bonkei-diagram').length })))
+  const { good, undeclared } = judgeDiagrams({ total, fences, demos, md })
+  ok(`page ${u}: every diagram is a mermaid fence in its .md (${total - demos.reduce((n, d) => n + d.diagrams, 0)} drawn, ${fences} fences)${demos.length ? `; ${demos.length} interactive demo(s): ${demos.map(d => d.title).join(', ')}` : ''}`, good, undeclared.length ? `demo without one diagram and a heading of its title in the .md: ${undeclared.join(', ')}` : '')
   const cards = await page.locator('[data-bonkei=error]').count()
   const wantCards = u.endsWith('/guide/errors') ? 1 : 0
   diagrams += total; if (total) pagesWith++
