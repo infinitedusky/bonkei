@@ -8,10 +8,10 @@ export const DEFAULT_HEIGHT = 420
 const FRONTMATTER = /^\s*---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*\r?\n/
 const COMMENTS = /^(\s*%%[^\n]*\n)+/
 
-/** True for a flowchart (`flowchart` / `graph`) or a sequence diagram, after optional frontmatter and %% comment lines. */
+/** True for a flowchart (`flowchart` / `graph`) a sequence diagram or an Ishikawa diagram, after optional frontmatter and %% comment lines. */
 export function isSupported(source: string): boolean {
   const body = source.replace(FRONTMATTER, '').replace(COMMENTS, '')
-  return /^\s*(flowchart|graph|sequenceDiagram)\b/.test(body)
+  return /^\s*(flowchart|graph|sequenceDiagram|ishikawa(?:-beta)?)\b/.test(body)
 }
 
 /** The element's text with leading blank lines and trailing space dropped and the common indent removed,
