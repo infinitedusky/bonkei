@@ -88,7 +88,7 @@ const count = n => 1 + n.kids.reduce((m, k) => m + count(k), 0)
 function hangSlanted(kids, pz, xa, d, depth, blocks, rods) {
   const fx = xa + 8
   let off = 0
-  for (const kid of kids) {
+  for (const kid of [...kids].reverse()) { // the last is nearest the line, the first farthest
     const dz = (off + count(kid)) * 40, sz = pz + d * dz, sw = pillW(kid.label) * Math.max(0.7, 1 - 0.12 * (depth - 2))
     rods.push({ a: [fx, sz], b: [fx + 0.62 * dz, pz], r: 0.022, y: 0.18 })
     blocks.push({ kind: 'sub', depth, label: kid.label, x: fx - sw / 2, z: sz, w: sw, d: 28 })
@@ -123,11 +123,13 @@ function layout(root) {
     blocks.push({ kind: 'cat', label: c.label, x: ex, z: ez, w: Math.max(150, pillW(c.label) + 20), d: 60 })
     let along = 80 // distance from the tip, in z
     c.kids.forEach(cause => {
-      const pz = ez - s * along, z0 = ez - s * 30, t = (pz - z0) / (0 - z0), px = ex + (bx - ex) * t, w = pillW(cause.label)
+      const rows = cause.kids.reduce((n, k) => n + count(k), 0)
+      const pz = ez - s * (along + rows * 40), z0 = ez - s * 30, t = (pz - z0) / (0 - z0), px = ex + (bx - ex) * t, w = pillW(cause.label)
       // Below the cause, the same rule at every depth: each item's line leaves its pill's front (the end toward the head) and joins its
       // parent's line, the lines turning slanted / level / slanted as they go down, so each level is a smaller fishbone on the line above.
-      // Every item takes one row (40px) toward the spine; an item's own causes take the rows between it and its parent's line.
-      const d = -s, rows = cause.kids.reduce((n, k) => n + count(k), 0), crx = px - (rows ? 70 + 25 * rows : 60)
+      // Every item takes one row (40px) on the far side of its parent's line, away from the spine, so every slanted line runs the same way
+      // as the bones (the herringbone); the first item is farthest, as in Mermaid. An item's own causes take the rows between it and its parent's line.
+      const d = s, crx = px - (rows ? 70 + 25 * rows : 60)
       rods.push({ a: [crx, pz], b: [px, pz], r: 0.03 })
       blocks.push({ kind: 'cause', label: cause.label, x: crx - w / 2, z: pz, w, d: 34 })
       hangSlanted(cause.kids, pz, crx, d, 3, blocks, rods)
