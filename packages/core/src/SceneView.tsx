@@ -9,6 +9,8 @@ import { instant } from './telemetry'
 import { createCamera, biggestTray, contentOf, frameOf, PRESET, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
+import { FishScene } from './FishScene'
+import type { FishLayout } from './fish'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
 import { CLASSIC, inkPx, type Theme } from './theme'
@@ -424,8 +426,8 @@ function NodeLift({ pos, hover, children, onDown, onClick, onOver, onOut }: { po
 // On the first frame drawn with each new `data`. The camera's first layout ever is framed (with the real aspect, known only once
 // the canvas has a size) and snapped to. Every later one (a new source, a new theme, another avoid-crossings level) keeps the view:
 // same pose, same tray flown into, lined up on what is on screen (camera.relayout, BON-195). Then it is reported once.
-function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResult | SeqLayout | null; onFirstFrame?: () => void }) {
-  const seen = useRef<LayoutResult | SeqLayout | null>(null)
+function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResult | SeqLayout | FishLayout | null; onFirstFrame?: () => void }) {
+  const seen = useRef<LayoutResult | SeqLayout | FishLayout | null>(null)
   const cb = useRef(onFirstFrame)
   cb.current = onFirstFrame
   useFrame(({ size }) => {
@@ -459,7 +461,7 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
 export interface EdgeStats extends Stats { trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; quality: RouteQuality }
 
 export interface SceneViewProps {
-  data: LayoutResult | SeqLayout | null
+  data: LayoutResult | SeqLayout | FishLayout | null
   labelMode: LabelMode
   mode: Mode
   /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
@@ -537,7 +539,9 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
           <ToneSetup />
           <Rig cam={c} fpsRef={fpsRef} />
           {data && ('kind' in data
-            ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
+            ? data.kind === 'fish'
+              ? <Env cam={c} controls={ctl}><FishScene data={data} labelMode={labelMode} /></Env>
+              : <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
             : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
         </ThemeProvider></InkCtx.Provider></GateCtx.Provider>
       </Canvas>

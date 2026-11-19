@@ -5,6 +5,8 @@
 export { SceneView, type SceneViewProps, type EdgeStats } from './SceneView'
 export { stepRoute, findCrossings, applyCrossings, planEdges, endHeight, CROSSING_STYLES, type CrossingStyle, type Body, type P3 } from './edges3d.ts'
 export { SeqScene } from './SeqScene'
+export { FishScene } from './FishScene'
+export { isFish, parseFish, layoutFish, type FishDoc, type FishLayout } from './fish'
 export { NodeBody, Label, Tray, baseOf } from './shapes'
 export { CLASSIC, BONKEI, BONKEI_LANDSCAPE, PRESETS, THEME_NAMES, themeByName, withVariables, resolveTheme, inkPx, type Theme, type Plate, type Pattern, type ResolvedTheme } from './theme'
 export { ThemeProvider, useTheme } from './look'

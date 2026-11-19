@@ -5,11 +5,12 @@ import type { Dropped, Graph, GraphInput, LayoutResult } from './model.ts'
 import { parse } from './parser.ts'
 import { layout, type LayoutOptions } from './layout.ts'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from './seq.ts'
+import { isFish, parseFish, layoutFish, type FishLayout } from './fish.ts'
 import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOptions, type Ready, type ThemeRequest } from './options.ts'
 import { withSpan } from './telemetry.ts'
 
 export interface Prepared {
-  data: LayoutResult | SeqLayout
+  data: LayoutResult | SeqLayout | FishLayout
   options: DiagramOptions // from the frontmatter; merge with props via mergeOptions
   theme: ThemeRequest // config.theme / config.themeVariables as written; resolved with the theme prop in the component
   warnings: BonkeiWarning[] // frontmatter problems first, then dropped lines in line order
@@ -40,7 +41,7 @@ const messageOf = (e: unknown) => e instanceof Error ? e.message : String(e)
 
 // What a source turned into, before it becomes a `Prepared`.
 interface Drawn {
-  data: LayoutResult | SeqLayout
+  data: LayoutResult | SeqLayout | FishLayout
   options: DiagramOptions
   theme: ThemeRequest
   nodes: number
@@ -90,6 +91,13 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   if (fm.theme.name !== undefined) span.setAttribute('bonkei.theme.requested', fm.theme.name)
   if (fm.theme.variables) span.setAttribute('bonkei.theme.variables', Object.keys(fm.theme.variables).length)
   if (!fm.body.trim()) throw fail('parse', 'the diagram is empty after its frontmatter')
+  if (isFish(fm.body)) {
+    span.setAttribute('bonkei.diagram', 'ishikawa')
+    const doc = parseFish(fm.body, fm.lineOffset)
+    const [data, t] = await timedLayout(span, () => layoutFish(doc))
+    const causes = (n: { kids: unknown[] }): number => n.kids.reduce((m: number, k) => m + 1 + causes(k as { kids: unknown[] }), 0)
+    return [{ data, options: fm.options, theme: fm.theme, nodes: doc.cats.length + causes({ kids: doc.cats }) + (doc.effect ? 1 : 0), edges: data.rods.length, dropped: doc.dropped }, t]
+  }
   if (isSeq(fm.body)) {
     span.setAttribute('bonkei.diagram', 'sequence')
     const doc = parseSeq(fm.body, fm.lineOffset)

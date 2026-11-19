@@ -17,6 +17,9 @@ export const REASON = {
   statement: 'not a node or edge',
   strayEnd: 'stray end',
   unclosed: 'unclosed subgraph',
+  tab: 'tab in the indentation',
+  indent: 'indented less than the effect',
+  noEffect: 'no effect line: nothing to draw',
 } as const
 /** A finished graph, as parsed from Mermaid. */
 export interface Graph {
