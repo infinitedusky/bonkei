@@ -3,3 +3,4 @@
 export const S = 1 / 40 // px -> world
 export const TRAY = 0.25 // tray thickness (one level)
 export const NODE_H = 0.7
+export const TEXT_LAYER = 1 // text and labels: on the main camera, left out of portal views

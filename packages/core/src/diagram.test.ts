@@ -113,6 +113,19 @@ test('prepare emits a bonkei.prepare span with a bonkei.layout child', async () 
   assert.equal(fm[0].attributes?.['bonkei.line'], 5)
 })
 
+test('the lines are routed under a bonkei.route span with the crossing level and how the routing went (BON-100)', async () => {
+  await prepare('flowchart TD\nA --> B\nA --> C\nB --> C', { avoidCrossings: 'strong' })
+  const [p] = spans('bonkei.prepare'), [r] = spans('bonkei.route')
+  assert.ok(p && r)
+  assert.equal(r.parentSpanContext?.spanId, p.spanContext().spanId)
+  assert.equal(r.attributes['bonkei.avoid_crossings'], 'strong')
+  assert.equal(r.attributes['bonkei.edges'], 3)
+  assert.equal(r.attributes['bonkei.unroutable'], 0)
+  assert.equal(typeof r.attributes['bonkei.route_ms'], 'number')
+  assert.equal(typeof r.attributes['bonkei.straightened'], 'number')
+  assert.equal(r.events.length, 0, 'no fallback to ELK routes')
+})
+
 test('a hand-built graph is traced as input graph', async () => {
   await prepare({ nodes: [{ id: 'a', label: 'A', shape: 'rect' }], edges: [] })
   const [p] = spans('bonkei.prepare')
@@ -127,4 +140,14 @@ test('a failure sets status ERROR with the error kind and line', async () => {
   assert.equal(p.attributes['bonkei.error.kind'], 'parse')
   assert.equal(p.attributes['bonkei.error.line'], 1)
   assert.equal(spans('bonkei.layout').length, 0)
+})
+
+test('the theme a diagram names is handed on with the layout, and its frontmatter warnings are traced with their kind', async () => {
+  const p = await prepare('---\nconfig:\n  theme: nope\n  themeVariables:\n    edge.flat: true\n---\nflowchart TD\nA --> B')
+  assert.deepEqual(p.theme, { name: 'nope', variables: { 'edge.flat': true } })
+  assert.deepEqual(p.warnings.map(w => [w.kind, w.line]), [['theme', 3]])
+  const [span] = spans('bonkei.prepare')
+  assert.equal(span.attributes['bonkei.theme.requested'], 'nope')
+  assert.equal(span.attributes['bonkei.theme.variables'], 1)
+  assert.deepEqual(span.events.map(e => [e.name, e.attributes?.['bonkei.warning.kind']]), [['bonkei.frontmatter_warning', 'theme']])
 })

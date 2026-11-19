@@ -51,6 +51,13 @@ config:
 ---
 ${FLOW}`
 const BROKEN = '???\n!!!'
+const CROSSING = 'flowchart TD\n  A --> C\n  A --> D\n  B --> C\n  B --> D\n  A --> E\n  B --> E'
+const FRONTMATTER_3D = `---
+config:
+  bonkei:
+    mode: 3d
+---
+${FLOW}`
 
 // ---- Shared bits ----
 
@@ -96,7 +103,7 @@ type Story = StoryObj
 
 // ---- Stories ----
 
-/** A made-up docs page with the diagram in a 760×380 box. The toolbar shows by default. */
+/** A made-up docs page with the diagram in a 760×380 box. It starts in iso; the toolbar shows Flat / Iso / 3D and Fit. */
 export const InADocsPage: Story = {
   render: () => (
     <div style={page}>
@@ -113,6 +120,45 @@ export const NoToolbar: Story = {
   render: () => (
     <div style={page}>
       <Box label="a small shop backend, toolbar={false}"><Bonkei source={FLOW} toolbar={false} /></Box>
+    </div>
+  ),
+}
+
+/** BON-100: with crossingControls on, the toolbar adds the crossing style (No hop / Bridge / Tunnel / Portal, default No hop) and Avoid crossings (off / some / strong, default some). A made-up diagram whose lines cross. */
+export const CrossingStyles: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="made-up lines that cross, crossingControls on: pick a crossing style and how hard lines avoid crossing"><Bonkei source={CROSSING} avoidCrossings="off" crossingControls /></Box>
+    </div>
+  ),
+}
+
+/** BON-100: frontmatter sets crossings: tunnel, avoidCrossings: strong and crossingControls: true; the toolbar shows both crossing groups, starting on those. */
+export const CrossingsInFrontmatter: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="frontmatter: crossings tunnel, avoidCrossings strong, crossingControls true"><Bonkei source={'---\nconfig:\n  bonkei:\n    crossings: tunnel\n    avoidCrossings: strong\n    crossingControls: true\n---\nflowchart TD\n  A --> C\n  A --> D\n  B --> C\n  B --> D'} /></Box>
+    </div>
+  ),
+}
+
+/** The author picks bridges and no avoiding, without crossingControls: the lines bridge, and the toolbar shows only Flat / Iso / 3D and Fit. */
+export const CrossingStyleWithoutControls: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="crossing lines, crossings bridge set by the author, no crossing controls"><Bonkei source={CROSSING} crossings="bridge" avoidCrossings="off" /></Box>
+    </div>
+  ),
+}
+
+/** Where a diagram starts: iso with no mode (the default), flat from the prop, 3D from the frontmatter. */
+export const StartsInEachView: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="a small shop backend, no mode (starts in iso, the default)"><Bonkei source={FLOW} /></Box>
+      <Box label='a small shop backend, mode="flat"'><Bonkei source={FLOW} mode="flat" /></Box>
+      <Box label="a small shop backend, frontmatter config.bonkei.mode: 3d"><Bonkei source={FRONTMATTER_3D} /></Box>
+      <pre style={tag}>{FRONTMATTER_3D}</pre>
     </div>
   ),
 }
@@ -177,6 +223,50 @@ export const UpdateError: Story = {
   },
 }
 
+// Made-up sample: an invented backend with a nested tray, the start of the "edits keep the view" story.
+const EDIT_BASE = `flowchart LR
+  subgraph Back[Sample backend]
+    subgraph Api[Sample API]
+      Rest[REST API] --> Gql[GraphQL]
+    end
+    Db[(Sample DB)]
+  end
+  Web[Sample web] --> Rest
+  Gql --> Db
+`
+const EDITS: { label: string; edit: (s: string) => string }[] = [
+  { label: 'add a node and an edge', edit: s => s + '  Db --> Cache[Sample cache]\n' },
+  { label: 'add a chain far to the right', edit: s => s + '  Db --> C1[Far 1] --> C2[Far 2] --> C3[Far 3] --> C4[Far 4] --> C5[Far 5]\n' },
+  { label: 'rename REST API', edit: s => s.replace('Rest[REST API]', 'Rest[REST API, a longer sample label]') },
+  { label: 'delete the Sample API tray', edit: s => s.replace(/    subgraph Api[\s\S]*?    end\n/, '') },
+  { label: 'theme bonkei in the frontmatter', edit: s => s.startsWith('---') ? s : '---\nconfig:\n  theme: bonkei\n---\n' + s },
+]
+
+/**
+ * BON-195: a new layout keeps the view. Zoom, pan, turn or click a tray to fly in, then press an edit (or change Avoid crossings in
+ * the toolbar): nothing on screen moves except what the edit changed. Only the first draw frames the diagram; Fit and
+ * Flat / Iso / 3D frame it as before (after deleting the tray you are in, the next mode switch frames its parent tray).
+ */
+export const EditsKeepTheView: Story = {
+  render: () => {
+    const [src, setSrc] = useState(EDIT_BASE)
+    const { log, cbs } = useSpy()
+    return (
+      <div style={page}>
+        <div>
+          {EDITS.map(e => <button key={e.label} style={btn} onClick={() => setSrc(e.edit)}>{e.label}</button>)}
+          <button style={btn} onClick={() => setSrc(EDIT_BASE)}>back to the start</button>
+        </div>
+        <Box label="an invented backend with a nested tray (the buttons edit its source)" h={440}>
+          <Bonkei source={src} crossingControls onReady={cbs.onReady} />
+        </Box>
+        <pre style={{ ...tag, whiteSpace: 'pre-wrap', maxWidth: 760 }}>{src}</pre>
+        <Spy title="onReady (one per layout; the camera keeps its place after the first)" log={log} />
+      </div>
+    )
+  },
+}
+
 /** Two diagrams on one page share nothing: moving one leaves the other still. */
 export const TwoOnOnePage: Story = {
   render: () => (
@@ -206,7 +296,7 @@ export const ControlsSetting: StoryObj<{ controls: ControlsArg }> = {
     const fm = controls === 'frontmatter false'
     return (
       <div style={page}>
-        <p>controls: <b>{controls}</b>. Scroll down to the diagram; the wheel over it zooms or scrolls the page, per setting.</p>
+        <p>controls: <b>{controls}</b>. Scroll down to the diagram: the wheel over it scrolls the page and shows a hint; pinch or ⌘/Ctrl + scroll zooms (when zoom is on); a click takes hold of it until Esc or a click outside.</p>
         <div style={{ height: '60vh', borderLeft: '2px dashed #3a4560', paddingLeft: 8, color: '#556' }}>page text above (spacer so the page scrolls)</div>
         <Box label={fm ? 'a small shop backend, frontmatter controls: false' : `a small shop backend, controls=${controls}`}>
           <Bonkei source={fm ? FRONTMATTER_NO_CONTROLS : FLOW} controls={CONTROLS[controls]} />
@@ -289,6 +379,8 @@ function RenderFunctionDemo() {
       <div>
         <button style={btn} onClick={call('update(sequence)', h => h.update(SEQ))}>update</button>
         <button style={btn} onClick={call("setMode('flat')", h => h.setMode('flat'))}>setMode flat</button>
+        <button style={btn} onClick={call("setTheme('bonkei')", h => h.setTheme('bonkei'))}>setTheme bonkei</button>
+        <button style={btn} onClick={call('setTheme(undefined)', h => h.setTheme(undefined))}>setTheme default</button>
         <button style={btn} onClick={call('destroy()', h => h.destroy())}>destroy</button>
         <button style={btn} onClick={call('update after destroy', h => { h.destroy(); h.update(SEQ) })}>update after destroy</button>
         <button style={btn} onClick={call('setMode after destroy', h => { h.destroy(); h.setMode('3d') })}>setMode after destroy</button>

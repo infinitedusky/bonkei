@@ -5,11 +5,25 @@
   "type": "module",
   "packageManager": "pnpm@10.12.4",
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
-    "build": "pnpm -r typecheck && pnpm --filter \"./apps/*\" build && node scripts/assemble-pages.mjs",
+    "dev": "pnpm --filter bonkei build && pnpm --parallel --filter bonkei --filter \"./apps/*\" dev",
+    "build": "pnpm --filter bonkei build && pnpm -r typecheck && pnpm --filter \"./apps/*\" build && node scripts/build-docs.mjs && node scripts/assemble-pages.mjs && node scripts/check-pages.mjs",
     "preview": "pnpm --filter @bonkei/site exec vite preview --outDir ../../dist",
-    "storybook": "pnpm --filter @bonkei/playground storybook",
+    "storybook": "pnpm --filter bonkei build && pnpm --filter @bonkei/playground storybook",
     "capture": "pnpm --filter @bonkei/site capture",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test && node --test --experimental-strip-types docs/.vitepress/theme/*.test.ts",
+    "size": "pnpm --filter bonkei build && pnpm --filter bonkei size",
+    "check:package": "pnpm --filter bonkei build && pnpm --filter bonkei check",
+    "docs:install": "node scripts/docs-install.mjs",
+    "docs:build": "node scripts/build-docs.mjs",
+    "docs:dev": "node scripts/docs-install.mjs && npm --prefix docs run dev",
+    "docs:check": "node scripts/smoke/docs-coverage.mjs && node scripts/smoke/docs-break.mjs",
+    "docs:smoke": "node scripts/smoke/docs-run.mjs",
+    "smoke": "node scripts/smoke/vite.mjs && node scripts/smoke/script-tag.mjs && node scripts/smoke/embeds.mjs && node scripts/smoke/docs-run.mjs"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "pkg-pr-new": "^0.0.94",
+    "playwright": "^1.65.1",
+    "size-limit": "^14.3.0"
   }
 }

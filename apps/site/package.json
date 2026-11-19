@@ -6,17 +6,20 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types vite.config.test.ts",
     "capture": "node scripts/capture-stills.mjs"
   },
   "dependencies": {
+    "@fontsource/zen-old-mincho": "^5.3.1",
     "bonkei": "workspace:*",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.6.7",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^4.3.4",
     "playwright-core": "^1.65.0",
     "typescript": "^5.7.2",

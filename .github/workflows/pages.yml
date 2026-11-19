@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   workflow_dispatch:
-  # MER-10: add push: { branches: [main] } to publish on merge
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,7 +12,9 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # Queued runs collapse to the latest, but a deploy that has started finishes
+  # rather than being cancelled halfway (as in GitHub's Pages starter workflow).
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -24,6 +27,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # pnpm build also builds the docs (BON-178): scripts/build-docs.mjs packs bonkei and @bonkei/vitepress and `npm install`s the tarballs
+      # into docs/ (not a workspace member; npm ships with Node), then runs TypeDoc and vitepress build; assemble-pages puts them in dist/docs/.
       - run: pnpm build
       - uses: actions/upload-pages-artifact@v3
         with:

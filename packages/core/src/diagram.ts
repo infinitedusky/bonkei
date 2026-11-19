@@ -3,14 +3,15 @@
 import type { Span } from '@opentelemetry/api'
 import type { Dropped, Graph, GraphInput, LayoutResult } from './model.ts'
 import { parse } from './parser.ts'
-import { layout } from './layout.ts'
+import { layout, type LayoutOptions } from './layout.ts'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from './seq.ts'
-import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOptions, type Ready } from './options.ts'
+import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOptions, type Ready, type ThemeRequest } from './options.ts'
 import { withSpan } from './telemetry.ts'
 
 export interface Prepared {
   data: LayoutResult | SeqLayout
   options: DiagramOptions // from the frontmatter; merge with props via mergeOptions
+  theme: ThemeRequest // config.theme / config.themeVariables as written; resolved with the theme prop in the component
   warnings: BonkeiWarning[] // frontmatter problems first, then dropped lines in line order
   ready: Ready
 }
@@ -21,6 +22,7 @@ export type PrepareError = BonkeiError & { warnings: BonkeiWarning[] }
 
 const ERROR_KINDS: readonly BonkeiError['kind'][] = ['parse', 'layout', 'graph', 'render']
 
+/** Tells a BonkeiError from any other thrown value. */
 export function isBonkeiError(x: unknown): x is BonkeiError {
   return typeof x === 'object' && x !== null
     && typeof (x as BonkeiError).message === 'string'
@@ -40,6 +42,7 @@ const messageOf = (e: unknown) => e instanceof Error ? e.message : String(e)
 interface Drawn {
   data: LayoutResult | SeqLayout
   options: DiagramOptions
+  theme: ThemeRequest
   nodes: number
   edges: number
   dropped: Dropped[]
@@ -50,6 +53,7 @@ function finish(result: Drawn, warnings: BonkeiWarning[], t: number): Prepared {
   return {
     data: result.data,
     options: result.options,
+    theme: result.theme,
     warnings: all,
     ready: { layoutMs: t, nodes: result.nodes, edges: result.edges, dropped: result.dropped.length },
   }
@@ -75,30 +79,33 @@ async function timedLayout<T>(parent: Span, run: () => T | Promise<T>): Promise<
   }
 }
 
-async function fromText(src: string, warnings: BonkeiWarning[], span: Span): Promise<[Drawn, number]> {
+async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: LayoutOptions): Promise<[Drawn, number]> {
   if (!src.trim()) throw fail('parse', 'the diagram is empty')
   const fm = readFrontmatter(src)
   for (const w of fm.warnings) {
     warnings.push(w)
-    span.addEvent('bonkei.frontmatter_warning', { 'bonkei.line': w.line, 'bonkei.message': w.message })
+    span.addEvent('bonkei.frontmatter_warning', { 'bonkei.line': w.line, 'bonkei.message': w.message, 'bonkei.warning.kind': w.kind })
   }
+  // the look the diagram asks for (config.theme / config.themeVariables); the component resolves it with the theme prop
+  if (fm.theme.name !== undefined) span.setAttribute('bonkei.theme.requested', fm.theme.name)
+  if (fm.theme.variables) span.setAttribute('bonkei.theme.variables', Object.keys(fm.theme.variables).length)
   if (!fm.body.trim()) throw fail('parse', 'the diagram is empty after its frontmatter')
   if (isSeq(fm.body)) {
     span.setAttribute('bonkei.diagram', 'sequence')
     const doc = parseSeq(fm.body, fm.lineOffset)
     if (!doc.parts.length) throw nothingRead('participants', doc.dropped)
     const [data, t] = await timedLayout(span, () => layoutSeq(doc))
-    return [{ data, options: fm.options, nodes: doc.parts.length, edges: data.msgs.length, dropped: doc.dropped }, t]
+    return [{ data, options: fm.options, theme: fm.theme, nodes: doc.parts.length, edges: data.msgs.length, dropped: doc.dropped }, t]
   }
   span.setAttribute('bonkei.diagram', 'flowchart')
   const g = parse(fm.body, fm.lineOffset)
   const dropped = g.dropped ?? []
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
-  const [data, t] = await timedLayout(span, () => layout(g))
-  return [{ data, options: fm.options, nodes: g.nodes.length, edges: g.edges.length, dropped }, t]
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span }))
+  return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped }, t]
 }
 
-async function fromGraph(input: GraphInput, span: Span): Promise<[Drawn, number]> {
+async function fromGraph(input: GraphInput, span: Span, lo: LayoutOptions): Promise<[Drawn, number]> {
   span.setAttribute('bonkei.diagram', 'flowchart')
   if (typeof input !== 'object' || input === null) throw fail('graph', 'source must be Mermaid text or a graph')
   if (!Array.isArray(input.nodes) || !input.nodes.length) throw fail('graph', 'the graph has no nodes')
@@ -112,8 +119,8 @@ async function fromGraph(input: GraphInput, span: Span): Promise<[Drawn, number]
     for (const end of [e.from, e.to]) if (!ids.has(end)) throw fail('graph', `edge ${e.id ?? `${e.from} -> ${e.to}`} points at unknown id ${JSON.stringify(end)}`)
   }
   const g: Graph = { ...input, direction: input.direction ?? 'TD', groups, edges, dropped: input.dropped ?? [] }
-  const [data, t] = await timedLayout(span, () => layout(g))
-  return [{ data, options: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped! }, t]
+  const [data, t] = await timedLayout(span, () => layout(g, { ...lo, span }))
+  return [{ data, options: {}, theme: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped! }, t]
 }
 
 function countReasons(dropped: Dropped[]) {
@@ -127,12 +134,13 @@ function countReasons(dropped: Dropped[]) {
 
 // Mermaid text or a hand-built graph -> a laid-out diagram with its warnings. Never throws:
 // it resolves to `Prepared` or rejects with a `PrepareError`.
-export async function prepare(source: string | GraphInput): Promise<Prepared> {
+// `lo` are the routing options from props; the frontmatter's fill in what they leave out.
+export async function prepare(source: string | GraphInput, lo: LayoutOptions = {}): Promise<Prepared> {
   const warnings: BonkeiWarning[] = []
   const input = typeof source === 'string' ? 'mermaid' : 'graph'
   return withSpan('bonkei.prepare', { 'bonkei.input': input }, async span => {
     try {
-      const [drawn, t] = typeof source === 'string' ? await fromText(source, warnings, span) : await fromGraph(source, span)
+      const [drawn, t] = typeof source === 'string' ? await fromText(source, warnings, span, lo) : await fromGraph(source, span, lo)
       span.setAttributes({
         'bonkei.nodes': drawn.nodes,
         'bonkei.edges': drawn.edges,

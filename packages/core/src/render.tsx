@@ -6,9 +6,12 @@ import type { Mode } from './camera'
 import type { GraphInput } from './model'
 import type { BonkeiOptions } from './options'
 
+/** The handle render() returns: update(source), setMode(), setTheme(), destroy(). */
 export interface BonkeiHandle extends BonkeiViewHandle {
   /** Draw a new source in the same view (same camera). A failed update keeps the last diagram. */
   update(source: string | GraphInput): void
+  /** Draw in another theme (a preset name, a Theme, or undefined for the frontmatter's / the default), keeping the view like `update` does. */
+  setTheme(theme: BonkeiOptions['theme']): void
   /** Unmount and release the view. Every later call on the handle does nothing. */
   destroy(): void
 }
@@ -32,6 +35,11 @@ export function render(element: HTMLElement, source: string | GraphInput, option
       if (!alive) return
       if (view.current) view.current.setMode(m)
       else { opts = { ...opts, mode: m }; draw() } // not mounted yet: becomes the first view
+    },
+    setTheme(theme) {
+      if (!alive) return
+      opts = { ...opts, theme }
+      draw()
     },
     fit() {
       if (alive) view.current?.fit()

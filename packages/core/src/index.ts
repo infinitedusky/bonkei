@@ -8,23 +8,31 @@ export { Bonkei } from './Bonkei'
 export { render } from './render'
 
 // Props, options and handles
-/** The props of <Bonkei />: a source plus BonkeiOptions. */
+/** The props of `<Bonkei />`: a source plus BonkeiOptions. */
 export type { BonkeiProps } from './Bonkei'
-/** Methods on a <Bonkei /> ref: setMode() and fit(). */
+/** Methods on a `<Bonkei />` ref: setMode() and fit(). */
 export type { BonkeiViewHandle } from './Bonkei'
 /** The handle render() returns: update(source), setMode(), destroy(). */
 export type { BonkeiHandle } from './render'
-/** Everything you can pass to <Bonkei /> or render(): diagram options plus callbacks. */
+/** Everything you can pass to `<Bonkei />` or render(): diagram options plus callbacks. */
 export type { BonkeiOptions } from './options'
 /** The options that may also come from the diagram's frontmatter (config.bonkei). */
 export type { DiagramOptions } from './options'
 /** The reader's controls: true/false for all, or one switch per control. */
 export type { Controls } from './options'
 
+// Themes
+/** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
+export type { Theme } from './theme'
+/** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
+export { CLASSIC, BONKEI, BONKEI_LANDSCAPE } from './theme'
+/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape. */
+export { THEME_NAMES } from './theme'
+
 // Events
 /** What onError receives when nothing could be drawn (kind: parse, graph, layout or render). */
 export type { BonkeiError } from './options'
-/** What onWarning receives for a dropped line or a bad frontmatter key; the diagram still draws. */
+/** What onWarning receives for a dropped line, a bad frontmatter key or an unknown theme or theme variable; the diagram still draws. */
 export type { BonkeiWarning } from './options'
 /** What onNodeClick receives for a node, a group or a sequence participant. */
 export type { NodeClick } from './options'
@@ -54,3 +62,9 @@ export type { GEdge } from './model'
 export type { Shape } from './model'
 /** A source line the parser could not use, with its reason. */
 export type { Dropped } from './model'
+
+// Lines (BON-100)
+/** How two crossing lines are drawn: none (they cross as lines), bridge, tunnel or portal. */
+export type { CrossingStyle } from './edges3d'
+/** How hard the router keeps lines from crossing: off, some or strong. */
+export type { AvoidCrossings } from './avoid'
