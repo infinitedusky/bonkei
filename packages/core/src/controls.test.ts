@@ -4,7 +4,7 @@ import { trace } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import {
   ALL_ON, chipAt, cursorFor, dragAction, fitUsed, gesture, gestureRows, guessInput, helpToggled, hintShown, hintText, holdChanged, holdable, insetRadii,
-  isPinch, isSwapped, modKey, pairOf, settleYaw, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, WHEEL_IDLE_MS,
+  isPinch, isSwapped, modKey, pairOf, settleYaw, swipeLatch, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, WHEEL_IDLE_MS,
 } from './controls.ts'
 import { resolveControls } from './options.ts'
 
@@ -48,6 +48,34 @@ test('a mostly sideways wheel over a diagram not held is stopped (no Back) and h
     assert.equal(wheelAction(ALL_ON, { ...plain, deltaX: -0.5, deltaY: 0 }, true, mode), 'pan')
     assert.equal(wheelAction({ ...ALL_ON, pan: false }, { ...plain, deltaX: -0.5, deltaY: 0 }, false, mode), 'pass')
   }
+})
+
+test('a stopped sideways swipe stays stopped to its end, momentum and up-and-down jitter included; a new gesture is decided afresh', () => {
+  const latch = swipeLatch()
+  // a Mac trackpad swipe left over a diagram not held: mostly sideways, with an event or two that go more up or down
+  const swipe = [[-3, 0.5], [-6, 1], [0, 1], [-8, -2], [0.5, -1.5], [-4, 0]]
+  let t = 0
+  for (const [deltaX, deltaY] of swipe) {
+    assert.equal(latch(wheelAction(ALL_ON, { ...plain, deltaX, deltaY }, false, 'iso'), t), 'block')
+    t += 16
+  }
+  // its momentum, after the fingers lift
+  t += 40
+  for (let i = 0; i < 10; i++, t += 16) assert.equal(latch(wheelAction(ALL_ON, { ...plain, deltaX: -1, deltaY: 0.2 * (i % 3) }, false, 'iso'), t), 'block')
+  // the wheel has been still: a scroll down is the page's again
+  t += WHEEL_IDLE_MS + 1
+  assert.equal(latch(wheelAction(ALL_ON, { ...plain, deltaX: 0, deltaY: 5 }, false, 'iso'), t), 'hint')
+  assert.equal(latch(wheelAction(ALL_ON, { ...plain, deltaX: -2, deltaY: 6 }, false, 'iso'), t + 16), 'hint')
+  // a scroll down that starts the gesture is left to the page all the way (a sideways event in it is still stopped)
+  assert.equal(latch(wheelAction(ALL_ON, { ...plain, deltaX: 0, deltaY: 4 }, false, 'iso'), t + 32), 'hint')
+  // anything the diagram uses (held, zoom) is never changed, and ends the latch
+  const latch2 = swipeLatch()
+  assert.equal(latch2('block', 0), 'block')
+  assert.equal(latch2('pan', 16), 'pan')
+  assert.equal(latch2('hint', 32), 'hint')
+  assert.equal(latch2('block', 48), 'block')
+  assert.equal(latch2('zoom', 64), 'zoom')
+  assert.equal(latch2('pass', 80), 'pass')
 })
 
 test('3d: Shift + wheel turns; flat and iso keep moving (sideways)', () => {

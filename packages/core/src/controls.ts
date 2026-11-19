@@ -18,11 +18,26 @@ export interface WheelKeys { ctrlKey: boolean; metaKey: boolean; shiftKey?: bool
  * is clicked. A mostly sideways one there is stopped as well as hinted (`block`): the page scrolls up and down, and a
  * sideways swipe left to it is the browser's Back. In 3D, Shift turns the wheel into turning. `pass` leaves the event to the page.
  */
-export function wheelAction(controls: ResolvedControls, keys: WheelKeys, engaged: boolean, mode: Mode): 'zoom' | 'pan' | 'turn' | 'hint' | 'block' | 'pass' {
+export function wheelAction(controls: ResolvedControls, keys: WheelKeys, engaged: boolean, mode: Mode): WheelAct {
   if (keys.ctrlKey || keys.metaKey) return controls.zoom ? 'zoom' : 'pass'
   if (!controls.pan) return 'pass'
   if (!engaged) return Math.abs(keys.deltaX ?? 0) > Math.abs(keys.deltaY ?? 0) ? 'block' : 'hint'
   return mode === '3d' && keys.shiftKey ? 'turn' : 'pan'
+}
+export type WheelAct = 'zoom' | 'pan' | 'turn' | 'hint' | 'block' | 'pass'
+
+/**
+ * One per diagram: a sideways swipe that was stopped (`block`) stays stopped until the wheel has been still for `gapMs`,
+ * its momentum included. A swipe is never quite level: one event in it that goes more up or down than sideways, left to
+ * the page, would start the page's scrolling, the browser stops letting the rest be cancelled, and the rest is Back.
+ */
+export function swipeLatch(gapMs = WHEEL_IDLE_MS): (a: WheelAct, now: number) => WheelAct {
+  let until = -Infinity
+  return (a, now) => {
+    if (a === 'block' || (a === 'hint' && now < until)) { until = now + gapMs; return 'block' }
+    until = -Infinity
+    return a
+  }
 }
 
 /**

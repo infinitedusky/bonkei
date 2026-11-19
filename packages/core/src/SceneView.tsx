@@ -16,7 +16,7 @@ import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
 import { UI } from './palette'
-import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gesture, hintText, holdable, isPinch, isSwapped, modKey, pairOf, settleYaw, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, type Input, type Pair, type Radii } from './controls'
+import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gesture, hintText, holdable, isPinch, isSwapped, modKey, pairOf, settleYaw, swipeLatch, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, type Input, type Pair, type Radii } from './controls'
 import { Gate, HINT_MS, clipRadii, inScroller } from './hold'
 import type { NodeClick, ResolvedControls } from './options'
 
@@ -165,9 +165,10 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     const touchAction = () => { el.style.touchAction = gate.engaged() ? 'none' : 'pan-x pan-y' }
     touchAction()
 
+    const latch = swipeLatch()
     const wheel = (e: WheelEvent) => {
       gate.setInput(wheelInput(e))
-      const a = wheelAction(controls, e, gate.engaged(), cam.mode)
+      const a = latch(wheelAction(controls, e, gate.engaged(), cam.mode), e.timeStamp)
       if (a === 'pass') return
       if (a === 'hint') { gate.hint(); return }
       // every other wheel is stopped from its first event: the browser decides on a sideways swipe's Back from the first ones
@@ -231,8 +232,10 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     const outside = (e: PointerEvent) => { if (gate.el && !gate.el.contains(e.target as Node)) gate.hold(false, 'outside') }
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') gate.hold(false, 'esc') }
 
+    // the wheel over the whole diagram (its fps readout and overlays too), so no part of it hands a swipe to the page
+    const area = el.closest<HTMLElement>('[data-bonkei-scene]') ?? el
     gate.listeners.add(touchAction)
-    el.addEventListener('wheel', wheel, { passive: false })
+    area.addEventListener('wheel', wheel, { passive: false })
     el.addEventListener('pointerdown', down, true)
     window.addEventListener('pointermove', tmove)
     window.addEventListener('pointerup', tup); window.addEventListener('pointercancel', tup)
@@ -240,7 +243,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
     window.addEventListener('resize', touchAction); window.addEventListener('scroll', touchAction, { passive: true })
     return () => {
       gate.listeners.delete(touchAction)
-      el.removeEventListener('wheel', wheel); el.removeEventListener('pointerdown', down, true)
+      area.removeEventListener('wheel', wheel); el.removeEventListener('pointerdown', down, true)
       window.removeEventListener('pointermove', tmove)
       window.removeEventListener('pointerup', tup); window.removeEventListener('pointercancel', tup)
       window.removeEventListener('pointerdown', outside, true); window.removeEventListener('keydown', esc)
@@ -515,7 +518,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
   return (
     // no browser menu over the diagram: a right-drag (or Ctrl-click on a Mac) is a gesture here; a swipe that reaches its edge
     // does not chain to the page (only the diagram's own box: the host page's html and body are not ours)
-    <div ref={box} onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
+    <div ref={box} data-bonkei-scene="" onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
         <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
