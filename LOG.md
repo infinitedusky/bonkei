@@ -449,3 +449,13 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **Telemetry** on BON-189's `track()` (OpenTelemetry spans, a no-op without an SDK; states and times only): `site.hero.path` (`live`, or `poster` with `site.hero.reason` phone | no-webgl2 | forced), `site.hero.ready` (`site.hero.ready_ms`, first render to first frame), `site.hero.fallback` (ERROR, reason `load-error`); `site.how.live` gains `site.how.load_ms` (How's first render to the scene's first frame). The `hero-scene-ready` User Timing mark stays.
 
 **Consequences.** A desktop sees about half a second of empty stage instead of a stale picture. A visitor on a slow connection who scrolls to "Keep the text" before its chunk is in sees the read-only source and an empty stage, not the still. The pictures can still go stale if the rule is ignored: it is a human check on each PR.
+
+## 2026-11-19 — The hero zooms like every other diagram on the site (hotfix)
+
+**Context.** The hero was the only live diagram on the site with zoom off (`controls={{ zoom: false }}`, from BON-83). With zoom off, core passes a pinch or cmd/ctrl + wheel to the page (`wheelAction` returns `pass`), so pinching over the hero zoomed the whole page instead of the diagram. BON-189's prototype turned zoom on in the hero, but its build left the hero as it was.
+
+**Decision.** The hero uses the default controls, zoom included, as "Keep the text" and Themes do. A pinch or cmd/ctrl + wheel over the hero zooms the diagram and the page stays put.
+
+**Alternatives considered.** Keeping zoom off and having core swallow the ctrl wheel anyway: the page could then not be zoomed by a visitor who needs it, and the diagram would not respond either.
+
+**Consequences.** A visitor can zoom the hero away from its framed view; switching mode reframes it. A plain scroll over the hero still scrolls the page until the visitor clicks into it.
