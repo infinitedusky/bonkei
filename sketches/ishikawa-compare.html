@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Sketch: Ishikawa, Mermaid's drawing beside ours</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 -apple-system, system-ui, sans-serif; background: #0f1218; color: #e7e2d6; height: 100vh; display: flex; flex-direction: column; }
+  .note { background: #fff6c8; border-bottom: 1px dashed #b9a24a; padding: 6px 16px; font-size: 12px; color: #6b5a14; }
+  .two { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  .pane { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #232a38; }
+  h2 { margin: 0; padding: 8px 14px; font-size: 13px; background: #151a23; border-bottom: 1px solid #232a38; }
+  h2 span { font-weight: 400; color: #7d8699; }
+  #mm { flex: 1; background: #fff; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 12px; color: #333; }
+  #mm svg { max-width: 100%; height: auto; }
+  iframe { flex: 1; border: 0; width: 100%; }
+</style></head><body>
+<div class="note">SKETCH. The same text, "Bad case" added under "Damaged lens". Left: drawn by Mermaid itself (loaded live from its CDN). Right: our sketch; drag to turn it, Flat / Iso / 3D in its corner.</div>
+<div class="two">
+  <div class="pane"><h2>Mermaid <span id="ver"></span></h2><div id="mm">loading Mermaid…</div></div>
+  <div class="pane"><h2>Bonkei <span>(sketch, Classic theme)</span></h2><iframe src="ishikawa-viewer.html?embed&src=ishikawa-beta%0A%20%20%20%20Blurry%20Photo%0A%20%20%20%20Process%0A%20%20%20%20%20%20%20%20Out%20of%20focus%0A%20%20%20%20%20%20%20%20Shutter%20speed%20too%20slow%0A%20%20%20%20%20%20%20%20Protective%20film%20not%20removed%0A%20%20%20%20%20%20%20%20Beautification%20filter%20applied%0A%20%20%20%20User%0A%20%20%20%20%20%20%20%20Shaky%20hands%0A%20%20%20%20Equipment%0A%20%20%20%20%20%20%20%20LENS%0A%20%20%20%20%20%20%20%20%20%20%20%20Inappropriate%20lens%0A%20%20%20%20%20%20%20%20%20%20%20%20Damaged%20lens%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20Bad%20case%0A%20%20%20%20%20%20%20%20%20%20%20%20Dirty%20lens%0A%20%20%20%20%20%20%20%20SENSOR%0A%20%20%20%20%20%20%20%20%20%20%20%20Damaged%20sensor%0A%20%20%20%20%20%20%20%20%20%20%20%20Dirty%20sensor%0A%20%20%20%20Environment%0A%20%20%20%20%20%20%20%20Subject%20moved%20too%20quickly%0A%20%20%20%20%20%20%20%20Too%20dark#flat"></iframe></div>
+</div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@12/dist/mermaid.esm.min.mjs'
+const SRC = 'ishikawa-beta\n    Blurry Photo\n    Process\n        Out of focus\n        Shutter speed too slow\n        Protective film not removed\n        Beautification filter applied\n    User\n        Shaky hands\n    Equipment\n        LENS\n            Inappropriate lens\n            Damaged lens\n                Bad case\n            Dirty lens\n        SENSOR\n            Damaged sensor\n            Dirty sensor\n    Environment\n        Subject moved too quickly\n        Too dark'
+mermaid.initialize({ startOnLoad: false, theme: 'default' })
+document.getElementById('ver').textContent = '(v12, its default theme)'
+try { const { svg } = await mermaid.render('fish', SRC); document.getElementById('mm').innerHTML = svg }
+catch (e) { document.getElementById('mm').textContent = 'Mermaid could not draw it: ' + e.message }
+</script></body></html>
