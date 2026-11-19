@@ -223,6 +223,50 @@ export const UpdateError: Story = {
   },
 }
 
+// Made-up sample: an invented backend with a nested tray, the start of the "edits keep the view" story.
+const EDIT_BASE = `flowchart LR
+  subgraph Back[Sample backend]
+    subgraph Api[Sample API]
+      Rest[REST API] --> Gql[GraphQL]
+    end
+    Db[(Sample DB)]
+  end
+  Web[Sample web] --> Rest
+  Gql --> Db
+`
+const EDITS: { label: string; edit: (s: string) => string }[] = [
+  { label: 'add a node and an edge', edit: s => s + '  Db --> Cache[Sample cache]\n' },
+  { label: 'add a chain far to the right', edit: s => s + '  Db --> C1[Far 1] --> C2[Far 2] --> C3[Far 3] --> C4[Far 4] --> C5[Far 5]\n' },
+  { label: 'rename REST API', edit: s => s.replace('Rest[REST API]', 'Rest[REST API, a longer sample label]') },
+  { label: 'delete the Sample API tray', edit: s => s.replace(/    subgraph Api[\s\S]*?    end\n/, '') },
+  { label: 'theme bonkei in the frontmatter', edit: s => s.startsWith('---') ? s : '---\nconfig:\n  theme: bonkei\n---\n' + s },
+]
+
+/**
+ * BON-195: a new layout keeps the view. Zoom, pan, turn or click a tray to fly in, then press an edit (or change Avoid crossings in
+ * the toolbar): nothing on screen moves except what the edit changed. Only the first draw frames the diagram; Fit and
+ * Flat / Iso / 3D frame it as before (after deleting the tray you are in, the next mode switch frames its parent tray).
+ */
+export const EditsKeepTheView: Story = {
+  render: () => {
+    const [src, setSrc] = useState(EDIT_BASE)
+    const { log, cbs } = useSpy()
+    return (
+      <div style={page}>
+        <div>
+          {EDITS.map(e => <button key={e.label} style={btn} onClick={() => setSrc(e.edit)}>{e.label}</button>)}
+          <button style={btn} onClick={() => setSrc(EDIT_BASE)}>back to the start</button>
+        </div>
+        <Box label="an invented backend with a nested tray (the buttons edit its source)" h={440}>
+          <Bonkei source={src} crossingControls onReady={cbs.onReady} />
+        </Box>
+        <pre style={{ ...tag, whiteSpace: 'pre-wrap', maxWidth: 760 }}>{src}</pre>
+        <Spy title="onReady (one per layout; the camera keeps its place after the first)" log={log} />
+      </div>
+    )
+  },
+}
+
 /** Two diagrams on one page share nothing: moving one leaves the other still. */
 export const TwoOnOnePage: Story = {
   render: () => (
@@ -335,6 +379,8 @@ function RenderFunctionDemo() {
       <div>
         <button style={btn} onClick={call('update(sequence)', h => h.update(SEQ))}>update</button>
         <button style={btn} onClick={call("setMode('flat')", h => h.setMode('flat'))}>setMode flat</button>
+        <button style={btn} onClick={call("setTheme('bonkei')", h => h.setTheme('bonkei'))}>setTheme bonkei</button>
+        <button style={btn} onClick={call('setTheme(undefined)', h => h.setTheme(undefined))}>setTheme default</button>
         <button style={btn} onClick={call('destroy()', h => h.destroy())}>destroy</button>
         <button style={btn} onClick={call('update after destroy', h => { h.destroy(); h.update(SEQ) })}>update after destroy</button>
         <button style={btn} onClick={call('setMode after destroy', h => { h.destroy(); h.setMode('3d') })}>setMode after destroy</button>
