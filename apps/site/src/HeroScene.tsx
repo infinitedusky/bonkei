@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bonkei, type Mode } from 'bonkei'
+import { Bonkei, type BonkeiError, type Mode } from 'bonkei'
 
 const ORDER: Mode[] = ['flat', 'iso', '3d']
 
@@ -8,10 +8,10 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 // The live hero scene only (the poster, gate and fade live in Hero.tsx, which lazy-loads this file).
 // Cycles flat -> iso -> 3d until the visitor picks a view; no cycling under reduced motion, and the
 // cycle pauses while the stage is off-screen or the tab is hidden. `onReady` is the component's own:
-// it fires on the first frame drawn with the diagram. On `onError` nothing is drawn, `onReady`
-// never fires, and Hero.tsx keeps the poster up.
-export default function HeroScene({ source, start = 'iso', autoplay = true, every = 3500, onReady, onSource }: {
-  source: string; start?: Mode; autoplay?: boolean; every?: number; onReady?: () => void; onSource?: () => void
+// it fires on the first frame drawn with the diagram. `onError` is the component's own, passed up: Hero.tsx decides
+// (heroFallsBack) whether the poster takes the stage, as it must when the scene can't make its WebGL context.
+export default function HeroScene({ source, start = 'iso', autoplay = true, every = 3500, onReady, onError, onSource }: {
+  source: string; start?: Mode; autoplay?: boolean; every?: number; onReady?: () => void; onError?: (e: BonkeiError) => void; onSource?: () => void
 }) {
   const [mode, setM] = useState<Mode>(start)
   const [playing, setPlaying] = useState(() => autoplay && !reducedMotion())
@@ -21,6 +21,8 @@ export default function HeroScene({ source, start = 'iso', autoplay = true, ever
   const root = useRef<HTMLDivElement>(null)
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
+  const onErrorRef = useRef(onError)
+  onErrorRef.current = onError
 
   useEffect(() => {
     const el = root.current
@@ -48,7 +50,7 @@ export default function HeroScene({ source, start = 'iso', autoplay = true, ever
     <div ref={root} className="site-live-scene">
       <Bonkei source={source} mode={mode} labels="top" toolbar={false} controls={{ zoom: false }}
         onReady={() => onReadyRef.current?.()}
-        onError={e => { if (import.meta.env.DEV) console.warn('[bonkei] error', e) }}
+        onError={e => { if (import.meta.env.DEV) console.warn('[bonkei] error', e); onErrorRef.current?.(e) }}
         onWarning={w => { if (import.meta.env.DEV) console.warn('[bonkei] warning', w) }} />
       <div className="site-modes" role="group" aria-label="View">
         {ORDER.map(m => <button key={m} className={m === mode ? 'on' : ''} aria-pressed={m === mode} onClick={() => pick(m)}>{m}</button>)}

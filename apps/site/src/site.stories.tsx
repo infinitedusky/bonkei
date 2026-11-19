@@ -46,3 +46,8 @@ export const HeroPosterOnly: StoryObj<typeof Hero> = {
 export const HeroSceneFailedToLoad: StoryObj<typeof Hero> = {
   render: () => <Wrap label="small flowchart (sample.mmd), the scene's chunk failing to load: the poster instead, the page stays"><Hero live failLoad source={sample} /></Wrap>,
 }
+// The scene loads but reports an error before its first frame (as when it can't make its WebGL context after the gate's
+// probe passed). Here a made-up source it can't read makes it report one: the poster takes the stage, never an empty one.
+export const HeroSceneError: StoryObj<typeof Hero> = {
+  render: () => <Wrap label="made up: a source the scene can't read ('not a diagram'), so it reports an error before drawing: the poster instead"><Hero live source="not a diagram" /></Wrap>,
+}

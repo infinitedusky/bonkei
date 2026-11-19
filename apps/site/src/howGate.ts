@@ -1,6 +1,8 @@
 // The "Keep the text. Get the scene." section's gate and start text (BON-189). How.tsx uses it, so it is in the page's
 // entry chunk: keep it small and free of the scene. The live state is in howState.ts, in the scene's lazy chunk.
 
+import type { BonkeiError } from 'bonkei' // a type only: erased at build, nothing of the scene in the entry chunk
+
 /** The sample as the section shows it: without a leading %% comment line. */
 export const startOf = (sample: string) => sample.replace(/^%%.*\n/, '')
 
@@ -42,6 +44,13 @@ export function heroGateOf(live: boolean | undefined, probe: () => Gate): HeroGa
 export function heroShows(gate: HeroGate, failed: boolean): 'live' | 'poster' {
   return gate === 'live' && !failed ? 'live' : 'poster'
 }
+
+/**
+ * Whether an error from the hero's scene (<Bonkei> onError) sends it to the poster: any error before its first frame
+ * (the probe passed but the scene could not make its own WebGL context, so nothing will draw), or drawing broke after it.
+ * Otherwise the drawn diagram stays. The same rule as the "Keep the text" section's (howState.ts fallsBack).
+ */
+export const heroFallsBack = (drawn: boolean, error: BonkeiError) => !drawn || error.kind === 'render'
 
 /** The `site.hero.path` span's attributes: the path, and for the poster why. */
 export function heroPathAttrs(gate: HeroGate): Record<string, string> {

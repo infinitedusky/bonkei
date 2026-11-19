@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
-import { heroGateOf, heroPathAttrs, heroShows, probeGate } from './howGate'
+import { heroFallsBack, heroGateOf, heroPathAttrs, heroShows, probeGate } from './howGate'
 import { SceneBoundary } from './SceneBoundary'
 import { track } from './track'
 
@@ -16,7 +16,8 @@ const NoScene = lazy(() => Promise.reject(new Error('the hero scene chunk did no
 // The landing page's hero (BON-209). The path is decided on the first render (the page is client-rendered, so there is
 // no undecided frame): a desktop with WebGL 2 gets an empty stage (its size and background) and the live scene fades in
 // once it has drawn a real frame; poster.png is never requested. The poster, caption and "see the source" are only for a
-// device that can't go live (phone, coarse pointer, no WebGL 2), `live={false}`, or a scene chunk that failed to load.
+// device that can't go live (phone, coarse pointer, no WebGL 2), `live={false}`, a scene chunk that failed to load, or a
+// scene that reports an error before its first frame (it could not make its WebGL context) or whose drawing broke.
 // `live`: true forces the scene, false forces the poster, unset auto-detects. `holdLoad` / `failLoad`: stories only.
 export function Hero({ live, source, start, autoplay, every, onSource, holdLoad = false, failLoad = false }: {
   live?: boolean; source: string; start?: SceneProps['start']; autoplay?: boolean; every?: number; onSource?: () => void
@@ -39,6 +40,11 @@ export function Hero({ live, source, start, autoplay, every, onSource, holdLoad 
           <Suspense fallback={null}>
             <div className={'site-live' + (ready ? ' ready' : '')}>
               <Scene source={source} start={start} autoplay={autoplay} every={every} onSource={onSource}
+                onError={e => {
+                  if (!heroFallsBack(ready, e)) return
+                  track('site.hero.fallback', { 'site.hero.reason': 'scene-error', 'site.hero.error.kind': e.kind }, e.message)
+                  setFailed(true)
+                }}
                 onReady={() => {
                   setReady(true)
                   performance.mark('hero-scene-ready')

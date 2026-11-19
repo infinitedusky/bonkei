@@ -4,7 +4,7 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { trace } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { heroGateOf, heroPathAttrs, heroShows, howShows, type Gate } from './howGate.ts'
+import { heroFallsBack, heroGateOf, heroPathAttrs, heroShows, howShows, type Gate } from './howGate.ts'
 import { track } from './track.ts'
 
 const exporter = new InMemorySpanExporter()
@@ -60,4 +60,14 @@ test('site.hero.path says which path the visitor got, and for the poster why (st
     { 'site.hero.path': 'poster', 'site.hero.reason': 'phone' },
     { 'site.hero.path': 'poster', 'site.hero.reason': 'forced' },
   ])
+})
+
+test('the hero falls back to the poster when its scene reports an error before its first frame, or drawing broke after it', () => {
+  // the probe passed, then the scene could not make its own WebGL context: <Bonkei> reports it and never draws
+  assert.equal(heroFallsBack(false, { kind: 'render', message: 'WebGL is unavailable (Error creating WebGL context.)' }), true)
+  assert.equal(heroFallsBack(false, { kind: 'parse', message: 'x' }), true)
+  assert.equal(heroFallsBack(true, { kind: 'render', message: 'x' }), true)
+  // after a frame, anything but drawing breaking leaves the drawn diagram up
+  assert.equal(heroFallsBack(true, { kind: 'layout', message: 'x' }), false)
+  assert.equal(heroShows('live', heroFallsBack(false, { kind: 'render', message: 'x' })), 'poster')
 })
