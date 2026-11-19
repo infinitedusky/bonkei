@@ -432,10 +432,12 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
   cb.current = onFirstFrame
   useFrame(({ size }) => {
     if (!data || seen.current === data) return
+    const kindOf = (d: LayoutResult | SeqLayout | FishLayout) => 'kind' in d ? d.kind : 'flow'
+    const changed = !!seen.current && kindOf(seen.current) !== kindOf(data) // another kind of diagram: nothing to keep the view of
     seen.current = data
     if (size.width > 0 && size.height > 0) { cam.aspect = size.width / size.height; cam.frameH = size.height }
     cam.content = 'boxes' in data ? contentOf(data.boxes, data.width, data.height) : []
-    if (!cam.layout) {
+    if (!cam.layout || changed) {
       cam.whole = false
       cam.fit(data.width, data.height, 'boxes' in data && cam.minLabel > 0 ? biggestTray(data.boxes, data.width, data.height) : undefined)
       cam.adopt(frameOf(data))
