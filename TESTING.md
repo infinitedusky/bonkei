@@ -202,3 +202,21 @@ Open the site (`pnpm --filter @bonkei/site exec vite --port 6208`). The hero dia
 ## 6. Telemetry
 
 With an OpenTelemetry SDK registered (or the stub tracer of the BON-78 check): each edit after the first layout gives one `bonkei.relayout_kept_view` span (`bonkei.view.anchor`, `bonkei.view.tray`: `found` in a tray, `parent` or `diagram` after deleting it); Fit gives `bonkei.fit` with `bonkei.fit.after_edits` counting those edits; a script-tag theme change gives `bonkei.element.theme_change`.
+
+# Manual test plan: the docs smoke knows the trench light demo (BON-197)
+
+How to check by hand that the docs smoke passes on Edge styles, still fails a diagram that is neither a fence nor a marked demo, and that Copy page gives the demo's Markdown. First run `pnpm test`: it includes `scripts/smoke/diagram-rule.test.mjs` (the rule) and `trench.test.ts` (the fence under the demo is what Light only writes).
+
+## 1. The docs smoke
+
+1. `pnpm --filter bonkei build && pnpm docs:smoke`. Look for `ok page /docs/guide/edge-styles: every diagram is a mermaid fence in its .md (14 drawn, 14 fences); 1 interactive demo(s): The trench light`, then `ok … 15 diagram(s) draw`, `ok copy as Markdown (Edge styles)` and `ok agents: the Edge styles .md has its diagrams as mermaid fences and no HTML chrome`. It ends `docs smoke: all steps ok`, with no `docs smoke: every page FAILED`.
+2. A bare diagram still fails. Append `<BonkeiLive source="flowchart%20LR%0A%20%20A%20--%3E%20B" />` to `docs/guide/react.md`, rebuild and run again (`pnpm docs:smoke`): `FAIL page /docs/guide/react: every diagram is a mermaid fence in its .md (3 drawn, 2 fences)`. Put the page back.
+3. A demo needs its heading. Change `data-bonkei-demo="The trench light"` in `docs/.vitepress/theme/TrenchLight.vue` to another title, rebuild and run: the Edge styles line fails with `a demo needs one diagram and a heading of its title in the .md: …`. Put it back.
+
+## 2. Docs: Edge styles, Copy page
+
+Run `pnpm docs:dev` (or the docs smoke set-up) and open Edge styles, section **The trench light**.
+
+1. Under the controls, a sentence says what **Light only** on Classic writes, and a YAML block shows that frontmatter and the tunnel diagram. Press **Light only** on the controls: the frontmatter shown under the live diagram is the same.
+2. Press **Copy page** under the title and paste: under `### The trench light` there is the Try-it paragraph, the sentence and the ```` ```yaml ```` block; no `<TrenchLight />`, no HTML.
+3. `curl <origin>/docs/guide/edge-styles.md`: the same Markdown.

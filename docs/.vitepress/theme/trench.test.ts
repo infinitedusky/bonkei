@@ -2,6 +2,7 @@
 // the control says. Laid over the real presets with bonkei's own withVariables (packages/core), so a renamed token fails here.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import { PRESETS, trenchParts, withVariables } from '../../../packages/core/src/theme.ts'
 import { TRENCH_THEMES, own, preset, trenchSource, trenchVariables, type TrenchState, type TrenchTheme } from './trench.ts'
 
@@ -60,4 +61,15 @@ test('the source is a tunnel diagram whose frontmatter carries the variables as 
   assert.match(src, /    edge\.glow\.core: "#e0e0e0"\n/)
   assert.match(src, /    edge\.glow\.wash: null\n/)
   assert.match(src, /    edge\.rim: none\n/)
+})
+
+test("Edge styles' Markdown stands for the demo (BON-197): under the trench light heading, the source Light only on Classic writes, word for word", () => {
+  // the page's .md (llms.txt, llms-full.txt, Copy page) drops <TrenchLight />; this fence is what a reader or an agent gets in its place
+  const md = fs.readFileSync(new URL('../../guide/edge-styles.md', import.meta.url), 'utf8')
+  const after = md.slice(md.indexOf('\n### The trench light\n'))
+  assert.ok(md.includes('\n### The trench light\n'), 'the heading the demo is marked with (data-bonkei-demo in TrenchLight.vue)')
+  assert.match(fs.readFileSync(new URL('./TrenchLight.vue', import.meta.url), 'utf8'), /data-bonkei-demo="The trench light"/)
+  const fence = /<TrenchLight \/>[\s\S]*?\n```yaml\n([\s\S]*?)\n```\n/.exec(after)
+  assert.ok(fence, 'a yaml fence after <TrenchLight />')
+  assert.equal(fence[1], trenchSource('classic', preset('classic', 'light-only', own('classic'))))
 })
