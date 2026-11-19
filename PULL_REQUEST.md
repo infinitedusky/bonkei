@@ -1,25 +1,20 @@
-# Pan, zoom and turn the way people expect (BON-78)
+# Tunnels you can see: trench glow and rim (BON-181)
 
-Moving around a diagram now works like a map or a design tool, the same in the viewer, the site, the docs and every story.
+A tunnel used to read as a dark dip. Its trench can now be lit: a light along the floor, a wash on the walls and a rim round the lip. Each part can be recoloured, made stronger or weaker, or turned off, by a theme or by one diagram.
 
-- **Trackpad and mouse.** A two-finger drag or the scroll wheel moves the diagram (⇧ for sideways); pinch or ⌘/Ctrl + scroll zooms. Flat and iso: a background drag moves, ⇧ + drag or a right-drag turns, settling on the nearest quarter turn. 3D: a drag turns and tilts, ⇧ + drag or a right-drag moves, ⇧ + scroll turns, so 3D no longer needs a right mouse button.
-- **Touch.** One finger moves, pinch zooms, a twist turns (flat and iso settle square), and in 3D two fingers up or down tilt. A node drag gives way to a second finger.
-- **Fit** shows the whole diagram and puts it back square, the short way round (`camera.square()`; also the handle's `fit()`).
-- **"?" beside Fit** opens a card of the gestures for the input last used (trackpad, mouse or touch) and the view; Esc or × closes it.
-- **A diagram in a page that scrolls** lets the page scroll past it with a short hint; a click (tap, or two fingers) takes hold, shown by a ring that follows the corners of the box that clips the diagram and "Esc to let go", until Esc or a press outside. Pinch and ⌘/Ctrl + scroll always zoom.
-- **No right-click menu** over a diagram.
-- **Telemetry.** `bonkei.control` gains `via`, `swapped` and `mode` (and `orbit` is now `turn`); new spans `bonkei.control.hint`, `bonkei.control.hold`, `bonkei.help`, `bonkei.fit`.
+- **Defaults.** Classic lights its trench grey-white `#e0e0e0` at 30% strength, with no rim. Bonkei and Bonkei · landscape have the light off and draw exactly as before.
+- **Tokens.** `edge.glow` (`core`, `coreWidth`, `halo`, `haloWidth`, `haloOpacity`, `wash`, `washIntensity`) in every preset; `edge.rim` takes `none`. In a diagram's `config.themeVariables`: `edge.glow: off`, `edge.glow.core/halo/wash: null`, `edge.rim: none`, and the diagram's own rim colour and width win. Other values are validated and go to `onWarning`.
+- **Only the trench is lit.** The light is drawn (lines on the floor, an emissive wash on the walls); no scene light is added.
+- **Docs.** Edge styles, "The trench light": live controls (preset Theme default / Light only / All off, the three parts, colour, strength), with the frontmatter they write under the diagram; a fence with its own teal rim. Themes lists the tokens.
+- **Telemetry.** `bonkei.theme` gains `bonkei.theme.trench`; the docs controls add `bonkei.docs.trench_light.edit`.
 
-Where to look: `packages/core/src/controls.ts` (the rules, pure, tested in `controls.test.ts`), `hold.ts` (taking hold), `SceneView.tsx` (the wiring), `Bonkei.tsx` (the card and "?"), `camera.ts` (`square`, `nearestTurn`). Decisions in LOG.md ("Pan, zoom and turn the way people expect (BON-78)"); manual test plan in TESTING.md (same title); stories **Mockups / BON-78 Gestures** (Card, Toolbar With Card, Full Page, In A Page with a corner radius); docs in `docs/guide/controls.md` ("Gestures") and the README.
+Where to look: `packages/core/src/theme.ts` (tokens, `edge.glow: off`, `trenchParts`), `EdgeScene.tsx` (`Trench`), `theme.test.ts`; `docs/.vitepress/theme/trench.ts` (the controls' rules, tested in `trench.test.ts`) and `TrenchLight.vue`; stories **Themes / Tunnel …**. Decisions in LOG.md ("Tunnels you can see: the trench light and rim (BON-181)"); manual test plan in TESTING.md (same title).
 
 ## Risks: what this could break, and how you would notice
 
-- **Readers used to wheel-to-zoom.** A plain wheel now moves the diagram instead of zooming; a mouse user zooms with ⌘/Ctrl + wheel. You would hear "zoom stopped working"; the "?" card and the hint say how.
-- **"Does this page scroll?" is guessed.** A diagram counts as in a page that scrolls when an ancestor or the document can scroll. A host whose page scrolls in a way this misses (a custom scroller with `overflow: hidden` and scripted scrolling) gets a diagram that takes the wheel at once; one that falsely looks scrollable shows the hint in a full-page app. You would see a hint where none is needed, or a page stuck under the pointer.
-- **Touch on a page that scrolls.** One finger scrolls the page until the diagram is tapped. A host's own `touch-action` on the canvas is overridden by the diagram's inline style. On a real device, a diagram that moves with one finger before a tap, or a page that will not scroll over it, is the sign.
-- **Trackpad pinch detection** relies on browsers sending a pinch as a wheel with `ctrlKey` (Chrome, Safari, Firefox, Edge do). Ctrl + a mouse wheel zooms too, so a browser that differs only changes the `via` attribute, not what happens.
-- **Spans.** Dashboards counting `bonkei.control` with `orbit` must use `turn`. The new `via`, `swapped` and `mode` attributes are added, none removed.
-- **Bundle.** The main chunk grows 3.9 kB gzip (192.8 kB); its size limit goes from 190 to 197 kB. The size check shows it.
-- **Real hardware is not automated.** The checks drive Chrome with synthetic wheel, mouse and CDP touch events; a Mac trackpad, a mouse with Ctrl-click and a phone are steps 2–8 of the test plan.
+- **Classic tunnels look different.** Lit, and without the dark rim they had. Anyone comparing Classic tunnel pictures sees the trench change (and only the trench); a reader who wants the old look sets `edge.glow: off` and `edge.rim: null`.
+- **A theme object built by hand before this change** (plain JS, no `edge.glow`): TypeScript now asks for `glow`; without it the trench draws unlit, as before, rather than failing. Copies of a preset (`{ ...CLASSIC.edge, … }`) carry the light. Someone who copied Classic would notice their tunnels are lit now.
+- **The light on bright ground.** In the Bonkei looks the walls hide most of the floor light, so a switched-on light shows mostly as the wash; that is a look, not a fault.
+- **Diagrams without a tunnel** read none of the new tokens; a pixel difference there would be a bug. Compared against main on samples in flat, iso and 3D in all three themes (see below).
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

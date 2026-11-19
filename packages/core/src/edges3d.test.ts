@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mergeSlots, stepRoute, findCrossings, applyCrossings, endHeight, surfaceAt, STEP_OFFSET, RISE, DIP, SLOT_W, type Body, type P3 } from './edges3d.ts'
+import { floorGlow, floorGlowAt, mergeSlots, stepRoute, findCrossings, applyCrossings, endHeight, surfaceAt, STEP_OFFSET, RISE, DIP, SLOT_W, SLOT_DEPTH, type Body, type P3 } from './edges3d.ts'
 import { TRAY, NODE_H } from './scale.ts'
+import { BONKEI, CLASSIC, withVariables } from './theme.ts'
 import { reroute, dock, layout, sideMid, PAD, SPACING } from './layout.ts'
 import { parse } from './parser.ts'
 import type { Box } from './model.ts'
@@ -300,3 +301,21 @@ test('flatLine lies on each surface and climbs a tray wall in a riser outside it
   for (const p of out) assert.ok(p[0] <= 2 ? near(p[2], 0.02) || near(p[2], 0.42) : near(p[2], 0.42))
 })
 
+
+test('the floor light shows on the walls from the floor up: Light only draws it, All off and the wall wash alone do not', () => {
+  // the floor of a ground trench is hidden in iso (deeper than it is wide), so the light must reach the walls to be seen
+  // (iso looks 45 degrees across the trench, down at atan(1/sqrt 2): the near lip hides SLOT_W * sqrt 2 * (1/sqrt 2) = SLOT_W of drop)
+  assert.ok(SLOT_DEPTH.ground > SLOT_W)
+  const lightOnly = withVariables(CLASSIC, { 'edge.glow.wash': null, 'edge.rim': 'none' }).theme.edge.glow
+  assert.deepEqual(floorGlow(lightOnly), { color: '#e0e0e0', opacity: 0.17 })
+  assert.deepEqual(floorGlow(CLASSIC.edge.glow), { color: '#e0e0e0', opacity: 0.17 })
+  assert.equal(floorGlow(withVariables(CLASSIC, { 'edge.glow': 'off' }).theme.edge.glow), null)
+  assert.equal(floorGlow(withVariables(CLASSIC, { 'edge.glow.core': null, 'edge.glow.halo': null }).theme.edge.glow), null) // wash only
+  assert.equal(floorGlow(BONKEI.edge.glow), null) // the Bonkei looks stay unlit
+  assert.equal(floorGlow(undefined), null) // a hand-made theme from before the light
+  assert.deepEqual(floorGlow({ core: '#fff', halo: null, haloOpacity: 0.28 }), { color: '#fff', opacity: 0.28 }) // the core alone
+  assert.equal(floorGlow({ core: '#fff', halo: '#fff', haloOpacity: 0 }), null)
+  // full at the floor, half way up half, none at the lip
+  assert.equal(floorGlowAt(0.2, 0, 0.4), 0.2); assert.equal(floorGlowAt(0.2, 0.2, 0.4), 0.1); assert.equal(floorGlowAt(0.2, 0.4, 0.4), 0)
+  assert.equal(floorGlowAt(0.2, 0, 0), 0)
+})

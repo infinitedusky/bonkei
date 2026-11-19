@@ -137,3 +137,31 @@ In this order, on a Mac with a trackpad and with a mouse, then a phone or tablet
 7. **The docs** (`pnpm docs:dev`), The reader's controls: the Gestures table; over each diagram the page scrolls with a hint; click one, drag it, Esc.
 8. **Touch** (a phone or tablet on the same network, the docs or In A Page): one finger scrolls the page over a diagram, with the hint "Tap, or use two fingers, to move the diagram". Tap it (the ring shows): one finger moves it, pinch zooms, a twist turns (flat and iso settle square on lifting), and in 3D two fingers up or down tilt. Tap outside: one finger scrolls the page again.
 9. **Telemetry.** With an OpenTelemetry SDK registered on the page (or the stub tracer of the BON-78 check), use the gestures: `bonkei.control` spans carry `bonkei.control.via` (wheel, pinch, drag, touch), `bonkei.control.swapped` and `bonkei.mode`; `bonkei.control.hint` appears once per hint, `bonkei.control.hold` on taking hold and letting go (how: click, touch, esc, outside), `bonkei.help` on opening and closing the card, `bonkei.fit` on Fit.
+
+# Manual test plan: the trench light (BON-181)
+
+How to check by hand that a tunnel's trench is lit in Classic, unlit in the Bonkei looks, and that each part can be changed or turned off. The tunnel diagram is made-up sample data. First run `pnpm test` (it includes `theme.test.ts` and the docs' `trench.test.ts`).
+
+## 1. Docs: Edge styles, "The trench light"
+
+Run `pnpm docs:dev` and open the Edge styles page, section **The trench light**.
+
+1. The diagram opens in iso, theme `classic`, and no `themeVariables` show under it. The tunnel's trench glows a soft grey-white along its floor and on its walls, with no rim. The blocks and lines beside it look as they do elsewhere on the page.
+2. Turn the diagram to 3D with the toolbar: the same light, only in the trench.
+3. Press **Light only**: the wall wash and any rim go, the light out of the floor stays; the frontmatter shows `edge.glow.wash: null` and `edge.rim: none`.
+4. Press **All off**: no light and no rim; the frontmatter shows `edge.glow: off` and `edge.rim: none`.
+5. Press **Theme default**, then pick an orange colour: the light turns orange. Drag **Strength** from 5% to 100%: from a thin line along the floor to a bright channel. **Theme colour** puts the grey-white back.
+6. Untick and tick **floor light**, **wall wash** and **rim** one at a time: each part goes and comes back alone, and the frontmatter follows.
+7. Pick theme `bonkei`, then `bonkei-landscape`: the light is off and the dark rim is there, as before; no `themeVariables`. Tick floor light and wall wash: a warm light appears.
+8. Below the controls, the teal-rim diagram draws a thin teal rim round its trench instead of Bonkei's dark one.
+9. On the Themes page, **The trench light** diagram is Bonkei with its light switched on.
+
+## 2. Storybook: Themes
+
+Run `pnpm storybook` (or `pnpm --filter @bonkei/playground exec storybook dev -p 6207`) and open **Themes**.
+
+1. **Tunnel Classic Iso** and **Tunnel Classic 3D**: grey-white light, no rim. **Tunnel Bonkei Iso/3D**, **Tunnel Landscape Iso/3D**: no light, dark rim, as on main.
+2. **Tunnel Bonkei Light On**, **Tunnel Landscape Light On**: warm light. **Tunnel Own Rim**: a thin teal rim. **Tunnel Classic Light Only**: the floor light alone.
+3. **Tunnel Bad Light Warns**: drawn with Classic's light, and two theme warnings listed (`edge.glow` is a group…, `edge.glow.coreWidth` must be 0 or more).
+4. **Tunnel Light Controls**: change theme, preset, the three parts, colour and strength in the controls panel; the frontmatter under the diagram follows each change.
+5. Open **Classic Iso**, **Bonkei Iso** and **Landscape Iso** (no tunnel): they look exactly as before.

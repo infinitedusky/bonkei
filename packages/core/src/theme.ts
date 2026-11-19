@@ -1,9 +1,17 @@
 // Themes: a typed, JSON-serialisable token object. The scene reads tokens only; the built-in looks are presets
 // of it. Decisions: LOG.md, "Themes: Classic, Bonkei, Bonkei · landscape (BON-117)". Plain .ts, no React.
+import { Color } from 'three'
 import type { Shape } from './model.ts'
 
 export type Pattern = 'plain' | 'hishi' | 'flower' | 'stone'
 export interface Plate { style: 'plain' | 'cartouche'; text: string; plate: string; border: string }
+
+/**
+ * The light in a tunnel's trench (theme.edge.glow): a track where the floor meets the walls (a bright core line and a wider, fainter
+ * halo round it) and a wash of light on the walls. A null colour leaves that part out; `edge.glow: off` in themeVariables nulls all three.
+ * It lights only the trench: no light is added to the scene, so the blocks and lines beside it are not brightened.
+ */
+export interface Glow { core: string | null; coreWidth: number; halo: string | null; haloWidth: number; haloOpacity: number; wash: string | null; washIntensity: number }
 
 /** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
 export interface Theme {
@@ -46,7 +54,7 @@ export interface Theme {
   // Ink follows the drawing's on-screen scale: width in px = token width x (px per world unit / ref), kept between min (px, for an outline;
   // other lines get it in proportion to their own width) and the token width. ref null: fixed widths, as in Classic.
   ink: { ref: number | null; min: number }
-  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface. flat: lines lie on the surface under them and the arrowhead is a flat triangle
+  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim. glow: the trench light. flat: lines lie on the surface under them and the arrowhead is a flat triangle
   seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
 }
 
@@ -78,7 +86,9 @@ export const CLASSIC: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: null, min: 1 },
-  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: null, rimWidth: 1.5, flat: false },
+  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: 'none', rimWidth: 1.5, flat: false,
+    // the trench lit in grey-white at 30% strength: 0.6 times the standard sizes (Bonkei's below, which are 50%), and no rim
+    glow: { core: '#e0e0e0', coreWidth: 2.1, halo: '#e0e0e0', haloWidth: 6.6, haloOpacity: 0.17, wash: '#e0e0e0', washIntensity: 0.18 } },
   seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 })
 
@@ -104,7 +114,9 @@ export const BONKEI: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: 40, min: 1 },
-  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false },
+  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false,
+    // the light is off (the tunnel looks as it always did); the sizes are the standard light a diagram gets when it sets a colour
+    glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 } },
   seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
 })
 
@@ -134,6 +146,21 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 const owns = (c: object, k: string) => (Array.isArray(c) ? /^\d+$/.test(k) && Number(k) < c.length : Object.hasOwn(c, k))
 const at = (o: unknown, keys: string[]) => keys.reduce<any>((c, k) => (c !== null && typeof c === 'object' && owns(c, k) ? c[k] : undefined), o)
 
+// Tokens that may be null in any theme though a preset sets them: null leaves that part of the trench light out.
+// edge.rim: null is a dark shade of the surface, as it always was (Classic's rim is 'none' now, so no preset shows it).
+const NULLABLE = new Set(['edge.rim', 'edge.glow.core', 'edge.glow.halo', 'edge.glow.wash'])
+// Tokens whose string is drawn as a colour, with the words they take beside one: a word three.js does not know as a colour would draw
+// in white (an `off` rim drew a light rim), so it is reported instead.
+const COLOURS: Record<string, readonly string[]> = { 'edge.rim': ['none'], 'edge.glow.core': [], 'edge.glow.halo': [], 'edge.glow.wash': [] }
+// A colour as three.js reads one (Color.setStyle): #rgb, #rrggbb, rgb()/rgba() in numbers or %, hsl()/hsla(), or a CSS colour name.
+const isColour = (s: string) =>
+  /^#([\da-f]{3}|[\da-f]{6})$/i.test(s)
+  || /^rgba?\(\s*(\d+\s*,\s*\d+\s*,\s*\d+|\d+%\s*,\s*\d+%\s*,\s*\d+%)\s*(,\s*\d*\.?\d+\s*)?\)$/.test(s)
+  || /^hsla?\(\s*\d*\.?\d+\s*,\s*\d*\.?\d+%\s*,\s*\d*\.?\d+%\s*(,\s*\d*\.?\d+\s*)?\)$/.test(s)
+  || Object.hasOwn(Color.NAMES, s.toLowerCase())
+// Groups that take one word for the whole group: `edge.glow: off` (or false) turns every part of the trench light off.
+const GROUP_OFF: Partial<Record<string, (g: any) => void>> = { 'edge.glow': (g: Glow) => { g.core = g.halo = g.wash = null } }
+
 // Sets one dotted path (`node.form`, `tray.colors.0`) to a value of the type the token has. A token that can be null
 // (an outline, a font) takes null or the type it has in the presets where it is set.
 function setPath(t: Theme, path: string, v: unknown): string | null {
@@ -142,13 +169,18 @@ function setPath(t: Theme, path: string, v: unknown): string | null {
   const parent = at(t, keys.slice(0, -1)), last = keys[keys.length - 1]
   if (parent === null || typeof parent !== 'object' || !owns(parent, last)) return `unknown theme variable ${path}`
   const old = parent[last]
-  if (old !== null && typeof old === 'object') return `${path} is a group of tokens; set one of them (${Object.keys(old).map(k => `${path}.${k}`).join(', ')})`
+  const off = Object.hasOwn(GROUP_OFF, path) ? GROUP_OFF[path] : undefined
+  if (off && (v === 'off' || v === false)) { off(old); return null }
+  if (old !== null && typeof old === 'object') return `${path} is a group of tokens; ${off ? 'turn it off with off, or ' : ''}set one of them (${Object.keys(old).map(k => `${path}.${k}`).join(', ')})`
   const types = new Set(Object.values(PRESETS).map(p => at(p, keys)).map(x => (x === null ? 'null' : typeof x)))
+  if (NULLABLE.has(path)) types.add('null')
   const want = [...types].filter(x => x !== 'null')
   const got = v === null ? 'null' : typeof v
   if (!types.has(got)) return `${path} must be ${want.length ? 'a ' + want.join(' or a ') : 'null'}${types.has('null') ? ' or null' : ''}; got ${JSON.stringify(v)}`
   const choices = CHOICES[keys.map(k => (/^\d+$/.test(k) ? '#' : k)).join('.')]
   if (choices?.length && typeof v === 'string' && !choices.includes(v)) return `${path} must be one of ${choices.join(', ')}; got ${JSON.stringify(v)}`
+  const words = Object.hasOwn(COLOURS, path) ? COLOURS[path] : undefined
+  if (words && typeof v === 'string' && !words.includes(v) && !isColour(v)) return `${path} must be a colour${words.map(w => ', ' + w).join('')} or null; got ${JSON.stringify(v)}`
   if (typeof v === 'number' && !Number.isFinite(v)) return `${path} must be a finite number; got ${JSON.stringify(v)}`
   // every number in a theme is a size, a weight or a share (none negative in the presets); a negative one draws nothing
   if (typeof v === 'number' && v < 0) return `${path} must be 0 or more; got ${v}`
@@ -203,6 +235,13 @@ export function resolveTheme(prop: string | Theme | undefined, fm: { name?: stri
     problem: fromProp ? named.problem : undefined,
     variables: Object.keys(vars).length,
   }
+}
+
+/** Which parts of a theme's trench light are drawn, for telemetry: e.g. `core,halo,wash,rim`, `wash`, or `off` when none is. */
+export function trenchParts(th: Theme): string {
+  const g: Partial<Glow> = th.edge.glow ?? {} // a hand-made theme from before the light has none
+  const on = [g.core && 'core', g.halo && 'halo', g.wash && 'wash', th.edge.rim !== 'none' && 'rim'].filter(Boolean)
+  return on.length ? on.join(',') : 'off'
 }
 
 /**

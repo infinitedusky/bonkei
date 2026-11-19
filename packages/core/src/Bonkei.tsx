@@ -12,7 +12,7 @@ import { instant, tracer } from './telemetry'
 import { UI } from './palette'
 import { fitUsed, gestureRows, helpToggled, modKey, type HelpHow, type Input } from './controls'
 import { firstInput } from './hold'
-import { resolveTheme, themeByName } from './theme'
+import { resolveTheme, themeByName, trenchParts } from './theme'
 import { loadFont } from './fonts.ts'
 
 /** What a mounted view can be told to do. */
@@ -280,7 +280,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     const unknown = look.problem !== undefined || (look.source === 'frontmatter' && themeByName(look.requested).problem !== undefined)
     instant('bonkei.theme', {
       'bonkei.theme': theme.name, 'bonkei.theme.source': look.source, 'bonkei.theme.requested': look.requested ?? '',
-      'bonkei.theme.variables': look.variables, 'bonkei.theme.unknown': unknown,
+      'bonkei.theme.variables': look.variables, 'bonkei.theme.unknown': unknown, 'bonkei.theme.trench': trenchParts(theme),
     })
     if (look.problem) cbs.current.onWarning?.({ kind: 'theme', message: look.problem.message, line: 0 })
     // the theme's font file missing (labels drawn in the default font, fonts.ts): a warning too, once per look

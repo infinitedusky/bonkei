@@ -155,6 +155,48 @@ flowchart LR
 </figure>
 </div>
 
+### The trench light
+
+A tunnel is a trench cut into the ground. Classic lights it so it does not read as a dark dip: a soft grey-white light (`#e0e0e0`) along the floor and on the walls, at 30% strength, with no rim. Bonkei and Bonkei · landscape leave the light off, and the tunnel has its dark rim as it always did. Turn a tunnel diagram to iso or 3D to see it. Only the trench is lit; the blocks and lines beside it are not. A diagram with no tunnel looks exactly as it did.
+
+Try it: the controls below set the theme's tokens for this one diagram, and the frontmatter under it shows what they wrote. **Theme default** is what the chosen theme draws on its own; **Light only** is the light out of the floor and nothing else (no wall wash, no rim); **All off** is a tunnel with no light and no rim. The colour and strength change the light: low strength is a thin line along the floor, full strength a bright channel. In Bonkei, tick the floor light and wall wash to see the light there.
+
+<TrenchLight />
+
+Each part has its own setting in `config.themeVariables`, so a fence can do the same:
+
+| Setting | Turns off |
+| --- | --- |
+| `edge.glow: off` | the whole light (floor light and wall wash) |
+| `edge.glow.core: null` and `edge.glow.halo: null` | the floor light |
+| `edge.glow.wash: null` | the wall wash |
+| `edge.rim: none` | the rim |
+
+Any other value is checked: a word `edge.glow` does not know, a colour that is not a string, or a negative width is skipped, the diagram draws with the theme's own light, and [`onWarning`](./errors) reports it.
+
+A diagram can also set its own rim, and the diagram's value wins over the theme's. This diagram sets a thin teal rim with `edge.rim` and `edge.rimWidth`, instead of the theme's dark rim:
+
+```mermaid {height=300}
+---
+config:
+  theme: bonkei
+  bonkei:
+    crossings: tunnel
+    avoidCrossings: off
+    toolbar: false
+  themeVariables:
+    edge.rim: "#3fd0c0"
+    edge.rimWidth: 1.5
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+The other parts are tokens too: `edge.glow.core`, `edge.glow.coreWidth`, `edge.glow.halo`, `edge.glow.haloWidth`, `edge.glow.haloOpacity`, `edge.glow.wash` and `edge.glow.washIntensity`. See [Themes](./themes#the-trench-light).
+
 ## Avoiding crossings
 
 `avoidCrossings` sets how hard the router keeps lines apart: `off`, `some` (default) or `strong`. Stronger costs routing time when the diagram first draws. The same graph, drawn with bridges, at each level. On this graph the higher levels slide lines alongside each other rather than remove the crossing, which is why a crossing can be harder to find there.

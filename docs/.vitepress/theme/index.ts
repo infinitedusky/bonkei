@@ -8,6 +8,7 @@ import BonkeiLive from './BonkeiLive.vue'
 import BonkeiPlayground from './BonkeiPlayground.vue'
 import ScriptTagDemo from './ScriptTagDemo.vue'
 import CopyHomePage from './CopyHomePage.vue'
+import TrenchLight from './TrenchLight.vue'
 import { watchCopyButtons } from './telemetry'
 import './brand.css'
 
@@ -20,6 +21,7 @@ export default {
     app.component('BonkeiPlayground', BonkeiPlayground)
     app.component('ScriptTagDemo', ScriptTagDemo)
     app.component('CopyHomePage', CopyHomePage)
+    app.component('TrenchLight', TrenchLight)
     app.use(TwoslashFloatingVue)
     watchCopyButtons()
   },
