@@ -4,30 +4,28 @@
 <meta charset="utf-8">
 <title>Sketch: Ishikawa (fishbone) in the viewer</title>
 <style>
-  :root { --bg:#EFE6D0; --panel:#f4ecda; --line:#cdbd98; --text:#2A2622; --dim:#5d554b; --mute:#857a6b; --blue:#24508F; --shu:#C8452C; }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.5 -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+  body { margin: 0; font: 14px/1.5 -apple-system, system-ui, sans-serif; background: #0f1218; color: #e7e2d6; height: 100vh; display: flex; flex-direction: column; }
   .note { background: #fff6c8; border-bottom: 1px dashed #b9a24a; padding: 6px 16px; font-size: 12px; color: #6b5a14; }
-  .top { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); font-size: 13px; }
-  .top b { font-family: Georgia, serif; }
+  .top { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #232a38; background: #151a23; font-size: 13px; }
   .top select { font: inherit; padding: 2px 6px; }
-  .main { flex: 1; display: grid; grid-template-columns: 340px 1fr; min-height: 0; }
-  textarea { width: 100%; height: 100%; border: 0; border-right: 1px solid var(--line); resize: none; padding: 14px; background: #2A2622; color: #e9e2d2; font: 13px/1.6 ui-monospace, Menlo, monospace; outline: none; }
-  .stage { position: relative; overflow: hidden; background: #f7f0de; }
-  .stage svg { width: 100%; height: 100%; }
+  .main { flex: 1; display: grid; grid-template-columns: 330px 1fr; min-height: 0; }
+  textarea { width: 100%; height: 100%; border: 0; border-right: 1px solid #232a38; resize: none; padding: 14px; background: #1b1f27; color: #e9e2d2; font: 13px/1.6 ui-monospace, Menlo, monospace; outline: none; }
+  .stage { position: relative; overflow: hidden; }
+  .stage canvas { display: block; width: 100%; height: 100%; }
   .tb { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; }
   .tb button { font: 12px system-ui; border: 0; background: #1d2230; color: #e7e2d6; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
-  .tb button.on { background: var(--blue); }
+  .tb button.on { background: #24508F; }
   .warn { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); max-width: 80%; background: #4a3a10; color: #ffd479; padding: 6px 12px; border-radius: 6px; font: 12px monospace; }
-  .hint { position: absolute; left: 14px; bottom: 10px; font-size: 12px; color: var(--mute); }
-  text { font-family: -apple-system, system-ui, sans-serif; }
+  .hint { position: absolute; left: 14px; bottom: 10px; font-size: 12px; color: #7d8699; }
 </style>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.169.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/" } }</script>
 </head>
 <body>
-<div class="note">SKETCH, made-up data (Mermaid's own "Blurry Photo" sample). Edit the text on the left: the drawing follows. Flat / Iso / 3D are rough stand-ins for what the real scene would do.</div>
+<div class="note">SKETCH, made-up data (Mermaid's own "Blurry Photo" sample), in the Classic theme. A real 3D scene like the sequence diagram's: drag to turn it, scroll to zoom; Flat / Iso / 3D are camera views of the same scene. Edit the text: the scene follows.</div>
 <div class="top"><b>Bonkei playground</b> Sample:
-  <select id="sample"><option>Flowchart</option><option>Sequence</option><option selected>Ishikawa (fishbone)</option></select>
-  <span style="color:var(--mute)">Theme: Classic</span>
+  <select><option>Flowchart</option><option>Sequence</option><option selected>Ishikawa (fishbone)</option></select>
+  <span style="color:#7d8699">Theme: Classic</span>
 </div>
 <div class="main">
 <textarea id="src" spellcheck="false">ishikawa-beta
@@ -50,26 +48,28 @@
     Environment
         Subject moved too quickly
         Too dark</textarea>
-<div class="stage">
-  <svg id="svg" viewBox="0 0 1000 560"></svg>
-  <div class="tb"><button data-m="flat" class="on">Flat</button><button data-m="iso">Iso</button><button data-m="3d">3D</button><button data-m="fit">Fit</button></div>
+<div class="stage" id="stage">
+  <div class="tb"><button data-m="flat">Flat</button><button data-m="iso">Iso</button><button data-m="3d" class="on">3D</button><button data-m="fit">Fit</button></div>
   <div class="warn" id="warn" hidden></div>
-  <div class="hint">Effect at the head (right), one bone per category, causes along each bone. Categories alternate above and below the spine.</div>
+  <div class="hint">Effect: the tall block at the head. Categories: blue blocks at the bone tips. Causes: green pills along each bone; causes of a cause: lower pills beside it.</div>
 </div>
 </div>
-<script>
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
+
 // ---- parse: first line after the keyword is the effect; same indent = category; deeper = causes (any depth)
 function parse(src) {
   const lines = src.split('\n'); const warnings = []; let i = 0
   while (i < lines.length && !lines[i].trim()) i++
-  const kw = (lines[i] || '').trim()
-  if (!/^(ishikawa(-beta)?|fishbone)$/.test(kw)) warnings.push({ line: i + 1, message: 'expected "ishikawa-beta" first' })
+  if (!/^(ishikawa(-beta)?)$/.test((lines[i] || '').trim())) warnings.push({ line: i + 1, message: 'expected "ishikawa-beta" first' })
   i++
   const root = { label: null, kids: [] }; const stack = []; let base = null
   for (; i < lines.length; i++) {
     const raw = lines[i]; if (!raw.trim() || raw.trim().startsWith('%%')) continue
     if (/\t/.test(raw.match(/^\s*/)[0])) { warnings.push({ line: i + 1, message: 'tab in indentation, line skipped' }); continue }
-    const ind = raw.match(/^ */)[0].length; const label = raw.trim()
+    const ind = raw.match(/^ */)[0].length, label = raw.trim()
     if (root.label === null) { root.label = label; base = ind; continue }
     if (ind < base) { warnings.push({ line: i + 1, message: `"${label}" is indented less than the effect, line skipped` }); continue }
     const node = { label, kids: [], ind }
@@ -80,74 +80,146 @@ function parse(src) {
   return { root, warnings }
 }
 
-// ---- draw: plain 2D coordinates, then projected for iso / 3D
-const NS = 'http://www.w3.org/2000/svg'
-function el(tag, a, parent) { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); parent.appendChild(e); return e }
-const PROJ = {
-  flat: (x, y) => [x, y],
-  iso: (x, y) => { const cx = x - 500, cy = y - 280; return [500 + (cx - cy) * 0.78, 300 + (cx + cy) * 0.40] },
-  '3d': (x, y) => { const cx = x - 500, cy = y - 280; const z = 1 + cy / 900; return [500 + cx / z * 0.95, 320 + cy * 0.55 / z] },
-}
-function draw(svg, tree, mode) {
-  svg.innerHTML = ''; const P = PROJ[mode]; const deep = mode === '3d' ? 7 : mode === 'iso' ? 4 : 0
-  const ink = '#2A2622', bone = '#24508F', head = '#C8452C'
-  const segs = [], labels = []
-  const line = (x1, y1, x2, y2, w, c) => segs.push({ x1, y1, x2, y2, w, c })
-  const text = (x, y, t, o = {}) => labels.push({ x, y, t, ...o })
-  const cats = tree.root.kids; const cols = Math.max(1, Math.ceil(cats.length / 2))
-  const spineY = 280, headX = 800, tailX = 60, colW = (headX - tailX - 40) / cols
-  line(tailX, spineY, headX, spineY, 4, ink)
+// ---- layout, in px (x along the spine, z across it); the scene scales by S like Bonkei's
+const S = 1 / 40
+const pillW = t => t.length * 8.5 + 34
+function layout(root) {
+  const blocks = [], rods = []
+  const cats = root.kids, cols = Math.max(1, Math.ceil(cats.length / 2))
+  // a bone's length grows with what hangs on it; each side shares one length so the category blocks line up
+  const need = c => 90 + c.kids.reduce((s, k) => s + 56 + k.kids.length * 40, 0)
+  const side = [0, 1].map(sd => Math.max(300, ...cats.filter((_, k) => k % 2 === sd).map(need)))
+  const colW = Math.max(460, ...cats.map(c => Math.max(0, ...c.kids.map(k => pillW(k.label))) + 260))
+  const headX = 120 + colW * cols + 60
+  rods.push({ a: [0, 0], b: [headX, 0], r: 0.09, arrow: true })
+  blocks.push({ kind: 'effect', label: root.label || '', x: headX + 130, z: 0, w: 260, d: 120 })
   cats.forEach((c, k) => {
-    const col = Math.floor(k / 2), up = k % 2 === 0, s = up ? -1 : 1
-    const bx = tailX + 40 + colW * (col + 1) - 10, ex = bx - 150, ey = spineY + s * 220
-    line(bx, spineY, ex, ey, 3, bone)
-    text(ex, ey + s * 14, c.label, { box: true, anchor: 'middle', bold: true })
-    const n = c.kids.length
-    c.kids.forEach((cause, j) => {
-      const t = (j + 0.7) / (n + 0.4), px = ex + (bx - ex) * t, py = ey + (spineY - ey) * t
-      const len = cause.kids.length ? 120 : 100
-      line(px - len, py, px, py, 1.5, ink)
-      text(px - len - 4, py + 4, cause.label, { anchor: 'end', bold: cause.kids.length > 0 })
-      // a sub-category (LENS, SENSOR): its own causes as small ribs off its line, stacked away from the spine
-      const d = up ? 1 : -1 // toward the spine
+    const col = Math.floor(k / 2), up = k % 2 === 0, s = up ? -1 : 1, len = side[k % 2]
+    const bx = 120 + colW * (col + 1), ex = bx - len * 0.62, ez = s * len
+    rods.push({ a: [ex, ez - s * 30], b: [bx, 0], r: 0.055, arrow: true })
+    blocks.push({ kind: 'cat', label: c.label, x: ex, z: ez, w: Math.max(150, pillW(c.label) + 20), d: 60 })
+    let along = 80 // distance from the tip, in z
+    c.kids.forEach(cause => {
+      const pz = ez - s * along, z0 = ez - s * 30, t = (pz - z0) / (0 - z0), px = ex + (bx - ex) * t, w = pillW(cause.label)
+      rods.push({ a: [px - 60, pz], b: [px, pz], r: 0.03 })
+      blocks.push({ kind: 'cause', label: cause.label, x: px - 60 - w / 2, z: pz, w, d: 34 })
       cause.kids.forEach((sub, m) => {
-        const qx = px - len + 30 + m * 26, ry = py + d * (15 + 13 * (up ? m : cause.kids.length - 1 - m))
-        line(qx, py, qx - 12, ry, 1, '#857a6b')
-        text(qx - 14, ry + 4, sub.label, { anchor: 'end', small: true })
+        const sz = pz - s * (40 + 40 * m), sw = pillW(sub.label) * 0.88, sx = px - 90 - w / 2 - 20
+        rods.push({ a: [sx + sw / 2, sz], b: [sx + sw / 2 + 24, pz - s * 17], r: 0.02 })
+        blocks.push({ kind: 'sub', label: sub.label, x: sx, z: sz, w: sw, d: 28 })
       })
+      along += 56 + cause.kids.length * 40
     })
   })
-  // shadows (extrusion) first, then lines
-  if (deep) for (const g of segs) { const [a, b] = P(g.x1, g.y1), [c, d] = P(g.x2, g.y2); el('line', { x1: a, y1: b + deep, x2: c, y2: d + deep, stroke: '#0003', 'stroke-width': g.w + 2, 'stroke-linecap': 'round' }, svg) }
-  for (const g of segs) { const [a, b] = P(g.x1, g.y1), [c, d] = P(g.x2, g.y2); el('line', { x1: a, y1: b, x2: c, y2: d, stroke: g.c, 'stroke-width': g.w, 'stroke-linecap': 'round' }, svg) }
-  // the head: the effect, in a box at the end of the spine
-  const hw = 170, hh = 64, corners = [[headX, spineY - hh / 2], [headX + hw, spineY - hh / 2], [headX + hw, spineY + hh / 2], [headX, spineY + hh / 2]].map(p => P(...p))
-  if (deep) el('polygon', { points: corners.map(([x, y]) => `${x},${y + deep}`).join(' '), fill: '#7a2416' }, svg)
-  el('polygon', { points: corners.map(p => p.join(',')).join(' '), fill: head }, svg)
-  const [hx, hy] = P(headX + hw / 2, spineY)
-  el('text', { x: hx, y: hy + 5, 'text-anchor': 'middle', fill: '#fff', 'font-weight': 700, 'font-size': 16 }, svg).textContent = tree.root.label || ''
-  for (const l of labels) {
-    if (!l.t) continue
-    const [x, y] = P(l.x, l.y)
-    if (l.box) { const w = l.t.length * 8 + 20; el('rect', { x: x - w / 2, y: y - 15, width: w, height: 24, rx: 4, fill: '#fbf6ea', stroke: '#24508F' }, svg) }
-    el('text', { x, y: y + (l.box ? 2 : 0), 'text-anchor': l.anchor, fill: l.small ? '#5d554b' : ink, 'font-size': l.small ? 11 : l.box ? 14 : 12.5, 'font-weight': l.bold ? 700 : 400 }, svg).textContent = l.t
-  }
+  return { blocks, rods }
 }
 
-const svg = document.getElementById('svg'), src = document.getElementById('src'), warn = document.getElementById('warn')
-let mode = ['iso','3d'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'flat'
-document.querySelectorAll('.tb button').forEach(x => x.classList.toggle('on', x.dataset.m === mode))
-function render() {
-  const t = parse(src.value); draw(svg, t, mode)
+// ---- the scene: Classic theme (dark ground, grid, lit blocks with shadows, white labels on top)
+const COL = { effect: '#d96c8a', cat: '#5b8def', cause: '#3fbf9b', sub: '#2f9c7e' }
+const HEIGHT = { effect: 1.3, cat: 0.7, cause: 0.4, sub: 0.25 }
+const FONT = { effect: 0.5, cat: 0.36, cause: 0.3, sub: 0.26 }
+const stage = document.getElementById('stage')
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(devicePixelRatio)
+renderer.shadowMap.enabled = true; renderer.toneMapping = THREE.ACESFilmicToneMapping
+stage.prepend(renderer.domElement)
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#0f1218')
+scene.add(new THREE.AmbientLight('#ffffff', 0.55), new THREE.HemisphereLight('#bcd0ff', '#202838', 0.5))
+const sun = new THREE.DirectionalLight('#ffffff', 1.6); sun.position.set(-8, 20, 10); sun.castShadow = true
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40 }); scene.add(sun)
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: '#0f1218' }))
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
+const grid = new THREE.GridHelper(200, 200, '#1d2433', '#161c28'); grid.position.y = 0.002; scene.add(grid)
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000)
+const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true
+let world = new THREE.Group(); scene.add(world)
+
+function labelPlane(text, size, color, maxW) {
+  const c = document.createElement('canvas'), g = c.getContext('2d'), px = 96, font = `600 ${px}px -apple-system, system-ui, sans-serif`
+  g.font = font
+  c.width = Math.ceil(g.measureText(text).width + 24); c.height = Math.ceil(px * 1.3)
+  g.font = font; g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(text, 12, c.height / 2)
+  const tex = new THREE.CanvasTexture(c); tex.anisotropy = 8; tex.colorSpace = THREE.SRGBColorSpace
+  let w = size * c.width / c.height * 1.3, h = size * 1.3
+  if (w > maxW) { h *= maxW / w; w = maxW }
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false }))
+  m.rotation.x = -Math.PI / 2
+  return m
+}
+function rod(a, b, r, arrow) {
+  const A = new THREE.Vector3(a[0] * S, 0.25, a[1] * S), B = new THREE.Vector3(b[0] * S, 0.25, b[1] * S)
+  const dir = B.clone().sub(A), len = dir.length(); dir.normalize()
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
+  const mat = new THREE.MeshStandardMaterial({ color: '#e8edf7', roughness: 0.6 })
+  const g = new THREE.Group(), bl = len - (arrow ? 0.35 : 0)
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, bl, 12), mat)
+  body.position.copy(A).addScaledVector(dir, bl / 2); body.quaternion.copy(q); body.castShadow = true; g.add(body)
+  if (arrow) { const cone = new THREE.Mesh(new THREE.ConeGeometry(r * 2.4 + 0.04, 0.45, 16), mat); cone.position.copy(B).addScaledVector(dir, -0.22); cone.quaternion.copy(q); cone.castShadow = true; g.add(cone) }
+  return g
+}
+let bounds = new THREE.Box3()
+function build(tree) {
+  scene.remove(world); world = new THREE.Group(); scene.add(world)
+  const { blocks, rods } = layout(tree.root)
+  const xs = blocks.flatMap(b => [b.x - b.w / 2, b.x + b.w / 2]); world.position.x = -(Math.min(...xs) + Math.max(...xs)) / 2 * S
+  for (const r of rods) world.add(rod(r.a, r.b, r.r, r.arrow))
+  for (const b of blocks) {
+    const w = b.w * S, d = b.d * S, h = HEIGHT[b.kind], round = b.kind === 'cause' || b.kind === 'sub'
+    const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, round ? Math.min(d, h) / 2 * 0.95 : 0.06), new THREE.MeshStandardMaterial({ color: COL[b.kind], roughness: 0.55 }))
+    m.position.set(b.x * S, h / 2, b.z * S); m.castShadow = m.receiveShadow = true; world.add(m)
+    if (b.label) { const l = labelPlane(b.label, FONT[b.kind], '#ffffff', w - 0.2); l.position.set(b.x * S, h + 0.01, b.z * S); world.add(l) }
+  }
+  world.updateMatrixWorld(true); bounds = new THREE.Box3().setFromObject(world)
+}
+
+// ---- camera views, Bonkei's presets: flat and iso are a ~1 degree fov (visually orthographic), 3D opens it
+const D = Math.PI / 180
+const PRESET = { flat: { yaw: 0, pitch: 89.9 * D, fov: 1 }, iso: { yaw: 45 * D, pitch: Math.atan(1 / Math.SQRT2), fov: 1 }, '3d': { yaw: 25 * D, pitch: 38 * D, fov: 45 } }
+let mode = location.hash.slice(1) in PRESET ? location.hash.slice(1) : '3d', anim = null
+function poseFor(m) {
+  const p = PRESET[m], size = bounds.getSize(new THREE.Vector3()), c = bounds.getCenter(new THREE.Vector3())
+  const wide = Math.abs(Math.cos(p.yaw)) * size.x + Math.abs(Math.sin(p.yaw)) * size.z
+  const deep = (Math.abs(Math.sin(p.yaw)) * size.x + Math.abs(Math.cos(p.yaw)) * size.z) * Math.sin(p.pitch)
+  const span = Math.max(deep, wide / camera.aspect) * (m === "3d" ? 1.35 : 1.25)
+  const dist = span / 2 / Math.tan(p.fov * D / 2)
+  const pos = new THREE.Vector3(c.x + Math.sin(p.yaw) * Math.cos(p.pitch) * dist, c.y + Math.sin(p.pitch) * dist, c.z + Math.cos(p.yaw) * Math.cos(p.pitch) * dist)
+  return { pos, target: c, fov: p.fov }
+}
+function go(m, now = false) {
+  mode = m; document.querySelectorAll('.tb button').forEach(b => b.classList.toggle('on', b.dataset.m === m))
+  const to = poseFor(m)
+  if (now) { camera.position.copy(to.pos); controls.target.copy(to.target); camera.fov = to.fov; camera.updateProjectionMatrix(); return }
+  anim = { t0: performance.now(), from: { pos: camera.position.clone(), target: controls.target.clone(), fov: camera.fov }, to }
+}
+document.querySelectorAll('.tb button').forEach(b => b.onclick = () => go(b.dataset.m === 'fit' ? mode : b.dataset.m))
+
+function resize() { const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix() }
+addEventListener('resize', resize); resize()
+const src = document.getElementById('src'), warn = document.getElementById('warn')
+function update(first) {
+  const t = parse(src.value); build(t)
   const w = t.warnings[0]; warn.hidden = !w
   if (w) warn.textContent = `warning (line ${w.line}): ${w.message}` + (t.warnings.length > 1 ? `  (+${t.warnings.length - 1} more)` : '')
+  if (first) go(mode, true)
 }
-src.addEventListener('input', render)
-document.querySelectorAll('.tb button').forEach(b => b.onclick = () => {
-  if (b.dataset.m === 'fit') return
-  mode = b.dataset.m; document.querySelectorAll('.tb button').forEach(x => x.classList.toggle('on', x === b)); render()
+src.addEventListener('input', () => update(false))
+update(true)
+renderer.setAnimationLoop(now => {
+  if (anim) {
+    const k = Math.min(1, (now - anim.t0) / 600), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2
+    // fov moves in log space and distance compensates, so the framing holds while it opens or closes
+    const fov = Math.exp(Math.log(anim.from.fov) + (Math.log(anim.to.fov) - Math.log(anim.from.fov)) * e)
+    const tgt = anim.from.target.clone().lerp(anim.to.target, e)
+    const dA = anim.from.pos.clone().sub(anim.from.target), dB = anim.to.pos.clone().sub(anim.to.target)
+    const hA = dA.length() * Math.tan(anim.from.fov * D / 2), hB = dB.length() * Math.tan(anim.to.fov * D / 2)
+    const dir = dA.normalize().lerp(dB.normalize(), e).normalize(), h = hA + (hB - hA) * e
+    camera.fov = fov
+    camera.position.copy(tgt).addScaledVector(dir, h / Math.tan(fov * D / 2)); controls.target.copy(tgt)
+    if (k === 1) anim = null
+  }
+  const dist = camera.position.distanceTo(controls.target)
+  camera.near = dist / 50; camera.far = dist * 50; camera.updateProjectionMatrix()
+  controls.update(); renderer.render(scene, camera)
 })
-render()
 </script>
 </body>
 </html>
