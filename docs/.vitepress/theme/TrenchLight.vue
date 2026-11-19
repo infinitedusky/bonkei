@@ -3,36 +3,36 @@
 // the new source to the installed package's render() handle, the same path a diagram author uses. Nothing here reaches into the scene.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-const theme = ref('bonkei')
-const floor = ref(true), wash = ref(true), rim = ref(true)
-const colour = ref<string | null>(null) // null: the theme's own colours
-const strength = ref(50) // 50 is the theme's own strength
+const theme = ref('classic')
+// What each theme draws with no themeVariables: Classic lights the floor and walls in grey-white at 30%, no rim; the Bonkei themes have the
+// light off and keep their dark rim. The controls start from the theme's own state and write themeVariables for anything that differs.
+const own = (t: string) => (t === 'classic' ? { floor: true, wash: true, rim: false, strength: 30 } : { floor: false, wash: false, rim: true, strength: 50 })
+const floor = ref(true), wash = ref(true), rim = ref(false)
+const colour = ref<string | null>(null) // null: the theme's own colour
+const strength = ref(30) // % of the standard light: 50 is core 3.5, halo 11 at 0.28, wash 0.3
 const host = ref<HTMLElement>()
 let handle: { update(s: string): void; destroy(): void } | undefined
 
 const preset = (p: 'default' | 'light-only' | 'off') => {
-  floor.value = p !== 'off'; wash.value = p !== 'off'; rim.value = p === 'default'
-  if (p === 'default') { colour.value = null; strength.value = 50 }
+  if (p === 'default') { const o = own(theme.value); floor.value = o.floor; wash.value = o.wash; rim.value = o.rim; strength.value = o.strength; colour.value = null }
+  else { floor.value = wash.value = p === 'light-only'; rim.value = false; if (p === 'light-only' && strength.value === 0) strength.value = 30 }
 }
+watch(theme, () => preset('default'))
+const baseColour = computed(() => colour.value ?? (theme.value === 'classic' ? '#e0e0e0' : '#ffc873'))
 
 const vars = computed(() => {
-  const v: string[] = []
-  const s = strength.value / 50
+  const o = own(theme.value)
+  if (floor.value === o.floor && wash.value === o.wash && rim.value === o.rim && strength.value === o.strength && colour.value === null) return []
+  const v: string[] = [], c = baseColour.value, s = strength.value / 50
   if (!floor.value && !wash.value) v.push('edge.glow: off')
   else {
-    if (!floor.value) v.push('edge.glow.core: null', 'edge.glow.halo: null')
-    else {
-      if (colour.value) v.push(`edge.glow.core: "${colour.value}"`, `edge.glow.halo: "${colour.value}"`)
-      if (strength.value !== 50) v.push(`edge.glow.haloOpacity: ${+(0.28 * s).toFixed(2)}`, `edge.glow.haloWidth: ${+(11 * s).toFixed(1)}`, `edge.glow.coreWidth: ${+(3.5 * s).toFixed(1)}`)
-    }
-    if (!wash.value) v.push('edge.glow.wash: null')
-    else {
-      if (colour.value) v.push(`edge.glow.wash: "${colour.value}"`)
-      if (strength.value !== 50) v.push(`edge.glow.washIntensity: ${+(0.3 * s).toFixed(2)}`)
-    }
+    if (floor.value) v.push(`edge.glow.core: "${c}"`, `edge.glow.halo: "${c}"`, `edge.glow.coreWidth: ${+(3.5 * s).toFixed(1)}`, `edge.glow.haloWidth: ${+(11 * s).toFixed(1)}`, `edge.glow.haloOpacity: ${+(0.28 * s).toFixed(2)}`)
+    else v.push('edge.glow.core: null', 'edge.glow.halo: null')
+    if (wash.value) v.push(`edge.glow.wash: "${c}"`, `edge.glow.washIntensity: ${+(0.3 * s).toFixed(2)}`)
+    else v.push('edge.glow.wash: null')
   }
   if (!rim.value) v.push('edge.rim: none')
-  else if (colour.value) v.push(`edge.rim: "${colour.value}"`)
+  else if (colour.value || theme.value === 'classic') v.push(`edge.rim: "${c}"`)
   return v
 })
 const source = computed(() => `---
@@ -72,7 +72,7 @@ onBeforeUnmount(() => handle?.destroy())
         <label><input type="checkbox" v-model="rim" /> rim</label>
       </div>
       <div class="row">
-        <label>Colour <input type="color" :value="colour ?? '#c4d3f5'" @input="colour = ($event.target as HTMLInputElement).value" /></label>
+        <label>Colour <input type="color" :value="baseColour" @input="colour = ($event.target as HTMLInputElement).value" /></label>
         <button :disabled="colour === null" @click="colour = null">theme colour</button>
         <label>Strength <input type="range" min="0" max="100" v-model.number="strength" /> {{ strength }}%</label>
       </div>

@@ -72,7 +72,14 @@ A name that does not exist falls back to `classic` and reports a warning through
 
 ### The trench light
 
-A tunnel's trench is lit by the theme: a light along the floor, a wash on the walls and a light rim round the lip. Classic's is a cool blue-grey like its grid, Bonkei's is warm. A diagram can change any part:
+A tunnel's trench can be lit by the theme: a light along the floor, a wash on the walls and a rim round the lip. What each theme does on its own:
+
+| Theme | Floor light and wall wash | Rim |
+| --- | --- | --- |
+| `classic` | On: grey-white `#e0e0e0` at 30% strength (core 2.1 wide; halo 6.6 wide at 0.17 opacity; wash intensity 0.18) | None (`edge.rim: none`) |
+| `bonkei`, `bonkei-landscape` | Off (`edge.glow: off`) | Dark `#2A2622`, 2 wide, as it always was |
+
+A diagram can change any part, so a Bonkei diagram can switch its light on:
 
 | Token | What it is |
 | --- | --- |
@@ -82,7 +89,27 @@ A tunnel's trench is lit by the theme: a light along the floor, a wash on the wa
 | `edge.glow.halo`, `edge.glow.haloWidth`, `edge.glow.haloOpacity` | The soft, wider glow round that line. |
 | `edge.glow.wash`, `edge.glow.washIntensity` | The faint light on the trench walls. `null` leaves it out. |
 
-[Edge styles](./edge-styles#the-trench-light) shows a diagram with its own rim.
+```mermaid {height=260}
+---
+config:
+  theme: bonkei
+  bonkei:
+    crossings: tunnel
+    avoidCrossings: off
+    toolbar: false
+  themeVariables:
+    edge.glow.core: "#ffc873"
+    edge.glow.halo: "#ffc873"
+    edge.glow.wash: "#ffc873"
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
+[Edge styles](./edge-styles#the-trench-light) has controls to try each part, and a diagram with its own rim.
 
 ## The theme objects
 

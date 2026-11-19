@@ -157,19 +157,20 @@ flowchart LR
 
 ### The trench light
 
-A tunnel is a trench cut into the ground, and the theme lights it so it does not read as a dark dip: a light runs along the floor where it meets the walls, the walls take a faint wash of the same colour, and a light rim outlines the lip. Turn the tunnel diagram above to iso or 3D to see it. Only the trench is lit; the blocks and lines beside it are not.
+A tunnel is a trench cut into the ground. Classic lights it so it does not read as a dark dip: a soft grey-white light along the floor and on the walls, at 30% strength, with no rim. Bonkei and Bonkei · landscape leave the light off, and the tunnel has its dark rim as it always did. Turn a tunnel diagram to iso or 3D to see it. Only the trench is lit; the blocks and lines beside it are not.
 
-Try it: the controls below set the theme's tokens for this one diagram. **Light only** is the light and no outline (the floor light and the wall wash, no rim); **All off** is a tunnel with no light at all.
+Try it: the controls below set the theme's tokens for this one diagram. **Theme default** shows what the chosen theme draws on its own; **Light only** is the light and no outline (the floor light and the wall wash, no rim); **All off** is a tunnel with no light at all. In Bonkei, switch the floor light and wall wash on to see the light there.
 
 <TrenchLight />
 
 Each part has its own setting in `config.themeVariables`: `edge.glow: off` turns the whole light off, `edge.glow.core: null` and `edge.glow.halo: null` the floor light, `edge.glow.wash: null` the wall wash, and `edge.rim: none` the rim.
 
-A diagram can also set its own rim, and the diagram's value wins over the theme's. This diagram sets a thin teal rim with `edge.rim` and `edge.rimWidth`, instead of the theme's light rim:
+A diagram can also set its own rim, and the diagram's value wins over the theme's. This diagram sets a thin teal rim with `edge.rim` and `edge.rimWidth`, instead of the theme's rim:
 
 ```mermaid {height=300}
 ---
 config:
+  theme: bonkei
   bonkei:
     crossings: tunnel
     avoidCrossings: off
