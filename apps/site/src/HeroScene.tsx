@@ -48,7 +48,7 @@ export default function HeroScene({ source, start = 'iso', autoplay = true, ever
 
   return (
     <div ref={root} className="site-live-scene">
-      <Bonkei source={source} mode={mode} labels="top" toolbar={false} controls={{ zoom: false }}
+      <Bonkei source={source} mode={mode} labels="top" toolbar={false}
         onReady={() => onReadyRef.current?.()}
         onError={e => { if (import.meta.env.DEV) console.warn('[bonkei] error', e); onErrorRef.current?.(e) }}
         onWarning={w => { if (import.meta.env.DEV) console.warn('[bonkei] warning', w) }} />
