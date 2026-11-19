@@ -163,6 +163,31 @@ Try it: the controls below set the theme's tokens for this one diagram, and the 
 
 <TrenchLight />
 
+Without the controls, this is what they write: **Light only** on Classic gives the demo's diagram this frontmatter.
+
+```yaml
+---
+config:
+  theme: classic
+  bonkei:
+    crossings: tunnel
+    avoidCrossings: off
+  themeVariables:
+    edge.glow.core: "#e0e0e0"
+    edge.glow.halo: "#e0e0e0"
+    edge.glow.coreWidth: 2.1
+    edge.glow.haloWidth: 6.6
+    edge.glow.haloOpacity: 0.17
+    edge.glow.wash: null
+    edge.rim: none
+---
+flowchart LR
+  Web[Web app] --> Api[API] --> Db[(Database)]
+  Web --> Db
+  Cdn[CDN] --> Api
+  Cdn --> Cache[(Cache)]
+```
+
 Each part has its own setting in `config.themeVariables`, so a fence can do the same:
 
 | Setting | Turns off |

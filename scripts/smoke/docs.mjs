@@ -4,7 +4,8 @@
 //  - llms.txt lists every page with a description, llms-full.txt holds every page and every export's signature and description, each page
 //    has a .md beside it, the Edge styles .md holds its diagrams as mermaid fences and no HTML chrome
 //  - every page opens with no console errors; every diagram on it draws, and their number is that of the supported mermaid fences in its
-//    .md; the errors page has its one intended error card; the diagram-types page draws flowchart and sequence and shows the pie as code
+//    .md, apart from interactive demos (a root marked data-bonkei-demo="<title>" with one diagram and a heading of that title in the .md;
+//    rule and tests in diagram-rule.mjs); the errors page has its one intended error card; the diagram-types page draws flowchart and sequence and shows the pie as code
 //  - the playground: an edit redraws, a broken edit is reported under the editor and the last diagram stays
 //  - Copy page puts exactly the page's .md on the clipboard (home and Edge styles)
 //  - telemetry: the playground's edits, a failed edit and Copy page are spans (a recording stand-in for an OpenTelemetry SDK)
@@ -14,6 +15,7 @@ import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { judgeDiagrams } from './diagram-rule.mjs'
 
 const base = (process.argv[2] ?? '').replace(/\/$/, '')
 if (!base) { console.error('usage: node scripts/smoke/docs.mjs <origin serving /docs/>'); process.exit(2) }
@@ -42,7 +44,7 @@ for (const e of entries) mdPages.push([e, await text(e.md)])
 ok('agents: every listed page has a .md beside it', mdPages.every(([, r]) => r.status === 200 && r.body.length > 50), mdPages.filter(([, r]) => r.status !== 200).map(([e]) => e.md).join(', '))
 ok('agents: llms-full.txt holds every listed page', full.status === 200 && mdPages.every(([e]) => full.body.includes(`url: https://bonkei.dev${e.md}`)), `${full.body.length} bytes`)
 const edge = mdPages.find(([e]) => e.md.endsWith('/guide/edge-styles.md'))?.[1].body ?? ''
-ok('agents: the Edge styles .md has its diagrams as mermaid fences and no HTML chrome', (edge.match(/```mermaid/g) ?? []).length >= 13 && !/<nav|<header|<script|<aside|<Bonkei(Live|Playground)|<Copy/.test(edge.replace(/^(`{3,})[^\n]*\n[\s\S]*?^\1$/gm, '')))
+ok('agents: the Edge styles .md has its diagrams as mermaid fences and no HTML chrome', (edge.match(/```mermaid/g) ?? []).length >= 13 && !/<nav|<header|<script|<aside|<Bonkei(Live|Playground)|<TrenchLight|<Copy/.test(edge.replace(/^(`{3,})[^\n]*\n[\s\S]*?^\1$/gm, '')))
 // every export of the installed package, read from its types: each has a page in llms-full.txt with its signature (a declaration block, or an
 // interface's property table) and its description
 const ts = createRequire(path.join(root, 'docs/package.json'))('typescript')
@@ -124,8 +126,11 @@ for (const u of pageUrls) {
   const { page, errors, ctx } = await open(u)
   const { total, drew } = await allDrawn(page)
   if (total) await page.waitForTimeout(400)
-  const fences = drawnFences((await text(mdOf(u))).body)
-  ok(`page ${u}: every diagram is a mermaid fence in its .md (${total} drawn, ${fences} fences)`, total === fences)
+  const md = (await text(mdOf(u))).body, fences = drawnFences(md)
+  const demos = await page.locator('[data-bonkei-demo]').evaluateAll(es => es.map(e => ({ title: e.getAttribute('data-bonkei-demo'), diagrams: e.querySelectorAll('.bonkei-diagram').length })))
+  const rule = judgeDiagrams({ total, fences, demos, md })
+  ok(`page ${u}: every diagram is a mermaid fence in its .md (${rule.drawn} drawn, ${fences} fences)${demos.length ? `; ${demos.length} interactive demo(s): ${demos.map(d => d.title).join(', ')}` : ''}`, rule.good,
+    rule.undeclared.length ? `a demo needs one diagram and a heading of its title in the .md: ${rule.undeclared.join(', ')}` : '')
   const cards = await page.locator('[data-bonkei=error]').count()
   const wantCards = u.endsWith('/guide/errors') ? 1 : 0
   diagrams += total; if (total) pagesWith++
