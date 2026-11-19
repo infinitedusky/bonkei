@@ -183,6 +183,7 @@ function View({ mode, size }: { mode: Mode; size: { X: number; Z: number } }) {
     const span = Math.max(deep, wide / aspect) * (mode === '3d' ? 1.35 : 1.2)
     const dist = span / 2 / Math.tan((p.fov * Math.PI) / 360)
     cam.fov = p.fov; cam.near = dist / 50; cam.far = dist * 50
+    cam.layers.enable(1) // labels live on core's TEXT_LAYER (1), which only a camera that enables it draws, as SceneView's does
     cam.position.set(Math.sin(p.yaw) * Math.cos(p.pitch) * dist, Math.sin(p.pitch) * dist, Math.cos(p.yaw) * Math.cos(p.pitch) * dist)
     cam.lookAt(0, 0, 0); cam.updateProjectionMatrix()
   }, [mode, size.X, size.Z, camera, px.width, px.height])
