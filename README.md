@@ -215,7 +215,7 @@ pnpm docs:build   # the same, then vitepress build into docs/.vitepress/dist
 pnpm docs:smoke   # build the docs, then every page, the agent files, coverage, a broken sample, and the four getting-started pages followed word for word
 pnpm check:package # build core, then publint, are-the-types-wrong and the dist checks
 pnpm size         # build core, then the size budget (packages/core/.size-limit.mjs)
-pnpm smoke        # after building core: pack it, install into a clean examples/vite, draw under vite dev and preview, the script-tag page, the embeds (examples/html, examples/vitepress), then the docs (pnpm docs:smoke)
+pnpm smoke        # after building core: pack it, install into a clean examples/vite, draw under vite dev and preview, the script-tag page, the embeds (examples/html, examples/vitepress). The docs run (pnpm docs:smoke, above) is not part of it: it runs nightly on main (.github/workflows/nightly.yml), and `pnpm docs:smoke` runs it by hand
 pnpm preview      # serve the assembled dist/ at /
 pnpm storybook    # stories: node shape, subgraph, full sample, sequence, site screens
 pnpm capture      # regenerate apps/site/public/*.png from the real scene (needs Chrome; CHROME_PATH to override)
