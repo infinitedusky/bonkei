@@ -13,12 +13,12 @@ const LONG = 'flowchart TD\n' + Array.from({ length: 200 }, (_, i) => `    N${i}
 
 // The front page's "Keep the text. Get the scene." section on its own (BON-189): the real How component,
 // as Home renders it. `live` forces the gate so each story looks the same at any window size.
-function Section({ live, fallback, initial, typeAfterDraw, loseAfterDraw, failLoad }: { live: boolean; fallback?: 'phone' | 'no-webgl2'; initial?: string; typeAfterDraw?: string; loseAfterDraw?: boolean; failLoad?: boolean }) {
-  const how = <How live={live} fallback={fallback} initial={initial} flash={false} failLoad={failLoad} />
+function Section({ live, fallback, initial, typeAfterDraw, loseAfterDraw, failLoad, holdLoad }: { live: boolean; fallback?: 'phone' | 'no-webgl2'; initial?: string; typeAfterDraw?: string; loseAfterDraw?: boolean; failLoad?: boolean; holdLoad?: boolean }) {
+  const how = <How live={live} fallback={fallback} initial={initial} flash={false} failLoad={failLoad} holdLoad={holdLoad} />
   return (
     <div className="site">
       <div className="site-wrap">
-        <div className="site-note" style={{ textAlign: 'left' }}>sample data: small flowchart (sample.mmd){typeAfterDraw !== undefined && `, then the text replaced by ${typeAfterDraw === LONG ? 'a made-up 200-link chain' : JSON.stringify(typeAfterDraw)}`}{loseAfterDraw && ', then the WebGL context lost'}{failLoad && ', the scene\'s chunk failing to load'}</div>
+        <div className="site-note" style={{ textAlign: 'left' }}>sample data: small flowchart (sample.mmd){typeAfterDraw !== undefined && `, then the text replaced by ${typeAfterDraw === LONG ? 'a made-up 200-link chain' : JSON.stringify(typeAfterDraw)}`}{loseAfterDraw && ', then the WebGL context lost'}{failLoad && ', the scene\'s chunk failing to load'}{holdLoad && ', the scene\'s chunk held back'}</div>
         <section id="how" style={{ borderTop: 0 }}>
           <h2>Keep the text. Get the scene.</h2>
           <p className="site-lead">Your diagrams already live in READMEs and docs as Mermaid. You don't have to move them into a drawing tool: the same text becomes a 3D scene.</p>
@@ -85,6 +85,9 @@ export const SceneLost: Story = { args: { live: true, loseAfterDraw: true } }
 
 /** The scene's chunk fails to load (a dropped connection, a deploy mid-visit): the section shows the source and the still, the rest of the page stays. */
 export const SceneFailedToLoad: Story = { args: { live: true, failLoad: true } }
+
+/** Desktop while the scene's chunk is still on its way (held back here): the section's own frame (editor bar, the source read-only, an empty stage of the scene's size) and no picture. The scene fades into that stage when it draws, and nothing below moves. */
+export const Loading: Story = { args: { live: true, holdLoad: true } }
 
 /** Phone: the source (a few lines, Show all) and the sharp still, as before. */
 export const PhoneFallback: Story = {

@@ -26,6 +26,39 @@ export function probeGate(): Gate {
   return gateOf({ narrow: matchMedia('(max-width:760px)').matches, coarse: matchMedia('(pointer:coarse)').matches, webgl2 })
 }
 
+/** The hero's path: `forced` is a page that asked for the poster (`live={false}`: the no-WebGL and phone screens in Storybook). */
+export type HeroGate = Gate | 'forced'
+
+/** The hero's gate: `live` forces it (true: the scene, false: the poster), unset asks this browser (`probe`, probeGate). */
+export function heroGateOf(live: boolean | undefined, probe: () => Gate): HeroGate {
+  return live === undefined ? probe() : live ? 'live' : 'forced'
+}
+
+/**
+ * What the hero paints (BON-209): `live` is the live scene on an empty stage, faded in on its first frame, and never the
+ * poster; `poster` is the picture, its caption and "see the source". Only a device that can't go live, or a scene whose
+ * chunk failed, gets the poster.
+ */
+export function heroShows(gate: HeroGate, failed: boolean): 'live' | 'poster' {
+  return gate === 'live' && !failed ? 'live' : 'poster'
+}
+
+/** The `site.hero.path` span's attributes: the path, and for the poster why. */
+export function heroPathAttrs(gate: HeroGate): Record<string, string> {
+  return gate === 'live' ? { 'site.hero.path': 'live' } : { 'site.hero.path': 'poster', 'site.hero.reason': gate }
+}
+
+/**
+ * What the "Keep the text" section paints (BON-209): `still` is the source and still-iso.png (phone, no WebGL 2, or the
+ * scene failed); on a desktop that goes live it is never the still: `shell` (the section's frame with an empty stage of
+ * the scene's size) until the section comes near the screen, then `scene` (the shell again while the chunk loads, then
+ * the scene fading in on its first frame).
+ */
+export function howShows(gate: Gate, failed: boolean, near: boolean): 'still' | 'shell' | 'scene' {
+  if (gate !== 'live' || failed) return 'still'
+  return near ? 'scene' : 'shell'
+}
+
 const CLAIM = 'Edit the source, and the scene re-lays itself out as you type.'
 
 /**
