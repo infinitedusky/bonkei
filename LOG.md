@@ -459,3 +459,18 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 **Alternatives considered.** Keeping zoom off and having core swallow the ctrl wheel anyway: the page could then not be zoomed by a visitor who needs it, and the diagram would not respond either.
 
 **Consequences.** A visitor can zoom the hero away from its framed view; switching mode reframes it. A plain scroll over the hero still scrolls the page until the visitor clicks into it.
+
+## 2026-11-19 — Ishikawa (fishbone) diagrams (BON-142)
+
+**Context.** Bonkei drew flowcharts and sequence diagrams. BON-142 adds Mermaid's `ishikawa-beta`.
+
+**Decision.** A third diagram kind, built the way sequence is: `fish.ts` (parse + our own layout, no ELK) and `FishScene.tsx`, wired through `prepare` (`bonkei.diagram` = `ishikawa`), `SceneView` and the embed/VitePress fence check.
+- The keyword is `ishikawa-beta`; `ishikawa` is accepted. The first line after it is the effect (a fish's head), lines at its indent are categories (bones), deeper lines are causes at any depth.
+- Category order follows Mermaid: the first are nearest the head, alternating top and bottom (so an existing diagram reads the same).
+- Herringbone: every line is level or slanted the bones' way; each item's line leaves its pill's front and ends in an arrowhead on its parent's line; causes of a cause sit on the far side of the parent's line, the first farthest.
+- Lines Bonkei cannot read (a tab in the indentation, a line indented less than the effect) are dropped with their line number, like flowcharts'. A keyword-only diagram warns and draws just the spine and head; nothing throws.
+- A change of diagram kind in one viewer is framed fresh, not lined up on the last view (BON-195's keep-the-view is for the same kind).
+
+**Alternatives considered.** Categories tail-first (as the mockup's first cut): rejected, it reads differently from Mermaid. Running Mermaid's engine: not how Bonkei works.
+
+**Consequences.** Layout sizes are fixed px constants, not measured text; long labels in the landscape theme crowd (its label plates are bigger than the pills). Fit uses the layout's width and height only.
