@@ -386,3 +386,15 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 **Not in this task.** Bridges and tunnels in the flat view (BON-176). Diagrams without a tunnel draw exactly as before in every theme: `Trench` is the only thing that reads the new tokens.
 
 **Consequences.** Classic tunnels look different (lit, no dark rim); a page that compared Classic tunnel pictures will see the trench change, and only the trench. Dashboards can count lit tunnels by `bonkei.theme.trench`. The root `pnpm test` also runs the docs' `trench.test.ts`.
+
+## 2026-11-19 — The docs smoke knows interactive demos (BON-197)
+
+**Context.** The docs smoke checks that every diagram a page draws is a ` ```mermaid ` fence in its `.md`, so agents, llms-full.txt and Copy page carry every diagram. The trench light controls (BON-181) draw a live diagram of their own, so Edge styles drew 15 diagrams against 14 fences and main's CI went red. The page's `.md` also dropped `<TrenchLight />` without a word. Its prototype (branch `prototype/docs-smoke-knows-the-trench-light-demo-2ufy`) was approved; this is the build.
+
+**Decisions.**
+- **A demo says what it is: its root carries `data-bonkei-demo="<title>"`.** The check counts the diagrams inside marked roots apart from the fences; each demo must hold exactly one diagram and the page's `.md` must have a heading of that title (outside code fences). Every other diagram is still held to the fence count, so a bare `<Bonkei>` or `<BonkeiLive>` fails as before. Turned down: a list of allowed pages or components in the smoke script (it would pass any diagram added on those pages, and would go stale without anyone seeing); dropping the count by one for Edge styles (the same); counting only diagrams rendered from fences (the stray diagram this check is for would pass).
+- **The heading ties the demo to what the Markdown says in its place.** A demo without the heading has nowhere in the `.md` that stands for it, so it fails. Turned down: matching the demo to a fence's source (the demo's source changes with each control).
+- **The rule is its own module, `scripts/smoke/diagram-rule.mjs`, tested in `diagram-rule.test.mjs` in the root `pnpm test`.** Turned down: the prototype's self-checks inside `docs.mjs` (they only run in the slow browser smoke).
+- **The Markdown carries the frontmatter Light only writes on Classic, as a ` ```yaml ` fence under `<TrenchLight />`**, with a sentence saying so. It is not a ` ```mermaid ` fence, which would draw a second, fixed diagram beside the live one. `trench.test.ts` checks it word for word against `trenchSource`, so a change to the controls' rules that the page does not follow fails `pnpm test`. Turned down: having the docs build write the demo into the `.md` (a change to `vitepress-plugin-llms`'s output for one component).
+
+**Consequences.** A new interactive demo on a docs page marks its root and gets a heading, or the docs smoke fails on its page (CONTRIBUTING says so). The smoke line for a page with a demo names the demo.

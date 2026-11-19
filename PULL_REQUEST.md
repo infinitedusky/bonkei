@@ -1,20 +1,18 @@
-# Tunnels you can see: trench glow and rim (BON-181)
+# The docs smoke passes on Edge styles with the trench light controls (BON-197)
 
-A tunnel used to read as a dark dip. Its trench can now be lit: a light along the floor, a wash on the walls and a rim round the lip. Each part can be recoloured, made stronger or weaker, or turned off, by a theme or by one diagram.
+Main's docs smoke failed on Edge styles, "every diagram is a mermaid fence in its .md (15 drawn, 14 fences)": the trench light controls (BON-181) draw a live diagram of their own. The check now knows interactive demos and still fails any other diagram that is not a fence.
 
-- **Defaults.** Classic lights its trench grey-white `#e0e0e0` at 30% strength, with no rim. Bonkei and Bonkei · landscape have the light off and draw exactly as before.
-- **Tokens.** `edge.glow` (`core`, `coreWidth`, `halo`, `haloWidth`, `haloOpacity`, `wash`, `washIntensity`) in every preset; `edge.rim` takes `none`. In a diagram's `config.themeVariables`: `edge.glow: off`, `edge.glow.core/halo/wash: null`, `edge.rim: none`, and the diagram's own rim colour and width win. Other values are validated and go to `onWarning`.
-- **Only the trench is lit.** The light is drawn (lines on the floor, an emissive wash on the walls); no scene light is added.
-- **Docs.** Edge styles, "The trench light": live controls (preset Theme default / Light only / All off, the three parts, colour, strength), with the frontmatter they write under the diagram; a fence with its own teal rim. Themes lists the tokens.
-- **Telemetry.** `bonkei.theme` gains `bonkei.theme.trench`; the docs controls add `bonkei.docs.trench_light.edit`.
+- **The rule.** A demo marks its root `data-bonkei-demo="<title>"`; its one diagram is counted apart from the fences, and the page's `.md` must have a heading of that title. A bare diagram, a demo with no such heading or with two diagrams fail. `scripts/smoke/diagram-rule.mjs`, tested in `diagram-rule.test.mjs` (now in the root `pnpm test`); used by `scripts/smoke/docs.mjs`.
+- **TrenchLight** marks its root `data-bonkei-demo="The trench light"`. Nothing it does or shows changes.
+- **Copy as Markdown on Edge styles** now holds, under the demo's place, the frontmatter **Light only** writes on Classic, as a ` ```yaml ` fence; `trench.test.ts` keeps it equal to what the controls write.
 
-Where to look: `packages/core/src/theme.ts` (tokens, `edge.glow: off`, `trenchParts`), `EdgeScene.tsx` (`Trench`), `theme.test.ts`; `docs/.vitepress/theme/trench.ts` (the controls' rules, tested in `trench.test.ts`) and `TrenchLight.vue`; stories **Themes / Tunnel …**. Decisions in LOG.md ("Tunnels you can see: the trench light and rim (BON-181)"); manual test plan in TESTING.md (same title).
+Where to look: `scripts/smoke/diagram-rule.mjs` and its test, the page check in `scripts/smoke/docs.mjs`, `docs/guide/edge-styles.md` ("The trench light"). Decision in LOG.md ("The docs smoke knows interactive demos"); manual test plan in TESTING.md (same title); CONTRIBUTING says how a new demo is marked.
 
 ## Risks: what this could break, and how you would notice
 
-- **Classic tunnels look different.** Lit, and without the dark rim they had. Anyone comparing Classic tunnel pictures sees the trench change (and only the trench); a reader who wants the old look sets `edge.glow: off` and `edge.rim: null`.
-- **A theme object built by hand before this change** (plain JS, no `edge.glow`): TypeScript now asks for `glow`; without it the trench draws unlit, as before, rather than failing. Copies of a preset (`{ ...CLASSIC.edge, … }`) carry the light. Someone who copied Classic would notice their tunnels are lit now.
-- **The light on bright ground.** In the Bonkei looks the walls hide most of the floor light, so a switched-on light shows mostly as the wash; that is a look, not a fault.
-- **Diagrams without a tunnel** read none of the new tokens; a pixel difference there would be a bug. Compared against main on samples in flat, iso and 3D in all three themes (see below).
+- **A page with a stray diagram inside a marked demo root.** The demo must hold exactly one diagram, so the smoke fails naming the demo; a diagram outside any demo fails the count as before.
+- **Renaming the "The trench light" heading** without the attribute (or the other way round) fails the docs smoke on Edge styles and `trench.test.ts`.
+- **Changing what Light only writes** (`trench.ts`) without the page's yaml fence fails `trench.test.ts`.
+- **Telemetry, the controls and how they look are unchanged**; a difference on the Edge styles page other than the new sentence and yaml block would be a bug.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
