@@ -81,7 +81,7 @@ export const CLASSIC: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: null, min: 1 },
-  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: '#c4d3f5', rimWidth: 3.5, glow: { core: '#c4d3f5', coreWidth: 3.5, halo: '#6f8fd0', haloWidth: 11, haloOpacity: 0.3, wash: '#5878b8', washIntensity: 0.3 }, flat: false },
+  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: 'none', rimWidth: 1.5, glow: { core: '#e0e0e0', coreWidth: 2.1, halo: '#e0e0e0', haloWidth: 6.6, haloOpacity: 0.17, wash: '#e0e0e0', washIntensity: 0.18 }, flat: false },
   seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 })
 
@@ -107,7 +107,7 @@ export const BONKEI: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: 40, min: 1 },
-  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#ffe3a3', rimWidth: 3.5, glow: { core: '#ffe2b0', coreWidth: 3.5, halo: '#ffc873', haloWidth: 11, haloOpacity: 0.28, wash: '#ffb55a', washIntensity: 0.3 }, flat: false },
+  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 }, flat: false },
   seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
 })
 

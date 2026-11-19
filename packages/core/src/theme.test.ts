@@ -121,7 +121,10 @@ test('no preset has a negative number, so the rule above takes nothing a preset 
 })
 
 test('the trench light is theme data: every preset has a glow, and a diagram can set its parts and its rim', () => {
-  for (const t of [CLASSIC, BONKEI, BONKEI_LANDSCAPE]) { assert.equal(typeof t.edge.glow.core, 'string'); assert.equal(typeof t.edge.rim, 'string') }
+  // Classic lights its trench (a grey-white floor light and wall wash, no rim); the Bonkei looks leave the light off and keep their dark rim
+  assert.deepEqual(CLASSIC.edge.glow, { core: '#e0e0e0', coreWidth: 2.1, halo: '#e0e0e0', haloWidth: 6.6, haloOpacity: 0.17, wash: '#e0e0e0', washIntensity: 0.18 })
+  assert.equal(CLASSIC.edge.rim, 'none')
+  for (const t of [BONKEI, BONKEI_LANDSCAPE]) { assert.deepEqual([t.edge.glow.core, t.edge.glow.halo, t.edge.glow.wash], [null, null, null]); assert.equal(t.edge.rim, '#2A2622'); assert.equal(t.edge.rimWidth, 2) }
   const r = withVariables(BONKEI, { 'edge.glow.core': '#ffffff', 'edge.glow.haloWidth': 5, 'edge.rim': '#123456', 'edge.rimWidth': 1 })
   assert.deepEqual(r.problems, [])
   assert.equal(r.theme.edge.glow.core, '#ffffff'); assert.equal(r.theme.edge.rim, '#123456'); assert.equal(r.theme.edge.rimWidth, 1)
@@ -129,15 +132,17 @@ test('the trench light is theme data: every preset has a glow, and a diagram can
 })
 
 test('each part of the trench light can be turned off: null for the core, halo or wash, edge.glow: off for all three, edge.rim: none for the rim', () => {
-  const one = withVariables(BONKEI, { 'edge.glow.wash': null, 'edge.rim': 'none' })
+  const one = withVariables(CLASSIC, { 'edge.glow.wash': null, 'edge.rim': 'none' })
   assert.deepEqual(one.problems, [])
-  assert.equal(one.theme.edge.glow.wash, null); assert.equal(one.theme.edge.glow.core, '#ffe2b0'); assert.equal(one.theme.edge.rim, 'none')
+  assert.equal(one.theme.edge.glow.wash, null); assert.equal(one.theme.edge.glow.core, '#e0e0e0'); assert.equal(one.theme.edge.rim, 'none')
+  // a Bonkei diagram can turn its light on
+  assert.deepEqual(withVariables(BONKEI, { 'edge.glow.core': '#ffc873', 'edge.glow.wash': '#ffc873' }).problems, [])
   for (const off of ['off', false]) {
     const all = withVariables(CLASSIC, { 'edge.glow': off })
     assert.deepEqual(all.problems, [])
     assert.deepEqual([all.theme.edge.glow.core, all.theme.edge.glow.halo, all.theme.edge.glow.wash], [null, null, null])
   }
-  assert.equal(BONKEI.edge.glow.core, '#ffe2b0') // the preset is untouched
+  assert.equal(CLASSIC.edge.glow.core, '#e0e0e0') // the preset is untouched
   const bad = withVariables(BONKEI, { 'edge.glow': 'dim', 'edge.glow.core': 3, 'edge.glow.coreWidth': null })
   assert.deepEqual(bad.problems.map(p => p.key), ['edge.glow', 'edge.glow.core', 'edge.glow.coreWidth'])
 })
