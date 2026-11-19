@@ -132,12 +132,14 @@ export function createCamera(): Camera {
       const wz = (f: Frame, b: { y: number; h: number }) => (b.y + b.h / 2 - f.height / 2) * S
       // anchor: the node (else tray) nearest the view centre that is still in the new layout
       const nextById = new Map(next.boxes.map(b => [b.id, b]))
+      // only something on screen can anchor the view: a far-off node that survives would drag the camera to follow it
+      const onScreen = (cam.goal.H * Math.max(cam.aspect, 1)) / 2
       let best: { p: Frame['boxes'][number]; n: Frame['boxes'][number]; d: number } | undefined
       for (const p of prev.boxes) {
         const n = nextById.get(p.id)
         if (!n || n.kind !== p.kind) continue
         const d = Math.hypot(wx(prev, p) - cam.goal.tx, wz(prev, p) - cam.goal.tz) + (p.kind === 'group' ? 1e6 : 0)
-        if (!best || d < best.d) best = { p, n, d }
+        if (d <= onScreen && (!best || d < best.d)) best = { p, n, d }
       }
       let shiftX: number, shiftZ: number, anchor: Kept['anchor']
       if (best) {

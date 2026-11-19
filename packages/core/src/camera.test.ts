@@ -220,3 +220,11 @@ test('a deleted tray falls back to its parent, then to the whole diagram', () =>
   assert.equal(k.tray, 'diagram'); assert.equal(c.focusId, undefined)
   assert.deepEqual(c.focus, { cx: 0, cz: 0, X: 600 * S, Z: 400 * S })
 })
+
+test('when everything on screen is deleted the origin shift is used, not a far-off survivor', () => {
+  const c = zoomed() // H 5: looking at node a, which is about to go; b is far away
+  const g = structuredClone(c.goal)
+  const k = c.relayout(frame(800, 400, [bx('b', 400, 300)]))
+  assert.equal(k.anchor, 'origin')
+  assert.equal(c.goal.tx, g.tx + (600 - 800) / 2 * S)
+})
