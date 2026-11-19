@@ -213,7 +213,9 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
 
   const fit = useCallback(() => {
     const p = preparedRef.current
-    if (p) camera.fit(p.data.width, p.data.height)
+    if (!p) return
+    instant('bonkei.fit', { 'bonkei.fit.after_edits': camera.edits })
+    camera.fit(p.data.width, p.data.height)
   }, [camera])
 
   useImperativeHandle(ref, () => ({ setMode: m => pick(m, 'handle'), fit }), [pick, fit])

@@ -10,6 +10,7 @@ import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, type LabelMode } from './shapes'
 import { S, TRAY, NODE_H } from './scale'
 import { SCENE } from './palette'
+import { instant } from './telemetry'
 import { ALL_ON, WHEEL_IDLE_MS, cursorFor, dragAction, gesture, wheelAction } from './controls'
 import type { NodeClick, ResolvedControls } from './options'
 
@@ -133,7 +134,7 @@ function Env({ cam, children, controls }: { cam: Camera; children: React.ReactNo
 }
 
 function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick }: {
-  cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number) => void
+  cam: Camera; data: LayoutResult; labelMode: LabelMode; onDrill: (cx: number, cz: number, X: number, Z: number, id?: string) => void
   controls: ResolvedControls; onNodeClick?: (n: NodeClick) => void; hasClick: boolean
 }) {
   const { camera, gl, raycaster } = useThree()
@@ -193,7 +194,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick 
                 if (e.delta >= 4) return
                 e.stopPropagation()
                 onNodeClick?.({ id: b.id, label: b.label, kind: 'group' })
-                if (controls.drillIn) onDrill(pos[0], pos[2], w, h)
+                if (controls.drillIn) onDrill(pos[0], pos[2], w, h, b.id)
               }}
               onPointerOver={e => { e.stopPropagation(); setHover(b.id); setCursor(cursorFor('group', controls, hasClick)) }}
               onPointerOut={() => { setHover(null); setCursor('') }}>
@@ -233,15 +234,24 @@ function NodeLift({ pos, hover, children, onDown, onClick, onOver, onOut }: { po
 // canvas has a size), snap there if this view has never shown a layout, then report it once.
 function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResult | SeqLayout | null; onFirstFrame?: () => void }) {
   const seen = useRef<LayoutResult | SeqLayout | null>(null)
-  const laidOut = useRef(false)
   const cb = useRef(onFirstFrame)
   cb.current = onFirstFrame
   useFrame(({ size }) => {
     if (!data || seen.current === data) return
     seen.current = data
     if (size.width > 0 && size.height > 0) cam.aspect = size.width / size.height
-    cam.fit(data.width, data.height)
-    if (!laidOut.current) { cam.snap(); laidOut.current = true }
+    const frame = 'boxes' in data ? data : { width: data.width, height: data.height, boxes: [] }
+    if (!cam.layout) { // only the camera's first layout ever frames the diagram
+      cam.fit(data.width, data.height)
+      cam.adopt(frame)
+      cam.snap()
+    } else {
+      const kept = cam.relayout(frame)
+      instant('bonkei.relayout_kept_view', {
+        'bonkei.view.in_tray': kept.tray !== 'none', 'bonkei.view.tray': kept.tray, 'bonkei.view.anchor': kept.anchor,
+        'bonkei.view.shift': Math.hypot(kept.shiftX, kept.shiftZ), 'bonkei.view.edits': cam.edits,
+      })
+    }
     cb.current?.()
   })
   return null
