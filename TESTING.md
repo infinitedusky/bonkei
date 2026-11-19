@@ -166,6 +166,43 @@ Run `pnpm storybook` (or `pnpm --filter @bonkei/playground exec storybook dev -p
 4. **Tunnel Light Controls**: change theme, preset, the three parts, colour and strength in the controls panel; the frontmatter under the diagram follows each change.
 5. Open **Classic Iso**, **Bonkei Iso** and **Landscape Iso** (no tunnel): they look exactly as before.
 
+# Manual test plan: the view stays where it is when the diagram changes (BON-195)
+
+How to check by hand that only the first draw frames the diagram, and that a new source, theme or avoid-crossings level leaves the camera where it was. The diagrams are made-up sample data. First run `pnpm test` (`camera.test.ts` and `element.test.ts` hold the rules).
+
+## 1. The viewer: /app/
+
+Run `pnpm --filter bonkei build && pnpm --filter @bonkei/playground exec vite --port 6207` and open `http://localhost:6207/app/`.
+
+1. **First load.** Reload: the whole diagram is framed, as before. Pick another sample from the menu: that is a new source too, so the view stays where it was (press Fit to see it whole).
+2. **Zoom, then edit.** Pick **flow: small (sample.mmd)**. Ctrl/⌘ + scroll onto one node. Press **source** and add a line such as `X[New] --> Y[Newer]` at the end. When it lays out (a quarter of a second after you stop typing) the camera does not move: the node you zoomed onto stays at the same place on screen.
+3. **Grows around you.** Zoom onto a node at the left. Add a chain that lays out to the right (`Z1 --> Z2 --> Z3 --> Z4 --> Z5`, joined to an existing node). Nothing on screen slides; the new nodes may be off-screen. Press **Fit**: the whole diagram, the new chain included, is framed.
+4. **Theme and avoid-crossings.** Pan and zoom somewhere. Add `---\nconfig:\n  theme: bonkei\n---` at the top of the source: the look changes, the view does not. Pick **Theme: bonkei** in the menu: the same. In the toolbar, set **Avoid crossings** to **Off**, then **Strong**: lines re-route, the view stays.
+5. **In a tray.** Pick **flow: bonkei mockup** (or any sample with a nested subgraph). Click a tray to fly in. Rename a node inside it in the source: you stay in that tray and the nodes beside it stay at the same pixels. Switch Iso → 3D: the tray is framed (not the whole diagram).
+6. **Deleting the tray you are in.** Fly into a nested subgraph, switch to 3D, delete that subgraph's block from the source: the camera does not move. Switch to Iso: the parent tray is framed. Repeat with a top-level subgraph: the mode switch then frames the whole diagram (the same view Fit gives).
+7. **Fit and the mode switch.** At any point, Fit frames the whole current diagram and puts it back square; Flat / Iso / 3D frame as before.
+
+## 2. Docs
+
+Run `pnpm docs:dev` and open **Guide → Introduction** (the editor under the first diagram). Zoom into the diagram, then add a message line in the editor: the messages already there stay at the same pixels; only the new one appears.
+
+## 3. Script tag
+
+In Storybook (`pnpm storybook`), **Script tag / Element Theme Changed**: zoom into the first diagram within 4 seconds of the page loading. When its `theme` attribute switches to `bonkei`, it redraws in the Bonkei look in the same view. (On any page with the script tag you can do the same from the console: `document.querySelector('bonkei-diagram').setAttribute('theme', 'bonkei')`.)
+
+## 4. Storybook: Components / Bonkei
+
+1. **Edits Keep The View**: zoom, pan, turn or fly into **Sample API**, then press each button in turn (add a node and an edge, add a chain far to the right, rename REST API, theme bonkei in the frontmatter). Nothing on screen moves except what the edit changed. **Delete the Sample API tray** while flown into it: no move; then a mode switch frames **Sample backend**. Fit frames everything.
+2. **Render Function**: zoom in, press **setTheme bonkei**, then **setTheme default**: the look changes, the view stays.
+
+## 5. The front page
+
+Open the site (`pnpm --filter @bonkei/site exec vite --port 6208`). The hero diagram opens framed as before. In the **Themes** section, the diagram opens framed; turn or zoom it (narrow window: zoom, then Fit), then pick another theme: the look changes and the view stays (the theme is set in the diagram's frontmatter, so this is a new layout). Fit there still frames the whole diagram.
+
+## 6. Telemetry
+
+With an OpenTelemetry SDK registered (or the stub tracer of the BON-78 check): each edit after the first layout gives one `bonkei.relayout_kept_view` span (`bonkei.view.anchor`, `bonkei.view.tray`: `found` in a tray, `parent` or `diagram` after deleting it); Fit gives `bonkei.fit` with `bonkei.fit.after_edits` counting those edits; a script-tag theme change gives `bonkei.element.theme_change`.
+
 # Manual test plan: the docs smoke knows the trench light demo (BON-197)
 
 How to check by hand that the docs smoke passes on Edge styles, still fails a diagram that is neither a fence nor a marked demo, and that Copy page gives the demo's Markdown. First run `pnpm test`: it includes `scripts/smoke/diagram-rule.test.mjs` (the rule) and `trench.test.ts` (the fence under the demo is what Light only writes).

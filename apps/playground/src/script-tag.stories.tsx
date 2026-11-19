@@ -76,3 +76,14 @@ export const ElementWithABadSource: Story = {
     />
   ),
 }
+
+/** BON-195: the flowchart element's theme attribute set to bonkei once it has drawn: the same view, redrawn in the new theme (the
+ * element calls the handle's setTheme; it no longer draws afresh). Zoom in on the flowchart before the switch to see the view kept. */
+export const ElementThemeChanged: Story = {
+  render: () => (
+    <ElementsPage
+      note="The first <bonkei-diagram>'s theme attribute is set to bonkei 4 s after the page loads (made-up sample): zoom in first; the view stays."
+      act={doc => { setTimeout(() => doc.querySelector('bonkei-diagram')?.setAttribute('theme', 'bonkei'), 4000) }}
+    />
+  ),
+}
