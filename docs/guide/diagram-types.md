@@ -1,10 +1,10 @@
 ---
-description: Which Mermaid diagram types Bonkei draws (flowcharts and sequence diagrams) and what happens to every other type, which is shown as a code block with no error.
+description: Which Mermaid diagram types Bonkei draws (flowcharts, sequence diagrams and Ishikawa diagrams) and what happens to every other type, which is shown as a code block with no error.
 ---
 
 # Diagram types
 
-Bonkei draws two Mermaid types today: **flowcharts** (`flowchart` or `graph`) and **sequence diagrams** (`sequenceDiagram`).
+Bonkei draws three Mermaid types today: **flowcharts** (`flowchart` or `graph`), **sequence diagrams** (`sequenceDiagram`) and **Ishikawa (fishbone) diagrams** (`ishikawa-beta`, see [its page](./ishikawa)).
 
 ## Flowchart
 
@@ -27,6 +27,18 @@ sequenceDiagram
   A->>D: Look up the user
   D-->>A: Found
   A-->>U: Welcome
+```
+
+## Ishikawa diagram
+
+```mermaid {height=360}
+ishikawa-beta
+    Late delivery
+    People
+        Short staffed
+    Process
+        Slow approval
+            Too many sign-offs
 ```
 
 ## Try your own

@@ -70,6 +70,7 @@ export default defineConfig({
       ] },
       { text: 'Writing diagrams', items: [
         { text: 'Diagram types', link: '/guide/diagram-types' },
+        { text: 'Ishikawa (fishbone)', link: '/guide/ishikawa' },
         { text: 'Options and frontmatter', link: '/guide/options' },
         { text: "The reader's controls", link: '/guide/controls' },
         { text: 'Edge styles', link: '/guide/edge-styles' },
