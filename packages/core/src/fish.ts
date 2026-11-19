@@ -39,7 +39,7 @@ export interface FishLayout {
 
 const pillW = (t: string) => t.length * 8.5 + 34
 const count = (n: FItem): number => 1 + n.kids.reduce((m, k) => m + count(k), 0)
-const ROW = 40
+const ROW = 54
 
 // kids that slant into a level line at y = pz, whose front end (the parent pill's front) is at xa. Each takes one row on the far side of
 // the line (d), the first farthest; an item's own causes take the rows between it and the line, each on a level line into its diagonal.
@@ -67,7 +67,7 @@ function hangSlanted(kids: FItem[], pz: number, xa: number, d: number, depth: nu
 export function layoutFish(doc: FishDoc): FishLayout {
   const pieces: FishPiece[] = [], rods: FishRod[] = [], cats = doc.cats, cols = Math.max(1, Math.ceil(cats.length / 2))
   // a bone's length grows with what hangs on it; each side shares one length so the category blocks line up
-  const need = (c: FItem) => 90 + c.kids.reduce((s, k) => s + 56 + (count(k) - 1) * ROW, 0)
+  const need = (c: FItem) => 90 + c.kids.reduce((s, k) => s + 70 + (count(k) - 1) * ROW, 0)
   const side = [0, 1].map(sd => Math.max(300, ...cats.filter((_, k) => k % 2 === sd).map(need)))
   const colW = Math.max(460, ...cats.map(c => Math.max(0, ...c.kids.map(k => pillW(k.label))) + 260))
   const headX = 120 + colW * cols + 60
@@ -87,7 +87,7 @@ export function layoutFish(doc: FishDoc): FishLayout {
       rods.push({ a: [crx, pz], b: [px, pz], depth: 2 })
       pieces.push({ kind: 'cause', depth: 2, label: cause.label, x: crx - w / 2, y: pz, w, h: 34 })
       hangSlanted(cause.kids, pz, crx, s, 3, pieces, rods)
-      along += 56 + rows * ROW
+      along += 70 + rows * ROW
     }
   })
   // move it into the positive quarter, with a margin
