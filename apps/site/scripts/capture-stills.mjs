@@ -12,7 +12,7 @@ const SHOTS = [
   { file: 'poster.png', sample: 'flow', mode: 'iso', width: 1080, height: 460, scale: 2 },
   { file: 'og.png', sample: 'flow', mode: '3d', width: 1200, height: 630, scale: 1 },
   { file: 'still-flat.png', sample: 'flow', mode: 'flat', width: 800, height: 500, scale: 1 },
-  { file: 'still-iso.png', sample: 'flow', mode: 'iso', width: 800, height: 500, scale: 1 },
+  { file: 'still-iso.png', sample: 'flow', mode: 'iso', width: 800, height: 500, scale: 2 },
   { file: 'still-3d.png', sample: 'flow', mode: '3d', width: 800, height: 500, scale: 1 },
   { file: 'still-seq.png', sample: 'seq', mode: '3d', width: 800, height: 500, scale: 1 },
 ]

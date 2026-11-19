@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { track } from './track'
 import sample from './sample.mmd?raw'
 import { Hero } from './Hero'
 import './site.css'
@@ -10,6 +11,69 @@ const FIRST_ISSUES = [
   'More Mermaid shapes, classDef / style',
   'Export to PNG / GLB',
 ]
+
+// The section's scene is its own chunk, fetched when the section nears the screen.
+const HowScene = lazy(() => import('./HowScene'))
+
+// Same gate as the hero: not a narrow screen, not touch-first, and a webgl2 context exists.
+function canGoLive() {
+  if (typeof matchMedia !== 'function') return false
+  if (matchMedia('(max-width:760px)').matches || matchMedia('(pointer:coarse)').matches) return false
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2')
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+    return !!gl
+  } catch {
+    return false
+  }
+}
+
+const START = sample.replace(/^%%.*\n/, '')
+
+// The editable source and live scene, mounted when the section comes near the screen. Without the gate
+// (phone, no WebGL 2) or if the scene fails on the sample, it shows the source and a sharp still.
+function How({ live, flash }: { live?: boolean; flash: boolean }) {
+  const root = useRef<HTMLDivElement>(null)
+  const [gate, setGate] = useState<boolean | null>(live ?? null)
+  const [near, setNear] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (live !== undefined) { setGate(live); return }
+    const ok = canGoLive()
+    setGate(ok)
+    if (!ok) track('how.fallback', { reason: matchMedia('(max-width:760px)').matches || matchMedia('(pointer:coarse)').matches ? 'phone' : 'no-webgl2' })
+  }, [live])
+
+  useEffect(() => {
+    const el = root.current
+    if (!el || !gate) return
+    if (typeof IntersectionObserver === 'undefined') { setNear(true); return }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setNear(true); io.disconnect() } }, { rootMargin: '400px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [gate])
+
+  const fallback = (
+    <div className={'site-split' + (flash ? ' flash' : '')}>
+      <pre>{START}</pre>
+      <Still src="still-iso.png" alt="The flowchart from the source beside it, rendered isometrically" />
+    </div>
+  )
+  const isLive = !!gate && !failed
+  return (
+    <div ref={root}>
+      {isLive && near ? (
+        <div className={flash ? 'flash-wrap' : ''}>
+          <Suspense fallback={fallback}>
+            <HowScene start={START} onReady={() => track('how.mounted')} onFailed={() => { setFailed(true); track('how.fallback', { reason: 'scene-error' }) }} />
+          </Suspense>
+        </div>
+      ) : fallback}
+      <div className="site-note">{isLive ? 'Try it: rename a node, or add a line like  UI --> REST' : 'Edit the source, and the scene re-lays itself out as you type. Try it live on a desktop.'}</div>
+    </div>
+  )
+}
 
 const BASE = import.meta.env.BASE_URL
 const GH = 'https://github.com/infinitedusky/merman'
@@ -27,7 +91,7 @@ const Still = ({ src, alt }: { src: string; alt: string }) => (
 
 // The marketing site's one page. `live`: true forces the live hero, false the poster, unset auto-detects.
 // Keep this file free of static imports of the scene (SceneView, camera, layout, three): Hero lazy-loads it.
-export function Home({ name = 'merman', live }: { name?: string; live?: boolean }) {
+export function Home({ name = 'merman', live, howLive }: { name?: string; live?: boolean; howLive?: boolean }) {
   const [showSrc, setShowSrc] = useState(false)
   return (
     <div className="site">
@@ -59,11 +123,7 @@ export function Home({ name = 'merman', live }: { name?: string; live?: boolean 
         <section id="how">
           <h2>Keep the text. Get the scene.</h2>
           <p className="site-lead">Your diagrams already live in READMEs and docs as Mermaid. You don't have to move them into a drawing tool: the same text becomes a 3D scene.</p>
-          <div className={'site-split' + (showSrc ? ' flash' : '')}>
-            <pre>{sample.replace(/^%%.*\n/, '')}</pre>
-            <Still src="still-iso.png" alt="The flowchart from the source beside it, rendered isometrically" />
-          </div>
-          <div className="site-note">Edit the source, and the scene re-lays itself out as you type.</div>
+          <How live={howLive ?? live} flash={showSrc} />
         </section>
 
         <section id="views">
