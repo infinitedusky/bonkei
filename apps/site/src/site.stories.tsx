@@ -21,7 +21,7 @@ export const Phone: Story = {
 
 export const NoWebGL: Story = { args: { name: 'Bonkei', live: false } }
 
-// The hero on its own, through the wrapper (poster, then the lazily loaded live scene fading in).
+// The hero on its own, through the wrapper (an empty stage, then the lazily loaded live scene fading in; no picture first).
 const Wrap = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="site" style={{ padding: 24, minHeight: 'auto' }}>
     <div className="site-wrap"><div className="site-note" style={{ textAlign: 'left' }}>sample data: {label}</div>{children}</div>
@@ -36,4 +36,18 @@ export const HeroPicked3D: StoryObj<typeof Hero> = {
 }
 export const HeroSequence: StoryObj<typeof Hero> = {
   render: () => <Wrap label="login sequence (made up, login.ts 'seq: login flow')"><Hero live source={login} /></Wrap>,
+}
+export const HeroLoading: StoryObj<typeof Hero> = {
+  render: () => <Wrap label="small flowchart (sample.mmd), the scene's chunk held back: the empty stage a desktop sees while it loads; no picture"><Hero live holdLoad source={sample} /></Wrap>,
+}
+export const HeroPosterOnly: StoryObj<typeof Hero> = {
+  render: () => <Wrap label="small flowchart (sample.mmd) on a device that can't draw it live: the poster, caption and source button"><Hero live={false} source={sample} /></Wrap>,
+}
+export const HeroSceneFailedToLoad: StoryObj<typeof Hero> = {
+  render: () => <Wrap label="small flowchart (sample.mmd), the scene's chunk failing to load: the poster instead, the page stays"><Hero live failLoad source={sample} /></Wrap>,
+}
+// The scene loads but reports an error before its first frame (as when it can't make its WebGL context after the gate's
+// probe passed). Here a made-up source it can't read makes it report one: the poster takes the stage, never an empty one.
+export const HeroSceneError: StoryObj<typeof Hero> = {
+  render: () => <Wrap label="made up: a source the scene can't read ('not a diagram'), so it reports an error before drawing: the poster instead"><Hero live source="not a diagram" /></Wrap>,
 }
