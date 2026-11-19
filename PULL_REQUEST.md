@@ -1,19 +1,26 @@
-# The front page's "Keep the text. Get the scene." section is live (BON-189)
+# The home page's live diagrams load onto an empty stage, never a saved picture first (BON-209)
 
-On a desktop with WebGL 2 the section's Mermaid source is now an editor, starting from the same sample, and the right side is the real Bonkei scene instead of a picture. It re-lays itself out 300 ms after you stop typing and keeps the camera where you put it (BON-195); only Fit and flat / iso / 3D frame the diagram. A line the scene can't read is named in a short note under the source and the rest still draws; text with nothing readable keeps the last diagram with a note; fixing the text brings updates back. Reset puts the sample back. A phone or a browser without WebGL 2 gets the source and the still, now captured at 2x so it is sharp.
+On a desktop with WebGL 2 the hero and the "Keep the text" section no longer paint a saved picture and then swap it for the live scene, which was laid out and framed differently and made the page jump. The hero shows its empty stage and the scene fades in on its first frame; `poster.png` is not even requested. "Keep the text" shows its own frame (the editor's bar, the source read-only, an empty stage of the scene's size) and the scene fades into it, so the page below doesn't move. The pictures stay for phones, browsers without WebGL 2, and a scene chunk that failed to load. All six pictures (poster, share image, the flat / iso / 3D / sequence cards) are retaken from today's code, and from now on a change to how Bonkei draws retakes them in the same PR.
 
-- **Lazy, as the hero.** `How.tsx` (gate, IntersectionObserver with a 400px margin, fallback) is in the entry; the editor and scene are `HowScene.tsx`, a lazy chunk. Entry chunk 237.59 → 239.66 kB (74.61 → 75.22 kB gzip); `HowScene-*.js` 3.39 kB (1.51 kB gzip) pulls in the shared Bonkei chunk on demand.
-- **Notes.** `howState.ts` turns `<Bonkei>`'s `onWarning` / `onReady` / `onError` into the note (`howReducer`, `noteOf`) and decides when to give up and show the still (`fallsBack`: never drawn, or the renderer broke).
-- **Telemetry.** OpenTelemetry spans on a `bonkei-site` tracer (`track.ts`, `@opentelemetry/api` loaded on first use): `site.how.fallback`, `site.how.live`, `site.how.first_edit`, `site.how.update` (outcome per source), `site.how.reset`.
+- **What paints what** is two pure functions in `howGate.ts`: `heroShows` (live or poster) and `howShows` (still, shell or scene), tested in `howGate.test.ts`. The hero decides its path on the first render with the same gate as "Keep the text" (`probeGate`), so there is no undecided frame.
+- **`SceneBoundary.tsx`** (moved out of How.tsx) also wraps the hero: a hero chunk that fails to load shows the poster instead of unmounting the page.
+- **"Keep the text"'s chunk is fetched when the page is idle**, so the shell is rarely seen for long; mounting still waits for the section to come near the screen.
+- **Pictures:** `pnpm capture` (now builds core first) retook `apps/site/public/poster.png`, `og.png`, `still-flat.png`, `still-iso.png`, `still-3d.png`, `still-seq.png`.
+- **Rule:** `.github/pull_request_template.md` (new, every PR's checklist) and CONTRIBUTING.md say to retake the pictures; LOG.md records it.
+- **Telemetry** (OpenTelemetry spans on `bonkei-site`, states and times only): `site.hero.path` (`live` / `poster` + `site.hero.reason`), `site.hero.ready` (`site.hero.ready_ms`), `site.hero.fallback` (ERROR, `load-error`); `site.how.live` gains `site.how.load_ms`.
+- **Size:** entry `site-*.js` 241.84 kB (76.06 kB gzip), +2 kB on BON-189's 239.66 kB; `HowScene-*.js` 4.46 kB.
 
-Where to look: `apps/site/src/How.tsx`, `HowScene.tsx`, `howGate.ts`, `howState.ts`, `track.ts`, `Home.tsx`, `site.css`; `public/still-iso.png` and `scripts/capture-stills.mjs` (scale 2). Tests in `apps/site/src/howState.test.ts` (`pnpm --filter @bonkei/site test`). Stories **Screens / Site / Keep The Text** (Live, Skipped Line, Nothing Readable, Phone Fallback, No WebGL) and **Screens / Site** (Desktop, Phone, No WebGL). Docs: README (`apps/site`, telemetry). Decisions in LOG.md ("The front page's "Keep the text" section is live (BON-189)"); manual test plan in TESTING.md (same title).
+Where to look: `apps/site/src/Hero.tsx`, `How.tsx`, `HowScene.tsx`, `howGate.ts`, `SceneBoundary.tsx`, `howGate.test.ts`; `apps/site/public/*.png`; root `package.json` (`capture`). Stories **Screens / Site** (Hero Loading, Hero Poster Only, Hero Scene Failed To Load) and **Screens / Site / Keep The Text** (Loading). Docs: README (telemetry), CONTRIBUTING (the rule, the map). Decision in LOG.md ("The home page's live diagrams load onto an empty stage… (BON-209)"); manual test plan in TESTING.md (same title).
 
 ## Risks: what this could break, and how you would notice
 
-- **First load.** The entry is 2 kB larger; if the lazy import were ever made static the whole scene would land in the entry. You would see it in `pnpm --filter @bonkei/site build` (the `site-*.js` size jumps by hundreds of kB).
-- **Two live scenes on one page** (hero, then this, then Themes) on a weak GPU: more memory and the browser may drop a WebGL context. The section would show the still (`site.how.fallback` with reason `scene-error`) or another scene would show its error card.
-- **A visitor's text reaches the parser and ELK.** A source that makes ELK slow would make that scene slow to update (`site.how.update` `site.how.ms` grows); it does not block the rest of the page.
-- **The note's wording comes from core's messages** (`not a node or edge`, `no nodes found`); a change in core changes what visitors read.
-- **The Views card's iso still is now the 2x file** (173 kB instead of 73 kB, lazy-loaded): a little more to download below the fold.
+- **A desktop whose scene never draws** (a GPU that passes the WebGL 2 probe but can't render) now sees an empty stage instead of the poster. You would see `site.hero.path` live without a following `site.hero.ready`.
+- **Slow connections** see the empty stage, or the read-only source beside an empty stage in "Keep the text", for longer than they saw the pictures. `site.hero.ready_ms` and `site.how.load_ms` show how long.
+- **The idle prefetch** fetches `HowScene-*.js` for desktop visitors who never scroll down (4.5 kB, plus the Bonkei chunk the hero already loaded).
+- **Stale pictures** if someone ignores the checklist: the cards and the share image would show an old look. It is a human check.
+
+## Checklist
+
+- [x] If this changes how Bonkei draws (shapes, themes, layout, camera, lines, labels), the site's pictures are retaken with `pnpm capture` in this PR (`apps/site/public/*.png`: poster, og, still-flat, still-iso, still-3d, still-seq).
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

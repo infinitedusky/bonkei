@@ -230,7 +230,7 @@ How to check by hand that the section's source is an editor and the scene beside
 Run `pnpm --filter bonkei build && pnpm --filter @bonkei/site build && pnpm --filter @bonkei/site exec vite preview --port 6209` and open `http://localhost:6209/#how` in desktop Chrome.
 
 1. **Live, not a picture.** Left: a dark editor headed **Mermaid · edit me** with **Reset**, holding the same sample as before (starts `flowchart TD` / `subgraph Frontend…`). Right: the scene with **flat iso 3d fit**. In devtools, `#how` has one `canvas` and no `img`; on a retina screen the scene is crisp.
-2. **Lazy.** In the Network tab, reload at the top of the page: `HowScene-*.js` is fetched only as you scroll towards the section (it may come early if the hero already fetched the shared Bonkei chunk).
+2. **Lazy.** In the Network tab, reload at the top of the page: `HowScene-*.js` is fetched once the page is idle (BON-209), not with the page's first load; the scene mounts only as you scroll towards the section.
 3. **Edits.** Click into the source. Rename `REST[REST API]` to `REST[Gateway]`, then add a line `    UI --> REST`. About a second after you stop typing the scene re-lays out with the new label and edge, no reload. The note says **Live: edit the text, the scene follows**.
 4. **The view stays.** Ctrl/⌘ + scroll to zoom onto a node (or click the scene first to take hold, then scroll), turn or pan, then make another edit: the camera does not move. Click the **API Server** tray to fly in (**Esc to let go** shows), rename `GraphQL` in the source: you stay in that tray. **fit** frames the whole diagram; **flat / iso / 3d** frame as before.
 5. **A line it can't read.** Add a line `!!!` at the end: the note says **Skipped line N: not a node or edge** (N is that line) and the diagram still draws.
@@ -245,3 +245,32 @@ Run `pnpm --filter bonkei build && pnpm --filter @bonkei/site build && pnpm --fi
 ## 3. Storybook
 
 Run Storybook as in the first plan. **Screens / Site / Keep The Text**: **Live** (type in it), **Skipped Line** (note names line 7), **Nothing Readable** (after the first draw the text becomes `flowchart TD` and the note says Not updated), **Phone Fallback** and **No WebGL** (source and still). **Screens / Site / Desktop** shows the editor and the scene; **Phone** and **No WebGL** the source and the still.
+
+# Manual test plan: the home page's live diagrams load onto an empty stage (BON-209)
+
+How to check by hand that a desktop never sees a saved picture before a live diagram, that devices which can't draw one still get the picture, and that the pictures match today's Bonkei. The diagrams are the site's sample (`sample.mmd`) and the made-up `seq: login flow`. First run `pnpm --filter @bonkei/site test` (`howGate.test.ts` holds which part paints what).
+
+## 1. The built site, desktop with WebGL 2
+
+Run `pnpm --filter bonkei build && pnpm --filter @bonkei/site build && pnpm --filter @bonkei/site exec vite preview --port 6211` and open `http://localhost:6211/` in desktop Chrome, devtools open, **Disable cache** on and throttling at **Slow 4G**.
+
+1. **The hero.** Reload. The stage at the top is an empty dark box of its usual size, then the live diagram fades in. No picture of a diagram shows first. In the Network tab there is no `poster.png` request; in Elements, `.site-stage` holds no `img`. In the Performance panel's Timings (or `performance.getEntriesByName('hero-scene-ready')` in the console) the mark is there.
+2. **"Keep the text".** Reload at the top and scroll straight down to **Keep the text. Get the scene.** Until the scene arrives you see the editor's bar (**Mermaid · edit me**, Reset greyed), the source read-only and an empty stage beside it; then the scene fades into that stage. No `still-iso.png` is painted in the section first, and the heading of the next section does not move when the scene arrives (`document.getElementById('how').offsetHeight` in the console is the same before and after). The **Views** card further down still shows `still-iso.png` (it is a card, not a loading picture).
+3. **Typing still works.** Edit the source once the scene is in: the scene follows as in BON-189's plan.
+
+## 2. Phone and no WebGL
+
+1. Devtools device mode at a phone size (390px wide, touch), reload `/`: the hero shows `poster.png` with **see the source ↗**; `/#how` shows the source (**Show all**) and the still, and the note says **Try it live on a desktop.**
+2. Desktop Chrome with WebGL off (start it with `--disable-webgl`, or open the no-WebGL story below): the hero shows the poster and caption; "Keep the text" shows the source and the still with the note about WebGL 2.
+
+## 3. The pictures match today's Bonkei
+
+Open Storybook (`pnpm storybook`, port above 6200) beside the built site. Put each picture beside the live scene in the same view: `/poster.png` beside **Screens / Site / Hero Autoplay** in iso; the **Flat**, **Isometric** and **3D** cards on `/` beside the hero switched to flat / iso / 3d; the **Sequence** card beside **Hero Sequence**; `/og.png` (the share image) beside the hero in 3d. Same layout (same blocks, trays and lines in the same places) and the same look (colours, labels, shadows).
+
+## 4. Storybook
+
+**Screens / Site**: **Hero Loading** (the empty stage, no picture, the chunk held back), **Hero Poster Only** (poster, caption, source button), **Hero Scene Failed To Load** (the poster, no page error), **Hero Autoplay** (empty, then the scene fades in). **Screens / Site / Keep The Text**: **Loading** (bar, read-only source, empty stage; no still), **Live**, **Phone Fallback**, **No WebGL**, **Scene Failed To Load**, **Scene Lost** (the still and the notes, as in BON-189).
+
+## 5. The rule
+
+Open `.github/pull_request_template.md` and CONTRIBUTING.md: both say a change to how Bonkei draws retakes the pictures with `pnpm capture` in the same PR. LOG.md's BON-209 entry records the rule.
