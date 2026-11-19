@@ -51,6 +51,8 @@ flowchart LR
 
 `<Bonkei />` takes `source` and every [option](./options), plus the [events](./errors). A prop wins over the same key in the diagram's frontmatter.
 
+A new `source` or `theme` draws in the same view: only the first draw frames the diagram, and after that the camera stays where the reader put it (zoom, pan, angle and the tray they flew into) until they press Fit or switch the view.
+
 ```tsx twoslash
 import { Bonkei } from 'bonkei'
 
