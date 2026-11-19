@@ -163,3 +163,18 @@
 @media (prefers-reduced-motion: reduce) {
   .site-live, .site-split { transition:none }
 }
+
+/* The live "Keep the text" section (How.tsx, HowScene.tsx; BON-189): the editable source beside the live scene, in the scene's dark panel */
+.how-ed { display:flex; flex-direction:column; height:460px; background:#0b0e14; border:1px solid var(--scene-line); border-radius:14px; overflow:hidden }
+.how-bar { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--scene-line); font-size:12px; color:#8f9bb5 }
+.how-bar b { color:#d6deee; font-weight:600 }
+.how-bar button { margin-left:auto; font:inherit; font-size:12px; color:#e6ebf5; border:1px solid #5a6785; padding:2px 10px; border-radius:6px; background:none; cursor:pointer }
+.how-bar button:disabled { opacity:.4; cursor:default }
+.how-ed textarea { flex:1; resize:none; border:0; outline:0; background:none; padding:14px 18px; font:13px/1.6 ui-monospace, monospace; color:#cfd8ea; tab-size:4; white-space:pre; overflow:auto; caret-color:#f2c14e }
+.how-ed:focus-within { border-color:#5a6785 }
+.how-msg { padding:7px 12px; border-top:1px solid var(--scene-line); font:12px ui-monospace, monospace; color:#b4bfd6; min-height:31px }
+.how-msg.warn { color:#f2c14e }
+.how-msg.ok::before { content:"●"; color:#4fbf7f; margin-right:6px }
+.how-scene { position:relative; height:460px; background:var(--scene); border:1px solid var(--scene-line); border-radius:14px; overflow:hidden }
+.site-note code { font:12px ui-monospace, monospace; background:#0001; padding:1px 5px; border-radius:4px; white-space:pre }
+@media (max-width:1000px) { .how-ed, .how-scene { height:400px } }

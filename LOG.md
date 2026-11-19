@@ -413,3 +413,24 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **The Markdown carries the frontmatter Light only writes on Classic, as a ` ```yaml ` fence under `<TrenchLight />`**, with a sentence saying so. It is not a ` ```mermaid ` fence, which would draw a second, fixed diagram beside the live one. `trench.test.ts` checks it word for word against `trenchSource`, so a change to the controls' rules that the page does not follow fails `pnpm test`. Turned down: having the docs build write the demo into the `.md` (a change to `vitepress-plugin-llms`'s output for one component).
 
 **Consequences.** A new interactive demo on a docs page marks its root and gets a heading, or the docs smoke fails on its page (CONTRIBUTING says so). The smoke line for a page with a demo names the demo.
+
+## 2026-11-19 — The front page's "Keep the text" section is live (BON-189)
+
+**Context.** The section said the diagram follows the text, beside a read-only `<pre>` and a still (`still-iso.png`, 800×500 at 1x, blurry on a retina screen). BON-195 made `<Bonkei>` keep the view through a new source, so an editor beside a live scene no longer jumps the camera on each keystroke. The page's first load must stay as it was: the hero and Themes already keep the scene out of the entry chunk.
+
+**Decision.**
+- **A plain `<textarea>` beside `<Bonkei>`**, the text given to the scene 300 ms after typing stops (`DEBOUNCE_MS`). `<Bonkei>` already keeps the last diagram on a failed update, reports dropped lines through `onWarning` and the failure through `onError`; the section turns those into one short note under the source (`howState.ts`: `howReducer`, `noteOf`). Warnings are gathered per source and shown when it draws, so a note always describes the diagram on screen. Reset puts the sample back; Fit and flat / iso / 3D are the only things that frame the diagram.
+- **The hero's gate** (not narrow, not touch-first, WebGL 2), then an IntersectionObserver with a 400px margin, as Themes does. `How.tsx` (in the entry) holds the gate, the observer and the fallback; `HowScene.tsx` (editor and scene) is a `lazy()` chunk; `howGate.ts` (entry) and `howState.ts` (scene chunk) are split so the entry carries only the gate. The entry grows by 2.07 kB (0.61 kB gzip): 237.59 → 239.66 kB.
+- **The still comes back** on a phone, without WebGL 2, while the chunk loads, and when the scene fails on its first draw or drawing itself breaks (`fallsBack`: never drawn, or kind `render`). A text that can't be read is not a failure: the last diagram stays with the note.
+- **`still-iso.png` is captured at 2x** (1600×1000, shown at 800×500), so the fallback and the Views card are sharp on a retina screen.
+- **Telemetry through `@opentelemetry/api`** on a `bonkei-site` tracer (`track.ts`), imported on first use so it is not in the entry chunk. Spans: `site.how.fallback`, `site.how.live`, `site.how.first_edit`, `site.how.update` (one per source given, with its outcome), `site.how.reset`. Fit and mode changes are already `bonkei.fit` / `bonkei.mode_change` from the scene.
+
+**Alternatives considered.**
+- **A code editor (CodeMirror, Monaco) with highlighting.** Out of scope for the brief and tens of kB more; a textarea is enough to make the point.
+- **Updating on every keystroke.** Each source is a full ELK layout; half-typed lines would flash warnings. 300 ms (the viewer's source panel waits 250 ms) is the prototype's value, tried and approved.
+- **The prototype's `site:track` DOM event** for telemetry: not OpenTelemetry, so nothing in the repo's tracing would see it. Turned down for spans on the same API core uses.
+- **A static `@opentelemetry/api` import in the site:** about 8 kB more in the entry for a page that registers no SDK. The dynamic import shares the scene's copy.
+- **Falling back to the still on any error:** a visitor who deletes everything would lose the scene they were editing. Only a scene that never drew, or a renderer crash, falls back.
+- **Turning zoom on in the hero, as the prototype also did:** not part of this section; the hero is left as it was.
+
+**Consequences.** The section is the one place on the front page where a visitor's text reaches the parser and layout; a source that hangs ELK would hang that scene only (it runs in its own `<Bonkei>`). The note's wording depends on core's warning and error messages (`not a node or edge`, `no nodes found`): a change there changes the note. `pnpm --filter @bonkei/site test` now also runs `src/*.test.ts`.

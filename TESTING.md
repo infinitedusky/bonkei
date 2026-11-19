@@ -220,3 +220,28 @@ Run `pnpm docs:dev` (or the docs smoke set-up) and open Edge styles, section **T
 1. Under the controls, a sentence says what **Light only** on Classic writes, and a YAML block shows that frontmatter and the tunnel diagram. Press **Light only** on the controls: the frontmatter shown under the live diagram is the same.
 2. Press **Copy page** under the title and paste: under `### The trench light` there is the Try-it paragraph, the sentence and the ```` ```yaml ```` block; no `<TrenchLight />`, no HTML.
 3. `curl <origin>/docs/guide/edge-styles.md`: the same Markdown.
+
+# Manual test plan: the front page's live "Keep the text" section (BON-189)
+
+How to check by hand that the section's source is an editor and the scene beside it follows it. The diagram is the site's sample (`sample.mmd`); the lines you type are made up. First run `pnpm --filter @bonkei/site test` (`howState.test.ts` holds the note and gate rules).
+
+## 1. The built site, desktop
+
+Run `pnpm --filter bonkei build && pnpm --filter @bonkei/site build && pnpm --filter @bonkei/site exec vite preview --port 6209` and open `http://localhost:6209/#how` in desktop Chrome.
+
+1. **Live, not a picture.** Left: a dark editor headed **Mermaid · edit me** with **Reset**, holding the same sample as before (starts `flowchart TD` / `subgraph Frontend…`). Right: the scene with **flat iso 3d fit**. In devtools, `#how` has one `canvas` and no `img`; on a retina screen the scene is crisp.
+2. **Lazy.** In the Network tab, reload at the top of the page: `HowScene-*.js` is fetched only as you scroll towards the section (it may come early if the hero already fetched the shared Bonkei chunk).
+3. **Edits.** Click into the source. Rename `REST[REST API]` to `REST[Gateway]`, then add a line `    UI --> REST`. About a second after you stop typing the scene re-lays out with the new label and edge, no reload. The note says **Live: edit the text, the scene follows**.
+4. **The view stays.** Ctrl/⌘ + scroll to zoom onto a node (or click the scene first to take hold, then scroll), turn or pan, then make another edit: the camera does not move. Click the **API Server** tray to fly in (**Esc to let go** shows), rename `GraphQL` in the source: you stay in that tray. **fit** frames the whole diagram; **flat / iso / 3d** frame as before.
+5. **A line it can't read.** Add a line `!!!` at the end: the note says **Skipped line N: not a node or edge** (N is that line) and the diagram still draws.
+6. **Nothing readable.** Select all and type `flowchart TD`: the last diagram stays, the note says **Not updated: no nodes found. Showing the last diagram that worked.** and the scene shows its own "Not updated" strip.
+7. **Back.** Undo (⌘Z): the note is back to **Live…** and the next edit updates the scene. **Reset** puts the sample back exactly and greys out.
+
+## 2. Phone and no WebGL
+
+1. In devtools, device mode at a phone size (touch): reload. The section shows the source (a few lines, **Show all**) and the still, no canvas, no console errors. The still is sharp (1600×1000 shown at 800×500).
+2. Desktop again, with WebGL off (Chrome `--disable-webgl`, or devtools Rendering → disable WebGL if offered): the same source and still, and the note says to try it on a desktop.
+
+## 3. Storybook
+
+Run Storybook as in the first plan. **Screens / Site / Keep The Text**: **Live** (type in it), **Skipped Line** (note names line 7), **Nothing Readable** (after the first draw the text becomes `flowchart TD` and the note says Not updated), **Phone Fallback** and **No WebGL** (source and still). **Screens / Site / Desktop** shows the editor and the scene; **Phone** and **No WebGL** the source and the still.
