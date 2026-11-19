@@ -1,20 +1,35 @@
-// The docs' smoke tests in one run (BON-178), part of `pnpm smoke` (or alone: `pnpm docs:smoke`). Needs packages/core built.
+// The docs' smoke tests in one run (BON-178): `pnpm docs:smoke`. Not part of `pnpm smoke` or the pull request checks: CI runs it nightly on
+// main and by hand from Actions › Nightly (.github/workflows/nightly.yml, BON-217). Needs packages/core built.
 //  1. build the docs from this checkout's packed packages (scripts/build-docs.mjs: pack, npm install the tarballs, TypeDoc, vitepress build)
 //  2. docs-coverage.mjs: every export has an API page, every option, event and control a live example in a guide page
 //  3. docs-break.mjs: a sample that uses an option Bonkei does not have fails the docs build, and the failure names the page
 //  4. serve docs/.vitepress/dist at /docs/ on a free port and run docs.mjs against it (every page, agent files, copy, telemetry, widths)
 //  5. docs-getting-started.mjs: the four getting-started pages followed word for word in new empty projects
-// SKIP_DOCS_BUILD=1 skips step 1 (the docs were just built).
+// SKIP_DOCS_BUILD=1 skips step 1 (the docs were just built). In GitHub Actions each step's result also goes to the run's summary (docs-summary.mjs).
 import { execFileSync, spawn } from 'node:child_process'
 import path from 'node:path'
 import { freePort } from './check.mjs'
+import { writeSummary } from './docs-summary.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const node = (script, args = [], env = {}) => execFileSync(process.execPath, [path.join(root, script), ...args], { cwd: root, stdio: 'inherit', env: { ...process.env, ...env } })
-let failed = 0
-const step = (name, fn) => { console.log(`\n== docs smoke: ${name}`); try { fn() } catch { failed++; console.error(`docs smoke: ${name} FAILED`) } }
+const results = []
+const step = (name, fn) => {
+  console.log(`\n== docs smoke: ${name}`)
+  let ok = true
+  try { fn() } catch { ok = false; console.error(`docs smoke: ${name} FAILED`) }
+  results.push({ name, ok })
+  return ok
+}
+const finish = () => {
+  const failed = results.filter(r => !r.ok).length
+  writeSummary(results)
+  console.log(failed ? `\ndocs smoke: ${failed} step(s) failed` : '\ndocs smoke: all steps ok')
+  process.exit(failed ? 1 : 0)
+}
 
-if (!process.env.SKIP_DOCS_BUILD) node('scripts/build-docs.mjs')
+// without a build the other steps have nothing to check
+if (!process.env.SKIP_DOCS_BUILD && !step('build the docs', () => node('scripts/build-docs.mjs'))) finish()
 step('coverage', () => node('scripts/smoke/docs-coverage.mjs'))
 step('a broken sample fails the build', () => node('scripts/smoke/docs-break.mjs'))
 
@@ -29,6 +44,4 @@ try {
   step('every page', () => node('scripts/smoke/docs.mjs', [`http://localhost:${port}`]))
 } finally { server.kill('SIGTERM') }
 step('getting started, word for word', () => node('scripts/smoke/docs-getting-started.mjs'))
-
-console.log(failed ? `\ndocs smoke: ${failed} step(s) failed` : '\ndocs smoke: all steps ok')
-process.exit(failed ? 1 : 0)
+finish()
