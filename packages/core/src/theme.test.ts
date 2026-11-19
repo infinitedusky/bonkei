@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { BONKEI, CLASSIC, BONKEI_LANDSCAPE, themeByName, withVariables } from './theme.ts'
+import { BONKEI, CLASSIC, BONKEI_LANDSCAPE, themeByName, trenchParts, withVariables } from './theme.ts'
 
 test('presets are plain JSON: they survive a round trip', () => {
   for (const t of [CLASSIC, BONKEI, BONKEI_LANDSCAPE]) assert.deepEqual(JSON.parse(JSON.stringify(t)), t)
@@ -118,4 +118,60 @@ test('no preset has a negative number, so the rule above takes nothing a preset 
   const { PRESETS } = await import('./theme.ts')
   const nums = (o: unknown): number[] => (typeof o === 'number' ? [o] : o && typeof o === 'object' ? Object.values(o).flatMap(nums) : [])
   for (const t of Object.values(PRESETS)) assert.ok(nums(t).every(n => n >= 0), t.name)
+})
+
+test('the trench light is theme data: Classic lights its trench in grey-white at 30% with no rim; the Bonkei looks leave it off', () => {
+  assert.deepEqual(CLASSIC.edge.glow, { core: '#e0e0e0', coreWidth: 2.1, halo: '#e0e0e0', haloWidth: 6.6, haloOpacity: 0.17, wash: '#e0e0e0', washIntensity: 0.18 })
+  assert.equal(CLASSIC.edge.rim, 'none')
+  // Bonkei and Bonkei · landscape: no light, and the dark rim they always had
+  for (const t of [BONKEI, BONKEI_LANDSCAPE]) {
+    assert.deepEqual([t.edge.glow.core, t.edge.glow.halo, t.edge.glow.wash], [null, null, null])
+    assert.equal(t.edge.rim, '#2A2622'); assert.equal(t.edge.rimWidth, 2)
+  }
+  assert.equal(trenchParts(CLASSIC), 'core,halo,wash')
+  assert.equal(trenchParts(BONKEI), 'rim')
+  // a hand-made theme from before the light (no edge.glow) is reported as unlit, not an error
+  const { glow: _, ...old } = BONKEI.edge
+  assert.equal(trenchParts({ ...BONKEI, edge: old } as never), 'rim')
+})
+
+test('a diagram sets its own rim and the parts of its light, and the diagram\'s values win over the theme\'s', () => {
+  const r = withVariables(BONKEI, { 'edge.rim': '#3fd0c0', 'edge.rimWidth': 1.5, 'edge.glow.core': '#ffffff', 'edge.glow.haloWidth': 5 })
+  assert.deepEqual(r.problems, [])
+  assert.equal(r.theme.edge.rim, '#3fd0c0'); assert.equal(r.theme.edge.rimWidth, 1.5)
+  assert.equal(r.theme.edge.glow.core, '#ffffff'); assert.equal(r.theme.edge.glow.haloWidth, 5)
+  // a Classic diagram can put a rim back
+  assert.equal(withVariables(CLASSIC, { 'edge.rim': '#e0e0e0' }).theme.edge.rim, '#e0e0e0')
+  assert.equal(BONKEI.edge.rim, '#2A2622') // the preset is untouched
+})
+
+test('each part of the trench light can be turned off: null for the core, halo or wash, edge.glow: off for all three, edge.rim: none for the rim', () => {
+  const one = withVariables(CLASSIC, { 'edge.glow.wash': null })
+  assert.deepEqual(one.problems, [])
+  assert.equal(one.theme.edge.glow.wash, null); assert.equal(one.theme.edge.glow.core, '#e0e0e0')
+  assert.equal(trenchParts(one.theme), 'core,halo')
+  // light only: the light from the floor, no wash, no rim
+  const floorOnly = withVariables(BONKEI, { 'edge.glow.core': '#ffc873', 'edge.glow.halo': '#ffc873', 'edge.rim': 'none' })
+  assert.deepEqual(floorOnly.problems, [])
+  assert.equal(trenchParts(floorOnly.theme), 'core,halo')
+  for (const off of ['off', false]) {
+    const all = withVariables(CLASSIC, { 'edge.glow': off })
+    assert.deepEqual(all.problems, [])
+    assert.deepEqual([all.theme.edge.glow.core, all.theme.edge.glow.halo, all.theme.edge.glow.wash], [null, null, null])
+    assert.equal(all.theme.edge.glow.coreWidth, 2.1) // only the colours go; the sizes stay for a later colour
+  }
+  assert.equal(trenchParts(withVariables(BONKEI, { 'edge.rim': 'none' }).theme), 'off')
+  assert.deepEqual(CLASSIC.edge.glow.core, '#e0e0e0') // the preset is untouched
+})
+
+test('other values for the trench light are validated: a bad one is skipped and reported', () => {
+  const bad = withVariables(BONKEI, { 'edge.glow': 'dim', 'edge.glow.core': 3, 'edge.glow.coreWidth': null, 'edge.glow.haloOpacity': -1, 'edge.rim': 5, 'edge.glow.spark': '#fff', 'edge.glow.wash': true })
+  assert.deepEqual(bad.problems.map(p => p.key), ['edge.glow', 'edge.glow.core', 'edge.glow.coreWidth', 'edge.glow.haloOpacity', 'edge.rim', 'edge.glow.spark', 'edge.glow.wash'])
+  assert.match(bad.problems[0].message, /group of tokens; turn it off with off/)
+  assert.match(bad.problems[1].message, /must be a string or null/)
+  assert.match(bad.problems[5].message, /unknown theme variable/)
+  assert.deepEqual(bad.theme.edge.glow, BONKEI.edge.glow)
+  assert.equal(bad.theme.edge.rim, '#2A2622')
+  // `off` is a word for edge.glow only: another group still says it is a group
+  assert.match(withVariables(BONKEI, { 'edge': 'off' }).problems[0].message, /^edge is a group of tokens; set one/)
 })
