@@ -175,3 +175,37 @@ test('other values for the trench light are validated: a bad one is skipped and 
   // `off` is a word for edge.glow only: another group still says it is a group
   assert.match(withVariables(BONKEI, { 'edge': 'off' }).problems[0].message, /^edge is a group of tokens; set one/)
 })
+
+test('edge.rim: null is a dark shade of the surface, in every theme (Classic\'s own rim is none)', () => {
+  for (const t of [CLASSIC, BONKEI, BONKEI_LANDSCAPE]) {
+    const r = withVariables(t, { 'edge.rim': null })
+    assert.deepEqual(r.problems, [])
+    assert.equal(r.theme.edge.rim, null)
+    assert.equal(trenchParts(r.theme), t === CLASSIC ? 'core,halo,wash,rim' : 'rim')
+  }
+})
+
+test('a trench colour must be a colour: a word three.js does not know is reported, not drawn in white', () => {
+  const words = ['off', 'None', 'NONE', 'banana', 'false', '', '#12', '#12345', 'rgb(1,2)']
+  for (const w of words) {
+    const r = withVariables(CLASSIC, { 'edge.rim': w })
+    assert.equal(r.problems.length, 1, `edge.rim ${JSON.stringify(w)}`)
+    assert.equal(r.problems[0].message, `edge.rim must be a colour, none or null; got ${JSON.stringify(w)}`)
+    assert.equal(r.theme.edge.rim, 'none') // skipped: Classic keeps its own
+    for (const k of ['edge.glow.core', 'edge.glow.halo', 'edge.glow.wash']) {
+      const g = withVariables(CLASSIC, { [k]: w })
+      assert.equal(g.problems[0]?.message, `${k} must be a colour or null; got ${JSON.stringify(w)}`)
+      assert.deepEqual(g.theme.edge.glow, CLASSIC.edge.glow)
+    }
+  }
+  // none is a word for the rim only: the light's parts are left out with null
+  assert.equal(withVariables(CLASSIC, { 'edge.glow.core': 'none' }).problems[0].message, 'edge.glow.core must be a colour or null; got "none"')
+  // every way three.js reads a colour is taken, for the rim and each part of the light
+  const colours = ['#fff', '#E0E0E0', 'rgb(255, 200, 115)', 'rgba(255,200,115,0.5)', 'rgb(100%, 50%, 0%)', 'hsl(40, 100%, 70%)', 'hsla(40,100%,70%,1)', 'white', 'Gold', 'rebeccapurple']
+  for (const c of colours) {
+    const r = withVariables(BONKEI, { 'edge.rim': c, 'edge.glow.core': c, 'edge.glow.halo': c, 'edge.glow.wash': c })
+    assert.deepEqual(r.problems, [], c)
+    assert.equal(r.theme.edge.rim, c); assert.equal(r.theme.edge.glow.wash, c)
+  }
+  assert.deepEqual(withVariables(BONKEI, { 'edge.rim': 'none' }).problems, [])
+})

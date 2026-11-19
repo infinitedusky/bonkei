@@ -2,6 +2,7 @@
 // heights, where two edges cross, and how the crossing is drawn. Decisions: LOG.md, "How edges sit in 3D (BON-85)".
 // Imported by node tests: explicit .ts extensions, no .tsx.
 import { TRAY, NODE_H, S } from './scale.ts'
+import type { Glow } from './theme.ts'
 
 /** How two crossing lines are drawn: none (they cross as lines), bridge, tunnel or portal. */
 export type CrossingStyle = 'none' | 'bridge' | 'tunnel' | 'portal'
@@ -196,6 +197,19 @@ export function findCrossings(lines: P3[][]): Crossing[] {
 export interface PortalPair { a: P3; b: P3; dir: [number, number] }
 /** An open trough: x0..x1 along x, z0..z1 across (equal for one line: a stadium; merged troughs are a rounded rectangle). Its floor is `depth` below `top`; it is cut in the tray `tray`, or in the ground. */
 export interface Slot { x0: number; x1: number; z0: number; z1: number; top: number; depth: number; tray?: string }
+
+/**
+ * The floor light as it shows on a trench's walls: a glow rising from the floor, fading to nothing at the lip, in the halo's colour
+ * (the core's when there is no halo) at the halo's opacity. A trench is deeper than it is wide, so from the iso view (and most of 3D)
+ * its floor is hidden behind the near lip and a light drawn only on the floor cannot be seen; the walls it lights can. Null when the
+ * floor light is off (core and halo null), whatever the wall wash does.
+ */
+export function floorGlow(g: Pick<Glow, 'core' | 'halo' | 'haloOpacity'> | undefined): { color: string; opacity: number } | null {
+  const color = g?.halo ?? g?.core
+  return color && g!.haloOpacity > 0 ? { color, opacity: g!.haloOpacity } : null
+}
+/** That glow's opacity `h` above the floor of a trench `depth` deep: full at the floor, none at the lip. */
+export const floorGlowAt = (opacity: number, h: number, depth: number) => (depth > 0 ? opacity * Math.min(1, Math.max(0, 1 - h / depth)) : 0)
 
 /** Troughs on the same surface that are closer than SLOT_GAP become one trough (the bounding rectangle), repeatedly. */
 export function mergeSlots(slots: Slot[]): Slot[] {

@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Text } from '@react-three/drei'
-import { SLOT_W, flatLine, type Body, type EdgePlan, type P3, type PortalPair, type Slot } from './edges3d.ts'
+import { SLOT_W, flatLine, floorGlow, floorGlowAt, type Body, type EdgePlan, type P3, type PortalPair, type Slot } from './edges3d.ts'
 import { useTheme, fontUrl } from './look'
 import { TEXT_LAYER } from './scale.ts'
 import type { LabelMode } from './model'
@@ -79,8 +79,8 @@ export function stadium(s: { x0: number; x1: number; z0: number; z1: number }, p
 // A tunnel's open trough: walls (the stadium extruded from the floor up to the surface, caps hidden), a floor and an
 // outline round the lip (the rim; edge.rim 'none' leaves it out), all darker than the surface they are cut in; the walls receive
 // shadows. The surface itself has a matching hole (Ground, Tray). The line runs along the floor under the other line.
-// The trench light (theme.edge.glow) is drawn, not cast: a core and a halo line where the floor meets the walls, and an emissive wash
-// on the wall material. No scene light is added, so the blocks and lines beside the trench are not brightened (a point light was tried
+// The trench light (theme.edge.glow) is drawn, not cast: a core and a halo line where the floor meets the walls, the glow they put
+// on the walls from the floor up (floorGlow: the floor itself is hidden behind the lip in iso), and an emissive wash on the wall material. No scene light is added, so the blocks and lines beside the trench are not brightened (a point light was tried
 // in the prototype and blew out the neighbouring block). With every part null the trench draws exactly as it did before the light.
 const NO_GLOW = { core: null, coreWidth: 0, halo: null, haloWidth: 0, haloOpacity: 0, wash: null, washIntensity: 0 }
 
@@ -100,6 +100,19 @@ export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: 
   // the light's track: the floor's outline, a hair above the floor so it is not lost in it
   const ledPts = useMemo(() => shape.getPoints(16).map(p => [p.x, top - slot.depth + 0.015, -p.y] as [number, number, number]), [shape, top, slot.depth])
   const hidden = useMemo(() => new THREE.MeshBasicMaterial({ visible: false }), [])
+  // the floor light on the walls: the walls again, a hair in front, coloured per vertex from the floor's opacity to none at the lip
+  const fg = floorGlow(g)
+  const glowWalls = useMemo(() => {
+    if (!fg) return null
+    const geo = walls.clone(), pos = geo.getAttribute('position'), a = new Float32Array(pos.count * 4)
+    for (let i = 0; i < pos.count; i++) a.set([1, 1, 1, floorGlowAt(fg.opacity, pos.getZ(i), slot.depth)], i * 4) // extruded along z, from the floor
+    geo.setAttribute('color', new THREE.BufferAttribute(a, 4))
+    return geo
+  }, [walls, slot.depth, fg?.opacity])
+  const glowMat = useMemo(
+    () => (fg ? new THREE.MeshBasicMaterial({ color: fg.color, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }) : null),
+    [fg?.color],
+  )
   const wallMat = useMemo(
     () => new THREE.MeshStandardMaterial({ color: wall, side: THREE.DoubleSide, roughness: 1, ...(g.wash ? { emissive: g.wash, emissiveIntensity: g.washIntensity } : {}) }),
     [wall, g.wash, g.washIntensity],
@@ -108,6 +121,7 @@ export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: 
     <>
       <mesh geometry={walls} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow material={[hidden, wallMat]} />
       <mesh geometry={flat} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow><meshStandardMaterial color={floor} roughness={1} /></mesh>
+      {glowWalls && glowMat && <mesh geometry={glowWalls} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} material={[hidden, glowMat]} />}
       {th.edge.rim !== 'none' && <Line points={[...outline, outline[0]]} color={th.edge.rim ?? rim} lineWidth={th.edge.rimWidth} />}
       {g.halo && <Line points={[...ledPts, ledPts[0]]} color={g.halo} lineWidth={g.haloWidth} transparent opacity={g.haloOpacity} depthWrite={false} />}
       {g.core && <Line points={[...ledPts, ledPts[0]]} color={g.core} lineWidth={g.coreWidth} />}

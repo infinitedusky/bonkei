@@ -1,5 +1,6 @@
 // Themes: a typed, JSON-serialisable token object. The scene reads tokens only; the built-in looks are presets
 // of it. Decisions: LOG.md, "Themes: Classic, Bonkei, Bonkei · landscape (BON-117)". Plain .ts, no React.
+import { Color } from 'three'
 import type { Shape } from './model.ts'
 
 export type Pattern = 'plain' | 'hishi' | 'flower' | 'stone'
@@ -146,7 +147,17 @@ const owns = (c: object, k: string) => (Array.isArray(c) ? /^\d+$/.test(k) && Nu
 const at = (o: unknown, keys: string[]) => keys.reduce<any>((c, k) => (c !== null && typeof c === 'object' && owns(c, k) ? c[k] : undefined), o)
 
 // Tokens that may be null in any theme though a preset sets them: null leaves that part of the trench light out.
-const NULLABLE = new Set(['edge.glow.core', 'edge.glow.halo', 'edge.glow.wash'])
+// edge.rim: null is a dark shade of the surface, as it always was (Classic's rim is 'none' now, so no preset shows it).
+const NULLABLE = new Set(['edge.rim', 'edge.glow.core', 'edge.glow.halo', 'edge.glow.wash'])
+// Tokens whose string is drawn as a colour, with the words they take beside one: a word three.js does not know as a colour would draw
+// in white (an `off` rim drew a light rim), so it is reported instead.
+const COLOURS: Record<string, readonly string[]> = { 'edge.rim': ['none'], 'edge.glow.core': [], 'edge.glow.halo': [], 'edge.glow.wash': [] }
+// A colour as three.js reads one (Color.setStyle): #rgb, #rrggbb, rgb()/rgba() in numbers or %, hsl()/hsla(), or a CSS colour name.
+const isColour = (s: string) =>
+  /^#([\da-f]{3}|[\da-f]{6})$/i.test(s)
+  || /^rgba?\(\s*(\d+\s*,\s*\d+\s*,\s*\d+|\d+%\s*,\s*\d+%\s*,\s*\d+%)\s*(,\s*\d*\.?\d+\s*)?\)$/.test(s)
+  || /^hsla?\(\s*\d*\.?\d+\s*,\s*\d*\.?\d+%\s*,\s*\d*\.?\d+%\s*(,\s*\d*\.?\d+\s*)?\)$/.test(s)
+  || Object.hasOwn(Color.NAMES, s.toLowerCase())
 // Groups that take one word for the whole group: `edge.glow: off` (or false) turns every part of the trench light off.
 const GROUP_OFF: Partial<Record<string, (g: any) => void>> = { 'edge.glow': (g: Glow) => { g.core = g.halo = g.wash = null } }
 
@@ -168,6 +179,8 @@ function setPath(t: Theme, path: string, v: unknown): string | null {
   if (!types.has(got)) return `${path} must be ${want.length ? 'a ' + want.join(' or a ') : 'null'}${types.has('null') ? ' or null' : ''}; got ${JSON.stringify(v)}`
   const choices = CHOICES[keys.map(k => (/^\d+$/.test(k) ? '#' : k)).join('.')]
   if (choices?.length && typeof v === 'string' && !choices.includes(v)) return `${path} must be one of ${choices.join(', ')}; got ${JSON.stringify(v)}`
+  const words = Object.hasOwn(COLOURS, path) ? COLOURS[path] : undefined
+  if (words && typeof v === 'string' && !words.includes(v) && !isColour(v)) return `${path} must be a colour${words.map(w => ', ' + w).join('')} or null; got ${JSON.stringify(v)}`
   if (typeof v === 'number' && !Number.isFinite(v)) return `${path} must be a finite number; got ${JSON.stringify(v)}`
   // every number in a theme is a size, a weight or a share (none negative in the presets); a negative one draws nothing
   if (typeof v === 'number' && v < 0) return `${path} must be 0 or more; got ${v}`
