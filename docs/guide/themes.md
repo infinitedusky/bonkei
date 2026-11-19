@@ -83,10 +83,10 @@ A diagram can change any part, so a Bonkei diagram can switch its light on, or a
 
 | Token | What it is |
 | --- | --- |
-| `edge.rim`, `edge.rimWidth` | The rim round the lip: its colour and width. `none` draws no rim; `null` is a dark shade of the surface. |
+| `edge.rim`, `edge.rimWidth` | The rim round the lip: its colour and width. `none` draws no rim; `null` is a dark shade of the surface. Any other word that is not a colour is reported and the theme's rim kept. |
 | `edge.glow` | `off` (or `false`) turns the floor light and the wall wash off. |
 | `edge.glow.core`, `edge.glow.coreWidth` | The bright line along the floor. `null` leaves it out. |
-| `edge.glow.halo`, `edge.glow.haloWidth`, `edge.glow.haloOpacity` | The soft, wider glow round that line. `null` leaves it out. |
+| `edge.glow.halo`, `edge.glow.haloWidth`, `edge.glow.haloOpacity` | The soft, wider glow round that line; it also lights the walls from the floor up, fading to nothing at the lip, so the floor light shows where the floor itself is hidden (as in iso). `null` leaves it out. |
 | `edge.glow.wash`, `edge.glow.washIntensity` | The faint light on the trench walls. `null` leaves it out. |
 
 ```mermaid {height=260}
