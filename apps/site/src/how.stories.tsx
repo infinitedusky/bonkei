@@ -58,7 +58,7 @@ function HowLive({ initial = START, then }: { initial?: string; then?: string })
         <div className={'how-msg ' + msg.cls} role="status">{msg.text}</div>
       </div>
       <div className="how-scene">
-        <Bonkei source={shown} mode={mode} labels="top" toolbar={false} controls={{ zoom: false }}
+        <Bonkei source={shown} mode={mode} labels="top" toolbar={false}
           onReady={() => {
             setError(null); setWarnings(warned.current)
             if (then && !scripted.current) { scripted.current = true; setTimeout(() => setText(then), 800) }
