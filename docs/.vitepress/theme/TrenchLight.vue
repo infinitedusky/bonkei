@@ -2,6 +2,8 @@
 // Try the trench light (Edge styles): the controls write config.themeVariables into the diagram's frontmatter (shown under the diagram,
 // rules in trench.ts) and hand the new source to the installed package's render() handle, the same path a diagram author uses. Nothing here
 // reaches into the scene. Each change is a bonkei.docs.trench_light.edit span (telemetry.ts), ended when it draws or fails.
+// data-bonkei-demo on the root is the title of this demo's heading in the page's .md: the docs smoke counts its one diagram as a demo, not a
+// fence, and fails when the .md has no such heading (scripts/smoke/diagram-rule.mjs). A new interactive demo marks its root the same way.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Span } from '@opentelemetry/api'
 import { fail, start } from './telemetry'
@@ -50,7 +52,7 @@ onBeforeUnmount(() => { edit?.end(); handle?.destroy() })
 </script>
 
 <template>
-  <div class="trench-light">
+  <div class="trench-light" data-bonkei-demo="The trench light">
     <div class="trench-controls">
       <div class="row">
         <span>Preset</span>
