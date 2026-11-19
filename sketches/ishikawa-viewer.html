@@ -103,10 +103,13 @@ function layout(root) {
       const pz = ez - s * along, z0 = ez - s * 30, t = (pz - z0) / (0 - z0), px = ex + (bx - ex) * t, w = pillW(cause.label)
       rods.push({ a: [px - 60, pz], b: [px, pz], r: 0.03 })
       blocks.push({ kind: 'cause', label: cause.label, x: px - 60 - w / 2, z: pz, w, d: 34 })
+      // causes of a cause: a trunk drops from under the parent pill toward the spine, each child on its own tick off it (like a file tree), so no line crosses a pill
+      const n = cause.kids.length, d = -s, tx = px - 60 - w + 20
+      if (n) rods.push({ a: [tx, pz + d * 17], b: [tx, pz + d * 40 * n], r: 0.022, y: 0.12 })
       cause.kids.forEach((sub, m) => {
-        const sz = pz - s * (40 + 40 * m), sw = pillW(sub.label) * 0.88, sx = px - 90 - w / 2 - 20
-        rods.push({ a: [sx + sw / 2, sz], b: [sx + sw / 2 + 24, pz - s * 17], r: 0.02 })
-        blocks.push({ kind: 'sub', label: sub.label, x: sx, z: sz, w: sw, d: 28 })
+        const sz = pz + d * 40 * (m + 1), sw = pillW(sub.label) * 0.88
+        rods.push({ a: [tx, sz], b: [tx + 22, sz], r: 0.022, y: 0.12 })
+        blocks.push({ kind: 'sub', label: sub.label, x: tx + 22 + sw / 2, z: sz, w: sw, d: 28 })
       })
       along += 56 + cause.kids.length * 40
     })
@@ -145,8 +148,8 @@ function labelPlane(text, size, color, maxW) {
   m.rotation.x = -Math.PI / 2
   return m
 }
-function rod(a, b, r, arrow) {
-  const A = new THREE.Vector3(a[0] * S, 0.25, a[1] * S), B = new THREE.Vector3(b[0] * S, 0.25, b[1] * S)
+function rod(a, b, r, arrow, y = 0.25) {
+  const A = new THREE.Vector3(a[0] * S, y, a[1] * S), B = new THREE.Vector3(b[0] * S, y, b[1] * S)
   const dir = B.clone().sub(A), len = dir.length(); dir.normalize()
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
   const mat = new THREE.MeshStandardMaterial({ color: '#e8edf7', roughness: 0.6 })
@@ -161,7 +164,7 @@ function build(tree) {
   scene.remove(world); world = new THREE.Group(); scene.add(world)
   const { blocks, rods } = layout(tree.root)
   const xs = blocks.flatMap(b => [b.x - b.w / 2, b.x + b.w / 2]); world.position.x = -(Math.min(...xs) + Math.max(...xs)) / 2 * S
-  for (const r of rods) world.add(rod(r.a, r.b, r.r, r.arrow))
+  for (const r of rods) world.add(rod(r.a, r.b, r.r, r.arrow, r.y))
   for (const b of blocks) {
     const w = b.w * S, d = b.d * S, h = HEIGHT[b.kind], round = b.kind === 'cause' || b.kind === 'sub'
     const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, round ? Math.min(d, h) / 2 * 0.95 : 0.06), new THREE.MeshStandardMaterial({ color: COL[b.kind], roughness: 0.55 }))
