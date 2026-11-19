@@ -106,7 +106,10 @@ async function open(url, opts = {}) {
   return { page, errors, ctx }
 }
 async function allDrawn(page) {
-  await page.waitForLoadState('networkidle').catch(() => {}) // the script-tag demo adds its element once bonkei.global.js has loaded
+  await page.waitForLoadState('networkidle').catch(() => {})
+  // the script-tag demo adds its element once bonkei.global.js has loaded, which on a cold load can be after the network is idle: its
+  // host (.bonkei-tag-host) is empty until then and holds the diagram, or the load's failure, after
+  await page.waitForFunction(() => [...document.querySelectorAll('.bonkei-tag-host')].every(h => h.querySelector('.bonkei-diagram, .bonkei-problems')), null, { timeout: 30000 }).catch(() => {})
   await page.waitForTimeout(500)
   const total = await page.locator('.bonkei-diagram').count()
   const drew = !total || await page.waitForFunction(n => [...document.querySelectorAll('.bonkei-diagram')].filter(e => e.querySelector('[data-bonkei=ready] canvas') || (e.matches('[data-bonkei=ready]') && e.querySelector('canvas'))).length + document.querySelectorAll('[data-bonkei=error]').length >= n, total, { timeout: 90000 }).then(() => true, () => false)
