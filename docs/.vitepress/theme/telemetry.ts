@@ -2,6 +2,8 @@
 // @bonkei/vitepress: a no-op unless the site registers an SDK. Bonkei's own spans (bonkei.render, bonkei.layout, …) and the plugin's
 // bonkei.vitepress.load come on top of these.
 //   bonkei.docs.playground.edit  one per edit the playground draws: ends when the diagram is drawn, or with status ERROR and the problem
+//   bonkei.docs.trench_light.edit  one per change to the trench light controls on Edge styles (bonkei.docs.control: which control; the parts
+//                                  drawn, strength, own colour): ends when the diagram is drawn, or with status ERROR; a warning is an event
 //   bonkei.docs.copy_markdown    the Copy page button (or its View / Open in menu) was pressed; attribute bonkei.docs.action
 //   bonkei.docs.script_tag.load  the script-tag demo loading bonkei.global.js; status ERROR when it could not
 import { SpanStatusCode, trace, type Attributes, type Span } from '@opentelemetry/api'
