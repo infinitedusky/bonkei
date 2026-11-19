@@ -101,15 +101,15 @@ function layout(root) {
     let along = 80 // distance from the tip, in z
     c.kids.forEach(cause => {
       const pz = ez - s * along, z0 = ez - s * 30, t = (pz - z0) / (0 - z0), px = ex + (bx - ex) * t, w = pillW(cause.label)
-      rods.push({ a: [px - 60, pz], b: [px, pz], r: 0.03 })
-      blocks.push({ kind: 'cause', label: cause.label, x: px - 60 - w / 2, z: pz, w, d: 34 })
-      // causes of a cause: a trunk drops from under the parent pill toward the spine, each child on its own tick off it (like a file tree), so no line crosses a pill
-      const n = cause.kids.length, d = -s, tx = px - 60 - w + 20
-      if (n) rods.push({ a: [tx, pz + d * 17], b: [tx, pz + d * 40 * n], r: 0.022, y: 0.12 })
+      // causes of a cause join their parent's line the way causes join a bone: each line leaves the pill's front and slants into the
+      // parent's line, parallel to the main bones. The parent's line is longer to take them; the lines stay right of every pill, so none crosses one.
+      const n = cause.kids.length, d = -s, crx = px - (n ? 70 + 25 * n : 60)
+      rods.push({ a: [crx, pz], b: [px, pz], r: 0.03 })
+      blocks.push({ kind: 'cause', label: cause.label, x: crx - w / 2, z: pz, w, d: 34 })
       cause.kids.forEach((sub, m) => {
-        const sz = pz + d * 40 * (m + 1), sw = pillW(sub.label) * 0.88
-        rods.push({ a: [tx, sz], b: [tx + 22, sz], r: 0.022, y: 0.12 })
-        blocks.push({ kind: 'sub', label: sub.label, x: tx + 22 + sw / 2, z: sz, w: sw, d: 28 })
+        const dz = 40 * (m + 1), sz = pz + d * dz, sw = pillW(sub.label) * 0.88, fx = crx + 8
+        rods.push({ a: [fx, sz], b: [fx + 0.62 * dz, pz], r: 0.022, y: 0.2 })
+        blocks.push({ kind: 'sub', label: sub.label, x: fx - sw / 2, z: sz, w: sw, d: 28 })
       })
       along += 56 + cause.kids.length * 40
     })
