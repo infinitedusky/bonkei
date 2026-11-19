@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
 import sample from './sample.mmd?raw'
-import { probeGate, startOf, type Gate } from './howGate'
+import { probeGate, startOf, stillNote, type Gate } from './howGate'
 import { track } from './track'
 
 // The scene (three, ELK, the viewer) is its own chunk, fetched when the section comes near the screen. This file,
@@ -30,19 +30,20 @@ const Note = ({ children }: { children: ReactNode }) => <div className="site-not
 
 // The home page's "Keep the text. Get the scene." section body (BON-189): an editable Mermaid source beside the live
 // scene, mounted when the section comes within 400px of the screen. `live`: true forces the scene (stories), false the
-// still, unset uses the hero's gate (desktop, fine pointer, WebGL 2). `initial` opens the editor on other text (stories).
-export function How({ live, flash = false, initial }: { live?: boolean; flash?: boolean; initial?: string }) {
+// still (for the reason `fallback`, default phone), unset uses the hero's gate (desktop, fine pointer, WebGL 2).
+// `initial` opens the editor on other text (stories).
+export function How({ live, fallback = 'phone', flash = false, initial }: { live?: boolean; fallback?: Exclude<Gate, 'live'>; flash?: boolean; initial?: string }) {
   const root = useRef<HTMLDivElement>(null)
-  const [gate, setGate] = useState<Gate | null>(live === undefined ? null : live ? 'live' : 'phone')
+  const [gate, setGate] = useState<Gate | null>(live === undefined ? null : live ? 'live' : fallback)
   const [near, setNear] = useState(false)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    if (live !== undefined) { setGate(live ? 'live' : 'phone'); return }
+    if (live !== undefined) { setGate(live ? 'live' : fallback); return }
     const g = probeGate()
     setGate(g)
     if (g !== 'live') track('site.how.fallback', { 'site.how.reason': g })
-  }, [live])
+  }, [live, fallback])
 
   useEffect(() => {
     const el = root.current
@@ -61,7 +62,7 @@ export function How({ live, flash = false, initial }: { live?: boolean; flash?: 
         : <Fallback flash={flash} />}
       <Note>{isLive
         ? <>Try it: rename a node, or add a line like <code>UI --&gt; REST</code></>
-        : 'Edit the source, and the scene re-lays itself out as you type. Try it live on a desktop.'}</Note>
+        : stillNote(gate, failed)}</Note>
     </div>
   )
 }

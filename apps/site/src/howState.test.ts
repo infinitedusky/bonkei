@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { trace, SpanStatusCode } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import type { BonkeiError, BonkeiWarning } from 'bonkei'
-import { gateOf, startOf } from './howGate.ts'
-import { INITIAL, fallsBack, howReducer, noteOf, outcomeOf, type HowEvent, type HowStatus } from './howState.ts'
+import { gateOf, startOf, stillNote } from './howGate.ts'
+import { INITIAL, LOST, MAX, fallsBack, howReducer, isOver, noteOf, outcomeOf, sizeOf, type HowEvent, type HowStatus } from './howState.ts'
 import { TRACER, track } from './track.ts'
 
 const exporter = new InMemorySpanExporter()
@@ -67,6 +67,40 @@ test('the still comes back when the sample never drew or drawing broke, not for 
   const drawn = run({ type: 'sent' }, { type: 'ready' })
   assert.equal(fallsBack(drawn, { kind: 'render', message: 'WebGL is unavailable' }), true)
   assert.equal(fallsBack(drawn, { kind: 'layout', message: 'x' }), false)
+})
+
+test('a lost WebGL context after the first draw brings the still back', () => {
+  const drawn = run({ type: 'sent' }, { type: 'ready' })
+  assert.equal(fallsBack(drawn, LOST), true)
+})
+
+test('a pasted wall of edges is over the size the scene is given; the sample is not', () => {
+  const edges = (n: number) => 'flowchart TD\n' + Array.from({ length: n }, (_, i) => `  M${i % 40} --> M${(i * 7) % 40}`).join('\n')
+  assert.equal(isOver(sizeOf(edges(1000))), true)
+  assert.equal(isOver(sizeOf(edges(MAX.links))), false)
+  assert.equal(isOver(sizeOf(edges(MAX.links + 1))), true)
+  assert.equal(isOver(sizeOf('flowchart TD\n  A --> B -.-> C ==> D --- E\n')), false)
+  assert.equal(sizeOf('flowchart TD\n  A --> B -.-> C ==> D --- E\n').links, 4)
+  assert.equal(isOver(sizeOf('flowchart TD\n' + 'A-->'.repeat(MAX.links + 1) + 'Z')), true, 'one long line of links')
+  assert.equal(isOver(sizeOf('flowchart TD\n' + '  A[x]\n'.repeat(MAX.lines))), true, 'lines alone')
+})
+
+test('a text over the size is not sent: the last diagram stays with a note, a smaller text brings updates back', () => {
+  const over = from(run({ type: 'sent' }, { type: 'ready' }), { type: 'over', size: { lines: 1001, links: 1000 } })
+  assert.deepEqual(noteOf(over), { tone: 'warn', text: 'Not updated: too big for the live scene, 1000 links (up to 150). Showing the last diagram that worked.' })
+  assert.equal(outcomeOf(over), 'not-updated')
+  assert.equal(noteOf(from(INITIAL, { type: 'over', size: { lines: 400, links: 3 } })).text, 'Not updated: too big for the live scene, 400 lines (up to 200). Showing the last diagram that worked.')
+  assert.deepEqual(noteOf(from(over, { type: 'sent' }, { type: 'ready' })), { tone: 'ok', text: 'Live: edit the text, the scene follows' })
+  assert.deepEqual(noteOf(from(over, { type: 'over', size: null })), { tone: 'ok', text: 'Live: edit the text, the scene follows' }, 'back to the text on screen')
+})
+
+test('the line under the still sends only a phone to a desktop', () => {
+  assert.match(stillNote('phone', false), /Try it live on a desktop\.$/)
+  assert.doesNotMatch(stillNote('no-webgl2', false), /desktop/)
+  assert.match(stillNote('no-webgl2', false), /WebGL 2/)
+  assert.doesNotMatch(stillNote('live', true), /desktop/)
+  assert.match(stillNote('live', true), /stopped/)
+  assert.doesNotMatch(stillNote(null, false), /desktop/)
 })
 
 test('track() ends one span on the site tracer with its attributes, ERROR when given a message', async () => {

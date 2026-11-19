@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bonkei, type BonkeiError, type BonkeiViewHandle, type BonkeiWarning, type Mode } from 'bonkei'
-import { DEBOUNCE_MS, INITIAL, fallsBack, howReducer, noteOf, outcomeOf, type HowEvent } from './howState'
+import { DEBOUNCE_MS, INITIAL, LOST, fallsBack, howReducer, isOver, noteOf, outcomeOf, sizeOf, type HowEvent } from './howState'
 import { track } from './track'
 
 const ORDER: Mode[] = ['flat', 'iso', '3d']
@@ -9,6 +9,7 @@ const ORDER: Mode[] = ['flat', 'iso', '3d']
 // The scene gets the text DEBOUNCE_MS after typing stops. Only the first draw frames the diagram: <Bonkei> keeps the
 // camera (zoom, angle, the tray flown into) through every later source (BON-195); Fit and the view buttons frame it.
 // A source that can't be drawn leaves the last diagram up; the note under the source says what happened, in words.
+// A text over MAX (howState.ts) is not sent at all: laying it out would block the page for seconds.
 export default function HowScene({ start, initial = start, flash = false, onReady, onFailed }: {
   /** What Reset puts back. */
   start: string
@@ -34,9 +35,13 @@ export default function HowScene({ start, initial = start, flash = false, onRead
   const edits = useRef(0) // keystrokes since the last source sent, for telemetry
   const everEdited = useRef(false)
 
+  const scene = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    if (text === shown) return
+    if (text === shown) { if (status.current.over) send({ type: 'over', size: null }); return }
     const t = setTimeout(() => {
+      const size = sizeOf(text)
+      if (isOver(size)) { send({ type: 'over', size }); return }
       send({ type: 'sent' })
       sentAt.current = performance.now()
       setShown(text)
@@ -68,6 +73,18 @@ export default function HowScene({ start, initial = start, flash = false, onRead
     updated()
   }
 
+  // A lost WebGL context leaves a blank canvas and <Bonkei> reports nothing: treat it as drawing broke, so How shows
+  // the still. The event does not bubble; a capture listener on the scene's box sees it from the canvas inside.
+  const lost = useRef(() => {})
+  lost.current = () => failed(LOST)
+  useEffect(() => {
+    const el = scene.current
+    if (!el) return
+    const on = (e: Event) => { if (e.target instanceof HTMLCanvasElement) lost.current() }
+    el.addEventListener('webglcontextlost', on, true)
+    return () => el.removeEventListener('webglcontextlost', on, true)
+  }, [])
+
   const edit = (v: string) => {
     edits.current++
     if (!everEdited.current) { everEdited.current = true; track('site.how.first_edit') }
@@ -84,7 +101,7 @@ export default function HowScene({ start, initial = start, flash = false, onRead
           value={text} onChange={e => edit(e.target.value)} />
         <div className={'how-msg ' + note.tone} role="status">{note.text}</div>
       </div>
-      <div className="how-scene">
+      <div className="how-scene" ref={scene}>
         <Bonkei ref={view} source={shown} mode={mode} labels="top" toolbar={false}
           onReady={ready}
           onWarning={(w: BonkeiWarning) => send({ type: 'warning', warning: w })}

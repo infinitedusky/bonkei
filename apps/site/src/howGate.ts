@@ -25,3 +25,16 @@ export function probeGate(): Gate {
   }
   return gateOf({ narrow: matchMedia('(max-width:760px)').matches, coarse: matchMedia('(pointer:coarse)').matches, webgl2 })
 }
+
+const CLAIM = 'Edit the source, and the scene re-lays itself out as you type.'
+
+/**
+ * The line under the section when it shows the still: `gate` null while it is not known yet; `failed` when the live
+ * scene broke after starting (WebGL lost). Only a phone is sent to a desktop.
+ */
+export function stillNote(gate: Gate | null, failed: boolean): string {
+  if (failed) return `${CLAIM} The live scene stopped in this browser; reload the page to try it again.`
+  if (gate === 'phone') return `${CLAIM} Try it live on a desktop.`
+  if (gate === 'no-webgl2') return `${CLAIM} Trying it live needs WebGL 2, which this browser has turned off or lacks.`
+  return CLAIM
+}
