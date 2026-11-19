@@ -224,6 +224,30 @@ export const bonkeiMockup = `flowchart LR
   Auth --> Cache
 `
 
+// Mermaid's own "Blurry Photo" sample (mermaid.js.org/syntax/ishikawa), plus a fourth level
+const blurry = `ishikawa-beta
+    Blurry Photo
+    Process
+        Out of focus
+        Shutter speed too slow
+        Protective film not removed
+        Beautification filter applied
+    User
+        Shaky hands
+    Equipment
+        LENS
+            Inappropriate lens
+            Damaged lens
+                Bad case
+            Dirty lens
+        SENSOR
+            Damaged sensor
+            Dirty sensor
+    Environment
+        Subject moved too quickly
+        Too dark
+`
+
 export const SAMPLES: Record<string, string> = {
   'flow: small (sample.mmd)': small,
   'flow: bonkei mockup': bonkeiMockup,
@@ -232,4 +256,5 @@ export const SAMPLES: Record<string, string> = {
   'flow: checkout': checkoutFlow,
   'seq: login flow': login,
   'seq: checkout flow': checkout,
+  'ishikawa: blurry photo': blurry,
 }
