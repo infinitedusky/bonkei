@@ -76,10 +76,11 @@ A tunnel's trench is lit by the theme: a light along the floor, a wash on the wa
 
 | Token | What it is |
 | --- | --- |
-| `edge.rim`, `edge.rimWidth` | The rim round the lip: its colour and width. |
-| `edge.glow.core`, `edge.glow.coreWidth` | The bright line along the floor. |
+| `edge.rim`, `edge.rimWidth` | The rim round the lip: its colour and width. `none` draws no rim; `null` is a dark shade of the surface. |
+| `edge.glow` | `off` turns all three parts of the light off. |
+| `edge.glow.core`, `edge.glow.coreWidth` | The bright line along the floor. `null` leaves it out. |
 | `edge.glow.halo`, `edge.glow.haloWidth`, `edge.glow.haloOpacity` | The soft, wider glow round that line. |
-| `edge.glow.wash`, `edge.glow.washIntensity` | The faint light on the trench walls. |
+| `edge.glow.wash`, `edge.glow.washIntensity` | The faint light on the trench walls. `null` leaves it out. |
 
 [Edge styles](./edge-styles#the-trench-light) shows a diagram with its own rim.
 
