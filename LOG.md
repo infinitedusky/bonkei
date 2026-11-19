@@ -471,6 +471,9 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - Lines Bonkei cannot read (a tab in the indentation, a line indented less than the effect) are dropped with their line number, like flowcharts'. A keyword-only diagram warns and draws just the spine and head; nothing throws.
 - A change of diagram kind in one viewer is framed fresh, not lined up on the last view (BON-195's keep-the-view is for the same kind).
 
+- Checked against Mermaid 11's own drawing (rendered from its CDN in a throwaway page, not kept in the repo): Mermaid reads causes top to bottom on both sides of the spine, so below the spine the first cause is nearest it and its causes hang below it. The layout mirrors that. Differences kept on purpose: our spine has an arrowhead into the head, the head is a fish's, labels are single-line pills (Mermaid wraps them).
+- Rows are 54px apart so dense groups clear each other in iso and 3D; in landscape the cause forms are drawn smaller and the pills are not squashed by depth.
+
 **Alternatives considered.** Categories tail-first (as the mockup's first cut): rejected, it reads differently from Mermaid. Running Mermaid's engine: not how Bonkei works.
 
 **Consequences.** Layout sizes are fixed px constants, not measured text; long labels in the landscape theme crowd (its label plates are bigger than the pills). Fit uses the layout's width and height only.
