@@ -83,7 +83,7 @@ export const TunnelLandscape3D = tunnel('bonkei-landscape', '3d')
 export const TunnelOwnRim = tunnel('bonkei', 'iso', '  themeVariables:\n    edge.rim: "#3fd0c0"\n    edge.rimWidth: 1.5\n')
 
 // Try the trench light with the controls panel: each control writes themeVariables into the diagram's frontmatter (the source is built here).
-// "Light only" is floor light on, wall wash off, rim none.
+// "Light only" is floor light on, wall wash on, rim off.
 type Light = { theme: string; mode: Mode; floor: boolean; wash: boolean; rim: boolean; colour: string; useColour: boolean; strength: number }
 export const TunnelLightControls: StoryObj<Light> = {
   args: { theme: 'bonkei', mode: 'iso', floor: true, wash: true, rim: true, colour: '#c4d3f5', useColour: false, strength: 50 },
