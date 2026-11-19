@@ -1,25 +1,19 @@
-# Pan, zoom and turn the way people expect (BON-78)
+# The view stays where it is when the diagram changes (BON-195)
 
-Moving around a diagram now works like a map or a design tool, the same in the viewer, the site, the docs and every story.
+Only the first draw frames a diagram now. After that, a new source or a setting that lays it out again (a theme in the frontmatter or from the theme menu, avoid-crossings, `setTheme`) leaves the camera exactly where the reader put it: position, zoom, angle, and the tray they flew into. Fit and Flat / Iso / 3D frame as before. Same in the viewer, the docs, `render()`, the script tag and the front page, as they all draw through `SceneView`.
 
-- **Trackpad and mouse.** A two-finger drag or the scroll wheel moves the diagram (⇧ for sideways); pinch or ⌘/Ctrl + scroll zooms. Flat and iso: a background drag moves, ⇧ + drag or a right-drag turns, settling on the nearest quarter turn. 3D: a drag turns and tilts, ⇧ + drag or a right-drag moves, ⇧ + scroll turns, so 3D no longer needs a right mouse button.
-- **Touch.** One finger moves, pinch zooms, a twist turns (flat and iso settle square), and in 3D two fingers up or down tilt. A node drag gives way to a second finger.
-- **Fit** shows the whole diagram and puts it back square, the short way round (`camera.square()`; also the handle's `fit()`).
-- **"?" beside Fit** opens a card of the gestures for the input last used (trackpad, mouse or touch) and the view; Esc or × closes it.
-- **A diagram in a page that scrolls** lets the page scroll past it with a short hint; a click (tap, or two fingers) takes hold, shown by a ring that follows the corners of the box that clips the diagram and "Esc to let go", until Esc or a press outside. Pinch and ⌘/Ctrl + scroll always zoom.
-- **No right-click menu** over a diagram.
-- **Telemetry.** `bonkei.control` gains `via`, `swapped` and `mode` (and `orbit` is now `turn`); new spans `bonkei.control.hint`, `bonkei.control.hold`, `bonkei.help`, `bonkei.fit`.
+- **Lined up on what is on screen.** A diagram that grows moves its centre, so the camera moves by exactly as much as the nearest on-screen node (else the tray the view is in) moved: nothing on screen slides. If everything on screen was deleted it makes up for the centre's move. Something added out of view stays out of view until Fit.
+- **The tray flown into is followed by id.** Edited, it is still the tray a mode switch frames; deleted, the camera stays still and the next mode switch frames the tray that held it, or the whole diagram.
+- **`render()` handle: `setTheme(theme)`.** `<bonkei-diagram>` uses it when its `theme` attribute changes (it used to destroy and redraw, which reset the view). `mode` still draws afresh.
+- **Telemetry.** `bonkei.relayout_kept_view` per kept layout (anchor, what happened to the tray, how far it moved); `bonkei.fit.after_edits` on `bonkei.fit`; `bonkei.element.theme_change`.
 
-Where to look: `packages/core/src/controls.ts` (the rules, pure, tested in `controls.test.ts`), `hold.ts` (taking hold), `SceneView.tsx` (the wiring), `Bonkei.tsx` (the card and "?"), `camera.ts` (`square`, `nearestTurn`). Decisions in LOG.md ("Pan, zoom and turn the way people expect (BON-78)"); manual test plan in TESTING.md (same title); stories **Mockups / BON-78 Gestures** (Card, Toolbar With Card, Full Page, In A Page with a corner radius); docs in `docs/guide/controls.md` ("Gestures") and the README.
+Where to look: `packages/core/src/camera.ts` (`relayout`, `adopt`, `frameOf`, `focusId`), `SceneView.tsx` (`FirstFrame`), `render.tsx` (`setTheme`), `elementClass.ts`; tests in `camera.test.ts`, `element.test.ts`, `controls.test.ts`. Stories **Components / Bonkei / Edits Keep The View**, **Render Function** (setTheme buttons), **Script tag / Element Theme Changed**. Docs: Guide → JavaScript (the handle), React, Controls ("When the diagram changes"), Reference → Script tag element; README. Decisions in LOG.md ("The view stays where it is when the diagram changes (BON-195)"); manual test plan in TESTING.md (same title).
 
 ## Risks: what this could break, and how you would notice
 
-- **Readers used to wheel-to-zoom.** A plain wheel now moves the diagram instead of zooming; a mouse user zooms with ⌘/Ctrl + wheel. You would hear "zoom stopped working"; the "?" card and the hint say how.
-- **"Does this page scroll?" is guessed.** A diagram counts as in a page that scrolls when an ancestor or the document can scroll. A host whose page scrolls in a way this misses (a custom scroller with `overflow: hidden` and scripted scrolling) gets a diagram that takes the wheel at once; one that falsely looks scrollable shows the hint in a full-page app. You would see a hint where none is needed, or a page stuck under the pointer.
-- **Touch on a page that scrolls.** One finger scrolls the page until the diagram is tapped. A host's own `touch-action` on the canvas is overridden by the diagram's inline style. On a real device, a diagram that moves with one finger before a tap, or a page that will not scroll over it, is the sign.
-- **Trackpad pinch detection** relies on browsers sending a pinch as a wheel with `ctrlKey` (Chrome, Safari, Firefox, Edge do). Ctrl + a mouse wheel zooms too, so a browser that differs only changes the `via` attribute, not what happens.
-- **Spans.** Dashboards counting `bonkei.control` with `orbit` must use `turn`. The new `via`, `swapped` and `mode` attributes are added, none removed.
-- **Bundle.** The main chunk grows 3.9 kB gzip (192.8 kB); its size limit goes from 190 to 197 kB. The size check shows it.
-- **Real hardware is not automated.** The checks drive Chrome with synthetic wheel, mouse and CDP touch events; a Mac trackpad, a mouse with Ctrl-click and a phone are steps 2–8 of the test plan.
+- **A page that relied on each new source re-framing** (a page that swaps whole different diagrams through one view, like the viewer's sample menu) now keeps the old camera; the new diagram can sit partly off-screen until Fit. You would notice a diagram opening zoomed into a corner after a swap; such a page calls `fit()` after `update()`.
+- **Anchor choice.** If the node nearest the centre moves a long way in the new layout (ELK reorders a rank), the view follows it and the rest of the screen changes; a reader sees the node they looked at stay put while its neighbours jump. `bonkei.view.shift` in telemetry shows how far views were moved.
+- **Mode switch after an edit while in a tray** now re-centres on that tray (or its parent, or the whole diagram if it was deleted) instead of keeping a pan made inside it. Someone who panned inside a tray, edited, then switched mode would see the view re-centre on the tray.
+- **Script-tag theme attribute** now keeps the same React tree; a bug in a theme switch that a fresh mount used to hide (state from the old look) would show as a wrong look after changing `theme` on an element.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

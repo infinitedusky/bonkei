@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createCamera, nearestTurn, PRESET } from './camera.ts'
+import { createCamera, nearestTurn, PRESET, type Frame } from './camera.ts'
 import { S } from './scale.ts'
 
 test('setMode on one camera leaves another untouched', () => {
@@ -154,4 +154,108 @@ test('nearestTurn: the target heading plus whole turns, nearest the current one'
   assert.equal(nearestTurn(0.1, 0), 0)
   assert.ok(Math.abs(nearestTurn(2 * Math.PI + 0.1, 0) - 2 * Math.PI) < 1e-9)
   assert.ok(Math.abs(nearestTurn(-7, 0) + 2 * Math.PI) < 1e-9)
+})
+
+// --- the view stays put across layouts (BON-195) ---
+const bx = (id: string, x: number, y: number, w = 100, h = 50, kind: 'node' | 'group' = 'node', parent?: string) => ({ id, kind, x, y, w, h, parent })
+const frame = (width: number, height: number, boxes: Frame['boxes']): Frame => ({ width, height, boxes })
+const A = () => frame(600, 400, [bx('g', 50, 50, 400, 300, 'group'), bx('h', 100, 100, 200, 150, 'group', 'g'), bx('a', 120, 130, 80, 40, 'node', 'h'), bx('b', 400, 300)])
+const zoomed = () => {
+  const c = createCamera(); c.fit(600, 400); c.adopt(A()); c.snap()
+  c.goal.tx = (160 - 300) * S; c.goal.tz = (150 - 200) * S; c.goal.H = 5; c.snap() // looking at node a
+  return c
+}
+const screen = (c: ReturnType<typeof createCamera>, f: Frame, id: string) => {
+  const b = f.boxes.find(x => x.id === id)!
+  return [(b.x + b.w / 2 - f.width / 2) * S - c.goal.tx, (b.y + b.h / 2 - f.height / 2) * S - c.goal.tz]
+}
+
+test('an identical second layout leaves goal and cur unchanged', () => {
+  const c = zoomed(); const g = structuredClone(c.goal), u = structuredClone(c.cur)
+  c.relayout(A())
+  assert.deepEqual(c.goal, g); assert.deepEqual(c.cur, u)
+})
+
+test('a wider diagram does not slide what is on screen', () => {
+  const c = zoomed(); const before = screen(c, A(), 'a')
+  const wider = frame(1000, 400, A().boxes)
+  c.relayout(wider)
+  const after = screen(c, wider, 'a')
+  assert.ok(Math.abs(after[0] - before[0]) < 1e-9 && Math.abs(after[1] - before[1]) < 1e-9)
+  assert.equal(c.goal.H, 5)
+})
+
+test('with no shared node the origin shift is compensated', () => {
+  const c = zoomed(); const k = c.relayout(frame(800, 400, [bx('z', 0, 0)]))
+  assert.equal(k.anchor, 'origin'); assert.equal(c.goal.tx, (160 - 300) * S + (600 - 800) / 2 * S)
+})
+
+test('fit after an edit frames the new extent', () => {
+  const c = zoomed(); const w = frame(1000, 700, A().boxes)
+  c.relayout(w); c.fit(1000, 700)
+  assert.deepEqual(c.focus, { cx: 0, cz: 0, X: 1000 * S, Z: 700 * S })
+  assert.equal(c.focusId, undefined)
+})
+
+test('tray tracking survives an edit; mode switch frames the tray at its new size', () => {
+  const c = zoomed(); c.focusOn((200 - 300) * S, (175 - 200) * S, 200 * S, 150 * S, 'h')
+  const g = structuredClone(c.goal)
+  const next = frame(600, 400, [bx('g', 50, 50, 400, 300, 'group'), bx('h', 100, 100, 260, 190, 'group', 'g'), bx('a', 120, 130, 80, 40, 'node', 'h')])
+  const k = c.relayout(next)
+  assert.equal(k.tray, 'found'); assert.equal(c.focusId, 'h')
+  assert.deepEqual(c.goal, g) // camera did not move
+  assert.equal(c.focus.X, 260 * S)
+  c.setMode('flat')
+  assert.equal(c.goal.tx, (230 - 300) * S) // now centred on the resized tray
+  assert.equal(c.goal.H, Math.max(190 * S, 260 * S / c.aspect) * 1.12)
+})
+
+test('a deleted tray falls back to its parent, then to the whole diagram', () => {
+  const c = zoomed(); c.focusOn(0, 0, 1, 1, 'h')
+  const g = structuredClone(c.goal)
+  let k = c.relayout(frame(600, 400, [bx('g', 50, 50, 400, 300, 'group'), bx('b', 400, 300)]))
+  assert.equal(k.tray, 'parent'); assert.equal(c.focusId, 'g'); assert.deepEqual(c.goal, g)
+  k = c.relayout(frame(600, 400, [bx('b', 400, 300)]))
+  assert.equal(k.tray, 'diagram'); assert.equal(c.focusId, undefined)
+  assert.deepEqual(c.focus, { cx: 0, cz: 0, X: 600 * S, Z: 400 * S })
+})
+
+test('when everything on screen is deleted the origin shift is used, not a far-off survivor', () => {
+  const c = zoomed() // H 5: looking at node a, which is about to go; b is far away
+  const g = structuredClone(c.goal)
+  const k = c.relayout(frame(800, 400, [bx('b', 400, 300)]))
+  assert.equal(k.anchor, 'origin')
+  assert.equal(c.goal.tx, g.tx + (600 - 800) / 2 * S)
+})
+
+test('with no node on screen, the tray the view is inside anchors it', () => {
+  // look at an empty corner of tray g (no node near): g moves 100px right, so the view moves with it
+  const c = createCamera(); c.fit(600, 400); c.adopt(A())
+  c.goal.tx = (400 - 300) * S; c.goal.tz = (90 - 200) * S; c.goal.H = 2; c.snap()
+  const moved = frame(600, 400, A().boxes.map(b => b.id === 'g' ? { ...b, x: 150 } : b))
+  const before = c.goal.tx
+  const k = c.relayout(moved)
+  assert.equal(k.anchor, 'tray')
+  assert.ok(Math.abs(c.goal.tx - (before + 100 * S)) < 1e-9)
+  assert.equal(c.cur.tx, c.goal.tx) // no glide: cur moves with goal
+})
+
+test('without a tray flown into, a mode switch after an edit keeps the pan (as before the edit)', () => {
+  const c = zoomed(); const tx = c.goal.tx
+  c.relayout(A())
+  c.setMode('3d')
+  assert.equal(c.goal.tx, tx)
+})
+
+test('frameOf: a sequence diagram is lined up by its participants', async () => {
+  const { frameOf } = await import('./camera.ts')
+  const f = frameOf({ width: 390, height: 300, parts: [{ id: 'A', x: 45, y: 20, w: 110, h: 52 }] })
+  assert.deepEqual(f.boxes, [{ id: 'A', kind: 'node', x: 45, y: 20, w: 110, h: 52 }])
+  // a participant added on the right widens the diagram: A stays where it is on screen
+  const c = createCamera(); c.fit(390, 300); c.adopt(f)
+  c.goal.tx = (100 - 195) * S; c.goal.tz = (46 - 150) * S; c.goal.H = 4; c.snap()
+  const wider = frameOf({ width: 580, height: 340, parts: [{ id: 'A', x: 45, y: 20, w: 110, h: 52 }, { id: 'B', x: 235, y: 20, w: 110, h: 52 }] })
+  const k = c.relayout(wider)
+  assert.equal(k.anchor, 'node')
+  assert.ok(Math.abs(c.goal.tx - (100 - 290) * S) < 1e-9 && Math.abs(c.goal.tz - (46 - 170) * S) < 1e-9)
 })

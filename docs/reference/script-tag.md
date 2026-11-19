@@ -20,6 +20,8 @@ The element's text is the diagram (frontmatter allowed). It is a block element a
 
 </div>
 
+Changing `theme` on a drawn element redraws it in the new theme in the same view: the reader's zoom, pan and angle stay. Changing `mode` draws it afresh in that view.
+
 Events, on the element: `bonkei-ready` when drawn, and `bonkei-error` with `detail.kind` and `detail.message`. Adding, moving and removing elements works as for any element.
 
 ```mermaid {tag mode=flat theme=bonkei height=260}

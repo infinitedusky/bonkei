@@ -191,7 +191,8 @@ export type HelpHow = 'button' | 'esc' | 'close'
 export const hintShown = (input: Input, mode: Mode) => instant('bonkei.control.hint', { 'bonkei.input': input, 'bonkei.mode': mode })
 export const holdChanged = (held: boolean, how: HoldHow, mode: Mode) => instant('bonkei.control.hold', { 'bonkei.hold': held ? 'taken' : 'let_go', 'bonkei.hold.how': how, 'bonkei.mode': mode })
 export const helpToggled = (open: boolean, how: HelpHow, input: Input, mode: Mode) => instant('bonkei.help', { 'bonkei.help': open ? 'open' : 'close', 'bonkei.help.how': how, 'bonkei.input': input, 'bonkei.mode': mode })
-export const fitUsed = (mode: Mode) => instant('bonkei.fit', { 'bonkei.mode': mode })
+/** Fit was pressed; `afterEdits`: how many new layouts the view had kept its place through since it was last framed (BON-195). */
+export const fitUsed = (mode: Mode, afterEdits = 0) => instant('bonkei.fit', { 'bonkei.mode': mode, 'bonkei.fit.after_edits': afterEdits })
 
 export interface GestureSpan {
   /** The gesture is going on: the first call opens the span, later ones keep it open. */

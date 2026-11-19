@@ -35,6 +35,8 @@ The same in every view, on this page, in the viewer, on the site and in the stor
 
 </div>
 
+**When the diagram changes.** Only the first draw frames the diagram. After that a new layout (a new source, a new theme, another Avoid crossings level) leaves the view where the reader put it: the same position, zoom and angle, and the same tray if they had flown into one. What is on screen stays put on screen even where the diagram grows or shrinks around it; something added out of view stays out of view until the reader moves there or presses Fit. Fit and Flat / Iso / 3D frame the diagram as before; if the tray the reader was in has been deleted, the next of those frames the nearest tray that held it, or the whole diagram.
+
 In 3D, Shift swaps drag and scroll: a drag turns and ⇧ + drag moves; the scroll wheel moves and ⇧ + scroll turns. 3D can be moved without a right mouse button.
 
 **In a page that scrolls**, like this one, a diagram does not trap the page: scrolling over it scrolls the page, and a short hint says how to take hold ("Click to move the diagram"; on touch, "Tap, or use two fingers"). A click (or a tap, or two fingers) gives the diagram its gestures, shown by a ring that follows the rounded corners of whatever box clips the diagram and "Esc to let go", until you press Esc or click outside it. Pinch and ⌘/Ctrl + scroll zoom either way. A sideways two-finger swipe over the diagram is never handed to the page, so it does not make the browser go back a page; until the diagram is held it only shows the hint. A diagram that fills a page that does not scroll always has its gestures.

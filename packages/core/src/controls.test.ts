@@ -304,7 +304,7 @@ test('the hint, taking hold, the card and Fit each leave one span with what the 
   hintShown('mouse', 'iso')
   holdChanged(true, 'click', 'flat'); holdChanged(false, 'esc', 'flat')
   helpToggled(true, 'button', 'trackpad', '3d'); helpToggled(false, 'close', 'trackpad', '3d')
-  fitUsed('iso')
+  fitUsed('iso'); fitUsed('3d', 2)
   const by = (n: string) => exporter.getFinishedSpans().filter(s => s.name === n).map(s => s.attributes)
   assert.deepEqual(by('bonkei.control.hint'), [{ 'bonkei.input': 'mouse', 'bonkei.mode': 'iso' }])
   assert.deepEqual(by('bonkei.control.hold'), [
@@ -315,5 +315,5 @@ test('the hint, taking hold, the card and Fit each leave one span with what the 
     { 'bonkei.help': 'open', 'bonkei.help.how': 'button', 'bonkei.input': 'trackpad', 'bonkei.mode': '3d' },
     { 'bonkei.help': 'close', 'bonkei.help.how': 'close', 'bonkei.input': 'trackpad', 'bonkei.mode': '3d' },
   ])
-  assert.deepEqual(by('bonkei.fit'), [{ 'bonkei.mode': 'iso' }])
+  assert.deepEqual(by('bonkei.fit'), [{ 'bonkei.mode': 'iso', 'bonkei.fit.after_edits': 0 }, { 'bonkei.mode': '3d', 'bonkei.fit.after_edits': 2 }])
 })

@@ -137,3 +137,68 @@ In this order, on a Mac with a trackpad and with a mouse, then a phone or tablet
 7. **The docs** (`pnpm docs:dev`), The reader's controls: the Gestures table; over each diagram the page scrolls with a hint; click one, drag it, Esc.
 8. **Touch** (a phone or tablet on the same network, the docs or In A Page): one finger scrolls the page over a diagram, with the hint "Tap, or use two fingers, to move the diagram". Tap it (the ring shows): one finger moves it, pinch zooms, a twist turns (flat and iso settle square on lifting), and in 3D two fingers up or down tilt. Tap outside: one finger scrolls the page again.
 9. **Telemetry.** With an OpenTelemetry SDK registered on the page (or the stub tracer of the BON-78 check), use the gestures: `bonkei.control` spans carry `bonkei.control.via` (wheel, pinch, drag, touch), `bonkei.control.swapped` and `bonkei.mode`; `bonkei.control.hint` appears once per hint, `bonkei.control.hold` on taking hold and letting go (how: click, touch, esc, outside), `bonkei.help` on opening and closing the card, `bonkei.fit` on Fit.
+
+# Manual test plan: the trench light (BON-181)
+
+How to check by hand that a tunnel's trench is lit in Classic, unlit in the Bonkei looks, and that each part can be changed or turned off. The tunnel diagram is made-up sample data. First run `pnpm test` (it includes `theme.test.ts` and the docs' `trench.test.ts`).
+
+## 1. Docs: Edge styles, "The trench light"
+
+Run `pnpm docs:dev` and open the Edge styles page, section **The trench light**.
+
+1. The diagram opens in iso, theme `classic`, and no `themeVariables` show under it. The tunnel's trench glows a soft grey-white along its floor and on its walls, with no rim. The blocks and lines beside it look as they do elsewhere on the page.
+2. Turn the diagram to 3D with the toolbar: the same light, only in the trench.
+3. Press **Light only**: the wall wash and any rim go, the light out of the floor stays; the frontmatter shows `edge.glow.wash: null` and `edge.rim: none`.
+4. Press **All off**: no light and no rim; the frontmatter shows `edge.glow: off` and `edge.rim: none`.
+5. Press **Theme default**, then pick an orange colour: the light turns orange. Drag **Strength** from 5% to 100%: from a thin line along the floor to a bright channel. **Theme colour** puts the grey-white back.
+6. Untick and tick **floor light**, **wall wash** and **rim** one at a time: each part goes and comes back alone, and the frontmatter follows.
+7. Pick theme `bonkei`, then `bonkei-landscape`: the light is off and the dark rim is there, as before; no `themeVariables`. Tick floor light and wall wash: a warm light appears.
+8. Below the controls, the teal-rim diagram draws a thin teal rim round its trench instead of Bonkei's dark one.
+9. On the Themes page, **The trench light** diagram is Bonkei with its light switched on.
+
+## 2. Storybook: Themes
+
+Run `pnpm storybook` (or `pnpm --filter @bonkei/playground exec storybook dev -p 6207`) and open **Themes**.
+
+1. **Tunnel Classic Iso** and **Tunnel Classic 3D**: grey-white light, no rim. **Tunnel Bonkei Iso/3D**, **Tunnel Landscape Iso/3D**: no light, dark rim, as on main.
+2. **Tunnel Bonkei Light On**, **Tunnel Landscape Light On**: warm light. **Tunnel Own Rim**: a thin teal rim. **Tunnel Classic Light Only**: the floor light alone.
+3. **Tunnel Bad Light Warns**: drawn with Classic's light, and two theme warnings listed (`edge.glow` is a group…, `edge.glow.coreWidth` must be 0 or more).
+4. **Tunnel Light Controls**: change theme, preset, the three parts, colour and strength in the controls panel; the frontmatter under the diagram follows each change.
+5. Open **Classic Iso**, **Bonkei Iso** and **Landscape Iso** (no tunnel): they look exactly as before.
+
+# Manual test plan: the view stays where it is when the diagram changes (BON-195)
+
+How to check by hand that only the first draw frames the diagram, and that a new source, theme or avoid-crossings level leaves the camera where it was. The diagrams are made-up sample data. First run `pnpm test` (`camera.test.ts` and `element.test.ts` hold the rules).
+
+## 1. The viewer: /app/
+
+Run `pnpm --filter bonkei build && pnpm --filter @bonkei/playground exec vite --port 6207` and open `http://localhost:6207/app/`.
+
+1. **First load.** Reload: the whole diagram is framed, as before. Pick another sample from the menu: that is a new source too, so the view stays where it was (press Fit to see it whole).
+2. **Zoom, then edit.** Pick **flow: small (sample.mmd)**. Ctrl/⌘ + scroll onto one node. Press **source** and add a line such as `X[New] --> Y[Newer]` at the end. When it lays out (a quarter of a second after you stop typing) the camera does not move: the node you zoomed onto stays at the same place on screen.
+3. **Grows around you.** Zoom onto a node at the left. Add a chain that lays out to the right (`Z1 --> Z2 --> Z3 --> Z4 --> Z5`, joined to an existing node). Nothing on screen slides; the new nodes may be off-screen. Press **Fit**: the whole diagram, the new chain included, is framed.
+4. **Theme and avoid-crossings.** Pan and zoom somewhere. Add `---\nconfig:\n  theme: bonkei\n---` at the top of the source: the look changes, the view does not. Pick **Theme: bonkei** in the menu: the same. In the toolbar, set **Avoid crossings** to **Off**, then **Strong**: lines re-route, the view stays.
+5. **In a tray.** Pick **flow: bonkei mockup** (or any sample with a nested subgraph). Click a tray to fly in. Rename a node inside it in the source: you stay in that tray and the nodes beside it stay at the same pixels. Switch Iso → 3D: the tray is framed (not the whole diagram).
+6. **Deleting the tray you are in.** Fly into a nested subgraph, switch to 3D, delete that subgraph's block from the source: the camera does not move. Switch to Iso: the parent tray is framed. Repeat with a top-level subgraph: the mode switch then frames the whole diagram (the same view Fit gives).
+7. **Fit and the mode switch.** At any point, Fit frames the whole current diagram and puts it back square; Flat / Iso / 3D frame as before.
+
+## 2. Docs
+
+Run `pnpm docs:dev` and open **Guide → Introduction** (the editor under the first diagram). Zoom into the diagram, then add a message line in the editor: the messages already there stay at the same pixels; only the new one appears.
+
+## 3. Script tag
+
+In Storybook (`pnpm storybook`), **Script tag / Element Theme Changed**: zoom into the first diagram within 4 seconds of the page loading. When its `theme` attribute switches to `bonkei`, it redraws in the Bonkei look in the same view. (On any page with the script tag you can do the same from the console: `document.querySelector('bonkei-diagram').setAttribute('theme', 'bonkei')`.)
+
+## 4. Storybook: Components / Bonkei
+
+1. **Edits Keep The View**: zoom, pan, turn or fly into **Sample API**, then press each button in turn (add a node and an edge, add a chain far to the right, rename REST API, theme bonkei in the frontmatter). Nothing on screen moves except what the edit changed. **Delete the Sample API tray** while flown into it: no move; then a mode switch frames **Sample backend**. Fit frames everything.
+2. **Render Function**: zoom in, press **setTheme bonkei**, then **setTheme default**: the look changes, the view stays.
+
+## 5. The front page
+
+Open the site (`pnpm --filter @bonkei/site exec vite --port 6208`). The hero diagram opens framed as before. In the **Themes** section, the diagram opens framed; turn or zoom it (narrow window: zoom, then Fit), then pick another theme: the look changes and the view stays (the theme is set in the diagram's frontmatter, so this is a new layout). Fit there still frames the whole diagram.
+
+## 6. Telemetry
+
+With an OpenTelemetry SDK registered (or the stub tracer of the BON-78 check): each edit after the first layout gives one `bonkei.relayout_kept_view` span (`bonkei.view.anchor`, `bonkei.view.tray`: `found` in a tray, `parent` or `diagram` after deleting it); Fit gives `bonkei.fit` with `bonkei.fit.after_edits` counting those edits; a script-tag theme change gives `bonkei.element.theme_change`.

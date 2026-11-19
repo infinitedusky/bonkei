@@ -67,3 +67,12 @@ html { overscroll-behavior: none; } /* no rubber-band past the top or bottom: no
 .bonkei-copy-home { margin: 16px 0; }
 .bonkei-copy-home .copy-page { font-size: 13px; padding: 4px 12px; border: 1px solid var(--vp-c-divider); border-radius: 6px; background: var(--vp-c-bg-soft); color: var(--vp-c-text-1); cursor: pointer; }
 .bonkei-copy-home .copy-page:hover { border-color: var(--vp-c-brand-1); color: var(--vp-c-brand-1); }
+
+/* the trench light controls on Edge styles (TrenchLight.vue) */
+.trench-light { margin: 16px 0; }
+.trench-controls { display: grid; gap: 8px; margin-bottom: 10px; font-size: 14px; }
+.trench-controls .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.trench-controls button { padding: 3px 10px; border: 1px solid #cdbd98; border-radius: 6px; background: #f6efdd; color: #2A2622; cursor: pointer; }
+.trench-controls button:disabled { opacity: .5; cursor: default; }
+.trench-src { font-size: 12px; }
+.trench-cap { font-size: 13px; margin: 8px 0 0; }

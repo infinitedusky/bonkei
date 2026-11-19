@@ -1,5 +1,17 @@
 import { S } from './scale.ts'
 
+/** The part of a layout the camera needs to keep a view across layouts (flow and sequence alike). */
+export interface Frame {
+  width: number; height: number
+  boxes: { id: string; kind: 'node' | 'group'; x: number; y: number; w: number; h: number; parent?: string }[]
+}
+/** What a re-layout did to the view, for telemetry. */
+export interface Kept {
+  anchor: 'node' | 'tray' | 'origin'
+  tray: 'none' | 'found' | 'parent' | 'diagram'
+  shiftX: number; shiftZ: number
+}
+
 /** The camera mode: flat, iso or 3d. */
 export type Mode = 'flat' | 'iso' | '3d'
 const D = Math.PI / 180
@@ -19,6 +31,12 @@ export interface Camera {
   goal: Pose
   cur: Pose
   focus: { cx: number; cz: number; X: number; Z: number }
+  /** The tray `focus` frames, when the reader flew into one; undefined = the whole diagram. */
+  focusId?: string
+  /** The layout last shown; undefined until the first draw. */
+  layout?: Frame
+  /** Layouts absorbed since the last fit. */
+  edits: number
   aspect: number
   /** Frame the diagram's real projected extent with a small margin, instead of the conservative default. Off by default. */
   tight: boolean
@@ -31,7 +49,11 @@ export interface Camera {
   /** What a tight fit frames: the diagram's top-level boxes in world units (centred diagram). Empty: its rectangle. */
   content: Rect[]
   setMode(m: Mode): void
-  focusOn(cx: number, cz: number, X: number, Z: number): void
+  focusOn(cx: number, cz: number, X: number, Z: number, id?: string): void
+  /** A new layout after the first: keep the view where it is (compensating for the diagram's middle moving). */
+  relayout(next: Frame): Kept
+  /** Remember the first layout. */
+  adopt(first: Frame): void
   fitH(m: Mode): number
   fitHWhole(m: Mode): number
   /** Frame the whole diagram (layout px, centred on the origin), in the current mode; `at` centres it on a point instead. */
@@ -51,6 +73,8 @@ export function nearestTurn(from: number, to: number): number {
 export function createCamera(): Camera {
   // the view frames the whole diagram (fit without `at`), not a tray flown into or a point
   let onWhole = false
+  // a re-layout moved or replaced the tray flown into: the next mode switch centres on `focus` again, not on the old pan
+  let refocus = false
   // a tight fit of the whole diagram with its boxes known: frame what the view really shows
   const onContent = (mode: Mode) => (cam.tight && onWhole && cam.content.length ? projectedFit(cam.content, mode, cam.aspect) : null)
   const cam: Camera = {
@@ -59,6 +83,7 @@ export function createCamera(): Camera {
     cur: { tx: 0, tz: 0, H: 30, ...PRESET.iso },
     focus: { cx: 0, cz: 0, X: 20, Z: 20 },
     aspect: 1.6,
+    edits: 0,
     tight: false,
     minLabel: 0,
     frameH: 0,
@@ -89,17 +114,76 @@ export function createCamera(): Camera {
       cam.mode = m
       // a reader may have turned the view round several times: head for the new view's yaw the short way
       Object.assign(cam.goal, PRESET[m], { yaw: nearestTurn(cam.goal.yaw, PRESET[m].yaw) })
+      // after a re-layout, the tray the reader is in (or the whole diagram) is framed afresh
+      if (refocus) { cam.goal.tx = cam.focus.cx; cam.goal.tz = cam.focus.cz; refocus = false }
       // a tight fit on the whole diagram centres what the new view actually shows
       const proj = onContent(m)
       if (proj) { cam.goal.tx = proj.tx; cam.goal.tz = proj.tz }
       cam.goal.H = cam.fitH(m)
     },
-    focusOn(cx, cz, X, Z) {
+    adopt(first) { cam.layout = first; cam.edits = 0 },
+    relayout(next) {
+      const prev = cam.layout
+      cam.layout = next
+      cam.edits++
+      if (!prev) return { anchor: 'origin', tray: 'none', shiftX: 0, shiftZ: 0 }
+      const wx = (f: Frame, b: { x: number; w: number }) => (b.x + b.w / 2 - f.width / 2) * S
+      const wz = (f: Frame, b: { y: number; h: number }) => (b.y + b.h / 2 - f.height / 2) * S
+      // Anchor: what the reader is looking at that is still there. Only something on screen counts (a far-off survivor would
+      // drag the camera after it): the node whose middle is nearest the view's centre, else the smallest tray the centre is in or near.
+      const nextById = new Map(next.boxes.map(b => [b.id, b]))
+      const onScreen = (cam.goal.H * Math.max(cam.aspect, 1)) / 2
+      const { tx, tz } = cam.goal
+      let best: { p: Frame['boxes'][number]; n: Frame['boxes'][number]; d: number; area: number } | undefined
+      for (const p of prev.boxes) {
+        const n = nextById.get(p.id)
+        if (!n || n.kind !== p.kind) continue
+        let d: number
+        if (p.kind === 'node') d = Math.hypot(wx(prev, p) - tx, wz(prev, p) - tz)
+        else { // distance from the view's centre to the tray's rectangle: 0 inside it
+          const ex = Math.max(0, Math.abs(wx(prev, p) - tx) - (p.w * S) / 2), ez = Math.max(0, Math.abs(wz(prev, p) - tz) - (p.h * S) / 2)
+          d = Math.hypot(ex, ez)
+        }
+        if (d > onScreen) continue
+        const area = p.w * p.h
+        const better = !best ? true
+          : p.kind !== best.p.kind ? p.kind === 'node'
+          : p.kind === 'node' ? d < best.d : d < best.d || (d === best.d && area < best.area)
+        if (better) best = { p, n, d, area }
+      }
+      let shiftX: number, shiftZ: number, anchor: Kept['anchor']
+      if (best) {
+        shiftX = wx(next, best.n) - wx(prev, best.p); shiftZ = wz(next, best.n) - wz(prev, best.p)
+        anchor = best.p.kind === 'group' ? 'tray' : 'node'
+      } else { shiftX = (prev.width - next.width) / 2 * S; shiftZ = (prev.height - next.height) / 2 * S; anchor = 'origin' }
+      for (const pose of [cam.goal, cam.cur]) { pose.tx += shiftX; pose.tz += shiftZ }
+      // the tray the reader is in: find it again, else the nearest enclosing one still there, else the whole diagram
+      let tray: Kept['tray'] = 'none'
+      if (cam.focusId) {
+        const prevById = new Map(prev.boxes.map(b => [b.id, b]))
+        let id: string | undefined = cam.focusId
+        tray = 'found'
+        while (id && !nextById.has(id)) { id = prevById.get(id)?.parent; tray = 'parent' }
+        const b = id ? nextById.get(id) : undefined
+        if (b) { cam.focusId = id; cam.focus = { cx: wx(next, b), cz: wz(next, b), X: b.w * S, Z: b.h * S } }
+        else { cam.focusId = undefined; tray = 'diagram'; onWhole = true }
+        refocus = true // the next mode switch frames the (updated) focus, not the stale pan
+      }
+      if (!cam.focusId) {
+        // the whole diagram, or a point it was opened on (minLabel): same size rule, the point moves with the anchor
+        cam.focus = { cx: onWhole || tray === 'diagram' ? 0 : cam.focus.cx + shiftX, cz: onWhole || tray === 'diagram' ? 0 : cam.focus.cz + shiftZ, X: next.width * S, Z: next.height * S }
+      }
+      return { anchor, tray, shiftX, shiftZ }
+    },
+    focusOn(cx, cz, X, Z, id) {
       onWhole = false
       cam.focus = { cx, cz, X, Z }
+      cam.focusId = id
+      refocus = false
       cam.goal.tx = cx; cam.goal.tz = cz; cam.goal.H = cam.fitH(cam.mode)
     },
     fit(width, height, at) {
+      cam.edits = 0
       cam.focusOn(at?.cx ?? 0, at?.cz ?? 0, width * S, height * S)
       onWhole = !at
       const proj = onContent(cam.mode)
@@ -149,4 +233,13 @@ export function projectedFit(rects: Rect[], mode: Mode, aspect: number) {
 /** The top-level boxes of a laid-out diagram, in world units about its centre: what a tight fit frames. */
 export function contentOf(boxes: { level: number; x: number; y: number; w: number; h: number }[], width: number, height: number): Rect[] {
   return boxes.filter(b => b.level === 0).map(b => ({ x0: (b.x - width / 2) * S, z0: (b.y - height / 2) * S, x1: (b.x + b.w - width / 2) * S, z1: (b.y + b.h - height / 2) * S }))
+}
+
+/**
+ * What the camera keeps of a layout between draws: its size and its boxes (a flow diagram's nodes and trays, a sequence
+ * diagram's participants), so a new layout can be lined up with the last one.
+ */
+export function frameOf(data: { width: number; height: number; boxes?: Frame['boxes']; parts?: { id: string; x: number; y: number; w: number; h: number }[] }): Frame {
+  const boxes = data.boxes ?? (data.parts ?? []).map(p => ({ id: p.id, kind: 'node' as const, x: p.x, y: p.y, w: p.w, h: p.h }))
+  return { width: data.width, height: data.height, boxes }
 }
