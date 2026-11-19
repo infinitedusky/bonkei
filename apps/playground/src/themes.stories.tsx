@@ -68,7 +68,7 @@ export const UnknownThemeWarns: Story = {
   },
 }
 
-// BON-181: the trench of a tunnel carries a light along its floor and a light rim round its lip, in every theme. MADE-UP SAMPLE DATA.
+// BON-181: a tunnel in each theme. Classic lights its trench (grey-white floor light and wall wash at 30%, no rim); Bonkei and Bonkei · landscape leave the light off and keep their dark rim. MADE-UP SAMPLE DATA.
 const tunnel = (theme: string, mode: Mode, vars = ''): Story => ({
   args: { source: `---\nconfig:\n  theme: ${theme}\n  bonkei:\n    crossings: tunnel\n    avoidCrossings: off\n${vars}---\nflowchart LR\n  Web[Web app] --> Api[API] --> Db[(Database)]\n  Web --> Db\n  Cdn[CDN] --> Api\n  Cdn --> Cache[(Cache)]`, mode, toolbar: true },
   decorators: [stage()],
@@ -79,28 +79,29 @@ export const TunnelBonkeiIso = tunnel('bonkei', 'iso')
 export const TunnelBonkei3D = tunnel('bonkei', '3d')
 export const TunnelLandscapeIso = tunnel('bonkei-landscape', 'iso')
 export const TunnelLandscape3D = tunnel('bonkei-landscape', '3d')
+// the light switched on in a Bonkei diagram, through its own themeVariables
+const warm = '  themeVariables:\n    edge.glow.core: "#ffc873"\n    edge.glow.halo: "#ffc873"\n    edge.glow.wash: "#ffc873"\n'
+export const TunnelBonkeiLightOn = tunnel('bonkei', 'iso', warm)
+export const TunnelLandscapeLightOn = tunnel('bonkei-landscape', '3d', warm)
 // the diagram's own rim wins over the theme's: a thin teal rim (themeVariables edge.rim, edge.rimWidth)
 export const TunnelOwnRim = tunnel('bonkei', 'iso', '  themeVariables:\n    edge.rim: "#3fd0c0"\n    edge.rimWidth: 1.5\n')
 
 // Try the trench light with the controls panel: each control writes themeVariables into the diagram's frontmatter (the source is built here).
-// "Light only" is floor light on, wall wash on, rim off.
+// Starts at Classic's own look (floor light and wall wash #e0e0e0 at 30%, no rim). In a Bonkei theme tick floor and wall to see the light; "light only" is floor + wall on, rim off.
 type Light = { theme: string; mode: Mode; floor: boolean; wash: boolean; rim: boolean; colour: string; useColour: boolean; strength: number }
 export const TunnelLightControls: StoryObj<Light> = {
-  args: { theme: 'bonkei', mode: 'iso', floor: true, wash: true, rim: true, colour: '#c4d3f5', useColour: false, strength: 50 },
+  args: { theme: 'classic', mode: 'iso', floor: true, wash: true, rim: false, colour: '#e0e0e0', useColour: true, strength: 30 },
   argTypes: { theme: { control: 'inline-radio', options: ['classic', 'bonkei', 'bonkei-landscape'] }, mode: { control: 'inline-radio', options: ['iso', '3d'] }, colour: { control: 'color' }, strength: { control: { type: 'range', min: 0, max: 100 } } },
   render: a => {
-    const s = a.strength / 50, c = a.useColour ? a.colour : null, v: string[] = []
+    const s = a.strength / 50, c = a.useColour ? a.colour : a.theme === 'classic' ? '#e0e0e0' : '#ffc873', v: string[] = []
     if (!a.floor && !a.wash) v.push('edge.glow: off')
     else {
       if (!a.floor) v.push('edge.glow.core: null', 'edge.glow.halo: null')
-      else {
-        if (c) v.push(`edge.glow.core: "${c}"`, `edge.glow.halo: "${c}"`)
-        if (a.strength !== 50) v.push(`edge.glow.haloOpacity: ${+(0.28 * s).toFixed(2)}`, `edge.glow.haloWidth: ${+(11 * s).toFixed(1)}`, `edge.glow.coreWidth: ${+(3.5 * s).toFixed(1)}`)
-      }
+      else v.push(`edge.glow.core: "${c}"`, `edge.glow.halo: "${c}"`, `edge.glow.haloOpacity: ${+(0.28 * s).toFixed(2)}`, `edge.glow.haloWidth: ${+(11 * s).toFixed(1)}`, `edge.glow.coreWidth: ${+(3.5 * s).toFixed(1)}`)
       if (!a.wash) v.push('edge.glow.wash: null')
-      else { if (c) v.push(`edge.glow.wash: "${c}"`); if (a.strength !== 50) v.push(`edge.glow.washIntensity: ${+(0.3 * s).toFixed(2)}`) }
+      else v.push(`edge.glow.wash: "${c}"`, `edge.glow.washIntensity: ${+(0.3 * s).toFixed(2)}`)
     }
-    if (!a.rim) v.push('edge.rim: none'); else if (c) v.push(`edge.rim: "${c}"`)
+    if (!a.rim) v.push('edge.rim: none'); else if (a.useColour || a.theme === 'classic') v.push(`edge.rim: "${c}"`)
     const src = `---\nconfig:\n  theme: ${a.theme}\n  bonkei:\n    crossings: tunnel\n    avoidCrossings: off\n${v.length ? '  themeVariables:\n' + v.map(l => '    ' + l).join('\n') + '\n' : ''}---\nflowchart LR\n  Web[Web app] --> Api[API] --> Db[(Database)]\n  Web --> Db\n  Cdn[CDN] --> Api\n  Cdn --> Cache[(Cache)]`
     return <div style={{ height: '100vh', background: '#888' }}><Bonkei source={src} mode={a.mode} toolbar /></div>
   },
