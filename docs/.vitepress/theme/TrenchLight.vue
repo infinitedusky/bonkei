@@ -11,7 +11,7 @@ const host = ref<HTMLElement>()
 let handle: { update(s: string): void; destroy(): void } | undefined
 
 const preset = (p: 'default' | 'light-only' | 'off') => {
-  floor.value = p !== 'off'; wash.value = p === 'default'; rim.value = p === 'default'
+  floor.value = p !== 'off'; wash.value = p !== 'off'; rim.value = p === 'default'
   if (p === 'default') { colour.value = null; strength.value = 50 }
 }
 

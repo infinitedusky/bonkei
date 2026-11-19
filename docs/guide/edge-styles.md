@@ -159,7 +159,7 @@ flowchart LR
 
 A tunnel is a trench cut into the ground, and the theme lights it so it does not read as a dark dip: a light runs along the floor where it meets the walls, the walls take a faint wash of the same colour, and a light rim outlines the lip. Turn the tunnel diagram above to iso or 3D to see it. Only the trench is lit; the blocks and lines beside it are not.
 
-Try it: the controls below set the theme's tokens for this one diagram. **Light only** is the floor light and nothing else (no wall wash, no rim); **All off** is a tunnel with no light at all.
+Try it: the controls below set the theme's tokens for this one diagram. **Light only** is the light and no outline (the floor light and the wall wash, no rim); **All off** is a tunnel with no light at all.
 
 <TrenchLight />
 
