@@ -64,6 +64,8 @@ function FishHead({ h: p, wx, wz, labelMode }: { h: FishLayout['head']; wx: (x: 
 }
 
 export function FishScene({ data, labelMode }: { data: FishLayout; labelMode: LabelMode }) {
+  const th = useTheme()
+  const land = th.node.form === 'landscape' // its forms and label plates stand up facing the camera: squashing a pill would skew them
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   return (
@@ -72,8 +74,8 @@ export function FishScene({ data, labelMode }: { data: FishLayout; labelMode: La
       <FishHead h={data.head} wx={wx} wz={wz} labelMode={labelMode} />
       {data.pieces.map((p, i) => {
         const b: Box = { id: String(i), label: p.label, kind: 'node', shape: p.kind === 'cat' ? 'rect' : 'round', x: 0, y: 0, w: p.w, h: p.h, level: 0 }
-        // a cause is a pill, scaled down in height by its depth (its label stays on its top)
-        const k = p.kind === 'cat' ? 1 : pillH(p.depth) / 0.7
+        // a cause is a pill, scaled down in height by its depth (its label stays on its top); in a landscape theme it is smaller by depth instead
+        const k = p.kind === 'cat' || land ? 1 : pillH(p.depth) / 0.7
         return <group key={i} position={[wx(p.x), 0, wz(p.y)]} scale={[1, k, 1]}><NodeBody b={b} labelMode={labelMode} /></group>
       })}
     </group>

@@ -46,7 +46,8 @@ const ROW = 40
 function hangSlanted(kids: FItem[], pz: number, xa: number, d: number, depth: number, pieces: FishPiece[], rods: FishRod[]) {
   const fx = xa + 8
   let off = 0
-  for (const kid of [...kids].reverse()) {
+  // Mermaid reads top to bottom on both sides of the spine: above it the first is farthest from the line, below it the first is nearest
+  for (const kid of d < 0 ? [...kids].reverse() : kids) {
     const dz = (off + count(kid)) * ROW, sz = pz + d * dz, sw = pillW(kid.label) * Math.max(0.7, 1 - 0.12 * (depth - 2))
     rods.push({ a: [fx, sz], b: [fx + 0.62 * dz, pz], depth })
     pieces.push({ kind: 'cause', depth, label: kid.label, x: fx - sw / 2, y: sz, w: sw, h: 28 })
@@ -79,7 +80,7 @@ export function layoutFish(doc: FishDoc): FishLayout {
     rods.push({ a: [ex, ez - s * 30], b: [bx, 0], depth: 1 })
     pieces.push({ kind: 'cat', depth: 1, label: c.label, x: ex, y: ez, w: Math.max(150, pillW(c.label) + 20), h: 60 })
     let along = 80 // distance from the bone's tip, across the spine
-    for (const cause of c.kids) {
+    for (const cause of s < 0 ? c.kids : [...c.kids].reverse()) { // reading order top to bottom: below the spine the first cause is nearest it
       const rows = cause.kids.reduce((n, k) => n + count(k), 0)
       const pz = ez - s * (along + rows * ROW), z0 = ez - s * 30, t = (pz - z0) / -z0, px = ex + (bx - ex) * t, w = pillW(cause.label)
       const crx = px - (rows ? 70 + 25 * rows : 60)
