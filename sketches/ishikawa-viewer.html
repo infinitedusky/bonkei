@@ -115,7 +115,7 @@ function layout(root) {
   const colW = Math.max(460, ...cats.map(c => Math.max(0, ...c.kids.map(k => pillW(k.label))) + 260))
   const headX = 120 + colW * cols + 60
   rods.push({ a: [0, 0], b: [headX, 0], r: 0.09, arrow: true })
-  blocks.push({ kind: 'effect', label: root.label || '', x: headX + 130, z: 0, w: 260, d: 120 })
+  blocks.push({ kind: 'effect', label: root.label || '', x: headX + 150, z: 0, w: 300, d: 170 })
   cats.forEach((c, k) => {
     const col = Math.floor(k / 2), up = k % 2 === 0, s = up ? -1 : 1, len = side[k % 2]
     const bx = 120 + colW * (col + 1), ex = bx - len * 0.62, ez = s * len
@@ -183,6 +183,31 @@ function rod(a, b, r, _arrow, y = 0.25) {
   { const cone = new THREE.Mesh(new THREE.ConeGeometry(cr, cl, 16), mat); cone.position.copy(B).addScaledVector(dir, -cl / 2); cone.quaternion.copy(q); cone.castShadow = true; g.add(cone) }
   return g
 }
+// The head: a fish's head in plan, extruded. A flat back where the spine meets it, the top and bottom swelling out past the back like
+// the gill plates, then sweeping to a blunt snout; a gill line cut across the top behind the label, and an eye near the snout.
+function fishHead(b, w, d, h) {
+  const sh = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, hd = d / 2
+  sh.moveTo(x0 + w * 0.06, -hd * 0.62)
+  sh.bezierCurveTo(x0 + w * 0.02, -hd * 1.02, x0 + w * 0.42, -hd * 1.05, x0 + w * 0.62, -hd * 0.82) // gill plate to the crown
+  sh.bezierCurveTo(x1 - w * 0.12, -hd * 0.6, x1, -hd * 0.22, x1, 0.02 * hd) // forehead to the snout
+  sh.bezierCurveTo(x1, hd * 0.26, x1 - w * 0.14, hd * 0.62, x0 + w * 0.62, hd * 0.82) // jaw
+  sh.bezierCurveTo(x0 + w * 0.42, hd * 1.05, x0 + w * 0.02, hd * 1.02, x0 + w * 0.06, hd * 0.62)
+  sh.bezierCurveTo(x0 - w * 0.01, hd * 0.3, x0 - w * 0.01, -hd * 0.3, x0 + w * 0.06, -hd * 0.62) // the back, a little rounded
+  const bev = 0.06, g = new THREE.ExtrudeGeometry(sh, { depth: h - bev * 2, bevelEnabled: true, bevelSize: bev, bevelThickness: bev, bevelSegments: 3, curveSegments: 32 })
+  g.rotateX(-Math.PI / 2); g.translate(0, bev, 0)
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: COL.effect, roughness: 0.5 }))
+  m.position.set(b.x * S, 0, b.z * S); m.castShadow = m.receiveShadow = true; world.add(m)
+  // the gill: an arc across the top, a third of the way back
+  const arc = new THREE.EllipseCurve(x0 + w * 0.2, 0, w * 0.12, hd * 0.78, -Math.PI / 2.3, Math.PI / 2.3).getPoints(24).map(p => new THREE.Vector3(p.x, 0, p.y))
+  const gill = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arc), 32, 0.035, 8), new THREE.MeshStandardMaterial({ color: '#8c3550', roughness: 0.6 }))
+  gill.position.set(b.x * S, h + 0.005, b.z * S); world.add(gill)
+  // the eye
+  const eye = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.06, 24), new THREE.MeshStandardMaterial({ color: '#2a1520', roughness: 0.3 }))
+  eye.position.set(b.x * S + w * 0.3, h + 0.03, b.z * S - hd * 0.42); world.add(eye)
+  const glint = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.07, 12), new THREE.MeshBasicMaterial({ color: '#ffffff' }))
+  glint.position.set(b.x * S + w * 0.3 - 0.05, h + 0.04, b.z * S - hd * 0.42 - 0.05); world.add(glint)
+  if (b.label) { const l = labelPlane(b.label, FONT.effect, '#ffffff', w * 0.62); l.position.set(b.x * S + w * 0.04, h + 0.01, b.z * S + hd * 0.08); world.add(l) }
+}
 let bounds = new THREE.Box3()
 function build(tree) {
   scene.remove(world); world = new THREE.Group(); scene.add(world)
@@ -191,6 +216,7 @@ function build(tree) {
   for (const r of rods) world.add(rod(r.a, r.b, r.r, r.arrow, r.y))
   for (const b of blocks) {
     const w = b.w * S, d = b.d * S, h = b.kind === 'sub' ? Math.max(0.12, 0.25 - 0.06 * (b.depth - 3)) : HEIGHT[b.kind], round = b.kind === 'cause' || b.kind === 'sub'
+    if (b.kind === 'effect') { fishHead(b, w, d, h); continue }
     const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, round ? Math.min(d, h) / 2 * 0.95 : 0.06), new THREE.MeshStandardMaterial({ color: COL[b.kind], roughness: 0.55 }))
     m.position.set(b.x * S, h / 2, b.z * S); m.castShadow = m.receiveShadow = true; world.add(m)
     if (b.label) { const l = labelPlane(b.label, b.kind === 'sub' ? Math.max(0.2, 0.26 - 0.02 * (b.depth - 3)) : FONT[b.kind], '#ffffff', w - 0.2); l.position.set(b.x * S, h + 0.01, b.z * S); world.add(l) }
