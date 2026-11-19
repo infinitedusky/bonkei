@@ -42,7 +42,7 @@ export default function HowScene({ start, onReady, onFailed }: { start: string; 
         <div className={'how-msg ' + msg.cls} role="status">{msg.text}</div>
       </div>
       <div className="how-scene">
-        <Bonkei source={shown} mode={mode} labels="top" toolbar={false} controls={{ zoom: false }}
+        <Bonkei source={shown} mode={mode} labels="top" toolbar={false}
           onReady={() => { setError(null); setWarnings(warned.current); onReady?.() }}
           onWarning={w => { warned.current = [...warned.current, w]; setWarnings(warned.current); track('how.warning', { kind: w.kind }) }}
           onError={e => { setError(e); track('how.error', { kind: e.kind }); if (shown === start) onFailed?.() }} />
