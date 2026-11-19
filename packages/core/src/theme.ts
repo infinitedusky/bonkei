@@ -49,7 +49,7 @@ export interface Theme {
   // Ink follows the drawing's on-screen scale: width in px = token width x (px per world unit / ref), kept between min (px, for an outline;
   // other lines get it in proportion to their own width) and the token width. ref null: fixed widths, as in Classic.
   ink: { ref: number | null; min: number }
-  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface. flat: lines lie on the surface under them and the arrowhead is a flat triangle
+  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim at all. flat: lines lie on the surface under them and the arrowhead is a flat triangle
   seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
 }
 
@@ -137,6 +137,9 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 const owns = (c: object, k: string) => (Array.isArray(c) ? /^\d+$/.test(k) && Number(k) < c.length : Object.hasOwn(c, k))
 const at = (o: unknown, keys: string[]) => keys.reduce<any>((c, k) => (c !== null && typeof c === 'object' && owns(c, k) ? c[k] : undefined), o)
 
+// Tokens that may be null in any theme though no preset has them so: null turns that part of the trench light off.
+const NULLABLE = new Set(['edge.glow.core', 'edge.glow.halo', 'edge.glow.wash'])
+
 // Sets one dotted path (`node.form`, `tray.colors.0`) to a value of the type the token has. A token that can be null
 // (an outline, a font) takes null or the type it has in the presets where it is set.
 function setPath(t: Theme, path: string, v: unknown): string | null {
@@ -145,8 +148,11 @@ function setPath(t: Theme, path: string, v: unknown): string | null {
   const parent = at(t, keys.slice(0, -1)), last = keys[keys.length - 1]
   if (parent === null || typeof parent !== 'object' || !owns(parent, last)) return `unknown theme variable ${path}`
   const old = parent[last]
+  // `edge.glow: off` switches all three parts of the trench light off (each can also be set to null on its own)
+  if (path === 'edge.glow' && (v === 'off' || v === false)) { old.core = old.halo = old.wash = null; return null }
   if (old !== null && typeof old === 'object') return `${path} is a group of tokens; set one of them (${Object.keys(old).map(k => `${path}.${k}`).join(', ')})`
   const types = new Set(Object.values(PRESETS).map(p => at(p, keys)).map(x => (x === null ? 'null' : typeof x)))
+  if (NULLABLE.has(path)) types.add('null')
   const want = [...types].filter(x => x !== 'null')
   const got = v === null ? 'null' : typeof v
   if (!types.has(got)) return `${path} must be ${want.length ? 'a ' + want.join(' or a ') : 'null'}${types.has('null') ? ' or null' : ''}; got ${JSON.stringify(v)}`

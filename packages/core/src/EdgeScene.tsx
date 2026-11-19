@@ -99,7 +99,7 @@ export function Trench({ slot, color, y = 0 }: { slot: Slot; color: string; y?: 
     <>
       <mesh geometry={walls} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow material={[hidden, wallMat]} />
       <mesh geometry={flat} rotation={[-Math.PI / 2, 0, 0]} position={[0, top - slot.depth, 0]} receiveShadow><meshStandardMaterial color={floor} roughness={1} /></mesh>
-      <Line points={[...outline, outline[0]]} color={th.edge.rim ?? rim} lineWidth={th.edge.rimWidth} />
+      {th.edge.rim !== 'none' && <Line points={[...outline, outline[0]]} color={th.edge.rim ?? rim} lineWidth={th.edge.rimWidth} />}
       {g.halo && <Line points={[...ledPts, ledPts[0]]} color={g.halo} lineWidth={g.haloWidth} transparent opacity={g.haloOpacity} depthWrite={false} />}
       {g.core && <Line points={[...ledPts, ledPts[0]]} color={g.core} lineWidth={g.coreWidth} />}
     </>
