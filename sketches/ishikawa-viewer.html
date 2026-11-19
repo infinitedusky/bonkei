@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sketch: Ishikawa (fishbone) in the viewer</title>
+<style>
+  :root { --bg:#EFE6D0; --panel:#f4ecda; --line:#cdbd98; --text:#2A2622; --dim:#5d554b; --mute:#857a6b; --blue:#24508F; --shu:#C8452C; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+  .note { background: #fff6c8; border-bottom: 1px dashed #b9a24a; padding: 6px 16px; font-size: 12px; color: #6b5a14; }
+  .top { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); font-size: 13px; }
+  .top b { font-family: Georgia, serif; }
+  .top select { font: inherit; padding: 2px 6px; }
+  .main { flex: 1; display: grid; grid-template-columns: 340px 1fr; min-height: 0; }
+  textarea { width: 100%; height: 100%; border: 0; border-right: 1px solid var(--line); resize: none; padding: 14px; background: #2A2622; color: #e9e2d2; font: 13px/1.6 ui-monospace, Menlo, monospace; outline: none; }
+  .stage { position: relative; overflow: hidden; background: #f7f0de; }
+  .stage svg { width: 100%; height: 100%; }
+  .tb { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; }
+  .tb button { font: 12px system-ui; border: 0; background: #1d2230; color: #e7e2d6; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+  .tb button.on { background: var(--blue); }
+  .warn { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); max-width: 80%; background: #4a3a10; color: #ffd479; padding: 6px 12px; border-radius: 6px; font: 12px monospace; }
+  .hint { position: absolute; left: 14px; bottom: 10px; font-size: 12px; color: var(--mute); }
+  text { font-family: -apple-system, system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div class="note">SKETCH, made-up data (Mermaid's own "Blurry Photo" sample). Edit the text on the left: the drawing follows. Flat / Iso / 3D are rough stand-ins for what the real scene would do.</div>
+<div class="top"><b>Bonkei playground</b> Sample:
+  <select id="sample"><option>Flowchart</option><option>Sequence</option><option selected>Ishikawa (fishbone)</option></select>
+  <span style="color:var(--mute)">Theme: Classic</span>
+</div>
+<div class="main">
+<textarea id="src" spellcheck="false">ishikawa-beta
+    Blurry Photo
+    Process
+        Out of focus
+        Shutter speed too slow
+        Protective film not removed
+        Beautification filter applied
+    User
+        Shaky hands
+    Equipment
+        LENS
+            Inappropriate lens
+            Damaged lens
+            Dirty lens
+        SENSOR
+            Damaged sensor
+            Dirty sensor
+    Environment
+        Subject moved too quickly
+        Too dark</textarea>
+<div class="stage">
+  <svg id="svg" viewBox="0 0 1000 560"></svg>
+  <div class="tb"><button data-m="flat" class="on">Flat</button><button data-m="iso">Iso</button><button data-m="3d">3D</button><button data-m="fit">Fit</button></div>
+  <div class="warn" id="warn" hidden></div>
+  <div class="hint">Effect at the head (right), one bone per category, causes along each bone. Categories alternate above and below the spine.</div>
+</div>
+</div>
+<script>
+// ---- parse: first line after the keyword is the effect; same indent = category; deeper = causes (any depth)
+function parse(src) {
+  const lines = src.split('\n'); const warnings = []; let i = 0
+  while (i < lines.length && !lines[i].trim()) i++
+  const kw = (lines[i] || '').trim()
+  if (!/^(ishikawa(-beta)?|fishbone)$/.test(kw)) warnings.push({ line: i + 1, message: 'expected "ishikawa-beta" first' })
+  i++
+  const root = { label: null, kids: [] }; const stack = []; let base = null
+  for (; i < lines.length; i++) {
+    const raw = lines[i]; if (!raw.trim() || raw.trim().startsWith('%%')) continue
+    if (/\t/.test(raw.match(/^\s*/)[0])) { warnings.push({ line: i + 1, message: 'tab in indentation, line skipped' }); continue }
+    const ind = raw.match(/^ */)[0].length; const label = raw.trim()
+    if (root.label === null) { root.label = label; base = ind; continue }
+    if (ind < base) { warnings.push({ line: i + 1, message: `"${label}" is indented less than the effect, line skipped` }); continue }
+    const node = { label, kids: [], ind }
+    while (stack.length && stack[stack.length - 1].ind >= ind) stack.pop()
+    ;(stack.length ? stack[stack.length - 1] : root).kids.push(node); stack.push(node)
+  }
+  if (root.label === null) warnings.push({ line: 1, message: 'no effect line: nothing to draw' })
+  return { root, warnings }
+}
+
+// ---- draw: plain 2D coordinates, then projected for iso / 3D
+const NS = 'http://www.w3.org/2000/svg'
+function el(tag, a, parent) { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); parent.appendChild(e); return e }
+const PROJ = {
+  flat: (x, y) => [x, y],
+  iso: (x, y) => { const cx = x - 500, cy = y - 280; return [500 + (cx - cy) * 0.78, 300 + (cx + cy) * 0.40] },
+  '3d': (x, y) => { const cx = x - 500, cy = y - 280; const z = 1 + cy / 900; return [500 + cx / z * 0.95, 320 + cy * 0.55 / z] },
+}
+function draw(svg, tree, mode) {
+  svg.innerHTML = ''; const P = PROJ[mode]; const deep = mode === '3d' ? 7 : mode === 'iso' ? 4 : 0
+  const ink = '#2A2622', bone = '#24508F', head = '#C8452C'
+  const segs = [], labels = []
+  const line = (x1, y1, x2, y2, w, c) => segs.push({ x1, y1, x2, y2, w, c })
+  const text = (x, y, t, o = {}) => labels.push({ x, y, t, ...o })
+  const cats = tree.root.kids; const cols = Math.max(1, Math.ceil(cats.length / 2))
+  const spineY = 280, headX = 800, tailX = 60, colW = (headX - tailX - 40) / cols
+  line(tailX, spineY, headX, spineY, 4, ink)
+  cats.forEach((c, k) => {
+    const col = Math.floor(k / 2), up = k % 2 === 0, s = up ? -1 : 1
+    const bx = tailX + 40 + colW * (col + 1) - 10, ex = bx - 150, ey = spineY + s * 220
+    line(bx, spineY, ex, ey, 3, bone)
+    text(ex, ey + s * 14, c.label, { box: true, anchor: 'middle', bold: true })
+    const n = c.kids.length
+    c.kids.forEach((cause, j) => {
+      const t = (j + 0.7) / (n + 0.4), px = ex + (bx - ex) * t, py = ey + (spineY - ey) * t
+      const len = cause.kids.length ? 120 : 100
+      line(px - len, py, px, py, 1.5, ink)
+      text(px - len - 4, py + 4, cause.label, { anchor: 'end', bold: cause.kids.length > 0 })
+      // a sub-category (LENS, SENSOR): its own causes as small ribs off its line, stacked away from the spine
+      const d = up ? 1 : -1 // toward the spine
+      cause.kids.forEach((sub, m) => {
+        const qx = px - len + 30 + m * 26, ry = py + d * (15 + 13 * (up ? m : cause.kids.length - 1 - m))
+        line(qx, py, qx - 12, ry, 1, '#857a6b')
+        text(qx - 14, ry + 4, sub.label, { anchor: 'end', small: true })
+      })
+    })
+  })
+  // shadows (extrusion) first, then lines
+  if (deep) for (const g of segs) { const [a, b] = P(g.x1, g.y1), [c, d] = P(g.x2, g.y2); el('line', { x1: a, y1: b + deep, x2: c, y2: d + deep, stroke: '#0003', 'stroke-width': g.w + 2, 'stroke-linecap': 'round' }, svg) }
+  for (const g of segs) { const [a, b] = P(g.x1, g.y1), [c, d] = P(g.x2, g.y2); el('line', { x1: a, y1: b, x2: c, y2: d, stroke: g.c, 'stroke-width': g.w, 'stroke-linecap': 'round' }, svg) }
+  // the head: the effect, in a box at the end of the spine
+  const hw = 170, hh = 64, corners = [[headX, spineY - hh / 2], [headX + hw, spineY - hh / 2], [headX + hw, spineY + hh / 2], [headX, spineY + hh / 2]].map(p => P(...p))
+  if (deep) el('polygon', { points: corners.map(([x, y]) => `${x},${y + deep}`).join(' '), fill: '#7a2416' }, svg)
+  el('polygon', { points: corners.map(p => p.join(',')).join(' '), fill: head }, svg)
+  const [hx, hy] = P(headX + hw / 2, spineY)
+  el('text', { x: hx, y: hy + 5, 'text-anchor': 'middle', fill: '#fff', 'font-weight': 700, 'font-size': 16 }, svg).textContent = tree.root.label || ''
+  for (const l of labels) {
+    if (!l.t) continue
+    const [x, y] = P(l.x, l.y)
+    if (l.box) { const w = l.t.length * 8 + 20; el('rect', { x: x - w / 2, y: y - 15, width: w, height: 24, rx: 4, fill: '#fbf6ea', stroke: '#24508F' }, svg) }
+    el('text', { x, y: y + (l.box ? 2 : 0), 'text-anchor': l.anchor, fill: l.small ? '#5d554b' : ink, 'font-size': l.small ? 11 : l.box ? 14 : 12.5, 'font-weight': l.bold ? 700 : 400 }, svg).textContent = l.t
+  }
+}
+
+const svg = document.getElementById('svg'), src = document.getElementById('src'), warn = document.getElementById('warn')
+let mode = ['iso','3d'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'flat'
+document.querySelectorAll('.tb button').forEach(x => x.classList.toggle('on', x.dataset.m === mode))
+function render() {
+  const t = parse(src.value); draw(svg, t, mode)
+  const w = t.warnings[0]; warn.hidden = !w
+  if (w) warn.textContent = `warning (line ${w.line}): ${w.message}` + (t.warnings.length > 1 ? `  (+${t.warnings.length - 1} more)` : '')
+}
+src.addEventListener('input', render)
+document.querySelectorAll('.tb button').forEach(b => b.onclick = () => {
+  if (b.dataset.m === 'fit') return
+  mode = b.dataset.m; document.querySelectorAll('.tb button').forEach(x => x.classList.toggle('on', x === b)); render()
+})
+render()
+</script>
+</body>
+</html>
