@@ -10,12 +10,14 @@ const ORDER: Mode[] = ['flat', 'iso', '3d']
 // camera (zoom, angle, the tray flown into) through every later source (BON-195); Fit and the view buttons frame it.
 // A source that can't be drawn leaves the last diagram up; the note under the source says what happened, in words.
 // A text over MAX (howState.ts) is not sent at all: laying it out would block the page for seconds.
-export default function HowScene({ start, initial = start, flash = false, onReady, onFailed }: {
+export default function HowScene({ start, initial = start, flash = false, decidedAt, onReady, onFailed }: {
   /** What Reset puts back. */
   start: string
   /** The text the editor opens with (default `start`). */
   initial?: string
   flash?: boolean
+  /** When How decided this device goes live (performance.now()), for the time from then to the first frame. */
+  decidedAt?: number
   /** The first draw. */
   onReady?: () => void
   /** The scene can't be shown (the first source never drew, or drawing broke): How.tsx shows the still instead. */
@@ -59,7 +61,7 @@ export default function HowScene({ start, initial = start, flash = false, onRead
   const ready = () => {
     const first = !status.current.drawn
     send({ type: 'ready' })
-    if (first) { track('site.how.live', { 'site.how.ms': Math.round(performance.now() - sentAt.current) }); onReady?.() }
+    if (first) { track('site.how.live', { 'site.how.ms': Math.round(performance.now() - sentAt.current), ...(decidedAt !== undefined && { 'site.how.load_ms': Math.round(performance.now() - decidedAt) }) }); onReady?.() }
     else updated()
   }
 
@@ -102,6 +104,7 @@ export default function HowScene({ start, initial = start, flash = false, onRead
         <div className={'how-msg ' + note.tone} role="status">{note.text}</div>
       </div>
       <div className="how-scene" ref={scene}>
+        <div className={'site-live' + (status.current.drawn ? ' ready' : '')}>
         <Bonkei ref={view} source={shown} mode={mode} labels="top" toolbar={false}
           onReady={ready}
           onWarning={(w: BonkeiWarning) => send({ type: 'warning', warning: w })}
@@ -112,6 +115,7 @@ export default function HowScene({ start, initial = start, flash = false, onRead
         </div>
         {/* on a failed update <Bonkei> shows its own "Not updated" strip where the caption sits */}
         {!status.current.error && <div className="site-stage-caption">drag a node · click a tray to fly in</div>}
+        </div>
       </div>
     </div>
   )

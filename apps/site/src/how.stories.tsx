@@ -13,8 +13,8 @@ const LONG = 'flowchart TD\n' + Array.from({ length: 200 }, (_, i) => `    N${i}
 
 // The front page's "Keep the text. Get the scene." section on its own (BON-189): the real How component,
 // as Home renders it. `live` forces the gate so each story looks the same at any window size.
-function Section({ live, fallback, initial, typeAfterDraw, loseAfterDraw, failLoad }: { live: boolean; fallback?: 'phone' | 'no-webgl2'; initial?: string; typeAfterDraw?: string; loseAfterDraw?: boolean; failLoad?: boolean }) {
-  const how = <How live={live} fallback={fallback} initial={initial} flash={false} failLoad={failLoad} />
+function Section({ live, fallback, initial, typeAfterDraw, loseAfterDraw, failLoad, holdLoad }: { live: boolean; holdLoad?: boolean; fallback?: 'phone' | 'no-webgl2'; initial?: string; typeAfterDraw?: string; loseAfterDraw?: boolean; failLoad?: boolean }) {
+  const how = <How live={live} fallback={fallback} initial={initial} flash={false} failLoad={failLoad} holdLoad={holdLoad} />
   return (
     <div className="site">
       <div className="site-wrap">
@@ -85,6 +85,9 @@ export const SceneLost: Story = { args: { live: true, loseAfterDraw: true } }
 
 /** The scene's chunk fails to load (a dropped connection, a deploy mid-visit): the section shows the source and the still, the rest of the page stays. */
 export const SceneFailedToLoad: Story = { args: { live: true, failLoad: true } }
+
+/** Desktop while the scene's chunk is still loading (held back here): the empty stage of the scene's size and the source in its live form; no picture. */
+export const Loading: Story = { args: { live: true, holdLoad: true } }
 
 /** Phone: the source (a few lines, Show all) and the sharp still, as before. */
 export const PhoneFallback: Story = {
