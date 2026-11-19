@@ -79,7 +79,7 @@ export async function checkDefaults(url) {
       const avoid = await c.locator("[aria-label='Avoid crossings']").count()
       if (n === 'none') {
         const labels = (await c.locator('button').allTextContents()).map(s => s.trim())
-        if (JSON.stringify(labels) !== JSON.stringify(['Flat', 'Iso', '3D', 'Fit'])) fails.push(`buttons ${JSON.stringify(labels)}, expected Flat, Iso, 3D, Fit`)
+        if (JSON.stringify(labels) !== JSON.stringify(['Flat', 'Iso', '3D', 'Fit', '?'])) fails.push(`buttons ${JSON.stringify(labels)}, expected Flat, Iso, 3D, Fit, ?`)
         else info.push(`${labels.length} buttons (${labels.join(', ')})`)
       }
       if (n === 'none' || n === 'bridge') {
