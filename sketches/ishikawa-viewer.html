@@ -168,15 +168,17 @@ function labelPlane(text, size, color, maxW) {
   m.rotation.x = -Math.PI / 2
   return m
 }
-function rod(a, b, r, arrow, y = 0.25) {
+// every line ends in an arrowhead where it joins what it causes, as in Mermaid; the head is sized to the line
+function rod(a, b, r, _arrow, y = 0.25) {
+  const cl = Math.min(0.45, 0.14 + r * 4), cr = r * 2.6 + 0.03
   const A = new THREE.Vector3(a[0] * S, y, a[1] * S), B = new THREE.Vector3(b[0] * S, y, b[1] * S)
   const dir = B.clone().sub(A), len = dir.length(); dir.normalize()
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
   const mat = new THREE.MeshStandardMaterial({ color: '#e8edf7', roughness: 0.6 })
-  const g = new THREE.Group(), bl = len - (arrow ? 0.35 : 0)
+  const g = new THREE.Group(), bl = len - cl * 0.8
   const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, bl, 12), mat)
   body.position.copy(A).addScaledVector(dir, bl / 2); body.quaternion.copy(q); body.castShadow = true; g.add(body)
-  if (arrow) { const cone = new THREE.Mesh(new THREE.ConeGeometry(r * 2.4 + 0.04, 0.45, 16), mat); cone.position.copy(B).addScaledVector(dir, -0.22); cone.quaternion.copy(q); cone.castShadow = true; g.add(cone) }
+  { const cone = new THREE.Mesh(new THREE.ConeGeometry(cr, cl, 16), mat); cone.position.copy(B).addScaledVector(dir, -cl / 2); cone.quaternion.copy(q); cone.castShadow = true; g.add(cone) }
   return g
 }
 let bounds = new THREE.Box3()
