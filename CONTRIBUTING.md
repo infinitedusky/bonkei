@@ -17,7 +17,8 @@ Map of the code (a pnpm workspace; see the README's Packages list):
 - `packages/core/src/render.tsx`: `render(element, source, options)`, which mounts its own React root and returns the handle
 - `packages/core/src/options.ts`: option and event types, the `config.bonkei` frontmatter reader and the props-over-frontmatter merge
 - `packages/core/src/diagram.ts`: `prepare(source)`, one step from a source to something drawable (frontmatter, parse, layout) or a `BonkeiError`
-- `packages/core/src/controls.ts`: what the reader's controls allow, as pure decisions `SceneView` asks for
+- `packages/core/src/controls.ts`: what the reader's controls allow, as pure decisions `SceneView` asks for: which gesture a wheel, drag or two fingers make, the quarter-turn settle, which input was used, the gesture card's rows, and the gesture spans
+- `packages/core/src/hold.ts`: whether a diagram has the reader's gestures (BON-78): a diagram in a page that scrolls is taken hold of with a click and let go with Esc or a click outside; the held ring's corners
 - `packages/core/src/telemetry.ts`: the OpenTelemetry tracer and span helpers (a no-op unless the page registers an SDK)
 - `packages/core/src/theme.ts`: themes as data: the `Theme` tokens, the Classic, Bonkei and Bonkei · landscape presets, `resolveTheme` (prop over frontmatter, variables on top), variable checking, `inkPx`. Scene code reads tokens and never names a theme
 - `packages/core/src/look.tsx`: the scene's side of the tokens: `ThemeProvider`/`useTheme`, materials, ink outlines, label plates, tray patterns, paper grain, landscape forms; `fonts.ts` + `fonts/` the bundled Zen Old Mincho subset (SIL OFL)

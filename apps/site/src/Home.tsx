@@ -89,7 +89,7 @@ export function Home({ name = 'Bonkei', live, themesLive }: { name?: string; liv
           <div className="site-cards">
             <div className="site-card"><Still src="still-flat.png" alt="The flowchart seen flat, from above" /><h3>Flat</h3><p>It reads like the Mermaid you know, for docs and screenshots.</p></div>
             <div className="site-card"><Still src="still-iso.png" alt="The flowchart seen isometrically, with subgraphs as trays" /><h3>Isometric</h3><p>Subgraphs become trays and nodes have depth, so you see the structure at a glance.</p></div>
-            <div className="site-card"><Still src="still-3d.png" alt="The flowchart in perspective 3D" /><h3>3D</h3><p>Orbit, zoom and fly into a subgraph to walk through a big system.</p></div>
+            <div className="site-card"><Still src="still-3d.png" alt="The flowchart in perspective 3D" /><h3>3D</h3><p>Turn, tilt, zoom and fly into a subgraph to walk through a big system.</p></div>
           </div>
         </section>
 

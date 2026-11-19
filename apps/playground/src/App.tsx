@@ -61,7 +61,7 @@ export default function App() {
       {warn && <div role="status" style={{ position: 'absolute', bottom: 34, left: '50%', maxWidth: '80%', pointerEvents: 'none', transform: 'translateX(-50%)', background: '#4a3a10', color: '#ffd479', padding: '6px 12px', borderRadius: 6, font: '12px monospace' }}>warning{warn.line ? ` (line ${warn.line})` : ''}: {warn.message}</div>}
       {edit && <textarea value={src} onChange={e => setSrc(e.target.value)} spellCheck={false}
         style={{ position: 'absolute', top: 88, left: 10, width: 360, height: '60%', background: '#10151f', color: '#cfd8ea', border: '1px solid #3a4560', font: '12px monospace' }} />}
-      <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#556', fontSize: 11, pointerEvents: 'none' }}>drag node · drag bg pan (3d: orbit) · wheel zoom · click tray to fly in</div>
+      <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#556', fontSize: 11, pointerEvents: 'none' }}>drag node · drag bg moves (3d: turns) · ⇧ or right-drag swaps · pinch or ⌘/Ctrl + scroll zooms · click tray to fly in · ? for all gestures</div>
     </div>
   )
 }

@@ -10,6 +10,8 @@ import { DEFAULTS, mergeOptions, resolveControls, type BonkeiError, type BonkeiO
 import type { GraphInput } from './model'
 import { instant, tracer } from './telemetry'
 import { UI } from './palette'
+import { fitUsed, gestureRows, helpToggled, modKey, type HelpHow, type Input } from './controls'
+import { firstInput } from './hold'
 import { resolveTheme, themeByName } from './theme'
 import { loadFont } from './fonts.ts'
 
@@ -17,7 +19,7 @@ import { loadFont } from './fonts.ts'
 export interface BonkeiViewHandle {
   /** Move the view to a mode; fires `onModeChange` with source `handle`. */
   setMode(mode: Mode): void
-  /** Frame the whole diagram again. */
+  /** Frame the whole diagram again and put it back square (its view's own heading and tilt), like the toolbar's Fit. */
   fit(): void
 }
 
@@ -72,9 +74,65 @@ export function ErrorStrip({ error }: { error: BonkeiError }) {
   )
 }
 
-/** Flat / iso / 3D as a radiogroup, plus fit. The crossing-style and avoid-crossings groups show only when their props are given. */
-export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, onAvoid}: { mode: Mode; onPick: (m: Mode) => void; onFit: () => void; crossings?: CrossingStyle; onCrossings?: (c: CrossingStyle) => void; avoid?: AvoidCrossings; onAvoid?: (a: AvoidCrossings) => void}) {
+const MOD = modKey(typeof navigator !== 'undefined' ? navigator.platform : '')
+
+/** The card behind the toolbar's "?" (BON-78): what each gesture does, for the input the reader last used and the view. */
+export function GestureCard({ input, mode, onClose }: { input: Input; mode: Mode; onClose?: () => void }) {
+  return (
+    <div role="dialog" aria-label="How to move the diagram" style={{ ...panel, width: 300, padding: '10px 12px', boxShadow: '0 8px 24px #0008' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 8 }}>
+        <b style={{ flex: 1 }}>Move around</b>
+        <span style={{ color: UI.muted, fontSize: 12 }}>{input}</span>
+        {onClose && <button type="button" aria-label="Close" onClick={onClose} style={{ border: 0, background: 'transparent', cursor: 'pointer', padding: '0 0 0 10px', color: UI.muted, font: '13px system-ui, sans-serif' }}>×</button>}
+      </div>
+      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <tbody>
+          {gestureRows(input, mode, MOD).map(([g, a]) => (
+            <tr key={g}><td style={{ padding: '3px 10px 3px 0', color: UI.muted, whiteSpace: 'nowrap' }}>{g}</td><td style={{ padding: '3px 0' }}>{a}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${UI.border}`, color: UI.muted, fontSize: 12 }}>Fit shows the whole diagram and puts it back square.</div>
+    </div>
+  )
+}
+
+export interface ToolbarProps {
+  mode: Mode
+  onPick: (m: Mode) => void
+  onFit: () => void
+  crossings?: CrossingStyle
+  onCrossings?: (c: CrossingStyle) => void
+  avoid?: AvoidCrossings
+  onAvoid?: (a: AvoidCrossings) => void
+  /** The input the gesture card lists gestures for. Default: a guess from the device. */
+  input?: Input
+  /** The card's open state, to hold it from outside (stories); otherwise the toolbar keeps its own. */
+  helpOpen?: boolean
+  onHelp?: (open: boolean) => void
+}
+
+/** Flat / iso / 3D as a radiogroup, plus Fit and "?" (the gesture card). The crossing-style and avoid-crossings groups show only when their props are given. */
+export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, onAvoid, input: given, helpOpen, onHelp }: ToolbarProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
+  const [guess] = useState(firstInput)
+  const input = given ?? guess
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = helpOpen ?? ownOpen
+  const setOpen = (o: boolean, how: HelpHow) => {
+    if (o === open) return
+    helpToggled(o, how, input, mode)
+    setOwnOpen(o); onHelp?.(o)
+  }
+  const setOpenRef = useRef(setOpen)
+  setOpenRef.current = setOpen
+  // Esc closes the card wherever focus is
+  useEffect(() => {
+    if (!open) return
+    const esc = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setOpenRef.current(false, 'esc') }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [open])
   const btn = (on: boolean): CSSProperties => ({
     padding: '4px 10px', border: 0, borderRadius: 4, cursor: 'pointer', font: '13px system-ui, sans-serif',
     background: on ? UI.on : 'transparent', color: UI.text,
@@ -88,7 +146,8 @@ export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, on
     refs.current[i]?.focus()
   }
   return (
-    <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6 }}>
+    <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+    <div style={{ display: 'flex', gap: 6 }}>
       <div role="radiogroup" aria-label="View" onKeyDown={key} style={{ ...panel, display: 'flex', padding: 2 }}>
         {MODES.map(({ mode: m, label }, i) => (
           <button key={m} ref={el => { refs.current[i] = el }} type="button" role="radio" aria-checked={m === mode}
@@ -111,6 +170,10 @@ export function Toolbar({ mode, onPick, onFit, crossings, onCrossings, avoid, on
         </div>
       )}
       <button type="button" aria-label="Fit the diagram" onClick={onFit} style={{ ...panel, ...btn(false), border: `1px solid ${UI.border}`, background: UI.panel }}>Fit</button>
+      <button type="button" aria-label="How to move the diagram" aria-expanded={open} onClick={() => setOpen(!open, 'button')}
+        style={{ ...panel, ...btn(open), border: `1px solid ${UI.border}`, background: open ? UI.on : UI.panel, width: 30, padding: '4px 0' }}>?</button>
+    </div>
+    {open && <GestureCard input={input} mode={mode} onClose={() => setOpen(false, 'close')} />}
     </div>
   )
 }
@@ -267,12 +330,14 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     pick(declared, 'prop')
   }, [declared, prepared, camera, pick])
 
-  // Fit: the whole diagram (even when labels would be small). frame(): the opening view, which keeps labels readable when asked.
+  // Fit: the whole diagram (even when labels would be small), back square (BON-78). frame(): the opening view, which keeps labels readable when asked.
   const fit = useCallback(() => {
     const p = preparedRef.current
     if (!p) return
     camera.whole = true
+    camera.square()
     camera.fit(p.data.width, p.data.height)
+    fitUsed(modeRef.current)
   }, [camera])
   const frame = useCallback(() => {
     const p = preparedRef.current
@@ -325,12 +390,15 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     cbs.current.onError?.(e)
   }, [])
 
+  // the input the reader last used (SceneView tells), for the gesture card
+  const [input, setInput] = useState<Input | undefined>(undefined)
+
   return (
     <div ref={box} data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <SceneBoundary resetKey={prepared?.key ?? ''} onError={onRenderError}>
         <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false} theme={theme}
-          controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} />
-        {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit}
+          controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} onInput={setInput} />
+        {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit} input={input}
           {...(opts.crossingControls ? { crossings, onCrossings: pickCrossings, avoid, onAvoid: pickAvoid } : {})} />}
       </SceneBoundary>
       {!prepared && !error && <Loading />}

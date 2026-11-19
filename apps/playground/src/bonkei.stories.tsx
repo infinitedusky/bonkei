@@ -252,7 +252,7 @@ export const ControlsSetting: StoryObj<{ controls: ControlsArg }> = {
     const fm = controls === 'frontmatter false'
     return (
       <div style={page}>
-        <p>controls: <b>{controls}</b>. Scroll down to the diagram; the wheel over it zooms or scrolls the page, per setting.</p>
+        <p>controls: <b>{controls}</b>. Scroll down to the diagram: the wheel over it scrolls the page and shows a hint; pinch or ⌘/Ctrl + scroll zooms (when zoom is on); a click takes hold of it until Esc or a click outside.</p>
         <div style={{ height: '60vh', borderLeft: '2px dashed #3a4560', paddingLeft: 8, color: '#556' }}>page text above (spacer so the page scrolls)</div>
         <Box label={fm ? 'a small shop backend, frontmatter controls: false' : `a small shop backend, controls=${controls}`}>
           <Bonkei source={fm ? FRONTMATTER_NO_CONTROLS : FLOW} controls={CONTROLS[controls]} />
