@@ -50,19 +50,24 @@
   svg.edges .dash { stroke-dasharray: 7 5 }
   svg.edges text { fill: var(--line); font: 12px system-ui; letter-spacing: .04em }
   body.letter svg.edges text { font-family: 'Architects Daughter', cursive; font-size: 14px }
+  /* a tray's title drawn on the paper (or the parent tray) just off its front edge: a box drawn by hand and coloured in */
+  .ttl.off { color: var(--ink); background: rgba(200,228,255,.20); border: 1.6px solid var(--ink); border-radius: 2px 5px 3px 6px;
+    box-shadow: 1.5px 1px 0 -0.3px rgba(238,246,255,.55); padding: 4px 10px; font-size: 12px; font-weight: 600; white-space: nowrap }
+  body.offtitles .ttl.on, body:not(.offtitles) .ttl.off { display: none }
   .stamp { position: absolute; right: 16px; bottom: 14px; color: var(--tray-ink); border: 1px solid var(--tray-ink); padding: 6px 10px; font: 11px system-ui; letter-spacing: .12em; text-transform: uppercase; opacity: .8 }
 </style>
 </head>
-<body class="major">
+<body class="major hatch letter offtitles">
 <header>
   <h1>Blueprint · sketch</h1>
   <div class="grp"><span>Diagram</span><button data-d="flow" aria-pressed="true">Flowchart</button><button data-d="seq">Sequence</button></div>
   <div class="grp"><span>View</span><button data-v="flat">Flat</button><button data-v="iso" aria-pressed="true">Iso</button><button data-v="3d">3D</button></div>
   <div class="grp"><span>Extras (need code)</span>
     <label><input type="checkbox" data-c="major" checked> heavier grid line every 5</label>
-    <label><input type="checkbox" data-c="hatch"> hatched tray sides</label>
-    <label><input type="checkbox" data-c="letter"> architect's lettering</label>
+    <label><input type="checkbox" data-c="hatch" checked> hatched tray sides</label>
+    <label><input type="checkbox" data-c="letter" checked> architect's lettering</label>
   </div>
+  <div class="grp"><span>New idea</span><label><input type="checkbox" data-c="offtitles" checked> tray titles on the paper beside the tray</label></div>
   <div class="grp"><span>Fill</span><label><input type="checkbox" data-c="outline-only"> outline only (fill = paper)</label></div>
 </header>
 <div class="note">Made-up sample data. A rough CSS stand-in for the real 3D scene: shapes, heights and line routes are approximate; the colours, grid and line work are what this sketch is for.</div>
@@ -136,7 +141,9 @@ function draw(name) {
 
   for (const t of D.trays) {
     box(at, { ...t, cls: 'tray' + (t.l2 ? ' l2' : '') })
-    el('ttl', { left: px(t.x + 8), top: px(t.y + 8), transform: `translateZ(${t.z + t.h + 1}px)` }, at).textContent = t.title
+    el('ttl on', { left: px(t.x + 8), top: px(t.y + 8), transform: `translateZ(${t.z + t.h + 1}px)` }, at).textContent = t.title
+    // off the tray: on the surface the tray stands on (the paper, or its parent tray's top), just past its front edge
+    el('ttl off', { left: px(t.x + 4), top: px(t.y + t.d + 6), transform: `translateZ(${t.z + 0.5}px) rotateZ(-0.6deg)` }, at).textContent = t.title
   }
   // sequence: lifelines, activations, note lie on the paper
   let svg = `<svg class="edges" width="${D.W}" height="${D.H}" style="left:0;top:0;transform:translateZ(${name === 'seq' ? 1 : 44}px)">
