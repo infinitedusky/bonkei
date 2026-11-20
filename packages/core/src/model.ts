@@ -42,7 +42,7 @@ export interface Route { id: string; from: string; to: string; label?: string; p
 // direction: the flow the layout was made in. stats.trayDocks: line ends ELK left off a side midpoint (ends at a tray, which has
 // no ports) and that were docked at one. stats.slid: blocks slid across the flow so a line could go direct (BON-102).
 // stats.route: how the lines were routed.
-export interface LayoutResult { boxes: Box[]; routes: Route[]; direction?: 'TD' | 'LR'; width: number; height: number; stats?: { trayDocks: number; slid?: string[]; route?: RouteStats } }
+export interface LayoutResult { boxes: Box[]; routes: Route[]; direction?: 'TD' | 'LR'; width: number; height: number; titleRoom?: boolean; /* room was left below every tray for its title (theme.tray.titles 'off'); the router keeps lines off the title boxes */ stats?: { trayDocks: number; slid?: string[]; route?: RouteStats } }
 // How the lines were routed (BON-100): total ms (wasm load included), router build ms, lines libavoid could not route, lines given
 // the direct route because libavoid's turned back or crossed a foreign tray, lines that must turn back (no direct route exists), the crossing-avoidance level, and why it fell back to
 // ELK's routes (null: it did not).

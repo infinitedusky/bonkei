@@ -10,6 +10,7 @@
 import { AvoidLib } from 'libavoid-js'
 import type { Avoid, Router, ShapeRef, ConnRef } from 'libavoid-js'
 import type { Box, LayoutResult, Route } from './model.ts'
+import { titleWidth, TITLE } from './titles.ts'
 import { straighten, refine, type StraightenCache } from './monotone.ts'
 import { withSpan } from './telemetry.ts'
 import type { Span } from '@opentelemetry/api'
@@ -233,6 +234,11 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
   }
   const rebuildWalls = () => { for (const t of byId.values()) if (t.kind === 'group' && doorSig(t) !== wallSig.get(t.id)) buildWalls(t) }
   for (const t of byId.values()) if (t.kind === 'group') buildWalls(t)
+  // titleRoom: each tray's title box lies on the surface just below its front edge, so it is an obstacle too (as wide as the title, at most
+  // half the tray, so the doors on that side stay open)
+  if (data.titleRoom) {
+    for (const t of byId.values()) if (t.kind === 'group') router.addShape(rect(t.x, t.y + t.h, Math.min(titleWidth(t.label, TITLE.size) * 40, t.w * 0.55), (TITLE.gap + TITLE.depth) * 40))
+  }
   const dockPoint = (tray: string, side: Side) => {
     const [mx, my] = sideMid(byId.get(tray)!, side)
     const n = side === 'N' ? [0, -1] : side === 'S' ? [0, 1] : side === 'E' ? [1, 0] : [-1, 0]

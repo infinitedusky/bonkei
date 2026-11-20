@@ -195,7 +195,7 @@ async function place(g: Graph, parent?: Span, titleRoom = false): Promise<Layout
   // A line whose target ELK left behind a block or tray it must go round would have to turn back: its block slides across the
   // flow, inside its tray, until the line can go direct (monotone.ts unblock).
   const u = unblock(boxes, routes, TUNE.buffer, g.direction === 'LR' ? 1 : 0, Number(SPACING['elk.spacing.edgeNode']), PAD.side, { x0: 40, y0: 40, x1: res.width - 40, y1: res.height - 40 - (titleRoom ? TITLE_ROOM : 0) })
-  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, stats: { trayDocks, slid: u.moved } }
+  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, ...(titleRoom ? { titleRoom } : {}), stats: { trayDocks, slid: u.moved } }
 }
 
 const NORMAL: Record<Side, [number, number]> = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }
