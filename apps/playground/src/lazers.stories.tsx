@@ -31,7 +31,27 @@ const SOURCES: Pal[] = [
   PALETTES.red, PALETTES.green, PALETTES.blue,
   { core: '#fff8e6', beam: '#ffb020', halo: '#ff9000' }, PALETTES.violet, { core: '#effeff', beam: '#2ff0ff', halo: '#00c8f0' },
 ]
-type Colouring = 'one colour' | 'by source'
+type Colouring = 'one colour' | 'by source' | 'from the text'
+// From the text: the author gives a node its colour in the Mermaid source, the Mermaid way (a style line, or a classDef and class), and
+// every beam out of that node is that colour. A node with no colour gets the next automatic one, as in by source.
+const SOURCE_TEXT = `flowchart LR
+  Client --> Gateway
+  Gateway --> Auth & Orders & DB
+  Metrics --> Orders
+  Orders --> DB --> Logs
+  style Client fill:#ff3b3b
+  classDef cool fill:#2ff0ff
+  class Metrics cool
+  style DB fill:#ffb020`
+// the colours the text gives: style <id> fill:<colour>, and class <ids> <name> with classDef <name> fill:<colour>
+function textColours(src: string): Record<string, string> {
+  const defs: Record<string, string> = {}, out: Record<string, string> = {}
+  for (const m of src.matchAll(/^\s*classDef\s+(\w+)\s+.*?fill:\s*(#[0-9a-f]{3,6})/gim)) defs[m[1]] = m[2]
+  for (const m of src.matchAll(/^\s*class\s+([\w,]+)\s+(\w+)/gim)) for (const id of m[1].split(',')) if (defs[m[2]]) out[id] = defs[m[2]]
+  for (const m of src.matchAll(/^\s*style\s+(\w+)\s+.*?fill:\s*(#[0-9a-f]{3,6})/gim)) out[m[1]] = m[2]
+  return out
+}
+const palOf = (hex: string): Pal => ({ beam: hex, halo: hex, core: '#' + new THREE.Color(hex).lerp(new THREE.Color('#ffffff'), 0.85).getHexString() })
 
 // ---------- today's settings, in the real renderer ----------
 const lazersToday = (p: Palette): Theme => {
@@ -198,7 +218,9 @@ function Target({ at, dir, c }: { at: V3; dir: THREE.Vector3; c: Pal }) {
 function Bench({ palette, colouring }: { palette: Palette; colouring: Colouring }) {
   const one = PALETTES[palette]
   const senders = NODES.filter(n => EDGES.some(e => e.from === n.id)).map(n => n.id)
-  const of = (from: string) => (colouring === 'one colour' ? one : SOURCES[senders.indexOf(from) % SOURCES.length])
+  const given = colouring === 'from the text' ? textColours(SOURCE_TEXT) : {}
+  const auto = senders.filter(id => !given[id]) // automatic colours go to the nodes the text leaves uncoloured, in order
+  const of = (from: string) => (colouring === 'one colour' ? one : given[from] ? palOf(given[from]) : SOURCES[(colouring === 'from the text' ? auto.indexOf(from) + 1 : senders.indexOf(from)) % SOURCES.length])
   const all = [...EDGES.map(e => e.pts), BRIDGE_UNDER, BRIDGE, TUNNEL_UNDER, TUNNEL]
   const cs = [...EDGES.map(e => of(e.from)), ...(colouring === 'one colour' ? [one, one, one, one] : [SOURCES[0], SOURCES[1], SOURCES[2], SOURCES[3]])]
   const caught = (id: string) => { const e = EDGES.find(e => e.to === id); return e ? of(e.from) : one }
@@ -234,10 +256,10 @@ function Bench({ palette, colouring }: { palette: Palette; colouring: Colouring 
 type PiecesArgs = { palette: Palette; colouring: Colouring }
 const pieces = (view: 'flat' | 'iso' | '3d', colouring: Colouring = 'one colour'): StoryObj<PiecesArgs> => ({
   args: { palette: 'red', colouring },
-  argTypes: { palette: { control: 'inline-radio', options: Object.keys(PALETTES) }, colouring: { control: 'inline-radio', options: ['one colour', 'by source'] } },
+  argTypes: { palette: { control: 'inline-radio', options: Object.keys(PALETTES) }, colouring: { control: 'inline-radio', options: ['one colour', 'by source', 'from the text'] } },
   decorators: [stage],
   render: ({ palette, colouring }) => (
-    <div style={{ height: '100vh' }}>
+    <div style={{ height: '100vh', position: 'relative' }}>
       <Canvas
         orthographic={view !== '3d'}
         camera={view === 'flat' ? { position: [0, 30, 0.001], zoom: 56 } : view === 'iso' ? { position: [20, 20, 20], zoom: 56 } : { position: [10, 9, 14], fov: 45 }}
@@ -249,6 +271,9 @@ const pieces = (view: 'flat' | 'iso' | '3d', colouring: Colouring = 'one colour'
         <Bench palette={palette} colouring={colouring} />
         <OrbitControls makeDefault enableRotate={view !== 'flat'} />
       </Canvas>
+      {colouring === 'from the text' && (
+        <pre style={{ position: 'absolute', top: 12, left: 12, margin: 0, padding: '10px 12px', background: 'rgba(13,18,32,.9)', color: '#c9d3e6', border: '1px solid #222c42', borderRadius: 6, font: '12px/1.5 ui-monospace, monospace' }}>{SOURCE_TEXT}</pre>
+      )}
     </div>
   ),
 })
@@ -257,3 +282,4 @@ export const PiecesIso = { ...pieces('iso'), name: 'Pieces / Iso' }
 export const Pieces3D = { ...pieces('3d'), name: 'Pieces / 3D' }
 export const PiecesBySourceIso = { ...pieces('iso', 'by source'), name: 'Pieces / By source, iso' }
 export const PiecesBySource3D = { ...pieces('3d', 'by source'), name: 'Pieces / By source, 3D' }
+export const PiecesFromTheText = { ...pieces('3d', 'from the text'), name: 'Pieces / Colours from the text, 3D' }
