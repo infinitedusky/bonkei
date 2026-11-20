@@ -4,109 +4,110 @@
 <meta charset="utf-8">
 <title>LTech · iso (sketch)</title>
 <style>
-  :root { --pink: #ff42e6; --grey: #676c8b; }
-  body { margin: 0; background: #000; color: #fff; font-family: "Inter Display", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif; }
-  header { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 28px; border-bottom: 1px solid #fff2; }
-  header h1 { margin: 0; font-weight: 200; font-size: 26px; }
-  header h1 b { color: var(--pink); font-weight: 200; }
-  header span { font: 12px ui-monospace, Menlo, monospace; color: var(--grey); }
-  .stage { height: calc(100vh - 66px); min-height: 640px; }
+  :root { --pink: #ff42e6; --navy: #020a3d; --grey: #676c8b; --rule: #dcdcdc; }
+  body { margin: 0; background: #fff; color: var(--navy); font-family: "Inter Display", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  header { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 28px; border-bottom: 1px solid var(--rule); }
+  header h1 { margin: 0; font-weight: 300; font-size: 28px; letter-spacing: -0.03em; }
+  header span { font: 11px ui-monospace, Menlo, monospace; color: var(--grey); text-transform: uppercase; letter-spacing: .04em; }
+  header span::before { content: ""; display: inline-block; width: 8px; height: 8px; background: var(--pink); margin-right: 8px; }
+  .stage {
+    height: calc(100vh - 68px); min-height: 640px;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 58px, #ffffff66 58px 60px),
+      linear-gradient(90deg, #f6c8f0 0%, #fbe3f8 14%, #fff 30%, #fff 70%, #fbe3f8 86%, #f6c8f0 100%);
+  }
   svg { width: 100%; height: 100%; display: block; }
-  .tag { position: fixed; left: 24px; bottom: 18px; font: 11px ui-monospace, Menlo, monospace; color: var(--grey); }
+  .tag { position: fixed; left: 24px; bottom: 16px; font: 10px ui-monospace, Menlo, monospace; color: var(--grey); text-transform: uppercase; letter-spacing: .04em; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Checkout system <b>·</b> iso</h1>
-  <span>theme: ltech — SKETCH, made-up diagram</span>
+  <h1>Checkout system</h1>
+  <span>theme: ltech · iso · sketch, made-up diagram</span>
 </header>
 <div class="stage">
-<svg viewBox="-620 -40 1240 760" preserveAspectRatio="xMidYMid meet">
+<svg viewBox="-620 -110 1240 830" preserveAspectRatio="xMidYMid meet">
   <defs>
-    <!-- the dot grid on the ground, laid in iso by a transform -->
-    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
-      <circle cx="12" cy="12" r="1.1" fill="#ffffff45"/>
-    </pattern>
-    <!-- pixel-stepped tray sides: a dither of squares, densest at the top -->
-    <pattern id="pix" width="16" height="24" patternUnits="userSpaceOnUse">
-      <rect width="16" height="24" fill="#03071c"/>
-      <rect x="0" y="0" width="4" height="4" fill="#ff42e6aa"/><rect x="8" y="0" width="4" height="4" fill="#ff42e6aa"/>
-      <rect x="4" y="4" width="4" height="4" fill="#ffffff55"/><rect x="12" y="4" width="4" height="4" fill="#ffffff55"/>
-      <rect x="0" y="8" width="4" height="4" fill="#ffffff2a"/><rect x="8" y="12" width="4" height="4" fill="#ffffff1c"/>
-      <rect x="4" y="16" width="4" height="4" fill="#ffffff12"/>
-    </pattern>
-    <filter id="halo" filterUnits="userSpaceOnUse" x="-3000" y="-3000" width="6000" height="6000">
-      <feMorphology in="SourceAlpha" operator="dilate" radius="1.2" result="fat"/>
-      <feGaussianBlur in="fat" stdDeviation="3" result="blur"/>
-      <feFlood flood-color="#ff42e6" flood-opacity="0.85"/>
-      <feComposite in2="blur" operator="in" result="glow"/>
-      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="11" cy="11" r="1.1" fill="#8e95bd66"/></pattern>
+    <marker id="chev" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M2,1 L8,5 L2,9" fill="none" stroke="#ff42e6" stroke-width="1.6"/>
+    </marker>
   </defs>
   <g id="ground"></g>
   <g id="scene"></g>
 </svg>
 </div>
-<div class="tag">Tray sides: pixel dither, pink at the lip. Blocks: dark, white ink edges, flat (toon) shading.</div>
+<div class="tag">Tray sides: the footer's dither (grey pixels, pink scattered at the lip). Blocks: white, navy ink, flat shading.</div>
 <script>
 const NS = 'http://www.w3.org/2000/svg', S = document.getElementById('scene'), G = document.getElementById('ground')
 const el = (n, a, p = S) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e }
 const C = Math.cos(Math.PI / 6), N = Math.sin(Math.PI / 6)
 const P = (x, y, z = 0) => [(x - y) * C, (x + y) * N - z]
 const pts = a => a.map(p => p.join(',')).join(' ')
+const mono = 'ui-monospace, Menlo, monospace'
 
-// ground: the dot grid sheared into iso
 el('rect', { x: -2000, y: -2000, width: 4000, height: 4000, fill: 'url(#dots)', transform: `matrix(${C},${N},${-C},${N},0,0)` }, G)
 
-// an iso box: top, left (front-left) and right (front-right) faces
-function box(x, y, w, d, z, h, top, side, ink = '#fff', inkW = 1.2) {
-  const t = [P(x, y, z + h), P(x + w, y, z + h), P(x + w, y + d, z + h), P(x, y + d, z + h)]
-  const l = [P(x, y + d, z + h), P(x + w, y + d, z + h), P(x + w, y + d, z), P(x, y + d, z)]
-  const r = [P(x + w, y, z + h), P(x + w, y + d, z + h), P(x + w, y + d, z), P(x + w, y, z)]
-  el('polygon', { points: pts(l), fill: side.l, stroke: ink, 'stroke-width': inkW })
-  el('polygon', { points: pts(r), fill: side.r, stroke: ink, 'stroke-width': inkW })
-  el('polygon', { points: pts(t), fill: top, stroke: ink, 'stroke-width': inkW })
+// a dithered side: rows of pixels, densest at the bottom, with pink pixels scattered near the lip (seeded, so it is the same each time)
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+function ditherSide(a, b, z, h, along) { // a,b: world (x,y) ends of the bottom edge
+  const px = 4, rows = Math.floor(h / px), cols = Math.floor(along / px)
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const f = c / cols, wx = a[0] + (b[0] - a[0]) * f, wy = a[1] + (b[1] - a[1]) * f
+    const top = r / rows // 0 bottom, 1 top
+    const pink = top > 0.55 && rnd() < 0.35 * top
+    if (!pink && rnd() > 0.75 - top * 0.6) continue
+    const [sx, sy] = P(wx, wy, z + r * px)
+    el('rect', { x: sx, y: sy - px, width: px - 1, height: px - 1, fill: pink ? '#ff42e6' : '#9a9db3', opacity: pink ? 0.9 : 0.55 })
+  }
 }
-function tray(x, y, w, d, z, title) {
-  box(x, y, w, d, z, 18, z ? '#020a3d' : '#05081f', { l: 'url(#pix)', r: 'url(#pix)' }, '#ffffff66', 1)
-  // the pink lip where top meets the sides
-  el('polyline', { points: pts([P(x, y + d, z + 18), P(x + w, y + d, z + 18), P(x + w, y, z + 18)]), fill: 'none', stroke: '#ff42e6', 'stroke-width': 1.4, opacity: 0.9 })
-  const [tx, ty] = P(x + 16, y + 16, z + 18)
-  const t = el('text', { x: tx, y: ty + 4, fill: '#fff', 'font-size': 14, 'font-weight': 300, transform: `rotate(30 ${tx} ${ty})` }); t.textContent = title
+function box(x, y, w, d, z, h, top, l, r, ink = '#020a3d', inkW = 1.1) {
+  el('polygon', { points: pts([P(x, y + d, z + h), P(x + w, y + d, z + h), P(x + w, y + d, z), P(x, y + d, z)]), fill: l, stroke: ink, 'stroke-width': inkW })
+  el('polygon', { points: pts([P(x + w, y, z + h), P(x + w, y + d, z + h), P(x + w, y + d, z), P(x + w, y, z)]), fill: r, stroke: ink, 'stroke-width': inkW })
+  el('polygon', { points: pts([P(x, y, z + h), P(x + w, y, z + h), P(x + w, y + d, z + h), P(x, y + d, z + h)]), fill: top, stroke: ink, 'stroke-width': inkW })
 }
-function block(x, y, z, label, top = '#1a1a1a', l = '#0b0b0b', r = '#111') {
-  box(x, y, 90, 60, z, 34, top, { l, r })
-  const [lx, ly] = P(x + 45, y + 30, z + 34)
-  const t = el('text', { x: lx, y: ly - 18, fill: '#fff', 'font-size': 14, 'text-anchor': 'middle', 'paint-order': 'stroke', stroke: '#000', 'stroke-width': 4 }); t.textContent = label
+function tray(x, y, w, d, z, n, title) {
+  const H = 22
+  box(x, y, w, d, z, H, z ? '#f4f4f9' : '#ffffff', '#ffffff', '#ffffff', '#b9bccd', 1)
+  ditherSide([x, y + d], [x + w, y + d], z, H, w)
+  ditherSide([x + w, y + d], [x + w, y], z, H, d)
+  // title on the front-left of the tray top: pink square + mono caps
+  const [tx, ty] = P(x + 14, y + d - 14, z + H)
+  const g = el('g', { transform: `translate(${tx} ${ty}) matrix(${C},${N},${-C},${N},0,0) rotate(-90)` })
+  el('rect', { x: 0, y: -8, width: 7, height: 7, fill: '#ff42e6' }, g)
+  const t = el('text', { x: 12, y: 0, fill: '#020a3d', 'font-size': 11, 'font-family': mono, 'letter-spacing': '.06em' }, g); t.textContent = `${n} · ${title.toUpperCase()}`
+}
+function block(x, y, z, label, dark) {
+  if (dark) box(x, y, 90, 60, z, 30, '#1a1a1a', '#0b0b0b', '#111111', '#000')
+  else box(x, y, 90, 60, z, 30, '#ffffff', '#eceef5', '#dfe2ec')
+  const [lx, ly] = P(x + 45, y + 30, z + 30)
+  const t = el('text', { x: lx, y: ly - 22, fill: '#020a3d', 'font-size': 14, 'text-anchor': 'middle', 'paint-order': 'stroke', stroke: '#fff', 'stroke-width': 5 }); t.textContent = label
+  if (dark) el('rect', { x: lx - 3, y: ly - 4, width: 7, height: 7, fill: '#ff42e6' })
 }
 function link(a, b, z) {
   const [x1, y1] = P(a[0], a[1], z), [x2, y2] = P(b[0], b[1], z), [xm, ym] = P(b[0], a[1], z)
-  el('polyline', { points: `${x1},${y1} ${xm},${ym} ${x2},${y2}`, fill: 'none', stroke: '#fff', 'stroke-width': 1.6, filter: 'url(#halo)' })
+  el('polyline', { points: `${x1},${y1} ${xm},${ym} ${x2},${y2}`, fill: 'none', stroke: '#020a3d', 'stroke-width': 1.2, 'marker-end': 'url(#chev)' })
 }
 
-// Storefront tray, Payments tray with Ledger nested in it
-tray(-80, 0, 300, 420, 0, 'Storefront')
-tray(300, 0, 420, 420, 0, 'Payments')
-tray(330, 200, 360, 200, 18, 'Ledger service')
+tray(-80, 0, 300, 420, 0, '01', 'Storefront')
+tray(300, 0, 420, 420, 0, '02', 'Payments')
+tray(370, 190, 330, 200, 22, '03', 'Ledger service')
 
-// links on the tray tops (drawn before the blocks so blocks stand over them)
-link([-10, 100], [-10, 230], 18); link([60, 260], [160, 330], 18)
-link([90, 330], [390, 70], 18)
-link([400, 70], [560, 70], 18); link([400, 90], [420, 260], 36)
+link([-10, 130], [-10, 200], 22); link([60, 260], [150, 300], 22)
+link([90, 330], [380, 100], 22)
+link([430, 70], [540, 70], 22); link([400, 100], [420, 240], 44)
 
-// the trench between trays: lit pink core and wash
+// the tunnel: a thin pink dashed line between two pink squares, no glow
 const [a1, b1] = P(220, 380, 4), [a2, b2] = P(300, 380, 4)
-el('line', { x1: a1, y1: b1, x2: a2, y2: b2, stroke: '#ff42e6', 'stroke-width': 14, opacity: 0.35, filter: 'url(#soft)' })
-el('line', { x1: a1, y1: b1, x2: a2, y2: b2, stroke: '#ff42e6', 'stroke-width': 2.5 })
+el('line', { x1: a1, y1: b1, x2: a2, y2: b2, stroke: '#ff42e6', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' })
 
-block(-55, 70, 18, 'Web app', '#1b1f3f', '#0c0f26', '#121636')
-block(-55, 200, 18, 'Cart API')
-block(110, 300, 18, 'Fraud check', '#292929', '#141414', '#1d1d1d')
-block(340, 40, 18, 'Charge')
-block(540, 40, 18, 'Card network', '#1b1f3f', '#0c0f26', '#121636')
-block(380, 240, 36, 'Post entry')
-block(560, 280, 36, 'Ledger DB', '#18205a', '#0a0f33', '#0f1648')
+block(-55, 70, 22, 'Web app', true)
+block(-55, 200, 22, 'Cart API')
+block(110, 300, 22, 'Fraud check')
+block(340, 40, 22, 'Charge')
+block(540, 40, 22, 'Card network', true)
+block(380, 240, 44, 'Post entry')
+block(560, 280, 44, 'Ledger DB')
 </script>
 </body>
 </html>

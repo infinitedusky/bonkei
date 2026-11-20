@@ -4,33 +4,33 @@
 <meta charset="utf-8">
 <title>LTech · sequence (sketch)</title>
 <style>
-  :root { --pink: #ff42e6; --grey: #676c8b; }
-  body { margin: 0; background: #000; color: #fff; font-family: "Inter Display", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif; }
-  header { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 28px; border-bottom: 1px solid #fff2; }
-  header h1 { margin: 0; font-weight: 200; font-size: 26px; }
-  header h1 b { color: var(--pink); font-weight: 200; }
-  header span { font: 12px ui-monospace, Menlo, monospace; color: var(--grey); }
-  .stage { height: calc(100vh - 66px); min-height: 640px; background: radial-gradient(circle, #ffffff40 0.8px, transparent 1.1px) 0 0 / 24px 24px, #000; }
+  :root { --pink: #ff42e6; --navy: #020a3d; --grey: #676c8b; --rule: #dcdcdc; }
+  body { margin: 0; background: #fff; color: var(--navy); font-family: "Inter Display", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  header { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 28px; border-bottom: 1px solid var(--rule); }
+  header h1 { margin: 0; font-weight: 300; font-size: 28px; letter-spacing: -0.03em; }
+  header span { font: 11px ui-monospace, Menlo, monospace; color: var(--grey); text-transform: uppercase; letter-spacing: .04em; }
+  header span::before { content: ""; display: inline-block; width: 8px; height: 8px; background: var(--pink); margin-right: 8px; }
+  .stage {
+    height: calc(100vh - 68px); min-height: 640px;
+    background:
+      radial-gradient(circle, #8e95bd55 0.8px, transparent 1.1px) 0 0 / 22px 22px,
+      repeating-linear-gradient(90deg, transparent 0 58px, #ffffff66 58px 60px),
+      linear-gradient(90deg, #f6c8f0 0%, #fbe3f8 12%, #fff 26%, #fff 74%, #fbe3f8 88%, #f6c8f0 100%);
+  }
   svg { width: 100%; height: 100%; display: block; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Log in <b>·</b> sequence</h1>
-  <span>theme: ltech — SKETCH, made-up diagram</span>
+  <h1>Log in</h1>
+  <span>theme: ltech · sequence · sketch, made-up diagram</span>
 </header>
 <div class="stage">
 <svg viewBox="0 0 1100 700" preserveAspectRatio="xMidYMid meet">
   <defs>
-    <filter id="halo" filterUnits="userSpaceOnUse" x="-3000" y="-3000" width="6000" height="6000">
-      <feMorphology in="SourceAlpha" operator="dilate" radius="1.2" result="fat"/>
-      <feGaussianBlur in="fat" stdDeviation="3" result="blur"/>
-      <feFlood flood-color="#ff42e6" flood-opacity="0.85"/>
-      <feComposite in2="blur" operator="in" result="glow"/>
-      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#fff"/></marker>
-    <marker id="open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#fff" stroke-width="1.5"/></marker>
+    <marker id="chev" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M2,1 L8,5 L2,9" fill="none" stroke="#ff42e6" stroke-width="1.6"/>
+    </marker>
   </defs>
   <g id="scene"></g>
 </svg>
@@ -38,44 +38,44 @@
 <script>
 const NS = 'http://www.w3.org/2000/svg', S = document.getElementById('scene')
 const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); S.appendChild(e); return e }
-const txt = (x, y, s, a = {}) => { const t = el('text', { x, y, fill: '#fff', 'font-size': 14, 'text-anchor': 'middle', ...a }); t.textContent = s; return t }
+const mono = 'ui-monospace, Menlo, monospace'
+const txt = (x, y, s, a = {}) => { const t = el('text', { x, y, fill: '#020a3d', 'font-size': 14, 'text-anchor': 'middle', ...a }); t.textContent = s; return t }
+const cap = (x, y, s, a = {}) => txt(x, y, s.toUpperCase(), { fill: '#676c8b', 'font-size': 10, 'font-family': mono, 'letter-spacing': '.06em', ...a })
 
 const who = [['Browser', 140], ['Auth API', 420], ['User DB', 700], ['Mailer', 960]]
-// lifelines in Lazer grey, dashed
-for (const [, x] of who) el('line', { x1: x, y1: 90, x2: x, y2: 650, stroke: '#676c8b', 'stroke-width': 1.2, 'stroke-dasharray': '5 5' })
-// participants: dark boxes, white outline, pixel-stepped corners
+// lifelines: hairline grey rules
+for (const [, x] of who) el('line', { x1: x, y1: 90, x2: x, y2: 650, stroke: '#c9cbd8', 'stroke-width': 1 })
+// participants: the site's black button with its pink square
 for (const [n, x] of who) {
-  const w = 150, h = 46, y = 40, s = 4, l = x - w / 2
-  el('path', { d: `M${l + 2 * s},${y}H${l + w - 2 * s}v${s}h${s}v${s}h${s}V${y + h - 2 * s}h${-s}v${s}h${-s}v${s}H${l + 2 * s}v${-s}h${-s}v${-s}h${-s}V${y + 2 * s}h${s}v${-s}h${s}z`, fill: '#020a3d', stroke: '#fff', 'stroke-width': 1.2 })
-  txt(x, y + 28, n, { 'font-weight': 300, 'font-size': 15 })
+  el('rect', { x: x - 72, y: 40, width: 144, height: 44, rx: 3, fill: '#111' })
+  txt(x - 8, 67, n, { fill: '#fff', 'font-size': 15 })
+  el('rect', { x: x + 50, y: 58, width: 8, height: 8, fill: '#ff42e6' })
 }
-// activations in pink
-el('rect', { x: 413, y: 140, width: 14, height: 300, fill: '#ff42e6' })
-el('rect', { x: 693, y: 180, width: 14, height: 80, fill: '#e02cc8' })
+// activations: thin pink bars
+el('rect', { x: 416, y: 140, width: 8, height: 300, fill: '#ff42e6' })
+el('rect', { x: 696, y: 180, width: 8, height: 80, fill: '#ff42e6', opacity: 0.6 })
 
 const msg = (x1, x2, y, label, dashed) => {
-  el('line', { x1, y1: y, x2, y2: y, stroke: '#fff', 'stroke-width': 1.5, filter: 'url(#halo)', 'marker-end': dashed ? 'url(#open)' : 'url(#arrow)', ...(dashed ? { 'stroke-dasharray': '6 5' } : {}) })
+  el('line', { x1, y1: y, x2, y2: y, stroke: '#020a3d', 'stroke-width': 1.2, 'marker-end': 'url(#chev)', ...(dashed ? { 'stroke-dasharray': '5 4' } : {}) })
   txt((x1 + x2) / 2, y - 9, label, { 'font-size': 13 })
 }
-msg(140, 413, 140, 'POST /login (email, password)')
-msg(427, 693, 180, 'find user by email')
-msg(693, 427, 260, 'user row', true)
+msg(140, 414, 140, 'POST /login (email, password)')
+msg(426, 694, 180, 'find user by email')
+msg(694, 426, 260, 'user row', true)
 
-// a note: midnight with white text, thin pink edge
-el('rect', { x: 470, y: 290, width: 230, height: 48, fill: '#020a3d', stroke: '#ff42e6', 'stroke-width': 1 })
+// a note: pink haze, hairline rule
+el('rect', { x: 470, y: 290, width: 230, height: 48, fill: '#fff4fd', stroke: '#e9b8e2', 'stroke-width': 1 })
 txt(585, 319, 'check password hash', { 'font-size': 13 })
 
-// an alt block
-el('rect', { x: 90, y: 365, width: 940, height: 210, fill: 'none', stroke: '#ffffff66', 'stroke-width': 1 })
-el('rect', { x: 90, y: 365, width: 80, height: 22, fill: '#ffffff' })
-txt(130, 381, 'alt', { fill: '#000', 'font-size': 12, 'font-family': 'ui-monospace, Menlo, monospace' })
-txt(260, 381, '[password ok]', { fill: '#dcdcdc', 'font-size': 12, 'font-family': 'ui-monospace, Menlo, monospace' })
-msg(413, 140, 420, 'session cookie', true)
-el('line', { x1: 90, y1: 470, x2: 1030, y2: 470, stroke: '#ffffff44', 'stroke-dasharray': '4 4' })
-txt(160, 488, '[3 failures]', { fill: '#dcdcdc', 'font-size': 12, 'font-family': 'ui-monospace, Menlo, monospace' })
-msg(427, 960, 520, 'send lockout email')
-// a cross (destroyed): pink
-el('path', { d: 'M950,555 l20,20 M970,555 l-20,20', stroke: '#ff42e6', 'stroke-width': 2.5 })
+// an alt block: hairline frame, the label as a section label (pink square, mono caps)
+el('rect', { x: 90, y: 365, width: 940, height: 210, fill: '#ffffffb0', stroke: '#c9cbd8', 'stroke-width': 1 })
+el('rect', { x: 106, y: 378, width: 8, height: 8, fill: '#ff42e6' })
+cap(122, 386, 'alt · password ok', { 'text-anchor': 'start', fill: '#020a3d' })
+msg(414, 140, 420, 'session cookie', true)
+el('line', { x1: 90, y1: 470, x2: 1030, y2: 470, stroke: '#c9cbd8', 'stroke-dasharray': '4 4' })
+cap(106, 490, 'else · 3 failures', { 'text-anchor': 'start' })
+msg(426, 958, 520, 'send lockout email')
+el('path', { d: 'M950,555 l20,20 M970,555 l-20,20', stroke: '#ff42e6', 'stroke-width': 2 })
 </script>
 </body>
 </html>
