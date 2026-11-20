@@ -1,0 +1,651 @@
+{
+ "first": {
+  "width": 575,
+  "height": 1740,
+  "boxes": [
+   {
+    "id": "Frontend",
+    "label": "Frontend Services",
+    "kind": "group",
+    "shape": "rect",
+    "x": 122,
+    "y": 40,
+    "w": 331,
+    "h": 784,
+    "level": 0
+   },
+   {
+    "id": "WebApp",
+    "label": "Web App",
+    "kind": "group",
+    "shape": "rect",
+    "x": 171,
+    "y": 100,
+    "w": 233,
+    "h": 296,
+    "level": 1,
+    "parent": "Frontend"
+   },
+   {
+    "id": "Auth",
+    "label": "Auth Module",
+    "kind": "node",
+    "shape": "rect",
+    "x": 220,
+    "y": 160,
+    "w": 135,
+    "h": 56,
+    "level": 2,
+    "parent": "WebApp"
+   },
+   {
+    "id": "UI",
+    "label": "UI Components",
+    "kind": "node",
+    "shape": "rect",
+    "x": 211,
+    "y": 300,
+    "w": 153,
+    "h": 56,
+    "level": 2,
+    "parent": "WebApp"
+   },
+   {
+    "id": "CDN",
+    "label": "CDN / imgproxy",
+    "kind": "group",
+    "shape": "rect",
+    "x": 162,
+    "y": 480,
+    "w": 251,
+    "h": 304,
+    "level": 1,
+    "parent": "Frontend"
+   },
+   {
+    "id": "Cache",
+    "label": "Cache Layer",
+    "kind": "node",
+    "shape": "cylinder",
+    "x": 220,
+    "y": 540,
+    "w": 135,
+    "h": 64,
+    "level": 2,
+    "parent": "CDN"
+   },
+   {
+    "id": "Transform",
+    "label": "Image Transform",
+    "kind": "node",
+    "shape": "rect",
+    "x": 202,
+    "y": 688,
+    "w": 171,
+    "h": 56,
+    "level": 2,
+    "parent": "CDN"
+   },
+   {
+    "id": "Backend",
+    "label": "Backend Services",
+    "kind": "group",
+    "shape": "rect",
+    "x": 40,
+    "y": 908,
+    "w": 495,
+    "h": 792,
+    "level": 0
+   },
+   {
+    "id": "API",
+    "label": "API Server",
+    "kind": "group",
+    "shape": "rect",
+    "x": 192.5,
+    "y": 968,
+    "w": 190,
+    "h": 296,
+    "level": 1,
+    "parent": "Backend"
+   },
+   {
+    "id": "REST",
+    "label": "REST API",
+    "kind": "node",
+    "shape": "rect",
+    "x": 232.5,
+    "y": 1028,
+    "w": 110,
+    "h": 56,
+    "level": 2,
+    "parent": "API"
+   },
+   {
+    "id": "GraphQL",
+    "label": "GraphQL",
+    "kind": "node",
+    "shape": "rect",
+    "x": 232.5,
+    "y": 1168,
+    "w": 110,
+    "h": 56,
+    "level": 2,
+    "parent": "API"
+   },
+   {
+    "id": "Data",
+    "label": "Data Layer",
+    "kind": "group",
+    "shape": "rect",
+    "x": 80,
+    "y": 1348,
+    "w": 415,
+    "h": 312,
+    "level": 1,
+    "parent": "Backend"
+   },
+   {
+    "id": "DB",
+    "label": "PostgreSQL",
+    "kind": "node",
+    "shape": "cylinder",
+    "x": 329,
+    "y": 1408,
+    "w": 126,
+    "h": 64,
+    "level": 2,
+    "parent": "Data"
+   },
+   {
+    "id": "Redis",
+    "label": "Redis",
+    "kind": "node",
+    "shape": "cylinder",
+    "x": 337,
+    "y": 1556,
+    "w": 110,
+    "h": 64,
+    "level": 2,
+    "parent": "Data"
+   },
+   {
+    "id": "Storage",
+    "label": "Cloud Storage",
+    "kind": "node",
+    "shape": "cylinder",
+    "x": 120,
+    "y": 1408,
+    "w": 153,
+    "h": 64,
+    "level": 2,
+    "parent": "Data"
+   }
+  ],
+  "routes": [
+   {
+    "id": "e6",
+    "from": "Frontend",
+    "to": "Backend",
+    "points": [
+     [
+      287.5,
+      824
+     ],
+     [
+      287.5,
+      908
+     ]
+    ]
+   },
+   {
+    "id": "e2",
+    "from": "WebApp",
+    "to": "CDN",
+    "points": [
+     [
+      287.5,
+      396
+     ],
+     [
+      287.5,
+      480
+     ]
+    ]
+   },
+   {
+    "id": "e0",
+    "from": "Auth",
+    "to": "UI",
+    "points": [
+     [
+      287.5,
+      216
+     ],
+     [
+      287.5,
+      300
+     ]
+    ]
+   },
+   {
+    "id": "e1",
+    "from": "Cache",
+    "to": "Transform",
+    "points": [
+     [
+      287.5,
+      604
+     ],
+     [
+      287.5,
+      688
+     ]
+    ]
+   },
+   {
+    "id": "e5",
+    "from": "API",
+    "to": "Data",
+    "points": [
+     [
+      287.5,
+      1264
+     ],
+     [
+      287.5,
+      1348
+     ]
+    ]
+   },
+   {
+    "id": "e3",
+    "from": "REST",
+    "to": "GraphQL",
+    "points": [
+     [
+      287.5,
+      1084
+     ],
+     [
+      287.5,
+      1168
+     ]
+    ]
+   },
+   {
+    "id": "e4",
+    "from": "DB",
+    "to": "Redis",
+    "points": [
+     [
+      392,
+      1472
+     ],
+     [
+      392,
+      1556
+     ]
+    ]
+   }
+  ]
+ },
+ "dotted": {
+  "width": 3593,
+  "height": 429,
+  "boxes": [
+   {
+    "id": "edge",
+    "label": "Edge",
+    "kind": "group",
+    "shape": "rect",
+    "x": 77,
+    "y": 104,
+    "w": 600,
+    "h": 156,
+    "level": 0
+   },
+   {
+    "id": "browser",
+    "label": "Browser Web · mobile",
+    "kind": "node",
+    "shape": "round",
+    "x": 117,
+    "y": 164,
+    "w": 216,
+    "h": 56,
+    "level": 1,
+    "parent": "edge"
+   },
+   {
+    "id": "gw",
+    "label": "API Gateway Envoy · TLS",
+    "kind": "node",
+    "shape": "rect",
+    "x": 417,
+    "y": 164,
+    "w": 220,
+    "h": 56,
+    "level": 1,
+    "parent": "edge"
+   },
+   {
+    "id": "orders",
+    "label": "Orders",
+    "kind": "group",
+    "shape": "rect",
+    "x": 771,
+    "y": 40,
+    "w": 1304,
+    "h": 264,
+    "level": 0
+   },
+   {
+    "id": "data",
+    "label": "Data",
+    "kind": "group",
+    "shape": "rect",
+    "x": 1761,
+    "y": 100,
+    "w": 269,
+    "h": 164,
+    "level": 1,
+    "parent": "orders"
+   },
+   {
+    "id": "queue",
+    "label": "Order Queue Kafka",
+    "kind": "node",
+    "shape": "cylinder",
+    "x": 1801,
+    "y": 160,
+    "w": 189,
+    "h": 64,
+    "level": 2,
+    "parent": "data"
+   },
+   {
+    "id": "oapi",
+    "label": "Order API Go · 3 pods",
+    "kind": "node",
+    "shape": "rect",
+    "x": 811,
+    "y": 164,
+    "w": 220,
+    "h": 56,
+    "level": 1,
+    "parent": "orders"
+   },
+   {
+    "id": "valid",
+    "label": "Valid?",
+    "kind": "node",
+    "shape": "diamond",
+    "x": 1115,
+    "y": 153,
+    "w": 140,
+    "h": 78,
+    "level": 1,
+    "parent": "orders"
+   },
+   {
+    "id": "osvc",
+    "label": "Order Svc Go · 2 pods",
+    "kind": "node",
+    "shape": "rect",
+    "x": 1452,
+    "y": 164,
+    "w": 220,
+    "h": 56,
+    "level": 1,
+    "parent": "orders"
+   },
+   {
+    "id": "payments",
+    "label": "Payments",
+    "kind": "group",
+    "shape": "rect",
+    "x": 2282,
+    "y": 93,
+    "w": 1234,
+    "h": 178,
+    "level": 0
+   },
+   {
+    "id": "papi",
+    "label": "Payment API Node · 3 pods",
+    "kind": "node",
+    "shape": "rect",
+    "x": 2322,
+    "y": 164,
+    "w": 220,
+    "h": 56,
+    "level": 1,
+    "parent": "payments"
+   },
+   {
+    "id": "fraud",
+    "label": "Fraud?",
+    "kind": "node",
+    "shape": "diamond",
+    "x": 2626,
+    "y": 153,
+    "w": 140,
+    "h": 78,
+    "level": 1,
+    "parent": "payments"
+   },
+   {
+    "id": "charge",
+    "label": "Charge Card Stripe adapter",
+    "kind": "node",
+    "shape": "round",
+    "x": 2956,
+    "y": 164,
+    "w": 220,
+    "h": 56,
+    "level": 1,
+    "parent": "payments"
+   },
+   {
+    "id": "ledger",
+    "label": "Ledger Postgres · HA",
+    "kind": "node",
+    "shape": "cylinder",
+    "x": 3260,
+    "y": 160,
+    "w": 216,
+    "h": 64,
+    "level": 1,
+    "parent": "payments"
+   }
+  ],
+  "routes": [
+   {
+    "id": "e7",
+    "from": "gw",
+    "to": "oapi",
+    "points": [
+     [
+      637,
+      192.112
+     ],
+     [
+      811,
+      192.112
+     ]
+    ]
+   },
+   {
+    "id": "e8",
+    "from": "gw",
+    "to": "papi",
+    "points": [
+     [
+      527,
+      220
+     ],
+     [
+      527,
+      314
+     ],
+     [
+      2432,
+      314
+     ],
+     [
+      2432,
+      220
+     ]
+    ]
+   },
+   {
+    "id": "e9",
+    "from": "queue",
+    "to": "papi",
+    "label": "pay",
+    "points": [
+     [
+      1990,
+      192.128
+     ],
+     [
+      2322,
+      192.128
+     ]
+    ]
+   },
+   {
+    "id": "e10",
+    "from": "ledger",
+    "to": "browser",
+    "label": "receipt",
+    "points": [
+     [
+      3368,
+      160
+     ],
+     [
+      3368,
+      30
+     ],
+     [
+      225,
+      30
+     ],
+     [
+      225,
+      164
+     ]
+    ]
+   },
+   {
+    "id": "e0",
+    "from": "browser",
+    "to": "gw",
+    "points": [
+     [
+      333,
+      192
+     ],
+     [
+      417,
+      192
+     ]
+    ]
+   },
+   {
+    "id": "e1",
+    "from": "oapi",
+    "to": "valid",
+    "points": [
+     [
+      1031,
+      192
+     ],
+     [
+      1115,
+      192
+     ]
+    ]
+   },
+   {
+    "id": "e2",
+    "from": "valid",
+    "to": "osvc",
+    "label": "yes",
+    "points": [
+     [
+      1255,
+      192
+     ],
+     [
+      1452,
+      192
+     ]
+    ]
+   },
+   {
+    "id": "e3",
+    "from": "osvc",
+    "to": "queue",
+    "points": [
+     [
+      1672,
+      192
+     ],
+     [
+      1801,
+      192
+     ]
+    ]
+   },
+   {
+    "id": "e4",
+    "from": "papi",
+    "to": "fraud",
+    "points": [
+     [
+      2542,
+      192
+     ],
+     [
+      2626,
+      192
+     ]
+    ]
+   },
+   {
+    "id": "e5",
+    "from": "fraud",
+    "to": "charge",
+    "label": "ok",
+    "points": [
+     [
+      2766,
+      192
+     ],
+     [
+      2956,
+      192
+     ]
+    ]
+   },
+   {
+    "id": "e6",
+    "from": "charge",
+    "to": "ledger",
+    "points": [
+     [
+      3176,
+      192
+     ],
+     [
+      3260,
+      192
+     ]
+    ]
+   }
+  ]
+ }
+}

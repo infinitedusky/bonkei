@@ -237,12 +237,15 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   sourceRef.current = source
   const seq = useRef(0)
 
+  // A look that draws dotted links as arcs overhead leaves them out of the layout, so the layout is made again when the look changes to or from one.
+  const arcsWanted = resolveTheme(props.theme, prepared?.theme).theme.edge.dotted === 'arc'
   useEffect(() => {
+    if (preparedRef.current?.key === key && preparedRef.current.arcs === arcsWanted) return // prepare already read the same look from the frontmatter
     const run = ++seq.current
     let alive = true
     const accepted = performance.now()
     setStatus('loading')
-    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings }).then(p => {
+    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: props.theme }).then(p => {
       if (!alive || run !== seq.current) return
       acceptedAt.current = accepted
       setPrepared({ ...p, key })
@@ -259,7 +262,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
       for (const w of warnings as BonkeiWarning[]) cbs.current.onWarning?.(w)
     })
     return () => { alive = false }
-  }, [key])
+  }, [key, arcsWanted])
 
   // Props over frontmatter; the frontmatter is read once per prepared source.
   const ctlKey = JSON.stringify(props.controls ?? null)

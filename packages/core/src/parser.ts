@@ -11,7 +11,14 @@ const HEAD_RE = /^(?:flowchart|graph)(?:\s+(TD|TB|LR|RL|BT))?$/
 // Mermaid statements we read but do not draw yet.
 const UNSUPPORTED_RE = /^(?:(?:classDef|class|style|linkStyle|click|direction)\s|(?:accTitle|accDescr)\s*[:{])/
 
+const BR = /<br\s*\/?>/
 const unq = (s: string) => s.trim().replace(/^["']|["']$/g, '').replace(/<br\s*\/?>/g, ' ')
+// A label's lines: the first is the name, the rest (joined) the subtitle. Only a label with a <br> and text either side has a subtitle.
+const lines = (s: string): { title?: string; sub?: string } => {
+  const [t, ...r] = s.trim().replace(/^["']|["']$/g, '').split(BR).map(x => x.trim())
+  const sub = r.filter(Boolean).join(' ')
+  return t && sub ? { title: t, sub } : {}
+}
 
 // `lineOffset` is the number of source lines before `src` (a frontmatter block), so the line
 // numbers in `dropped` count the source as the author gave it.
@@ -23,14 +30,14 @@ export function parse(src: string, lineOffset = 0): Graph {
   const stack: { id: string; line: number; text: string }[] = []
   const top = () => stack[stack.length - 1]?.id
 
-  const ref = (id: string, label?: string, shape?: Shape) => {
+  const ref = (id: string, label?: string, shape?: Shape, raw?: string) => {
     if (groups.has(id)) return
     let n = nodes.get(id)
     if (!n) {
       n = { id, label: id, shape: 'rect', parent: top() }
       nodes.set(id, n)
     }
-    if (label !== undefined) n.label = label
+    if (label !== undefined) { n.label = label; delete n.title; delete n.sub; Object.assign(n, lines(raw ?? label)) }
     if (shape) n.shape = shape
   }
 
@@ -56,7 +63,7 @@ export function parse(src: string, lineOffset = 0): Graph {
     let rest = line
     const first = rest.match(NODE_RE)
     if (!first) return drop(REASON.statement)
-    if (first[2]) ref(first[1], unq(first[3]), OPEN[first[2]][0]); else ref(first[1])
+    if (first[2]) ref(first[1], unq(first[3]), OPEN[first[2]][0], first[3]); else ref(first[1])
     rest = rest.slice(first[0].length)
     let last = first[1]
     for (;;) {
@@ -65,8 +72,8 @@ export function parse(src: string, lineOffset = 0): Graph {
       rest = rest.slice(a[0].length)
       const n = rest.match(NODE_RE)
       if (!n) break
-      if (n[2]) ref(n[1], unq(n[3]), OPEN[n[2]][0]); else ref(n[1])
-      g.edges.push({ id: `e${g.edges.length}`, from: last, to: n[1], label: (a[1] ?? a[2])?.trim() || undefined })
+      if (n[2]) ref(n[1], unq(n[3]), OPEN[n[2]][0], n[3]); else ref(n[1])
+      g.edges.push({ id: `e${g.edges.length}`, from: last, to: n[1], label: (a[1] ?? a[2])?.trim() || undefined, ...(/^\s*-\.-/.test(a[0]) ? { dotted: true } : {}) })
       rest = rest.slice(n[0].length)
       last = n[1]
     }

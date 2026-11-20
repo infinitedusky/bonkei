@@ -24,9 +24,9 @@ export type { Controls } from './options'
 // Themes
 /** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
 export type { Theme } from './theme'
-/** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
-export { CLASSIC, BONKEI, BONKEI_LANDSCAPE } from './theme'
-/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape. */
+/** Classic (today's look), the two Bonkei looks and Cloud Cartography, for passing as `theme` or as a base to copy and edit (they are frozen). */
+export { CLASSIC, BONKEI, BONKEI_LANDSCAPE, CLOUD_CARTOGRAPHY } from './theme'
+/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape, cloud-cartography. */
 export { THEME_NAMES } from './theme'
 
 // Events

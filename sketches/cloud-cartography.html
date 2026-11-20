@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sketch: Cloud Cartography theme (BON-235)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #f5f6f9; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #1f2330; }
+  #stage { position: absolute; inset: 0; }
+  #stage svg { width: 100%; height: 100%; display: block; }
+  .bar { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; align-items: center; background: #fff; border: 1px solid #d9dde5; border-radius: 8px; padding: 6px 8px; box-shadow: 0 1px 3px rgba(20,30,60,.08); }
+  .seg { display: inline-flex; border: 1px solid #cfd4dd; border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; background: #fff; padding: 4px 10px; font: inherit; cursor: pointer; color: #333; }
+  .seg button + button { border-left: 1px solid #cfd4dd; }
+  .seg button.on { background: #1d36a6; color: #fff; }
+  label.turn { display: inline-flex; gap: 6px; align-items: center; color: #555; }
+  .note { position: absolute; right: 12px; bottom: 12px; max-width: 330px; background: #fff; border: 1px solid #d9dde5; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(20,30,60,.08); }
+  .note b { display: block; margin-bottom: 4px; }
+  .note ul { margin: 4px 0 0; padding-left: 18px; }
+  .note .q { color: #c8743a; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div class="bar">
+  <span class="seg" id="mode"><button data-v="flat">Flat</button><button data-v="iso" class="on">Iso</button><button data-v="3d">3D</button></span>
+  <label class="turn">Turn <input id="turn" type="range" min="-180" max="180" value="0"></label>
+  <span class="seg" id="kind"><button data-v="flow" class="on">Flowchart</button><button data-v="seq">Sequence</button></span>
+</div>
+<div class="note">
+  <b>Sketch: Cloud Cartography (made-up diagram)</b>
+  Zones are thin coloured floors with the name in big letters on the ground. Nodes are modelled icons with ink outlines, one per shape: box = server, rounded = service, cylinder = storage, diamond = decision. The labels are callout cards on dotted leaders. Lines are navy with an arrow partway along. Dotted links (<code>-.-&gt;</code>) arc overhead, dashed.
+  <ul>
+    <li>Turn the view: the icons turn with the scene, because they are shapes, not pictures.</li>
+    <li>Arcs are the links written as Mermaid dotted links, <code>queue -.-&gt; papi</code> and <code>ledger -.-&gt; browser</code>. Every other link stays on the ground.</li>
+  </ul>
+</div>
+<script>
+// ---- a tiny orthographic projector: world x right, y back-to-front, z up ----
+const D = Math.PI / 180
+const VIEWS = { flat: { yaw: 0, pitch: 89.9 }, iso: { yaw: 45, pitch: Math.atan(1 / Math.SQRT2) / D }, '3d': { yaw: 25, pitch: 38 } }
+let mode = 'iso', turn = 0, kind = 'flow'
+let ca, sa, cp, sp, S = 40, minX, minY, maxX, maxY
+function setView() {
+  const v = VIEWS[mode], a = (v.yaw + turn) * D, p = v.pitch * D
+  ca = Math.cos(a); sa = Math.sin(a); cp = Math.cos(p); sp = Math.sin(p)
+  minX = minY = Infinity; maxX = maxY = -Infinity
+}
+function P(x, y, z = 0) {
+  const u = x * ca - y * sa, v = x * sa + y * ca
+  const X = S * u, Y = S * (v * sp - z * cp)
+  if (X < minX) minX = X; if (X > maxX) maxX = X; if (Y < minY) minY = Y; if (Y > maxY) maxY = Y
+  return [X, Y]
+}
+const depth = (x, y, z = 0) => (x * sa + y * ca) * cp + z * sp
+const pts = a => a.map(([x, y, z]) => P(x, y, z).map(n => n.toFixed(1)).join(',')).join(' ')
+
+// ---- colours ----
+const INK = '#2a2f3a', NAVY = '#1d36a6', FAR = '#c8743a', SIDE = '#dfe3ec', TOP = '#f6f7fa'
+const SHAPE = { rect: '#6fae45', round: '#4f7cff', cylinder: '#f0a43c', diamond: '#d9534f' }
+const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16))
+const mix = (c, w, t) => '#' + hex(c).map((v, i) => Math.round(v + (hex(w)[i] - v) * t).toString(16).padStart(2, '0')).join('')
+const dark = (c, t) => mix(c, '#000000', t)
+const LIGHT = [-0.6, -0.8] // where the light comes from, on the ground
+function shade(c, n) { const d = n[0] * LIGHT[0] + n[1] * LIGHT[1]; return d >= 0 ? mix(c, '#ffffff', d * 0.25) : dark(c, -d * 0.22) }
+
+let back, mid, front // layers: floors and lines, icons (depth sorted), cards
+const objs = []
+
+// ---- shapes ----
+const rectPlan = (cx, cy, w, d) => [[cx - w / 2, cy - d / 2], [cx + w / 2, cy - d / 2], [cx + w / 2, cy + d / 2], [cx - w / 2, cy + d / 2]]
+const ngon = (cx, cy, r, n, rot = 0) => Array.from({ length: n }, (_, i) => [cx + r * Math.cos(rot + i / n * 2 * Math.PI), cy + r * Math.sin(rot + i / n * 2 * Math.PI)])
+function roundPlan(x0, y0, x1, y1, r) {
+  const a = [], arc = (ox, oy, s) => { for (let i = 0; i <= 5; i++) { const t = s + i / 5 * Math.PI / 2; a.push([ox + r * Math.cos(t), oy + r * Math.sin(t)]) } }
+  arc(x1 - r, y0 + r, -Math.PI / 2); arc(x1 - r, y1 - r, 0); arc(x0 + r, y1 - r, Math.PI / 2); arc(x0 + r, y0 + r, Math.PI)
+  return a
+}
+// A prism on a plan: sides back to front, then the top. Convex plans only, so no face culling is needed.
+function prism(out, plan, z0, z1, side, top, ol = INK, w = 1) {
+  const faces = plan.map((a, i) => {
+    const b = plan[(i + 1) % plan.length], n = [b[1] - a[1], -(b[0] - a[0])], l = Math.hypot(...n)
+    return { d: depth((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (z0 + z1) / 2), p: [[...a, z0], [...b, z0], [...b, z1], [...a, z1]], n: [n[0] / l, n[1] / l] }
+  }).sort((f, g) => f.d - g.d)
+  const smooth = plan.length > 8 // a round side: no ink between its facets
+  for (const f of faces) out.push(`<polygon points="${pts(f.p)}" fill="${shade(side, f.n)}" stroke="${smooth ? shade(side, f.n) : ol}" stroke-width="${smooth ? 0.6 : w}" stroke-linejoin="round"/>`)
+  if (smooth) { // the outline of a round side: its silhouette, drawn as the top and bottom rims
+    out.push(`<polygon points="${pts(plan.map(([x, y]) => [x, y, z0]))}" fill="none" stroke="${ol}" stroke-width="${w}"/>`)
+  }
+  out.push(`<polygon points="${pts(plan.map(([x, y]) => [x, y, z1]))}" fill="${top}" stroke="${ol}" stroke-width="${w}" stroke-linejoin="round"/>`)
+}
+function pyramid(out, plan, z0, apex, col) {
+  const faces = plan.map((a, i) => { const b = plan[(i + 1) % plan.length], n = [b[1] - a[1], -(b[0] - a[0])], l = Math.hypot(...n)
+    return { d: depth((a[0] + b[0] + apex[0]) / 3, (a[1] + b[1] + apex[1]) / 3, z0), p: [[...a, z0], [...b, z0], apex], n: [n[0] / l, n[1] / l] } }).sort((f, g) => f.d - g.d)
+  for (const f of faces) out.push(`<polygon points="${pts(f.p)}" fill="${shade(col, f.n)}" stroke="${INK}" stroke-width="1" stroke-linejoin="round"/>`)
+}
+// Lines across a box's sides at a height (the server's drive bays), on the faces that face the viewer.
+function bands(out, plan, z) {
+  plan.forEach((a, i) => { const b = plan[(i + 1) % plan.length], n = [b[1] - a[1], -(b[0] - a[0])]
+    if (depth(a[0] + n[0] * .01, a[1] + n[1] * .01) > depth(a[0], a[1]) || mode === 'flat') return
+    const [x1, y1] = P(a[0], a[1], z), [x2, y2] = P(b[0], b[1], z)
+    out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${INK}" stroke-width=".9"/>`) })
+}
+
+// ---- the four default icons; each returns the height of its top ----
+function icon(n, z) {
+  const out = [], { x, y } = n, c = SHAPE[n.shape]
+  let top
+  if (n.shape === 'rect') { // server
+    const plan = rectPlan(x, y, 1, 1)
+    prism(out, plan, z, z + 1.1, SIDE, TOP)
+    bands(out, plan, z + .37); bands(out, plan, z + .73)
+    for (const h of [.18, .55, .92]) { const [X, Y] = P(x - .5 + .22, y + .5, z + h); if (mode !== 'flat') out.push(`<circle cx="${X}" cy="${Y}" r="2.2" fill="${c}" stroke="${INK}" stroke-width=".5"/>`) }
+    // a coloured stripe on the top
+    prism(out, rectPlan(x, y, .7, .14), z + 1.1, z + 1.13, c, c)
+    top = z + 1.13
+  } else if (n.shape === 'round') { // service: a hex puck in the node's colour, a light cap
+    prism(out, ngon(x, y, .62, 6, Math.PI / 6), z, z + .42, c, mix(c, '#ffffff', .35))
+    prism(out, ngon(x, y, .3, 6, Math.PI / 6), z + .42, z + .62, SIDE, TOP)
+    top = z + .62
+  } else if (n.shape === 'cylinder') { // storage: three stacked discs
+    for (let k = 0; k < 3; k++) prism(out, ngon(x, y, .55, 20), z + k * .3, z + k * .3 + .24, k === 2 ? mix(c, '#ffffff', .2) : SIDE, k === 2 ? mix(c, '#ffffff', .45) : TOP)
+    top = z + .84
+  } else { // decision: a low plinth and a pyramid
+    const plan = ngon(x, y, .7, 4)
+    prism(out, plan, z, z + .16, SIDE, TOP)
+    pyramid(out, ngon(x, y, .5, 4), z + .16, [x, y, z + .95], c)
+    top = z + .95
+  }
+  objs.push({ d: depth(x, y, z), svg: out.join('') })
+  return top
+}
+function callout(n, top) {
+  const [X, Y] = P(n.x, n.y, top + .05), lift = mode === 'flat' ? 26 : 34
+  const w = Math.max(n.label.length * 6.8, (n.sub || '').length * 5.7) + 18, h = n.sub ? 32 : 20, y0 = Y - lift - h
+  front.push(`<line x1="${X}" y1="${Y}" x2="${X}" y2="${Y - lift}" stroke="#333" stroke-width="1.2" stroke-dasharray="1.5 3" stroke-linecap="round"/>`)
+  front.push(`<circle cx="${X}" cy="${Y}" r="1.8" fill="#333"/>`)
+  front.push(`<rect x="${X - w / 2}" y="${y0}" width="${w}" height="${h}" rx="3" fill="#fff" stroke="#cfd4dd"/>`)
+  front.push(`<text x="${X - w / 2 + 9}" y="${y0 + 13.5}" font-size="11" font-weight="700" fill="#1f2330">${n.label}</text>`)
+  if (n.sub) front.push(`<text x="${X - w / 2 + 9}" y="${y0 + 26}" font-size="9.5" fill="#6b7280">${n.sub}</text>`)
+}
+
+// ---- zones: a thin floor, the name in big letters lying on it ----
+const FLOOR = .08
+function zone(zn) {
+  const c = zn.color, z0 = zn.level * FLOOR, z1 = z0 + FLOOR
+  const fill = zn.level ? mix(c, '#ffffff', .55) : mix(c, '#ffffff', .72)
+  prism(back, roundPlan(zn.x0, zn.y0, zn.x1, zn.y1, .5), z0, z1, mix(c, '#ffffff', .35), fill, c, 1.2)
+  // the ground lettering: SVG text in world units, laid on the floor by the projection's own affine map
+  const size = zn.level ? .75 : 1.15, [tx, ty] = P(zn.x0 + .45, zn.y1 - .45, z1)
+  const m = [S * ca, S * sa * sp, -S * sa, S * ca * sp, tx, ty].map(v => v.toFixed(3)).join(' ')
+  back.push(`<text transform="matrix(${m})" font-size="${size}" font-weight="800" letter-spacing=".06" fill="${dark(c, .35)}" fill-opacity=".8">${zn.label.toUpperCase()}</text>`)
+}
+
+// ---- lines: navy, on the floor, an arrow partway along the longest run ----
+function groundArrow(out, m, dir, z, col, len = .32) {
+  const [dx, dy] = dir, px = -dy, py = dx
+  out.push(`<polygon points="${pts([[m[0] + dx * len, m[1] + dy * len, z], [m[0] - dx * len + px * len * .8, m[1] - dy * len + py * len * .8, z], [m[0] - dx * len * .4, m[1] - dy * len * .4, z], [m[0] - dx * len - px * len * .8, m[1] - dy * len - py * len * .8, z]])}" fill="${col}" stroke="${col}" stroke-width=".8" stroke-linejoin="round"/>`)
+}
+function pill(out, x, y, z, text) {
+  const [X, Y] = P(x, y, z), w = text.length * 6 + 12
+  out.push(`<rect x="${X - w / 2}" y="${Y - 8}" width="${w}" height="16" rx="8" fill="#fff" stroke="${NAVY}" stroke-width="1"/><text x="${X}" y="${Y + 3.5}" font-size="10" text-anchor="middle" fill="#333">${text}</text>`)
+}
+function line(e, opts = {}) {
+  const z = e.z ?? FLOOR + .02, col = opts.color ?? NAVY
+  back.push(`<polyline points="${pts(e.pts.map(([x, y]) => [x, y, z]))}" fill="none" stroke="${col}" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round" ${opts.dash ? 'stroke-dasharray="6 5"' : ''}/>`)
+  let best = 0, bi = 0
+  for (let i = 1; i < e.pts.length; i++) { const l = Math.hypot(e.pts[i][0] - e.pts[i - 1][0], e.pts[i][1] - e.pts[i - 1][1]); if (l > best) { best = l; bi = i } }
+  const a = e.pts[bi - 1], b = e.pts[bi], m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+  groundArrow(back, m, [(b[0] - a[0]) / best, (b[1] - a[1]) / best], z, col)
+  if (e.label) pill(front, m[0], m[1] + (Math.abs(b[0] - a[0]) > .1 ? -.55 : 0), z, e.label)
+}
+// ---- long links: a dashed arc overhead ----
+function arc(a, b, za, zb, label) {
+  const L = Math.hypot(b.x - a.x, b.y - a.y), h = L / 4, s = []
+  for (let i = 0; i <= 40; i++) { const t = i / 40; s.push([a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, za + (zb - za) * t + 4 * h * t * (1 - t)]) }
+  front.unshift(`<polyline points="${pts(s)}" fill="none" stroke="${FAR}" stroke-width="2.6" stroke-dasharray="7 6" stroke-linecap="round"/>`)
+  const [x1, y1] = P(...s[38]), [x2, y2] = P(...s[40]), ang = Math.atan2(y2 - y1, x2 - x1)
+  const hd = (r, t) => `${x2 - 11 * Math.cos(ang + t)},${y2 - 11 * Math.sin(ang + t)}`
+  front.unshift(`<polygon points="${x2},${y2} ${hd(0, .45)} ${hd(0, -.45)}" fill="${FAR}"/>`)
+  if (label) { const mm = s[20]; const [X, Y] = P(...mm), w = label.length * 6 + 12; front.push(`<rect x="${X - w / 2}" y="${Y - 8}" width="${w}" height="16" rx="8" fill="#fff" stroke="${FAR}"/><text x="${X}" y="${Y + 3.5}" font-size="10" text-anchor="middle" fill="#333">${label}</text>`) }
+}
+
+// ---- the made-up flowchart ----
+const ZONES = [
+  { id: 'edge', label: 'Edge', color: '#9aa3b2', x0: 0, y0: 3.5, x1: 6, y1: 9, level: 0 },
+  { id: 'orders', label: 'Orders', color: '#6fae45', x0: 8, y0: 0, x1: 22, y1: 7, level: 0 },
+  { id: 'data', label: 'Data', color: '#6fae45', x0: 15, y0: 3.6, x1: 21.4, y1: 6.5, level: 1 },
+  { id: 'payments', label: 'Payments', color: '#f0a43c', x0: 8, y0: 8.6, x1: 22, y1: 14, level: 0 },
+]
+const NODES = [
+  { id: 'browser', label: 'Browser', sub: 'Web · mobile', shape: 'round', x: 1.6, y: 5.6, lv: 1 },
+  { id: 'gw', label: 'API Gateway', sub: 'Envoy · TLS', shape: 'rect', x: 4.4, y: 5.6, lv: 1 },
+  { id: 'oapi', label: 'Order API', sub: 'Go · 3 pods', shape: 'rect', x: 10, y: 2, lv: 1 },
+  { id: 'valid', label: 'Valid?', shape: 'diamond', x: 13.6, y: 2, lv: 1 },
+  { id: 'osvc', label: 'Order Svc', sub: 'Go · 2 pods', shape: 'rect', x: 17.4, y: 2, lv: 1 },
+  { id: 'queue', label: 'Order Queue', sub: 'Kafka', shape: 'cylinder', x: 19.6, y: 5, lv: 2 },
+  { id: 'papi', label: 'Payment API', sub: 'Node · 3 pods', shape: 'rect', x: 10, y: 11, lv: 1 },
+  { id: 'fraud', label: 'Fraud?', shape: 'diamond', x: 13.6, y: 11, lv: 1 },
+  { id: 'charge', label: 'Charge Card', sub: 'Stripe adapter', shape: 'round', x: 17, y: 11, lv: 1 },
+  { id: 'ledger', label: 'Ledger', sub: 'Postgres · HA', shape: 'cylinder', x: 20.2, y: 11, lv: 1 },
+]
+const EDGES = [
+  { pts: [[1.6, 5.6], [4.4, 5.6]] },
+  { pts: [[4.4, 5.6], [7, 5.6], [7, 2], [10, 2]] },
+  { pts: [[4.4, 5.6], [7, 5.6], [7, 11], [10, 11]] },
+  { pts: [[10, 2], [13.6, 2]] },
+  { pts: [[13.6, 2], [17.4, 2]], label: 'yes' },
+  { pts: [[17.4, 2], [17.4, 5], [19.6, 5]] },
+  { pts: [[10, 11], [13.6, 11]] },
+  { pts: [[13.6, 11], [17, 11]], label: 'ok' },
+  { pts: [[17, 11], [20.2, 11]] },
+]
+const ARCS = [['queue', 'papi', 'pay'], ['ledger', 'browser', 'receipt']]
+
+function drawFlow() {
+  for (const zn of ZONES) zone(zn)
+  for (const e of EDGES) line(e)
+  const tops = {}
+  for (const n of NODES) tops[n.id] = icon(n, n.lv * FLOOR)
+  for (const n of NODES) callout(n, tops[n.id])
+  const by = Object.fromEntries(NODES.map(n => [n.id, n]))
+  for (const [a, b, l] of ARCS) arc(by[a], by[b], tops[a], tops[b], l)
+}
+
+// ---- the made-up sequence: participants as icons along the back, lifelines on the ground ----
+function drawSeq() {
+  const parts = [
+    { id: 'u', label: 'Browser', shape: 'round', x: 1 }, { id: 'g', label: 'Gateway', shape: 'rect', x: 5 },
+    { id: 'a', label: 'Auth', shape: 'diamond', x: 9 }, { id: 'd', label: 'Users DB', shape: 'cylinder', x: 13 },
+  ]
+  zone({ label: 'Login', color: '#4f7cff', x0: -1, y0: -1.2, x1: 15, y1: 13.5, level: 0 })
+  const X = Object.fromEntries(parts.map(p => [p.id, p.x]))
+  for (const p of parts) back.push(`<polyline points="${pts([[p.x, 0.8, FLOOR + .01], [p.x, 12.6, FLOOR + .01]])}" fill="none" stroke="#7a86a8" stroke-width="1.5" stroke-dasharray="5 4"/>`)
+  const msgs = [['u', 'g', 'POST /login'], ['g', 'a', 'check(user, pw)'], ['a', 'd', 'find user'], ['d', 'a', 'row', 1], ['a', 'g', 'token', 1], ['g', 'u', '200 + cookie', 1]]
+  msgs.forEach(([f, t, l, ret], i) => {
+    const y = 2.2 + i * 1.7
+    line({ pts: [[X[f], y], [X[t], y]], label: l }, { dash: ret, color: ret ? '#5566b8' : NAVY })
+  })
+  const tops = {}
+  for (const p of parts) tops[p.id] = icon({ ...p, y: 0 }, FLOOR)
+  for (const p of parts) callout({ ...p, y: 0 }, tops[p.id])
+}
+
+// ---- draw ----
+function grid() {
+  const g = []
+  for (let i = -2; i <= 24; i += 1) { g.push(`<polyline points="${pts([[i, -2, 0], [i, 16, 0]])}" stroke="#e1e4ea" stroke-width=".8" fill="none"/>`) }
+  for (let j = -2; j <= 16; j += 1) { g.push(`<polyline points="${pts([[-2, j, 0], [24, j, 0]])}" stroke="#e1e4ea" stroke-width=".8" fill="none"/>`) }
+  return g.join('')
+}
+function render() {
+  setView(); back = []; front = []; objs.length = 0
+  const g = grid()
+  minX = minY = Infinity; maxX = maxY = -Infinity // frame the diagram, not the grid
+  kind === 'flow' ? drawFlow() : drawSeq()
+  objs.sort((a, b) => a.d - b.d)
+  const pad = 70, vb = [minX - pad, minY - pad - 40, maxX - minX + 2 * pad, maxY - minY + 2 * pad + 40]
+  document.getElementById('stage').innerHTML = `<svg viewBox="${vb.map(v => v.toFixed(0)).join(' ')}" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">${g}${back.join('')}${objs.map(o => o.svg).join('')}${front.join('')}</svg>`
+}
+function seg(id, set) {
+  const el = document.getElementById(id)
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); set(b.dataset.v); render() })
+}
+seg('mode', v => { mode = v }); seg('kind', v => { kind = v })
+document.getElementById('turn').addEventListener('input', e => { turn = +e.target.value; render() })
+render()
+</script>
+</body>
+</html>

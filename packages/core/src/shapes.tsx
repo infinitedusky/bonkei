@@ -1,14 +1,15 @@
 import * as THREE from 'three'
 import { useMemo, useRef } from 'react'
-import { Billboard, Line } from '@react-three/drei'
+import { Billboard, Line, Text } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import type { Box, LabelMode } from './model'
 
 export type { LabelMode }
 
-import { S, TRAY, NODE_H, TEXT_LAYER } from './scale.ts'
+import { S, TRAY, NODE_H, TEXT_LAYER, ICON_TOP } from './scale.ts'
+import { Icon, Card } from './icons'
 import { slotShape } from './EdgeScene'
-import { Mat, Ink, PlateText, useTheme, fontUrl, patternTexture, useFormTexture, FORM_ASPECT } from './look'
+import { Mat, Ink, PlateText, useTheme, fontUrl, fontOf, patternTexture, useFormTexture, FORM_ASPECT } from './look'
 import type { Plate } from './theme'
 import { pickCorner, titleWidth, type Corner, type Rect } from './titles'
 export { S, TRAY, NODE_H }
@@ -124,7 +125,7 @@ function Form({ shape, w, h, y, gap, label, plate, font, toward }: { shape: Box[
 }
 
 /** The height a node's body stands (a landscape node: its plinth); the edge planner and the drag plane use the same. */
-export const nodeHeight = (th: { node: { form: string; footprint: { height: number } } }, b: Box) => th.node.form === 'landscape' ? th.node.footprint.height : (b.height ?? NODE_H)
+export const nodeHeight = (th: { node: { form: string; footprint: { height: number }; icon: { size: number } } }, b: Box) => th.node.form === 'landscape' ? th.node.footprint.height : th.node.form === 'icon' ? ICON_TOP[b.shape] * (th.node.icon.size / 1.2) : (b.height ?? NODE_H)
 
 export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
   const th = useTheme()
@@ -139,6 +140,7 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
     return '#' + new THREE.Color(under).multiplyScalar(fp.darken).getHexString()
   }, [th.node.footprint, th.tray.colors, th.ground.bg, b.level])
   const geo = useMemo(() => geometry(b.shape, land ? w * 0.9 : w, land ? h * 0.9 : h, height, th.node.bevel), [b.shape, w, h, height, land, th.node.bevel])
+  if (th.node.form === 'icon') return <><Icon shape={b.shape} hover={hover} /><Card title={b.title ?? b.label} sub={b.sub} shape={b.shape} w={w} /></>
   return (
     <>
       {/* an inked node stands a hair above its surface so its bottom outline is not lost to the depth test against the tray top */}
@@ -164,19 +166,28 @@ export function Label({ text, mode, y, size, maxWidth, left = false, right = fal
   return <Billboard position={[0, y + 0.45, 0]}>{body}</Billboard>
 }
 
-export function Tray({ b, labelMode, hover = false, slots = [], kids = [] }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[]; kids?: Rect[] }) {
+const mixc = (a: string, b: string, t: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString()
+
+export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[]; kids?: Rect[]; zone?: { color: string; nested: boolean } }) {
   const th = useTheme()
   const w = b.w * S, h = b.h * S
   const lv = Math.min(b.level, 2)
   const T = th.tray.thickness
+  const ground = th.tray.titles === 'ground'
   // the title's corner: fixed back-left, or the first corner nothing stands on (a form stands taller than its footprint, so it is grown more)
   const last = useRef<Corner>('bl')
+  const gsize = groundSize(w, h, b.label, b.level)
   const corner: Corner = useMemo(() => {
+    if (ground) {
+      const c = pickCorner(w, h, groundWidth(b.label, gsize), gsize * 1.2, kids, GROUND_GROW, last.current, GROUND_ORDER)
+      last.current = c
+      return c
+    }
     if (th.tray.titles === 'fixed') return 'bl'
     const c = pickCorner(w, h, titleWidth(b.label, 0.4), 0.75, kids, th.node.form === 'landscape' ? { x0: 1.0, x1: 0.3, z0: 1.9, z1: 0.3 } : { x0: 0.4, x1: 0.3, z0: 0.8, z1: 0.3 }, last.current)
     last.current = c
     return c
-  }, [th.tray.titles, th.node.form, w, h, b.label, JSON.stringify(kids)])
+  }, [ground, th.tray.titles, th.node.form, w, h, b.label, gsize, JSON.stringify(kids)])
   const pat = th.tray.sides[lv]
   const side = useMemo(() => {
     const t = patternTexture(pat, th.tray.patternInk, th.tray.patternPaper, th.tray.outline ?? th.tray.patternInk)
@@ -186,23 +197,52 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [] }: { b
     c.offset.set(0, ((-(1 - T) / T) % 1 + 1) % 1)
     return c
   }, [pat, th.tray.patternInk, th.tray.patternPaper, T])
+  // a zone's floor: its colour mixed with white (a nested one less, so it reads as a stronger tint of its parent's), a lighter side, a rim line in the zone colour
+  const top = zone ? mixc(zone.color, '#ffffff', th.tray.zoneMix[zone.nested ? 1 : 0]) : th.tray.colors[lv]
+  const sideColor = zone ? mixc(zone.color, '#ffffff', 0.35) : th.tray.colors[lv]
+  const rounded0 = th.tray.radius > 0
+  const rim = useMemo(() => (zone && rounded0 ? rounded(w, h, Math.min(th.tray.radius, w / 2, h / 2)).getPoints(8).map(p => [p.x, T + 0.002, -p.y] as [number, number, number]) : null), [zone, rounded0, w, h, th.tray.radius, T])
   // with tunnel slots (in tray-local x, z) the top is cut open, and a patterned side needs the extruded walls; otherwise a plain box
   const cut = useMemo(() => {
-    if (!slots.length && !side) return null
-    return new THREE.ExtrudeGeometry(slotShape(-w / 2, -h / 2, w / 2, h / 2, slots), { depth: T, bevelEnabled: false }).rotateX(-Math.PI / 2)
-  }, [w, h, JSON.stringify(slots), !!side, T])
-  const mat = (map: THREE.Texture | null | undefined, attach?: string) => <Mat attach={attach} color={map ? '#ffffff' : th.tray.colors[lv]} map={map} roughness={0.9} emissive={hover ? th.tray.hover : '#000'} emissiveIntensity={hover ? th.tray.hoverIntensity : 0} />
+    if (!slots.length && !side && !rounded0) return null
+    const sh = slots.length || !rounded0 ? slotShape(-w / 2, -h / 2, w / 2, h / 2, slots) : rounded(w, h, Math.min(th.tray.radius, w / 2, h / 2))
+    return new THREE.ExtrudeGeometry(sh, { depth: T, bevelEnabled: false, curveSegments: 8 }).rotateX(-Math.PI / 2)
+  }, [w, h, JSON.stringify(slots), !!side, T, rounded0, th.tray.radius])
+  const mat = (map: THREE.Texture | null | undefined, attach?: string, color = top) => <Mat attach={attach} color={map ? '#ffffff' : color} map={map} roughness={0.9} emissive={hover ? th.tray.hover : '#000'} emissiveIntensity={hover ? th.tray.hoverIntensity : 0} />
+  const left = corner === 'bl' || corner === 'fl', back = corner === 'bl' || corner === 'br'
   return (
     <>
       <mesh key={cut ? 'cut' : 'box'} position={[0, cut ? 0 : T / 2, 0]} receiveShadow={th.light.shadows} geometry={cut ?? undefined}>
         {!cut && <boxGeometry args={[w, T, h]} />}
-        {cut ? <>{mat(null, 'material-0')}{mat(side, 'material-1')}</> : mat(null)}
+        {cut ? <>{mat(null, 'material-0')}{mat(side, 'material-1', sideColor)}</> : mat(null)}
         <Ink color={th.tray.outline} width={th.node.outlineWidth} />
       </mesh>
-      <group position={[corner === 'bl' || corner === 'fl' ? -w / 2 + 0.25 : w / 2 - 0.25, 0, corner === 'bl' || corner === 'br' ? -h / 2 + 0.5 : h / 2 - 0.5]}>
-        <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={corner === 'bl' || corner === 'fl'} right={corner === 'br' || corner === 'fr'} role="tray" />
-      </group>
+      {rim && <Line points={[...rim, rim[0]]} color={zone!.color} lineWidth={1.5} />}
+      {ground
+        ? <GroundTitle text={b.label} w={w} h={h} T={T} size={gsize} left={left} back={back} color={mixc(zone?.color ?? th.tray.colors[lv], '#000000', th.tray.groundInk)} />
+        : (
+          <group position={[left ? -w / 2 + 0.25 : w / 2 - 0.25, 0, back ? -h / 2 + 0.5 : h / 2 - 0.5]}>
+            <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={left} right={!left} role="tray" />
+          </group>
+        )}
     </>
+  )
+}
+
+// A zone's name in big capitals lying on its floor, at a corner nothing stands on (front-left first). Its size follows the zone's, a nested zone's smaller.
+const GROUND_ORDER: Corner[] = ['fl', 'fr', 'bl', 'br']
+const GROUND_GROW = { x0: 0.5, x1: 0.2, z0: 0.6, z1: 0.3 } // an icon (its box is larger than the icon) stands over the floor it is on; the card is drawn over everything, so only the footprint counts
+const groundWidth = (text: string, size: number) => text.length * size * 0.8 + size * 0.2
+function groundSize(w: number, h: number, text: string, level: number) {
+  const want = Math.min(w, h) * 0.16 * (level > 0 ? 0.65 : 1)
+  return Math.max(0.35, Math.min(want, 1.3, (w - 0.9) / (text.length * 0.8 + 0.2)))
+}
+function GroundTitle({ text, w, h, T, size, left, back, color }: { text: string; w: number; h: number; T: number; size: number; left: boolean; back: boolean; color: string }) {
+  const th = useTheme()
+  const font = fontOf(th.tray.groundFont)
+  return (
+    <Text position={[left ? -w / 2 + 0.45 : w / 2 - 0.45, T + 0.004, back ? -h / 2 + 0.45 + size : h / 2 - 0.45]} rotation={[-Math.PI / 2, 0, 0]} font={font} fontSize={size} letterSpacing={0.04}
+      anchorX={left ? 'left' : 'right'} anchorY="bottom" color={color} fillOpacity={0.8} layers={TEXT_LAYER as any}>{text.toUpperCase()}</Text>
   )
 }
 

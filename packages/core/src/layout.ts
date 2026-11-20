@@ -11,6 +11,8 @@ export interface LayoutOptions {
   avoidCrossings?: AvoidCrossings
   /** The span the routing span hangs under (bonkei.layout). */
   span?: Span
+  /** Leave the dotted links (-.->) out of the placing and the routing and return them as `arcs`, for a theme that draws them overhead (theme.edge.dotted 'arc'). */
+  arcs?: boolean
 }
 export type LayoutEngine = (g: Graph, o?: LayoutOptions) => Promise<LayoutResult>
 
@@ -60,7 +62,14 @@ function sizeOf(n: { label: string; shape: string }) {
 
 // ELK places the boxes; libavoid routes the lines (BON-100). If the wasm cannot load or routing throws, ELK's own routes stay
 // (with U-turns straightened where it can) and `stats.route.error` says why; the `bonkei.route` span records it too.
-export const layout: LayoutEngine = async (g, o = {}) => {
+export const layout: LayoutEngine = async (g0, o = {}) => {
+  // dotted links as arcs overhead take no part in the layout: nothing routes them, and they do not push the nodes about
+  const arcs = o.arcs ? g0.edges.filter(e => e.dotted).map(e => ({ id: e.id, from: e.from, to: e.to, label: e.label })) : []
+  const g = arcs.length ? { ...g0, edges: g0.edges.filter(e => !e.dotted) } : g0
+  const r = await route(g, o)
+  return o.arcs ? { ...r, arcs } : r
+}
+const route: LayoutEngine = async (g, o = {}) => {
   const placed = await place(g, o.span)
   const level = o.avoidCrossings ?? 'some'
   return withSpan('bonkei.route', { 'bonkei.avoid_crossings': level, 'bonkei.edges': placed.routes.length }, async span => {
@@ -140,7 +149,7 @@ async function place(g: Graph, parent?: Span): Promise<LayoutResult> {
       const isGroup = groupIds.has(c.id)
       const src = isGroup ? g.groups.find(x => x.id === c.id)! : g.nodes.find(x => x.id === c.id)!
       boxes.push({
-        id: c.id, label: src.label, kind: isGroup ? 'group' : 'node',
+        id: c.id, label: src.label, kind: isGroup ? 'group' : 'node', ...((src as any).sub ? { title: (src as any).title, sub: (src as any).sub } : {}),
         shape: isGroup ? 'rect' : (src as any).shape,
         x: ox + c.x, y: oy + c.y, w: c.width, h: c.height, level, parent,
       })
@@ -223,4 +232,27 @@ export function reroute(a: Box, b: Box): [number, number][] {
   if (Math.abs(acy - bcy) < 1e-6) return [[x1, acy], [x2, bcy]]
   const m = (x1 + x2) / 2
   return [[x1, acy], [m, acy], [m, bcy], [x2, bcy]]
+}
+
+/**
+ * Lines end at a node's box, which is larger than a Cloud Cartography icon: each end that meets a side midpoint is lengthened inwards,
+ * along its own last segment, until it reaches the icon's footprint (`half`, px). A line a node's box leaves too short to reach keeps its end.
+ */
+export function trimToIcons(routes: Route[], boxes: Map<string, Box>, half: number): Route[] {
+  return routes.map(r => {
+    const pts = r.points.map(p => [...p] as [number, number])
+    for (const atEnd of [false, true]) {
+      const b = boxes.get(atEnd ? r.to : r.from)
+      const i = atEnd ? pts.length - 1 : 0, q = pts[atEnd ? i - 1 : i + 1]
+      if (!b || !q) continue
+      const p = pts[i]
+      const side = (['N', 'S', 'E', 'W'] as Side[]).find(sd => { const m = sideMid(b, sd); return Math.hypot(m[0] - p[0], m[1] - p[1]) < 0.5 })
+      if (!side) continue
+      const [nx, ny] = NORMAL[side]
+      if (Math.abs((q[0] - p[0]) * nx + (q[1] - p[1]) * ny) < 0.5) continue // the line does not leave the side straight out: leave it
+      const inset = (nx !== 0 ? b.w : b.h) / 2 - half
+      if (inset > 0) pts[i] = [p[0] - nx * inset, p[1] - ny * inset]
+    }
+    return { ...r, points: pts }
+  })
 }

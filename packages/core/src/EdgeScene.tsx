@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Text } from '@react-three/drei'
 import { SLOT_W, flatLine, floorGlow, floorGlowAt, type Body, type EdgePlan, type P3, type PortalPair, type Slot } from './edges3d.ts'
-import { useTheme, fontUrl } from './look'
+import { Billboard } from '@react-three/drei'
+import { useTheme, fontUrl, PlateText } from './look'
 import { TEXT_LAYER } from './scale.ts'
 import type { LabelMode } from './model'
 
@@ -22,9 +23,26 @@ function FlatArrow({ tip, dir, color }: { tip: THREE.Vector3; dir: THREE.Vector3
   return <mesh geometry={geo}><meshBasicMaterial color={color} side={THREE.DoubleSide} /></mesh>
 }
 
+// A label on a pill: a white plate with a border in the line's colour, standing in the camera's frame (or lying on the surface in 'top' mode).
+function Pill({ at, text, color, labelMode }: { at: THREE.Vector3; text: string; color: string; labelMode: LabelMode }) {
+  const th = useTheme()
+  const plate = { style: 'cartouche' as const, text: th.edge.label, plate: th.label.pill!, border: color }
+  const body = <PlateText text={text} plate={plate} fontSize={0.24} maxWidth={4} inFront />
+  return labelMode === 'top'
+    ? <group position={[at.x, at.y + 0.03, at.z]} rotation={[-Math.PI / 2, 0, 0]}>{body}</group>
+    : <Billboard position={[at.x, at.y + 0.3, at.z]}>{body}</Billboard>
+}
+
+// The one arrow of a line that has none at its end: a flat chevron lying in the surface, pointing along `dir`.
+const MID_ARROW = (() => { const s = new THREE.Shape(); s.moveTo(0.32, 0); s.lineTo(-0.32, 0.26); s.lineTo(-0.13, 0); s.lineTo(-0.32, -0.26); s.closePath(); return new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2) })()
+function MidArrow({ at, dir, color }: { at: THREE.Vector3; dir: THREE.Vector3; color: string }) {
+  return <mesh geometry={MID_ARROW} position={[at.x, at.y + 0.004, at.z]} rotation={[0, Math.atan2(-dir.z, dir.x), 0]}><meshBasicMaterial color={color} side={THREE.DoubleSide} /></mesh>
+}
+
 export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label?: string; labelMode: LabelMode; bodies?: Body[] }) {
   const th = useTheme()
   const flat = th.edge.flat && !!bodies
+  const mid = th.edge.arrow === 'mid'
   // flat: the whole route (its parts joined) is laid on the surfaces under it; a bridge or tunnel is levelled
   const parts = flat
     ? [flatLine(plan.parts.flatMap(p => p), bodies!).map(v3)]
@@ -34,27 +52,50 @@ export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label
   const dir = new THREE.Vector3().subVectors(last[n - 1], last[n - 2]).normalize()
   const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
   const tip = last[n - 1]
-  const lines = parts.map((p, i) => i === parts.length - 1 ? [...p.slice(0, n - 1), tip.clone().addScaledVector(dir, -0.3)] : p)
-  // label on the longest run in plan
-  let best = 0, at = new THREE.Vector3()
+  const lines = parts.map((p, i) => i === parts.length - 1 && !mid ? [...p.slice(0, n - 1), tip.clone().addScaledVector(dir, -0.3)] : p)
+  // label (and, with arrow 'mid', the arrow) on the longest run in plan
+  let best = 0, at = new THREE.Vector3(), run = new THREE.Vector3(1, 0, 0)
   for (const p of parts) for (let i = 0; i < p.length - 1; i++) {
     const l = Math.hypot(p[i + 1].x - p[i].x, p[i + 1].z - p[i].z)
-    if (l > best) { best = l; at = p[i].clone().add(p[i + 1]).multiplyScalar(0.5) }
+    if (l > best) { best = l; at = p[i].clone().add(p[i + 1]).multiplyScalar(0.5); run = new THREE.Vector3().subVectors(p[i + 1], p[i]).setY(0).normalize() }
   }
   return (
     <group>
       {lines.map((l, i) => <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={th.edge.color} lineWidth={th.edge.width} />)}
-      {flat
-        ? <FlatArrow tip={tip} dir={dir} color={th.edge.color} />
-        : (
-          <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
-            <coneGeometry args={[0.13, 0.4, 16]} />
-            <meshBasicMaterial color={th.edge.color} />
-          </mesh>
-        )}
-      {label && (
-        <Text layers={TEXT_LAYER as any} position={[at.x, at.y + (labelMode === 'top' ? 0.02 : 0.4), at.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} font={fontUrl(th)} fontSize={0.22} color={th.edge.label} outlineWidth={0.02} outlineColor={th.edge.labelOutline}>{label}</Text>
-      )}
+      {mid
+        ? <MidArrow at={at} dir={run} color={th.edge.color} />
+        : flat
+          ? <FlatArrow tip={tip} dir={dir} color={th.edge.color} />
+          : (
+            <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>
+              <coneGeometry args={[0.13, 0.4, 16]} />
+              <meshBasicMaterial color={th.edge.color} />
+            </mesh>
+          )}
+      {label && (th.label.pill
+        ? <Pill at={mid ? at.clone().add(new THREE.Vector3(0, 0, -0.45)) : at} text={label} color={th.edge.color} labelMode={labelMode} />
+        : <Text layers={TEXT_LAYER as any} position={[at.x, at.y + (labelMode === 'top' ? 0.02 : 0.4), at.z]} rotation={labelMode === 'top' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} font={fontUrl(th)} fontSize={0.22} color={th.edge.label} outlineWidth={0.02} outlineColor={th.edge.labelOutline}>{label}</Text>)}
+    </group>
+  )
+}
+
+/** A dotted link (-.->) drawn as a dashed arc overhead, from the top of one icon to the top of the other: its peak a share (theme.edge.arc.peak) of its span, an arrowhead at its target, the label on a pill at the peak. */
+export function ArcLink({ a, b, label, labelMode }: { a: THREE.Vector3; b: THREE.Vector3; label?: string; labelMode: LabelMode }) {
+  const th = useTheme()
+  const { color, width, peak, arrow } = th.edge.arc
+  const pts = useMemo(() => {
+    const h = Math.hypot(b.x - a.x, b.z - a.z) * peak
+    return Array.from({ length: 49 }, (_, i) => { const t = i / 48; return new THREE.Vector3(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t + 4 * h * t * (1 - t), a.z + (b.z - a.z) * t) })
+  }, [a, b, peak])
+  const end = pts[pts.length - 1], dir = end.clone().sub(pts[pts.length - 3]).normalize()
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
+  return (
+    <group>
+      <Line points={pts.slice(0, -2)} color={color} lineWidth={width} dashed dashSize={0.3} gapSize={0.24} />
+      <mesh position={end.clone().addScaledVector(dir, -arrow / 2)} quaternion={q}><coneGeometry args={[arrow * 0.35, arrow, 16]} /><meshBasicMaterial color={color} /></mesh>
+      {label && (th.label.pill
+        ? <Pill at={pts[24]} text={label} color={color} labelMode={labelMode} />
+        : <Text layers={TEXT_LAYER as any} position={[pts[24].x, pts[24].y + 0.3, pts[24].z]} font={fontUrl(th)} fontSize={0.22} color={th.edge.label} outlineWidth={0.02} outlineColor={th.edge.labelOutline}>{label}</Text>)}
     </group>
   )
 }

@@ -32,6 +32,8 @@ export function ToneSetup() {
   useLayoutEffect(() => { gl.toneMapping = th.light.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping }, [gl, th.light.toneMapping])
   return null
 }
+/** The URL of a bundled font by key, for drei's <Text> (null: drei's default). Suspends like `fontUrl`. */
+export const fontOf = (name: string | null): string | undefined => (name ? use(loadFont(name)).url : undefined)
 /** The font URL for drei's <Text>: undefined (drei's default) when the theme names none, or when the bundled file could not be loaded.
  * Call it while rendering: it suspends (React 19 `use`) until the theme's font has been fetched, inside the Suspense drei's <Text> needs anyway.
  * The font is looked for only then, never on import (fonts.ts). */

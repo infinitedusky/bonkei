@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
-import { reroute, PAD } from './layout'
+import { reroute, trimToIcons, PAD } from './layout'
 import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { instant } from './telemetry'
@@ -12,9 +12,9 @@ import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
 import { CLASSIC, inkPx, type Theme } from './theme'
-import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
+import { Edge, ArcLink, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
-import { S, NODE_H, TEXT_LAYER } from './scale'
+import { S, NODE_H, TEXT_LAYER, ICON_TOP, headroom } from './scale'
 import { UI } from './palette'
 import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gesture, hintText, holdable, isPinch, isSwapped, modKey, pairOf, settleYaw, swipeLatch, twoFingers, wheelAction, wheelInput, wheelPan, wheelPx, wheelTurn, wheelZoom, type Input, type Pair, type Radii } from './controls'
 import { Gate, HINT_MS, clipRadii, inScroller } from './hold'
@@ -303,7 +303,25 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     live.current = r && r.routes !== data.routes ? r.routes : null
     ovr.current = {}; setVer(v => v + 1)
   }, [data, wasm, avoidCrossings])
-  const { boxes, routes } = useMemo(() => effective(data, ovr.current, live.current), [data, ver])
+  const { boxes, routes: routed } = useMemo(() => effective(data, ovr.current, live.current), [data, ver])
+  // an icon is smaller than its node's box: each line is lengthened in to the icon's footprint (the routing itself is unchanged)
+  const iconHalf = (th.node.icon.size / 2 + 0.05) / S
+  const routes = useMemo(() => (th.node.form === 'icon' ? trimToIcons(routed, boxes, iconHalf) : routed), [routed, boxes, th.node.form, iconHalf])
+  // a zone's colour: each top-level tray takes the next of theme.tray.zones, a nested one its top-level ancestor's
+  const zones = useMemo(() => {
+    const m = new Map<string, { color: string; nested: boolean }>()
+    if (th.tray.colorBy !== 'zone' || !th.tray.zones.length) return m
+    const tops = [...boxes.values()].filter(b => b.kind === 'group' && b.level === 0)
+    const index = new Map(tops.map((b, i) => [b.id, i]))
+    for (const b of boxes.values()) {
+      if (b.kind !== 'group') continue
+      let top = b
+      while (top.parent && boxes.get(top.parent)) top = boxes.get(top.parent)!
+      m.set(b.id, { color: th.tray.zones[(index.get(top.id) ?? 0) % th.tray.zones.length], nested: b.level > 0 })
+    }
+    return m
+  }, [boxes, th.tray.colorBy, th.tray.zones])
+  const arcPoints = (id: string) => { const b = boxes.get(id)!; return new THREE.Vector3(wx(b.x + b.w / 2), baseOf(b, th.tray.thickness) + nodeHeight(th, b), wz(b.y + b.h / 2)) }
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
@@ -387,7 +405,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
               }}
               onPointerOver={e => { e.stopPropagation(); setHover(b.id); setCursor(cursorFor('group', controls, hasClick)) }}
               onPointerOut={() => { setHover(null); setCursor('') }}>
-              <Tray b={b} labelMode={labelMode} hover={hover === b.id} kids={th.tray.titles === 'free' ? [...boxes.values()].filter(k => k.parent === b.id).map(k => ({ x0: wx(k.x) - pos[0], x1: wx(k.x + k.w) - pos[0], z0: wz(k.y) - pos[2], z1: wz(k.y + k.h) - pos[2] })) : undefined} slots={slots.filter(s => s.tray === b.id).map(s => ({ x0: s.x0 - pos[0], x1: s.x1 - pos[0], z0: s.z0 - pos[2], z1: s.z1 - pos[2] }))} />
+              <Tray b={b} labelMode={labelMode} hover={hover === b.id} zone={zones.get(b.id)} kids={th.tray.titles !== 'fixed' ? [...boxes.values()].filter(k => k.parent === b.id).map(k => ({ x0: wx(k.x) - pos[0], x1: wx(k.x + k.w) - pos[0], z0: wz(k.y) - pos[2], z1: wz(k.y + k.h) - pos[2] })) : undefined} slots={slots.filter(s => s.tray === b.id).map(s => ({ x0: s.x0 - pos[0], x1: s.x1 - pos[0], z0: s.z0 - pos[2], z1: s.z1 - pos[2] }))} />
             </group>
           )
         }
@@ -399,6 +417,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
           <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
         </NodeLift>
       })}
+      {(data.arcs ?? []).filter(a => boxes.has(a.from) && boxes.has(a.to)).map(a => <ArcLink key={a.id} a={arcPoints(a.from)} b={arcPoints(a.to)} label={a.label} labelMode={labelMode} />)}
       {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} bodies={bodies} /> : null)}
       {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? th.tray.colors[Math.min(boxes.get(s.tray)!.level, 2)] : th.ground.bg} y={s.tray ? 0 : -0.02} />)}
       {portalList.length > 0 && <PortalSystem pairs={portalList} deps={[plans, hover]} />}
@@ -424,7 +443,7 @@ function NodeLift({ pos, hover, children, onDown, onClick, onOver, onOut }: { po
 // On the first frame drawn with each new `data`. The camera's first layout ever is framed (with the real aspect, known only once
 // the canvas has a size) and snapped to. Every later one (a new source, a new theme, another avoid-crossings level) keeps the view:
 // same pose, same tray flown into, lined up on what is on screen (camera.relayout, BON-195). Then it is reported once.
-function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResult | SeqLayout | null; onFirstFrame?: () => void }) {
+function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: LayoutResult | SeqLayout | null; onFirstFrame?: () => void; top: number }) {
   const seen = useRef<LayoutResult | SeqLayout | null>(null)
   const cb = useRef(onFirstFrame)
   cb.current = onFirstFrame
@@ -432,6 +451,7 @@ function FirstFrame({ cam, data, onFirstFrame }: { cam: Camera; data: LayoutResu
     if (!data || seen.current === data) return
     seen.current = data
     if (size.width > 0 && size.height > 0) { cam.aspect = size.width / size.height; cam.frameH = size.height }
+    cam.top = top // the theme's tallest icon and card: the fit leaves room for them
     cam.content = 'boxes' in data ? contentOf(data.boxes, data.width, data.height) : []
     if (!cam.layout) {
       cam.whole = false
@@ -530,7 +550,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
     <div ref={box} data-bonkei-scene="" onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
-        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} />
+        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={headroom(theme)} />
         {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
             and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
         <GateCtx.Provider value={gate}><InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>

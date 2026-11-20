@@ -7,6 +7,10 @@ import { layout, type LayoutOptions } from './layout.ts'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from './seq.ts'
 import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOptions, type Ready, type ThemeRequest } from './options.ts'
 import { withSpan } from './telemetry.ts'
+import { resolveTheme, type Theme } from './theme.ts'
+
+/** What `prepare` is given: the routing options, and the `theme` prop (a name or a Theme) so a theme that draws dotted links as arcs can leave them out of the layout. */
+export type PrepareOptions = LayoutOptions & { theme?: string | Theme }
 
 export interface Prepared {
   data: LayoutResult | SeqLayout
@@ -14,6 +18,7 @@ export interface Prepared {
   theme: ThemeRequest // config.theme / config.themeVariables as written; resolved with the theme prop in the component
   warnings: BonkeiWarning[] // frontmatter problems first, then dropped lines in line order
   ready: Ready
+  arcs: boolean // the dotted links were left out of the layout and returned as data.arcs (the look asked for them)
 }
 
 // What `prepare` rejects with: the error itself (so it can go straight to `onError`), carrying
@@ -46,6 +51,7 @@ interface Drawn {
   nodes: number
   edges: number
   dropped: Dropped[]
+  arcs: boolean
 }
 
 function finish(result: Drawn, warnings: BonkeiWarning[], t: number): Prepared {
@@ -56,6 +62,7 @@ function finish(result: Drawn, warnings: BonkeiWarning[], t: number): Prepared {
     theme: result.theme,
     warnings: all,
     ready: { layoutMs: t, nodes: result.nodes, edges: result.edges, dropped: result.dropped.length },
+    arcs: result.arcs,
   }
 }
 
@@ -79,7 +86,7 @@ async function timedLayout<T>(parent: Span, run: () => T | Promise<T>): Promise<
   }
 }
 
-async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: LayoutOptions): Promise<[Drawn, number]> {
+async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
   if (!src.trim()) throw fail('parse', 'the diagram is empty')
   const fm = readFrontmatter(src)
   for (const w of fm.warnings) {
@@ -95,17 +102,18 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
     const doc = parseSeq(fm.body, fm.lineOffset)
     if (!doc.parts.length) throw nothingRead('participants', doc.dropped)
     const [data, t] = await timedLayout(span, () => layoutSeq(doc))
-    return [{ data, options: fm.options, theme: fm.theme, nodes: doc.parts.length, edges: data.msgs.length, dropped: doc.dropped }, t]
+    return [{ data, options: fm.options, theme: fm.theme, nodes: doc.parts.length, edges: data.msgs.length, dropped: doc.dropped, arcs: false }, t]
   }
   span.setAttribute('bonkei.diagram', 'flowchart')
   const g = parse(fm.body, fm.lineOffset)
   const dropped = g.dropped ?? []
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
-  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span }))
-  return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped }, t]
+  const arcs = resolveTheme(lo.theme, fm.theme).theme.edge.dotted === 'arc'
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, arcs }))
+  return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped, arcs }, t]
 }
 
-async function fromGraph(input: GraphInput, span: Span, lo: LayoutOptions): Promise<[Drawn, number]> {
+async function fromGraph(input: GraphInput, span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
   span.setAttribute('bonkei.diagram', 'flowchart')
   if (typeof input !== 'object' || input === null) throw fail('graph', 'source must be Mermaid text or a graph')
   if (!Array.isArray(input.nodes) || !input.nodes.length) throw fail('graph', 'the graph has no nodes')
@@ -119,8 +127,9 @@ async function fromGraph(input: GraphInput, span: Span, lo: LayoutOptions): Prom
     for (const end of [e.from, e.to]) if (!ids.has(end)) throw fail('graph', `edge ${e.id ?? `${e.from} -> ${e.to}`} points at unknown id ${JSON.stringify(end)}`)
   }
   const g: Graph = { ...input, direction: input.direction ?? 'TD', groups, edges, dropped: input.dropped ?? [] }
-  const [data, t] = await timedLayout(span, () => layout(g, { ...lo, span }))
-  return [{ data, options: {}, theme: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped! }, t]
+  const arcs = resolveTheme(lo.theme).theme.edge.dotted === 'arc'
+  const [data, t] = await timedLayout(span, () => layout(g, { ...lo, span, arcs }))
+  return [{ data, options: {}, theme: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped!, arcs }, t]
 }
 
 function countReasons(dropped: Dropped[]) {
@@ -135,7 +144,7 @@ function countReasons(dropped: Dropped[]) {
 // Mermaid text or a hand-built graph -> a laid-out diagram with its warnings. Never throws:
 // it resolves to `Prepared` or rejects with a `PrepareError`.
 // `lo` are the routing options from props; the frontmatter's fill in what they leave out.
-export async function prepare(source: string | GraphInput, lo: LayoutOptions = {}): Promise<Prepared> {
+export async function prepare(source: string | GraphInput, lo: PrepareOptions = {}): Promise<Prepared> {
   const warnings: BonkeiWarning[] = []
   const input = typeof source === 'string' ? 'mermaid' : 'graph'
   return withSpan('bonkei.prepare', { 'bonkei.input': input }, async span => {
