@@ -2,6 +2,7 @@ import type { Graph, Box, Route, LayoutResult } from './model.ts'
 import { loadAvoid, wasmInfo, createRouter, keepRouter, sideMid, TUNE, type AvoidCrossings, type Side } from './avoid.ts'
 import { straighten, unblock } from './monotone.ts'
 import { withSpan } from './telemetry.ts'
+import { offTitleBoxes, TITLE_ROOM } from './titles.ts'
 import type { Span } from '@opentelemetry/api'
 export { sideMid } from './avoid.ts'
 
@@ -13,6 +14,8 @@ export interface LayoutOptions {
   span?: Span
   /** Leave the dotted links (-.->) out of the placing and the routing and return them as `arcs`, for a theme that draws them overhead (theme.edge.dotted 'arc'). */
   arcs?: boolean
+  /** Leave room in front of every tray for its title, off the tray (a theme whose tray.titles is 'off'). Without it the layout is what it always was. */
+  titleRoom?: boolean
 }
 export type LayoutEngine = (g: Graph, o?: LayoutOptions) => Promise<LayoutResult>
 
@@ -70,9 +73,9 @@ export const layout: LayoutEngine = async (g0, o = {}) => {
   return o.arcs ? { ...r, arcs } : r
 }
 const route: LayoutEngine = async (g, o = {}) => {
-  const placed = await place(g, o.span)
+  const placed = await place(g, o.span, o.titleRoom === true)
   const level = o.avoidCrossings ?? 'some'
-  return withSpan('bonkei.route', { 'bonkei.avoid_crossings': level, 'bonkei.edges': placed.routes.length }, async span => {
+  return withSpan('bonkei.route', { 'bonkei.avoid_crossings': level, 'bonkei.edges': placed.routes.length, 'bonkei.title_room': !!placed.titleRoom }, async span => {
     const t0 = performance.now()
     try {
       const A = await loadAvoid(span)
@@ -85,13 +88,14 @@ const route: LayoutEngine = async (g, o = {}) => {
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e)
       span.addEvent('bonkei.route.fallback', { 'bonkei.error': error })
-      const s = straighten(placed.boxes, placed.routes, 10)
+      // (ELK's routes do not know the off-tray titles; a line through one is moved off it where a direct route or a way round exists)
+      const s = straighten(placed.titleRoom ? placed.boxes.concat(offTitleBoxes(placed.boxes)) : placed.boxes, placed.routes, 10)
       return { ...placed, routes: s.routes, stats: { ...placed.stats!, route: { ms: performance.now() - t0, buildMs: 0, failed: [], straightened: s.changed, forced: s.forced, error, level } } }
     }
   }, o.span)
 }
 
-async function place(g: Graph, parent?: Span): Promise<LayoutResult> {
+async function place(g: Graph, parent?: Span, titleRoom = false): Promise<LayoutResult> {
   const groupIds = new Set(g.groups.map(x => x.id))
   const parentOf = new Map<string, string | undefined>()
   g.groups.forEach(x => parentOf.set(x.id, x.parent))
@@ -99,7 +103,18 @@ async function place(g: Graph, parent?: Span): Promise<LayoutResult> {
   const chain = (id: string) => { const c: (string | undefined)[] = [undefined]; const l: string[] = []; for (let p: string | undefined = id; p; p = parentOf.get(p)) l.unshift(p); return c.concat(l) }
 
   const eNodes = new Map<string, any>()
-  for (const grp of g.groups) eNodes.set(grp.id, { id: grp.id, children: [], edges: [], layoutOptions: { ...SPACING, 'elk.padding': `[top=${PAD.top},left=${PAD.side},bottom=${PAD.side},right=${PAD.side}]` } })
+  // titleRoom: a tray's title lies on the surface in front of it (titles.ts), so TITLE_ROOM is left in front of every tray. The space
+  // between what is stacked down the screen (the nodes of a layer in LR, the layers in TD) grows by it, the root keeps it below its
+  // last tray, and a tray that holds a tray is that much deeper at the bottom (the sub-tray's title lies on its top). No title is on
+  // the tray, so its top needs no room for one. (ELK's elk.margins would be the natural way; it ignores a margin at the bottom.)
+  const spacing: Record<string, string> = { ...SPACING }
+  const across = g.direction === 'LR' ? 'elk.spacing.nodeNode' : 'elk.layered.spacing.nodeNodeBetweenLayers'
+  if (titleRoom) spacing[across] = String(Number(SPACING[across]) + TITLE_ROOM)
+  const holdsTray = new Set(g.groups.map(x => x.parent).filter((p): p is string => !!p))
+  for (const grp of g.groups) {
+    const top = titleRoom ? PAD.side : PAD.top, bottom = PAD.side + (titleRoom && holdsTray.has(grp.id) ? TITLE_ROOM : 0)
+    eNodes.set(grp.id, { id: grp.id, children: [], edges: [], layoutOptions: { ...spacing, 'elk.padding': `[top=${top},left=${PAD.side},bottom=${bottom},right=${PAD.side}]` } })
+  }
   // ELK places the nodes with a port fixed at the middle of the side the flow leaves by and the side it arrives at,
   // so the room it leaves suits lines that meet nodes at side midpoints. libavoid then picks the side of each line itself.
   const out: Side = g.direction === 'LR' ? 'E' : 'S', inn: Side = g.direction === 'LR' ? 'W' : 'N'
@@ -120,11 +135,11 @@ async function place(g: Graph, parent?: Span): Promise<LayoutResult> {
       'elk.edgeRouting': 'ORTHOGONAL',
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       'elk.json.edgeCoords': 'ROOT',
-      ...SPACING,
+      ...spacing,
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
       // ELK's default (as on main): depth-first put the 50-node sample's Client below the Platform tray, under WAF's own tray (BON-102)
       'elk.layered.cycleBreaking.strategy': 'GREEDY',
-      'elk.padding': '[top=40,left=40,bottom=40,right=40]',
+      'elk.padding': `[top=40,left=40,bottom=${40 + (titleRoom ? TITLE_ROOM : 0)},right=40]`,
     },
   }
   const put = (id: string, parent?: string) => ((parent ? eNodes.get(parent) : root).children as any[]).push(eNodes.get(id))
@@ -191,8 +206,10 @@ async function place(g: Graph, parent?: Span): Promise<LayoutResult> {
   }
   // A line whose target ELK left behind a block or tray it must go round would have to turn back: its block slides across the
   // flow, inside its tray, until the line can go direct (monotone.ts unblock).
-  const u = unblock(boxes, routes, TUNE.buffer, g.direction === 'LR' ? 1 : 0, Number(SPACING['elk.spacing.edgeNode']), PAD.side, { x0: 40, y0: 40, x1: res.width - 40, y1: res.height - 40 })
-  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, stats: { trayDocks, slid: u.moved } }
+  // With titles off the tray, a block never slides onto one (they do not move: the trays do not).
+  const room = titleRoom ? TITLE_ROOM : 0
+  const u = unblock(boxes, routes, TUNE.buffer, g.direction === 'LR' ? 1 : 0, Number(SPACING['elk.spacing.edgeNode']), PAD.side, { x0: 40, y0: 40, x1: res.width - 40, y1: res.height - 40 - room }, titleRoom ? offTitleBoxes(boxes) : [])
+  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, ...(titleRoom ? { titleRoom } : {}), stats: { trayDocks, slid: u.moved } }
 }
 
 const NORMAL: Record<Side, [number, number]> = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }

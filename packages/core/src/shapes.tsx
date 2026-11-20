@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Billboard, Line, Text } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import type { Box, LabelMode } from './model'
@@ -9,9 +9,9 @@ export type { LabelMode }
 import { S, TRAY, NODE_H, TEXT_LAYER, ICON_TOP } from './scale.ts'
 import { Icon, Card } from './icons'
 import { slotShape } from './EdgeScene'
-import { Mat, Ink, PlateText, useTheme, fontUrl, fontOf, patternTexture, useFormTexture, FORM_ASPECT } from './look'
+import { Mat, Ink, PlateText, handBox, useTheme, fontUrl, fontOf, patternTexture, useFormTexture, FORM_ASPECT } from './look'
 import type { Plate } from './theme'
-import { pickCorner, titleWidth, type Corner, type Rect } from './titles'
+import { pickCorner, titleWidth, offTitleWidth, OFF_TITLE, type Corner, type Rect } from './titles'
 export { S, TRAY, NODE_H }
 
 
@@ -183,7 +183,7 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
       last.current = c
       return c
     }
-    if (th.tray.titles === 'fixed') return 'bl'
+    if (th.tray.titles !== 'free') return 'bl'
     const c = pickCorner(w, h, titleWidth(b.label, 0.4), 0.75, kids, th.node.form === 'landscape' ? { x0: 1.0, x1: 0.3, z0: 1.9, z1: 0.3 } : { x0: 0.4, x1: 0.3, z0: 0.8, z1: 0.3 }, last.current)
     last.current = c
     return c
@@ -218,13 +218,15 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
         <Ink color={th.tray.outline} width={th.node.outlineWidth} />
       </mesh>
       {rim && <Line points={[...rim, rim[0]]} color={zone!.color} lineWidth={1.5} />}
-      {ground
-        ? <GroundTitle text={b.label} w={w} h={h} T={T} size={gsize} left={left} back={back} color={mixc(zone?.color ?? th.tray.colors[lv], '#000000', th.tray.groundInk)} />
-        : (
-          <group position={[left ? -w / 2 + 0.25 : w / 2 - 0.25, 0, back ? -h / 2 + 0.5 : h / 2 - 0.5]}>
-            <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={left} right={!left} role="tray" />
-          </group>
-        )}
+      {th.tray.titles === 'off'
+        ? <OffTitle text={b.label} w={w} h={h} />
+        : ground
+          ? <GroundTitle text={b.label} w={w} h={h} T={T} size={gsize} left={left} back={back} color={mixc(zone?.color ?? th.tray.colors[lv], '#000000', th.tray.groundInk)} />
+          : (
+            <group position={[left ? -w / 2 + 0.25 : w / 2 - 0.25, 0, back ? -h / 2 + 0.5 : h / 2 - 0.5]}>
+              <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={left} right={!left} role="tray" />
+            </group>
+          )}
     </>
   )
 }
@@ -243,6 +245,32 @@ function GroundTitle({ text, w, h, T, size, left, back, color }: { text: string;
   return (
     <Text position={[left ? -w / 2 + 0.45 : w / 2 - 0.45, T + 0.004, back ? -h / 2 + 0.45 + size : h / 2 - 0.45]} rotation={[-Math.PI / 2, 0, 0]} font={font} fontSize={size} letterSpacing={0.04}
       anchorX={left ? 'left' : 'right'} anchorY="bottom" color={color} fillOpacity={0.8} layers={TEXT_LAYER as any}>{text.toUpperCase()}</Text>
+  )
+}
+
+// A tray's title off the tray (theme.tray.titles 'off'): a coloured-in, hand-drawn box lying on the surface the tray stands on (the
+// tray's origin: the paper, or its parent tray's top), just in front of its front edge. The box is the one the layout made room for and
+// the router keeps lines off (titles.ts offTitleBoxes); a title too long for it is drawn smaller to fit inside.
+function OffTitle({ text, w, h }: { text: string; w: number; h: number }) {
+  const th = useTheme()
+  const font = fontUrl(th)
+  const plate = th.label.tray
+  const bw = offTitleWidth(text, w), bd = OFF_TITLE.depth
+  const [tw, setTw] = useState(0) // the text's width as drawn at OFF_TITLE.size
+  const tex = useMemo(() => handBox(plate.border, plate.text, text, bw / bd), [plate.border, plate.text, text, bw, bd])
+  if (bw <= 0) return null
+  const inner = bw - 2 * Math.min(OFF_TITLE.pad, bw * 0.1)
+  const k = tw > inner ? inner / tw : 1
+  return (
+    <group position={[-w / 2 + OFF_TITLE.inset, 0.015, h / 2 + OFF_TITLE.gap]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[bw / 2, -bd / 2, 0]} layers={TEXT_LAYER as any} renderOrder={1}>
+        <planeGeometry args={[bw, bd]} />
+        <meshBasicMaterial map={tex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-6} polygonOffsetUnits={-6} toneMapped={false} />
+      </mesh>
+      <Text layers={TEXT_LAYER as any} renderOrder={3} position={[bw / 2, -bd / 2, 0.01]} scale={k} depthOffset={-12} font={font} fontSize={OFF_TITLE.size} color={plate.text}
+        anchorX="center" anchorY="middle" whiteSpace="nowrap"
+        onSync={(t: any) => { const r = t.textRenderInfo?.blockBounds; if (r) setTw(p => (Math.abs(p - (r[2] - r[0])) < 1e-3 ? p : r[2] - r[0])) }}>{text}</Text>
+    </group>
   )
 }
 

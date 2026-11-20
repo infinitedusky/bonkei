@@ -10,6 +10,7 @@
 import { AvoidLib } from 'libavoid-js'
 import type { Avoid, Router, ShapeRef, ConnRef } from 'libavoid-js'
 import type { Box, LayoutResult, Route } from './model.ts'
+import { offTitleBoxes } from './titles.ts'
 import { straighten, refine, type StraightenCache } from './monotone.ts'
 import { withSpan } from './telemetry.ts'
 import type { Span } from '@opentelemetry/api'
@@ -233,6 +234,9 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
   }
   const rebuildWalls = () => { for (const t of byId.values()) if (t.kind === 'group' && doorSig(t) !== wallSig.get(t.id)) buildWalls(t) }
   for (const t of byId.values()) if (t.kind === 'group') buildWalls(t)
+  // titles off the tray: each title box is a block no line goes through (the trays never move, so neither do they)
+  const titles = data.titleRoom ? offTitleBoxes(data.boxes) : []
+  for (const t of titles) router.addShape(rect(t.x, t.y, t.w, t.h))
   const dockPoint = (tray: string, side: Side) => {
     const [mx, my] = sideMid(byId.get(tray)!, side)
     const n = side === 'N' ? [0, -1] : side === 'S' ? [0, 1] : side === 'E' ? [1, 0] : [-1, 0]
@@ -306,7 +310,7 @@ export function createRouter(A: Avoid, data: LayoutResult, level: AvoidCrossings
       if (dt) pts.push(sideMid(byId.get(r.to)!, dt))
       return { ...r, points: tidy(pts) }
     })
-    const boxes = [...byId.values()]
+    const boxes = titles.length ? [...byId.values(), ...titles] : [...byId.values()]
     let s = tune.straighten ? straighten(boxes, routed, tune.buffer, CROSSING_COST[level], SLACK[level], cache) : { routes: routed, changed: 0, forced: 0, forcedIds: [] as string[] }
     // when the layout is first routed: lines left turning back get a second try, settled before the others; the better of the two is kept
     if (tune.straighten && s.forced && !out.routes.length) {

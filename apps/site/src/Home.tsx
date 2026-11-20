@@ -89,7 +89,7 @@ export function Home({ name = 'Bonkei', live, themesLive, howLive }: { name?: st
 
         <section id="themes">
           <h2>Use themes to see how far you can go</h2>
-          <p className="site-lead">The same diagram, the same layout, a different world. Pick a built-in theme, or override one setting for one diagram. A diagram names its theme in its own frontmatter.</p>
+          <p className="site-lead">The same diagram, a different world. Pick a built-in theme, or override one setting for one diagram. A diagram names its theme in its own frontmatter.</p>
           <Themes live={themesLive} />
         </section>
 

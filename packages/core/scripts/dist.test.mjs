@@ -22,8 +22,8 @@ test('importing bonkei and bonkei/internal runs nothing: no fetch, no ELK, no wa
   globalThis.fetch = (...a) => { fetched.push(String(a[0])); return real(...a) }
   try {
     const m = await import(new URL('index.js', dist).href)
-    // the four theme exports are BON-116's public API
-    assert.deepEqual(Object.keys(m).sort(), ['BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'THEME_NAMES', 'isBonkeiError', 'render'])
+    // the theme exports are BON-116's public API, with BLUEPRINT (BON-234)
+    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'THEME_NAMES', 'isBonkeiError', 'render'])
     const i = await import(new URL('internal.js', dist).href)
     assert.equal(i.avoidLoaded(), null, 'the wasm is not loaded on import')
   } finally { globalThis.fetch = real }
@@ -53,6 +53,14 @@ test('the bundled font sits in dist/fonts with its licence, found by the same pa
   assert.ok(withFont.length && withFont.every(f => !f.includes('/')))
   const head = fs.readFileSync(new URL('fonts/ZenOldMincho-Bold-latin.ttf', dist)).subarray(0, 48).toString('base64')
   assert.ok(![...esm, 'bonkei.global.js'].some(f => read(f).includes(head)), 'the font is not inlined as base64')
+})
+
+test('Blueprint\'s bundled font sits in dist/fonts with its licence, found by the same pattern', () => {
+  const st = fs.lstatSync(new URL('fonts/ArchitectsDaughter-Regular-latin.ttf', dist))
+  assert.ok(st.isFile() && !st.isSymbolicLink())
+  assert.deepEqual([...fs.readFileSync(new URL('fonts/ArchitectsDaughter-Regular-latin.ttf', dist)).subarray(0, 4)], [0, 1, 0, 0], 'TrueType magic')
+  assert.match(read('fonts/OFL-ArchitectsDaughter.txt'), /SIL Open Font License, Version 1\.1/)
+  assert.ok(esm.some(f => read(f).includes('new URL("./fonts/ArchitectsDaughter-Regular-latin.ttf", import.meta.url)')))
 })
 
 test('the wasm fallback is a lazy chunk: only a dynamic import reaches it', () => {

@@ -3,7 +3,7 @@
 import { Color } from 'three'
 import type { Shape } from './model.ts'
 
-export type Pattern = 'plain' | 'hishi' | 'flower' | 'stone'
+export type Pattern = 'plain' | 'hishi' | 'flower' | 'stone' | 'hatch'
 export interface Plate { style: 'plain' | 'cartouche' | 'card'; text: string; plate: string; border: string }
 
 /**
@@ -19,6 +19,8 @@ export interface Theme {
   ground: {
     bg: string
     grid: [string, string] | null // centre lines, other lines; null: no grid
+    major: number // a heavier grid line every this many squares over the fine grid; 0: a single-weight grid
+    majorColor: string // the heavier lines' colour
     grain: number // 0..1 paper grain, 0 off
     lit: boolean // lit by the lights (Classic) or flat paper
   }
@@ -39,7 +41,7 @@ export interface Theme {
     thickness: number // the tray's height (one level)
     colors: [string, string, string] // top, by level
     sides: [Pattern, Pattern, Pattern] // side pattern, by level
-    titles: 'fixed' | 'free' | 'ground' // fixed: the back-left corner; free: a corner nothing stands on (tested against the nodes and forms on the tray); ground: big capitals lying on the floor, front-left
+    titles: 'fixed' | 'free' | 'off' | 'ground' // fixed: the back-left corner; free: a corner nothing stands on (tested against the nodes and forms on the tray); off: a box on the surface in front of the tray, with room made for it in the layout; ground: big capitals lying on the floor, front-left
     colorBy: 'level' | 'zone' // level: `colors` by depth; zone: each top-level tray takes the next colour of `zones`, a nested one a stronger tint of its parent's
     zones: string[] // the zone colours, cycled across the top-level trays
     zoneMix: [number, number] // share of white mixed into a zone's floor: a top-level one, a nested one
@@ -82,7 +84,7 @@ function deepFreeze<T>(o: T): T {
 /** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const CLASSIC: Theme = deepFreeze({
   name: 'classic',
-  ground: { bg: '#0f1218', grid: ['#1d2433', '#161c28'], grain: 0, lit: true },
+  ground: { bg: '#0f1218', grid: ['#1d2433', '#161c28'], major: 0, majorColor: '#1d2433', grain: 0, lit: true },
   light: { ambient: 0.55, sky: '#bcd0ff', floor: '#202838', hemi: 0.5, sun: 1.6, shadows: true, shading: 'standard', tones: 3, toneMapping: true },
   node: {
     colors: { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' },
@@ -110,7 +112,7 @@ export const CLASSIC: Theme = deepFreeze({
 /** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const BONKEI: Theme = deepFreeze({
   name: 'bonkei',
-  ground: { bg: '#EFE6D0', grid: null, grain: 0.25, lit: false },
+  ground: { bg: '#EFE6D0', grid: null, major: 0, majorColor: '#EFE6D0', grain: 0.25, lit: false },
   light: { ambient: 1.2, sky: '#fff8e6', floor: '#d8cbaa', hemi: 0.4, sun: 1.5, shadows: false, shading: 'toon', tones: 3, toneMapping: false },
   node: {
     colors: { rect: '#9AAE8C', round: '#5E8F88', cylinder: '#C9A24A', diamond: '#7C93B8' },
@@ -139,6 +141,41 @@ export const BONKEI: Theme = deepFreeze({
 /** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const BONKEI_LANDSCAPE: Theme = deepFreeze({ ...BONKEI, name: 'bonkei-landscape', node: { ...BONKEI.node, form: 'landscape' }, label: { ...BONKEI.label, toward: 0.7 } })
 
+// Blueprint: an architect's drawing. White and pale-blue line work on blue paper with a fine grid (a heavier line every 5 squares), flat (toon)
+// shading, nodes and trays a shade lighter than the paper with white outlines, hatched tray sides, hand lettering, and each tray's title in a
+// box on the surface in front of it. Values from the Mockups/Blueprint stories (the shaded fill on the lighter blue).
+const PAPER = '#1d4f8c', INK = '#eef6ff', LINE = '#a9d6ff', TRAY_INK = '#bcdcff'
+/** Blueprint, an architect's drawing on blue paper, for passing as `theme` or as a base to copy and edit (it is frozen). */
+export const BLUEPRINT: Theme = deepFreeze({
+  name: 'blueprint',
+  ground: { bg: PAPER, grid: ['#6f97c6', '#3c6aa2'], major: 5, majorColor: '#6f97c6', grain: 0.08, lit: false },
+  light: { ...BONKEI.light, ambient: 1.4, sky: '#e6f2ff', floor: PAPER, tones: 2 },
+  node: {
+    ...BONKEI.node,
+    colors: { rect: '#2a64a8', round: '#2e6db0', cylinder: '#2a5f9f', diamond: '#3170b4' },
+    outline: INK, outlineWidth: 1.5, bevel: 0, form: 'block', hover: '#9fd3ff', hoverIntensity: 0.2,
+  },
+  tray: {
+    ...BONKEI.tray,
+    thickness: 0.35, colors: ['#22599a', '#265f9f', '#2a65a5'], sides: ['hatch', 'hatch', 'hatch'], titles: 'off',
+    patternInk: '#7fb2e5', patternPaper: '#1f5290', outline: TRAY_INK, hover: '#9fd3ff', hoverIntensity: 0.15,
+  },
+  label: {
+    font: 'architect',
+    node: { style: 'plain', text: INK, plate: PAPER, border: INK },
+    tray: { style: 'cartouche', text: INK, plate: PAPER, border: TRAY_INK },
+    toward: 0, card: CARD_OFF, pill: null,
+  },
+  ink: { ref: 40, min: 1 },
+  edge: {
+    color: LINE, width: 2, label: INK, labelOutline: PAPER, portal: LINE, rim: TRAY_INK, rimWidth: 1.5, flat: false, ...ARC_OFF,
+    // the trench lit in pale blue at the standard 50%
+    glow: { core: '#bfe4ff', coreWidth: 3.5, halo: '#bfe4ff', haloWidth: 11, haloOpacity: 0.28, wash: '#bfe4ff', washIntensity: 0.3 },
+  },
+  seq: { lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: INK, blockText: INK, blockSub: TRAY_INK, cross: '#ffd479', crossLine: '#ffd479' },
+})
+
+
 /**
  * Cloud Cartography (BON-235): a diagram drawn like an illustrated map of a system, after the Isoflow reference. Each top-level subgraph is a thin
  * coloured floor with its name in big capitals on it; nodes are inked icons by shape under callout cards; links are navy on the floor with one
@@ -146,7 +183,7 @@ export const BONKEI_LANDSCAPE: Theme = deepFreeze({ ...BONKEI, name: 'bonkei-lan
  */
 export const CLOUD_CARTOGRAPHY: Theme = deepFreeze({
   name: 'cloud-cartography',
-  ground: { bg: '#f5f6f9', grid: ['#e1e4ea', '#e1e4ea'], grain: 0, lit: false },
+  ground: { bg: '#f5f6f9', grid: ['#e1e4ea', '#e1e4ea'], major: 0, majorColor: '#e1e4ea', grain: 0, lit: false },
   light: { ambient: 1.5, sky: '#ffffff', floor: '#f5f6f9', hemi: 0.4, sun: 1.6, shadows: false, shading: 'standard', tones: 3, toneMapping: false },
   node: {
     colors: { rect: '#6fae45', round: '#4f7cff', cylinder: '#f0a43c', diamond: '#d9534f' },
@@ -173,21 +210,21 @@ export const CLOUD_CARTOGRAPHY: Theme = deepFreeze({
 })
 
 /** The built-in themes by the name a diagram or the `theme` prop uses. */
-export const PRESETS: Readonly<Record<string, Theme>> = Object.freeze({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE, 'cloud-cartography': CLOUD_CARTOGRAPHY })
-/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape. */
+export const PRESETS: Readonly<Record<string, Theme>> = Object.freeze({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE, blueprint: BLUEPRINT, 'cloud-cartography': CLOUD_CARTOGRAPHY })
+/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape, blueprint, cloud-cartography. */
 export const THEME_NAMES = Object.keys(PRESETS)
 
 // Tokens that take one of a few words. A path segment `#` stands for any array index.
 const CHOICES: Record<string, readonly string[]> = {
   'light.shading': ['standard', 'toon'],
   'node.form': ['block', 'landscape', 'icon'],
-  'tray.sides.#': ['plain', 'hishi', 'flower', 'stone'],
-  'tray.titles': ['fixed', 'free', 'ground'],
+  'tray.sides.#': ['plain', 'hishi', 'flower', 'stone', 'hatch'],
+  'tray.titles': ['fixed', 'free', 'off', 'ground'],
   'tray.colorBy': ['level', 'zone'],
   'tray.groundFont': ['archivo'],
   'edge.arrow': ['end', 'mid'],
   'edge.dotted': ['line', 'arc'],
-  'label.font': ['mincho'],
+  'label.font': ['mincho', 'architect'],
   'label.card.titleFont': ['archivo'],
   'label.node.style': ['plain', 'cartouche', 'card'],
   'label.tray.style': ['plain', 'cartouche', 'card'],

@@ -15,7 +15,7 @@ The element's text is the diagram (frontmatter allowed). It is a block element a
 | Attribute | Values | Default |
 | --- | --- | --- |
 | `mode` | `flat` · `iso` · `3d` | `iso` |
-| `theme` | `classic` · `bonkei` · `bonkei-landscape` · `cloud-cartography` | `classic` |
+| `theme` | `classic` · `bonkei` · `bonkei-landscape` · `blueprint` · `cloud-cartography` | `classic` |
 | `height` | a number of px, or a CSS length | `420` |
 
 </div>

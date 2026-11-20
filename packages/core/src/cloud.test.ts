@@ -16,8 +16,9 @@ function sameAsMain(now: any, main: any, path: string) {
   else assert.deepEqual(now, main, path)
 }
 test('Classic, Bonkei and Bonkei · landscape keep every token main gave them', () => {
-  const main = json('./theme-main.json')
+  const main = json('./fixtures/themes-main.json')
   for (const [k, t] of Object.entries({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE })) sameAsMain(t, main[k], k)
+  assert.equal(PRESETS.blueprint.edge.dotted, 'line')
 })
 test('the tokens added for Cloud Cartography are off in the older themes', () => {
   for (const t of [CLASSIC, BONKEI, BONKEI_LANDSCAPE]) {
@@ -33,7 +34,7 @@ test('cloud-cartography is a preset, by name and by frontmatter', () => {
 
 const geometry = (d: any) => JSON.parse(JSON.stringify({ width: d.width, height: d.height, boxes: d.boxes.map((b: any) => ({ id: b.id, label: b.label, kind: b.kind, shape: b.shape, x: b.x, y: b.y, w: b.w, h: b.h, level: b.level, parent: b.parent })), routes: d.routes.map((r: any) => ({ id: r.id, from: r.from, to: r.to, label: r.label, points: r.points })) }))
 test('the layout of the other themes is main\'s, on the first sample and on one with dotted links and <br> labels', async () => {
-  const main = json('./layout-main.json')
+  const main = json('./fixtures/cloud-layouts-main.json')
   for (const t of ['classic', 'bonkei', 'bonkei-landscape']) {
     assert.deepEqual(geometry((await prepare(first, { theme: t })).data), main.first, t + ' first')
     assert.deepEqual(geometry((await prepare(dotted, { theme: t })).data), main.dotted, t + ' dotted')

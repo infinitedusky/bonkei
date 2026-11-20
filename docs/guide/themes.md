@@ -1,10 +1,10 @@
 ---
-description: Bonkei's four built-in themes (classic, bonkei, bonkei-landscape, cloud-cartography), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
+description: Bonkei's five built-in themes (classic, bonkei, bonkei-landscape, blueprint, cloud-cartography), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
 ---
 
 # Themes
 
-A theme is data: every colour, material, label and line style the scene reads. Four ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape` and `cloud-cartography`. `classic` is the default.
+A theme is data: every colour, material, label and line style the scene reads. Five ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape`, `blueprint` and `cloud-cartography`. `classic` is the default.
 
 <div class="grid4">
 
@@ -23,9 +23,14 @@ flowchart LR
   Build --> Test --> Ship
 ```
 
+```mermaid {height=220 theme=blueprint mode=flat}
+flowchart LR
+  Build --> Test --> Ship
+```
+
 </div>
 
-<p class="cap">classic · bonkei · bonkei-landscape</p>
+<p class="cap">classic · bonkei · bonkei-landscape · blueprint</p>
 
 `cloud-cartography` draws a diagram like an illustrated map of a system: each top-level subgraph is a coloured floor named in big capitals, each node an inked icon by its shape (rect a server, round a service, cylinder storage, diamond a decision) under a callout card, links are navy lines on the floor with one arrow partway along, and a dotted link (`-.->`) arcs overhead. A label written over two lines (`A["Order API<br>Go · 3 pods"]`) shows its second line as a subtitle on the card; the other themes still read it on one line.
 
@@ -86,6 +91,33 @@ flowchart LR
 
 A name that does not exist falls back to `classic` and reports a warning through [`onWarning`](./errors); so does a variable that does not exist.
 
+### Blueprint
+
+`blueprint` draws an architect's drawing: blue paper with a fine grid and a heavier line every 5 squares, white outlines and pale-blue lines, flat shading, hatched tray sides, and labels in a hand-lettering font (Architects Daughter, bundled like the Bonkei themes' font; if the file cannot be loaded the labels use the default font and [`onWarning`](./errors) says why).
+
+Each tray's title sits off the tray, in a coloured-in box on the surface just in front of it: on the paper for a top tray, on its parent's top for a tray inside another. The layout leaves room for it there, so a Blueprint diagram is laid out a little more spaciously than the same diagram in the other themes, and no line runs over a title. A long title in a narrow tray is drawn smaller to fit its box.
+
+```mermaid {height=320 theme=blueprint}
+flowchart LR
+  Client --> Api[API]
+  subgraph Services
+    Api
+    subgraph Billing
+      Invoices --> Paid{Paid?}
+    end
+  end
+  Api --> Invoices
+```
+
+Its parts are tokens like any other, so another theme can borrow one:
+
+| Token | What it is |
+| --- | --- |
+| `ground.major`, `ground.majorColor` | A heavier grid line every this many squares, and its colour. `0` (every other theme) is a single-weight grid. |
+| `tray.sides.0`, `.1`, `.2` | `hatch`: diagonal section hatching on the tray's sides (by nesting depth), beside `plain`, `hishi`, `flower` and `stone`. |
+| `tray.titles` | `off`: the title in a box in front of the tray, with room made for it in the layout; `fixed` and `free` keep it on the tray. |
+| `label.font` | `architect`: the hand lettering; `mincho` is the Bonkei themes' font. |
+
 ### The trench light
 
 A tunnel's trench can be lit by the theme: a light along the floor, a wash on the walls and a rim round the lip. What each theme does on its own:
@@ -94,6 +126,7 @@ A tunnel's trench can be lit by the theme: a light along the floor, a wash on th
 | --- | --- | --- |
 | `classic` | On: grey-white `#e0e0e0` at 30% strength (core 2.1 wide; halo 6.6 wide at 0.17 opacity; wash intensity 0.18) | None (`edge.rim: none`) |
 | `bonkei`, `bonkei-landscape` | Off (the colours are `null`) | Dark `#2A2622`, 2 wide, as it always was |
+| `blueprint` | On: pale blue `#bfe4ff` at 50% strength | Pale blue `#bcdcff`, 1.5 wide |
 
 A diagram can change any part, so a Bonkei diagram can switch its light on, or a Classic one put a rim back:
 
@@ -129,4 +162,4 @@ flowchart LR
 
 ## The theme objects
 
-`CLASSIC`, `BONKEI` and `BONKEI_LANDSCAPE` are frozen `Theme` objects, for passing as `theme` or as a base to copy and edit. Their fields are in the [Theme](/api/interfaces/Theme) reference.
+`CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE` and `BLUEPRINT` are frozen `Theme` objects, for passing as `theme` or as a base to copy and edit. Their fields are in the [Theme](/api/interfaces/Theme) reference.

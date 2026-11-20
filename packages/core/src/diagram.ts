@@ -9,9 +9,6 @@ import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOpti
 import { withSpan } from './telemetry.ts'
 import { resolveTheme, type Theme } from './theme.ts'
 
-/** What `prepare` is given: the routing options, and the `theme` prop (a name or a Theme) so a theme that draws dotted links as arcs can leave them out of the layout. */
-export type PrepareOptions = LayoutOptions & { theme?: string | Theme }
-
 export interface Prepared {
   data: LayoutResult | SeqLayout
   options: DiagramOptions // from the frontmatter; merge with props via mergeOptions
@@ -73,6 +70,11 @@ function nothingRead(what: 'nodes' | 'participants', dropped: Dropped[]): Bonkei
   return fail('parse', `no ${what} found; first unreadable line: ${first.line}: ${first.text}`, first.line, first.text)
 }
 
+/** What prepare takes: the routing options, and the `theme` prop, because a look whose tray titles sit off the tray needs room for them in the layout. */
+export interface PrepareOptions extends Omit<LayoutOptions, 'span' | 'titleRoom' | 'arcs'> { theme?: string | Theme }
+/** Whether the look a diagram is drawn in (the theme prop over the frontmatter's, with its themeVariables) puts tray titles off the tray. */
+export const wantsTitleRoom = (prop: string | Theme | undefined, fm?: ThemeRequest) => resolveTheme(prop, fm).theme.tray.titles === 'off'
+
 // Times the layout alone, in its own `bonkei.layout` span; a throw becomes a `layout` error.
 async function timedLayout<T>(parent: Span, run: () => T | Promise<T>): Promise<[T, number]> {
   try {
@@ -109,7 +111,7 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   const dropped = g.dropped ?? []
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
   const arcs = resolveTheme(lo.theme, fm.theme).theme.edge.dotted === 'arc'
-  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, arcs }))
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme, fm.theme), arcs }))
   return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped, arcs }, t]
 }
 
@@ -128,7 +130,7 @@ async function fromGraph(input: GraphInput, span: Span, lo: PrepareOptions): Pro
   }
   const g: Graph = { ...input, direction: input.direction ?? 'TD', groups, edges, dropped: input.dropped ?? [] }
   const arcs = resolveTheme(lo.theme).theme.edge.dotted === 'arc'
-  const [data, t] = await timedLayout(span, () => layout(g, { ...lo, span, arcs }))
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme), arcs }))
   return [{ data, options: {}, theme: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped!, arcs }, t]
 }
 
@@ -143,7 +145,7 @@ function countReasons(dropped: Dropped[]) {
 
 // Mermaid text or a hand-built graph -> a laid-out diagram with its warnings. Never throws:
 // it resolves to `Prepared` or rejects with a `PrepareError`.
-// `lo` are the routing options from props; the frontmatter's fill in what they leave out.
+// `lo` are the routing options and the theme from props; the frontmatter's fill in what they leave out.
 export async function prepare(source: string | GraphInput, lo: PrepareOptions = {}): Promise<Prepared> {
   const warnings: BonkeiWarning[] = []
   const input = typeof source === 'string' ? 'mermaid' : 'graph'
