@@ -14,7 +14,7 @@ export type Pal = ReturnType<typeof beamColours>
 export function Beam({ pts, c, width, centreWidth, haloWidth, haloOpacity }: { pts: V[]; c: Pal; width: number; centreWidth: number; haloWidth: number; haloOpacity: number }) {
   return (
     <>
-      <Line points={pts} color={c.halo} lineWidth={haloWidth * 2.3} transparent opacity={haloOpacity * 0.4} depthWrite={false} />
+      <Line points={pts} color={c.halo} lineWidth={haloWidth * 1.8} transparent opacity={haloOpacity * 0.35} depthWrite={false} />
       <Line points={pts} color={c.halo} lineWidth={haloWidth} transparent opacity={haloOpacity} depthWrite={false} />
       <Line points={pts} color={c.beam} lineWidth={width} />
       <Line points={pts} color={c.core} lineWidth={centreWidth} />

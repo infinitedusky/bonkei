@@ -166,7 +166,7 @@ export function NodeBody({ b, hover = false, labelMode, device }: { b: Box; hove
 function StatusLight({ w, h, y, role, color }: { w: number; h: number; y: number; role: Device['role']; color: string | null }) {
   const lit = role !== 'idle' && color
   return (
-    <mesh position={[w / 2 - 0.25, y + 0.015, -h / 2 + 0.25]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh position={[w / 2 - 0.25, y + 0.035, -h / 2 + 0.25]} rotation={[-Math.PI / 2, 0, 0]}>
       <circleGeometry args={[0.08, 16]} /><meshBasicMaterial color={lit ? '#' + new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.7).getHexString() : '#2a3245'} />
     </mesh>
   )

@@ -16,7 +16,7 @@ const same = (a: V, b: V) => dist(a, b) < 1e-6
 function onSeg(q: V, a: V, b: V) {
   const ab = sub(b, a), t = dot(sub(q, a), ab) / (dot(ab, ab) || 1)
   if (t < -1e-9 || t > 1 + 1e-9) return false
-  return dist([a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t], q) < 1e-6
+  return dist([a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t], q) < 0.05 // a hair: lines nudged apart by the router still share the corner
 }
 
 /**
