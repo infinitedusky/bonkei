@@ -355,7 +355,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     const c = lazerCounts.current
     ;(gl.domElement as unknown as { __lazers?: unknown }).__lazers = { ...c, colours_text: laser?.given ?? 0, colours_auto: laser?.auto ?? 0 }
     instant('bonkei.lazers', { 'bonkei.lazers.mirrors': c?.mirrors ?? 0, 'bonkei.lazers.periscopes': c?.periscopes ?? 0, 'bonkei.lazers.half_mirrors': c?.halves ?? 0, 'bonkei.lazers.prisms': c?.prisms ?? 0, 'bonkei.lazers.colours_text': laser?.given ?? 0, 'bonkei.lazers.colours_auto': laser?.auto ?? 0 })
-  }, [laser, optLines === null ? 0 : optLines.length])
+  }, [laser, optLines])
   const groundSlots = useMemo(() => slots.filter(s => !s.tray), [slots])
   const portalList = useMemo(() => [...plans.values()].flatMap(p => p.portals), [plans])
   const statsCb = useRef(onEdgeStats)

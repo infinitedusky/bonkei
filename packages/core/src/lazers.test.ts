@@ -55,6 +55,16 @@ test('two beams joining, one straight on and one arriving from the side, is one 
   assert.deepEqual(r.halves[0].b, [1, 0, 0])
 })
 
+test('two edges that run together and bend alike (a bundle dipping into a tunnel, a step onto a tray) are one beam: one periscope, no prism, no second piece', () => {
+  const dip: V[] = [[0, 0.5, 0], [1, 0.5, 0], [1, 0.25, 0], [2, 0.25, 0], [2, 0.5, 0], [3, 0.5, 0]]
+  const r = findBends([L(dip), L([...dip.slice(0, 5), [3, 0.5, 0]], 1)])
+  assert.equal(r.prisms.length + r.halves.length, 0)
+  assert.equal(r.periscopes.length, 2)
+  const bend = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 2]]), L([[0, 0, 0], [2, 0, 0], [2, 0, 2], [5, 0, 2]], 1)])
+  assert.equal(bend.mirrors.length, 1)
+  assert.equal(bend.halves.length + bend.prisms.length, 0)
+})
+
 test('a beam through a portal carries on: each part is its own line with no bend at the join', () => {
   assert.equal(findBends([L([[0, 0, 0], [1, 0, 0]]), L([[3, 0, 0], [4, 0, 0]])]).mirrors.length, 0)
 })

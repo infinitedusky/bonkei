@@ -23,6 +23,14 @@ function onSeg(q: V, a: V, b: V) {
   return dist([a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t], q) < 0.05 // a hair: lines nudged apart by the router still share the corner
 }
 
+// Whether the line `o`, at its segment k (k to k + 1), meets `p` the way a beam coming in along `a` and leaving along `b` does: it comes in along a and
+// leaves along b (a bend at p), or p is an end it runs on from. A beam through p unbent, or turning another way, does not.
+function coincides(o: V[], k: number, p: V, a: V, b: V) {
+  const d = unit(sub(o[k + 1], o[k]))
+  if (dist(p, o[k + 1]) < 0.12) return k + 2 < o.length && dist(d, a) < 0.01 && dist(unit(sub(o[k + 2], o[k + 1])), b) < 0.01 // o turns here: in along a, out along b
+  if (dist(p, o[k]) < 0.12) return k > 0 ? false : dist(d, b) < 0.01 // o starts here, going on along b
+  return false
+}
 const SHARE = 0.12 // bends this close are one corner
 const addDir = (set: V[], d: V) => { if (!set.some(x => dist(x, d) < 0.01)) set.push(d) }
 
@@ -37,6 +45,8 @@ export function findBends(input: Line[], jog = 0.4): Bends {
   const lines = input.map(l => ({ ci: l.ci, pts: l.pts.filter((p, i) => i === 0 || !same(p, l.pts[i - 1])) }))
   const out: Bends = { mirrors: [], periscopes: [], halves: [], prisms: [] }
   const corners: { at: V; ci: number; lines: Set<number> }[] = []
+  const placed = new Set<string>() // coincident beams make the same piece once
+  const key = (...vs: V[]) => vs.map(v => v.map(x => Math.round(x * 100)).join(',')).join('|')
   lines.forEach((l, li) => {
     const { pts } = l
     const dir = (i: number) => unit(sub(pts[i + 1], pts[i]))
@@ -44,17 +54,23 @@ export function findBends(input: Line[], jog = 0.4): Bends {
     for (let i = 1; i < pts.length - 1; i++) {
       const a = dir(i - 1), b = dir(i)
       if (dist(a, b) < 1e-6) continue
-      const shared = lines.some((o, oi) => oi !== li && o.pts.some((q, k) => k > 0 && onSeg(pts[i], o.pts[k - 1], q)))
+      // shared: another beam runs through this bend, or turns here another way. A beam that coincides with this one (two edges leaving a node
+      // together and bending alike, as every beam of a bundle does) is the same beam: one piece, below.
+      const shared = lines.some((o, oi) => oi !== li && o.pts.some((q, k) => k > 0 && onSeg(pts[i], o.pts[k - 1], q) && !coincides(o.pts, k - 1, pts[i], a, b)))
       if (shared) {
         const c = corners.find(c => dist(c.at, pts[i]) < SHARE)
         if (c) c.lines.add(li); else corners.push({ at: pts[i], ci: l.ci, lines: new Set([li]) })
         continue
       }
       if (i + 1 < pts.length - 1 && run(i) < jog && dist(dir(i + 1), a) < 1e-6) {
-        out.periscopes.push({ from: pts[i], to: pts[i + 1], a, ci: l.ci })
+        const kk = key(pts[i], pts[i + 1])
+        if (!placed.has(kk)) { placed.add(kk); out.periscopes.push({ from: pts[i], to: pts[i + 1], a, ci: l.ci }) }
         i++ // the next bend is inside the box
         continue
       }
+      const mk = key(pts[i], a, b)
+      if (placed.has(mk)) continue
+      placed.add(mk)
       out.mirrors.push({ at: pts[i], a, b, size: Math.min(1, Math.max(0.4, Math.min(run(i - 1), run(i)) / 0.8)), ci: l.ci })
     }
   })
