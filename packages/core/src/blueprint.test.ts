@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { BLUEPRINT, BONKEI, CLASSIC, BONKEI_LANDSCAPE, PRESETS, themeByName, withVariables } from './theme.ts'
-import { FONT_NAMES, fontFileUrl } from './fonts.ts'
+import { FONT_NAMES, fontFileUrl, findFont } from './fonts.ts'
 import { layout } from './layout.ts'
 import { prepare } from './diagram.ts'
 import { parse } from './parser.ts'
@@ -78,4 +78,12 @@ test('room for the titles: only a theme that asks for it gets it, and it is made
       }
     }
   }
+})
+
+test('if the lettering font cannot be loaded, labels use the default font and the reason is reported', async () => {
+  const f = await findFont('architect', 'http://x/fonts/ArchitectsDaughter-Regular-latin.ttf', async () => { throw new Error('404 Not Found') })
+  assert.equal(f.url, undefined)
+  assert.match(f.problem!, /font architect could not be loaded.*labels use the default font/)
+  const ttf = fs.readFileSync(new URL('./fonts/ArchitectsDaughter-Regular-latin.ttf', import.meta.url))
+  assert.equal((await findFont('architect', 'http://x/a.ttf', async () => new Uint8Array(ttf))).problem, undefined)
 })

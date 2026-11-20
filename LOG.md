@@ -471,3 +471,19 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **`scripts/smoke/docs-nightly.test.mjs`** (in the root `pnpm test`) holds the split: `pnpm smoke` ends at the embeds, the PR's smoke step does not mention the docs, `nightly.yml` runs on a schedule and by hand, sets up what the docs run needs before it, and calls only scripts that exist. The repo has no YAML parser, so it reads the workflows line by line. Turned down: adding a YAML dependency for one test.
 
 **Consequences.** A pull request that breaks a docs page goes green; the break shows the next morning on main, at most a day later. Whoever changes the docs runs `pnpm docs:smoke` themselves before merging (CONTRIBUTING says so). GitHub disables scheduled workflows in a repository with no activity for 60 days; the Nightly page then says so and offers to re-enable it.
+
+## 2026-11-19 — Blueprint theme built (BON-234)
+
+**Context.** The sketch and the Mockups/Blueprint stories settled the look; this builds it as the fourth built-in theme.
+
+**Decision.** `blueprint` is a preset (`BLUEPRINT`, `THEME_NAMES`) with its values from the shaded mockup on the lighter blue `#1d4f8c`. Four new settings, each a token with the same type in every preset so `themeVariables` checks it:
+- `ground.major` (+ `ground.majorColor`): a heavier grid line every N squares, drawn as a second, wider grid over the fine one; 0 (Classic, Bonkei) is the old single-weight grid.
+- `tray.sides` takes `hatch`: 45° section hatching, drawn on a canvas like the other patterns.
+- `label.font` takes `architect`: Architects Daughter Regular (SIL OFL), subset to Latin (20 KB), `fonts/OFL-ArchitectsDaughter.txt` beside it, found and falling back exactly like Mincho (`bonkei.font.fallback`, `onWarning`).
+- `tray.titles` takes `off`: the title is a coloured-in, hand-drawn box lying flat on the surface the tray stands on, just in front of its front edge (`OffTitle` in shapes.tsx).
+
+Room for the titles is made in the layout, and only when the look asks for it: `prepare()` takes the `theme` prop (the frontmatter's theme is read inside), and `layout(g, { titleRoom })` then adds 48 px (`TITLE_ROOM`) to the spacing stacked down the screen (nodeNode in LR, between layers in TD), to the root's bottom padding, and to the bottom padding of a tray that holds a tray (and takes the top padding down to 40, as no title is inside). ELK's `elk.margins` was tried first and is ignored at the bottom. The router (`avoid.ts`) gets each title box as an obstacle (`LayoutResult.titleRoom`), so no line runs over one. Classic and Bonkei get `titleRoom` false: `blueprint.test.ts` holds their presets against `theme-main.json` and their layouts (boxes, lines) against `layout-main.json`, both taken from main.
+
+**Alternatives considered.** ELK node margins for the room (ignored); a title obstacle as wide as the tray (it would block the doors on that side: it is the title's width, at most 55% of the tray).
+
+**Consequences.** A new `theme` prop that flips `tray.titles` to or from `off` lays the diagram out again. `pnpm capture` writes the same pictures as before for five of six (`still-flat.png` differs only by renderer noise and is left alone). Telemetry: the theme choice is the existing `bonkei.theme` event (`bonkei.theme: blueprint`); the font fallback is the existing `bonkei.font.load` span's `bonkei.font.fallback` event and an `onWarning` of kind `theme`. Not done: the smoke test does not yet draw a Blueprint diagram (its missing-font path was tried by hand on the built page).
