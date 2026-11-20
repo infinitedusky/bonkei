@@ -33,6 +33,16 @@ export type BonkeiProps = BonkeiOptions & {
 
 type Status = 'loading' | 'ready' | 'error'
 
+// What a theme that draws icons, callout cards and arcs drew (Cloud Cartography), for the `bonkei.theme` event: dotted links as arcs, cards with a subtitle, icons by shape. Nothing for the other themes.
+function drawnCounts(th: { node: { form: string } }, data: unknown): Record<string, number> {
+  const d = data as { boxes?: { kind: string; shape: string; sub?: string }[]; arcs?: unknown[] } | undefined
+  if (th.node.form !== 'icon' || !d?.boxes) return {}
+  const nodes = d.boxes.filter(b => b.kind === 'node')
+  const out: Record<string, number> = { 'bonkei.theme.arcs': d.arcs?.length ?? 0, 'bonkei.theme.subtitled': nodes.filter(b => b.sub).length }
+  for (const b of nodes) out[`bonkei.theme.icons.${b.shape}`] = (out[`bonkei.theme.icons.${b.shape}`] ?? 0) + 1
+  return out
+}
+
 // JSON with sorted keys, so two graphs with the same content give the same key.
 function stableStringify(v: unknown): string {
   if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null'
@@ -284,6 +294,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     instant('bonkei.theme', {
       'bonkei.theme': theme.name, 'bonkei.theme.source': look.source, 'bonkei.theme.requested': look.requested ?? '',
       'bonkei.theme.variables': look.variables, 'bonkei.theme.unknown': unknown, 'bonkei.theme.trench': trenchParts(theme),
+      ...drawnCounts(theme, preparedRef.current?.data),
     })
     if (look.problem) cbs.current.onWarning?.({ kind: 'theme', message: look.problem.message, line: 0 })
     // the theme's font file missing (labels drawn in the default font, fonts.ts): a warning too, once per look

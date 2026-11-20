@@ -1,10 +1,10 @@
 ---
-description: Bonkei's three built-in themes (classic, bonkei, bonkei-landscape), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
+description: Bonkei's four built-in themes (classic, bonkei, bonkei-landscape, cloud-cartography), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
 ---
 
 # Themes
 
-A theme is data: every colour, material, label and line style the scene reads. Three ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei` and `bonkei-landscape`. `classic` is the default.
+A theme is data: every colour, material, label and line style the scene reads. Four ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape` and `cloud-cartography`. `classic` is the default.
 
 <div class="grid4">
 
@@ -26,6 +26,22 @@ flowchart LR
 </div>
 
 <p class="cap">classic · bonkei · bonkei-landscape</p>
+
+`cloud-cartography` draws a diagram like an illustrated map of a system: each top-level subgraph is a coloured floor named in big capitals, each node an inked icon by its shape (rect a server, round a service, cylinder storage, diamond a decision) under a callout card, links are navy lines on the floor with one arrow partway along, and a dotted link (`-.->`) arcs overhead. A label written over two lines (`A["Order API<br>Go · 3 pods"]`) shows its second line as a subtitle on the card; the other themes still read it on one line.
+
+```mermaid {height=320 theme=cloud-cartography}
+flowchart LR
+  subgraph edge[Edge]
+    gw["API Gateway<br>Envoy · TLS"]
+  end
+  subgraph orders[Orders]
+    api["Order API<br>Go · 3 pods"] --> db[("Orders DB<br>Postgres")]
+  end
+  gw --> api
+  db -.->|replica| gw
+```
+
+<p class="cap">cloud-cartography</p>
 
 ## Choosing a theme
 
