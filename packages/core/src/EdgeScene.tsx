@@ -22,6 +22,19 @@ function FlatArrow({ tip, dir, color }: { tip: THREE.Vector3; dir: THREE.Vector3
   return <mesh geometry={geo}><meshBasicMaterial color={color} side={THREE.DoubleSide} /></mesh>
 }
 
+// An open chevron (theme.edge.head 'chevron'): two strokes back from the tip, lying in the horizontal plane of the line (its sides are
+// horizontal even when the line climbs). One Line, so it is the width of an edge in px at any zoom.
+export function Chevron({ tip, dir, color, width }: { tip: THREE.Vector3; dir: THREE.Vector3; color: string; width: number }) {
+  const pts = useMemo(() => {
+    const h = new THREE.Vector3(dir.x, 0, dir.z)
+    const d = h.lengthSq() > 0.01 ? h.normalize() : new THREE.Vector3(1, 0, 0) // a line going straight up or down: any side will do
+    const n = new THREE.Vector3(-d.z, 0, d.x)
+    const back = tip.clone().addScaledVector(dir, -0.3)
+    return [back.clone().addScaledVector(n, 0.2), tip.clone(), back.clone().addScaledVector(n, -0.2)].map(p => p.toArray() as [number, number, number])
+  }, [tip, dir])
+  return <Line points={pts} color={color} lineWidth={width * 1.25} />
+}
+
 export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label?: string; labelMode: LabelMode; bodies?: Body[] }) {
   const th = useTheme()
   const flat = th.edge.flat && !!bodies
@@ -34,7 +47,8 @@ export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label
   const dir = new THREE.Vector3().subVectors(last[n - 1], last[n - 2]).normalize()
   const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
   const tip = last[n - 1]
-  const lines = parts.map((p, i) => i === parts.length - 1 ? [...p.slice(0, n - 1), tip.clone().addScaledVector(dir, -0.3)] : p)
+  const chev = th.edge.head === 'chevron'
+  const lines = parts.map((p, i) => i === parts.length - 1 ? [...p.slice(0, n - 1), tip.clone().addScaledVector(dir, chev ? -0.02 : -0.3)] : p)
   // label on the longest run in plan
   let best = 0, at = new THREE.Vector3()
   for (const p of parts) for (let i = 0; i < p.length - 1; i++) {
@@ -44,7 +58,9 @@ export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label
   return (
     <group>
       {lines.map((l, i) => <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={th.edge.color} lineWidth={th.edge.width} />)}
-      {flat
+      {chev
+        ? <Chevron tip={tip} dir={dir} color={th.edge.headColor ?? th.edge.color} width={th.edge.width} />
+        : flat
         ? <FlatArrow tip={tip} dir={dir} color={th.edge.color} />
         : (
           <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>

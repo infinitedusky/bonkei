@@ -10,7 +10,7 @@ import { S, TRAY, NODE_H, TEXT_LAYER } from './scale.ts'
 import { slotShape } from './EdgeScene'
 import { Mat, Ink, PlateText, handBox, useTheme, fontUrl, patternTexture, useFormTexture, FORM_ASPECT } from './look'
 import type { Plate } from './theme'
-import { pickCorner, titleWidth, offTitleWidth, OFF_TITLE, type Corner, type Rect } from './titles'
+import { pickCorner, titleWidth, offTitleWidth, sectionTitle, OFF_TITLE, type Corner, type Rect } from './titles'
 export { S, TRAY, NODE_H }
 
 
@@ -126,8 +126,10 @@ function Form({ shape, w, h, y, gap, label, plate, font, toward }: { shape: Box[
 /** The height a node's body stands (a landscape node: its plinth); the edge planner and the drag plane use the same. */
 export const nodeHeight = (th: { node: { form: string; footprint: { height: number } } }, b: Box) => th.node.form === 'landscape' ? th.node.footprint.height : (b.height ?? NODE_H)
 
-export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
+export function NodeBody({ b, hover = false, labelMode, fill, text }: { b: Box; hover?: boolean; labelMode: LabelMode; fill?: string | null; text?: string | null }) {
   const th = useTheme()
+  const body = fill ?? th.node.colors[b.shape]
+  const ink = text ?? th.label.shapeText?.[b.shape] ?? null // a label colour for this fill (a white name on a black button)
   const w = b.w * S, h = b.h * S
   const land = th.node.form === 'landscape'
   const height = nodeHeight(th, b)
@@ -143,7 +145,7 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
     <>
       {/* an inked node stands a hair above its surface so its bottom outline is not lost to the depth test against the tray top */}
       <mesh geometry={geo} position={[0, th.node.outline ? 0.012 : 0, 0]} castShadow={th.light.shadows} receiveShadow={th.light.shadows}>
-        <Mat color={land ? plinth : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
+        <Mat color={land ? plinth : body} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
         <Ink color={th.node.outline} width={th.node.outlineWidth} />
       </mesh>
       {th.node.outline && b.shape !== 'diamond' && (
@@ -151,20 +153,37 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
       )}
       {land
         ? <Form shape={b.shape} w={w} h={h} y={height} gap={th.node.labelGap} label={b.label} plate={th.label.node} font={fontUrl(th)} toward={th.label.toward} />
-        : <Label text={b.label} mode={labelMode} y={height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />}
+        : <Label text={b.label} mode={labelMode} y={height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" color={ink} fill={body} />}
     </>
   )
 }
 
-export function Label({ text, mode, y, size, maxWidth, left = false, right = false, role }: { text: string; mode: LabelMode; y: number; size: number; maxWidth: number; left?: boolean; right?: boolean; role: 'node' | 'tray' }) {
+export function Label({ text, mode, y, size, maxWidth, left = false, right = false, role, color = null, fill, num }: { text: string; mode: LabelMode; y: number; size: number; maxWidth: number; left?: boolean; right?: boolean; role: 'node' | 'tray'; color?: string | null; fill?: string; num?: number }) {
   const th = useTheme()
-  const plate = th.label[role], font = fontUrl(th)
+  let plate = th.label[role]
+  const font = fontUrl(th)
+  // a label colour for its fill (a white name on a black button): on the node it lies on, a billboard floats over the paper, so it carries its fill as a plate
+  if (color) plate = mode === 'top' || !fill ? { ...plate, text: color } : { style: 'cartouche', text: color, plate: fill, border: fill }
+  const section = role === 'tray' && th.tray.titleStyle === 'section' && num !== undefined
+  if (section) {
+    // a small square, then `01 · NAME` in letter-spaced capitals (the bundled grotesk with spacing; no mono font is bundled)
+    const s = size * 0.72, spacing = 0.12, w = sectionTitle(num, text).length * s * 0.72, q = s * 0.62
+    const mark = th.tray.mark ?? plate.text
+    const at = left ? q * 1.7 : right ? 0 : q * 0.85
+    const sq = left ? q * 0.5 : right ? -w - q * 1.2 : -w / 2 - q * 0.85
+    const label = <>
+      <mesh position={[sq, 0, 0]} layers={TEXT_LAYER as any} renderOrder={2}><planeGeometry args={[q, q]} /><meshBasicMaterial color={mark} polygonOffset polygonOffsetFactor={-6} polygonOffsetUnits={-6} toneMapped={false} /></mesh>
+      <group position={[at, 0, 0]}><PlateText text={sectionTitle(num, text)} plate={plate} font={font} fontSize={s} maxWidth={maxWidth} left={left} right={right} spacing={spacing} /></group>
+    </>
+    if (mode === 'top') return <group rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>{label}</group>
+    return <Billboard position={[0, y + 0.45, 0]}>{label}</Billboard>
+  }
   const body = <PlateText text={text} plate={plate} font={font} fontSize={size} maxWidth={maxWidth} left={left} right={right} outline={mode !== 'top' && plate.style === 'plain'} toward={mode !== 'top' && role === 'node' ? th.label.toward : 0} />
   if (mode === 'top') return <group rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>{body}</group>
   return <Billboard position={[0, y + 0.45, 0]}>{body}</Billboard>
 }
 
-export function Tray({ b, labelMode, hover = false, slots = [], kids = [] }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[]; kids?: Rect[] }) {
+export function Tray({ b, labelMode, hover = false, num, slots = [], kids = [] }: { b: Box; labelMode: LabelMode; hover?: boolean; num?: number; slots?: { x0: number; x1: number; z0: number; z1: number }[]; kids?: Rect[] }) {
   const th = useTheme()
   const w = b.w * S, h = b.h * S
   const lv = Math.min(b.level, 2)
@@ -173,19 +192,19 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [] }: { b
   const last = useRef<Corner>('bl')
   const corner: Corner = useMemo(() => {
     if (th.tray.titles !== 'free') return 'bl'
-    const c = pickCorner(w, h, titleWidth(b.label, 0.4), 0.75, kids, th.node.form === 'landscape' ? { x0: 1.0, x1: 0.3, z0: 1.9, z1: 0.3 } : { x0: 0.4, x1: 0.3, z0: 0.8, z1: 0.3 }, last.current)
+    const c = pickCorner(w, h, titleWidth(th.tray.titleStyle === 'section' && num !== undefined ? sectionTitle(num, b.label) : b.label, 0.4), 0.75, kids, th.node.form === 'landscape' ? { x0: 1.0, x1: 0.3, z0: 1.9, z1: 0.3 } : { x0: 0.4, x1: 0.3, z0: 0.8, z1: 0.3 }, last.current)
     last.current = c
     return c
-  }, [th.tray.titles, th.node.form, w, h, b.label, JSON.stringify(kids)])
+  }, [th.tray.titles, th.tray.titleStyle, num, th.node.form, w, h, b.label, JSON.stringify(kids)])
   const pat = th.tray.sides[lv]
   const side = useMemo(() => {
-    const t = patternTexture(pat, th.tray.patternInk, th.tray.patternPaper, th.tray.outline ?? th.tray.patternInk)
+    const t = patternTexture(pat, th.tray.patternInk, th.tray.patternPaper, th.tray.outline ?? th.tray.patternInk, th.tray.mark ?? th.tray.patternInk)
     if (!t) return null
     const c = t.clone(); c.needsUpdate = true
-    c.repeat.set(1 / T, 1 / T) // extruded side walls have world-unit UVs (v runs 1-T..1): one square tile is exactly the band's height
+    c.repeat.set(1 / (T * (t.userData.wide ?? 1)), 1 / T) // extruded side walls have world-unit UVs (v runs 1-T..1): one square tile is exactly the band's height
     c.offset.set(0, ((-(1 - T) / T) % 1 + 1) % 1)
     return c
-  }, [pat, th.tray.patternInk, th.tray.patternPaper, T])
+  }, [pat, th.tray.patternInk, th.tray.patternPaper, th.tray.mark, T])
   // with tunnel slots (in tray-local x, z) the top is cut open, and a patterned side needs the extruded walls; otherwise a plain box
   const cut = useMemo(() => {
     if (!slots.length && !side) return null
@@ -202,7 +221,7 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [] }: { b
       {th.tray.titles === 'off'
         ? <OffTitle text={b.label} w={w} h={h} />
         : <group position={[corner === 'bl' || corner === 'fl' ? -w / 2 + 0.25 : w / 2 - 0.25, 0, corner === 'bl' || corner === 'br' ? -h / 2 + 0.5 : h / 2 - 0.5]}>
-          <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={corner === 'bl' || corner === 'fl'} right={corner === 'br' || corner === 'fr'} role="tray" />
+          <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={corner === 'bl' || corner === 'fl'} right={corner === 'br' || corner === 'fr'} role="tray" num={num} />
         </group>}
     </>
   )

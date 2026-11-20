@@ -7,6 +7,7 @@ export default [
   { name: 'libavoid.wasm (fetched on first layout)', path: 'dist/libavoid.wasm', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '183 kB' },
   { name: 'Zen Old Mincho font (fetched when a theme names it: label.font mincho)', path: 'dist/fonts/ZenOldMincho-Bold-latin.ttf', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '21 kB' },
   { name: 'Architects Daughter font (fetched when a theme names it: label.font architect)', path: 'dist/fonts/ArchitectsDaughter-Regular-latin.ttf', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '15 kB' },
+  { name: 'Inter Display font (fetched when a theme names it: label.font inter)', path: 'dist/fonts/InterDisplay-Regular-latin.ttf', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '15 kB' },
   { name: 'wasm fallback chunk (fetched only if the file beside the module is not found)', path: 'dist/_libavoid-inline-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '255 kB' },
   { name: 'script-tag bundle (bonkei.global.js, React and three inside)', path: 'dist/bonkei.global.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '880 kB' },
 ]

@@ -3,7 +3,7 @@
 import { Color } from 'three'
 import type { Shape } from './model.ts'
 
-export type Pattern = 'plain' | 'hishi' | 'flower' | 'stone' | 'hatch'
+export type Pattern = 'plain' | 'hishi' | 'flower' | 'stone' | 'hatch' | 'dither'
 export interface Plate { style: 'plain' | 'cartouche'; text: string; plate: string; border: string }
 
 /**
@@ -19,6 +19,9 @@ export interface Theme {
   ground: {
     bg: string
     grid: [string, string] | null // centre lines, other lines; null: no grid
+    gridStyle: 'lines' | 'dots' // dots: a dot on every crossing (in the first colour) in place of the lines
+    haze: string | null // a soft wash of this colour at the left and right edges of the view, over the ground; null: none
+    hazeWidth: number // 0..1: how far in from each edge it reaches, as a share of the view's width
     major: number // a heavier grid line every this many squares over the fine grid; 0: a single-weight grid
     majorColor: string // the heavier lines' colour
     grain: number // 0..1 paper grain, 0 off
@@ -40,6 +43,8 @@ export interface Theme {
     thickness: number // the tray's height (one level)
     colors: [string, string, string] // top, by level
     sides: [Pattern, Pattern, Pattern] // side pattern, by level
+    titleStyle: 'plain' | 'section' // section: a small square, then `01 · NAME` in letter-spaced capitals, numbered in reading order
+    mark: string | null // the section title's square, and the scattered pixels of a dither side; null: the title's colour
     titles: 'fixed' | 'free' | 'off' // fixed: the back-left corner; free: a corner nothing stands on (tested against the nodes and forms on the tray); off: a box on the surface in front of the tray, with room made for it in the layout
     patternInk: string
     patternPaper: string
@@ -51,13 +56,14 @@ export interface Theme {
     font: string | null // a bundled font key, null: drei's default
     node: Plate
     tray: Plate
+    shapeText: Record<Shape, string | null> // a label colour for the nodes of one shape (on a dark fill); null: node.text
     toward: number // how far a billboarded label is pulled towards the camera, so it stands in front of a form
   }
   // Ink follows the drawing's on-screen scale: width in px = token width x (px per world unit / ref), kept between min (px, for an outline;
   // other lines get it in proportion to their own width) and the token width. ref null: fixed widths, as in Classic.
   ink: { ref: number | null; min: number }
-  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim. glow: the trench light. flat: lines lie on the surface under them and the arrowhead is a flat triangle
-  seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
+  edge: { color: string; width: number; head: 'cone' | 'chevron'; headColor: string | null; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim. glow: the trench light. flat: lines lie on the surface under them and the arrowhead is a flat triangle. head: a cone, or an open chevron lying in the plane of the line (in headColor; null: the line's). seq.partFill/partText: a sequence participant's fill and name colour; null: the node's
+  seq: { partFill: string | null; partText: string | null; lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
 }
 
 // The presets are shared by every diagram on the page, so they are frozen: edit a copy (withVariables, or a spread).
@@ -69,7 +75,7 @@ function deepFreeze<T>(o: T): T {
 /** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const CLASSIC: Theme = deepFreeze({
   name: 'classic',
-  ground: { bg: '#0f1218', grid: ['#1d2433', '#161c28'], major: 0, majorColor: '#1d2433', grain: 0, lit: true },
+  ground: { bg: '#0f1218', grid: ['#1d2433', '#161c28'], gridStyle: 'lines', haze: null, hazeWidth: 0.3, major: 0, majorColor: '#1d2433', grain: 0, lit: true },
   light: { ambient: 0.55, sky: '#bcd0ff', floor: '#202838', hemi: 0.5, sun: 1.6, shadows: true, shading: 'standard', tones: 3, toneMapping: true },
   node: {
     colors: { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' },
@@ -78,26 +84,26 @@ export const CLASSIC: Theme = deepFreeze({
   },
   tray: {
     thickness: 0.25,
-    colors: ['#243044', '#2d3b52', '#374862'], sides: ['plain', 'plain', 'plain'], titles: 'fixed', patternInk: '#24508F', patternPaper: '#f4efe3',
+    colors: ['#243044', '#2d3b52', '#374862'], sides: ['plain', 'plain', 'plain'], titleStyle: 'plain', mark: null, titles: 'fixed', patternInk: '#24508F', patternPaper: '#f4efe3',
     outline: null, hover: '#8fb0ff', hoverIntensity: 0.15,
   },
   label: {
     font: null,
     node: { style: 'plain', text: '#ffffff', plate: '#ffffff', border: '#000000' },
     tray: { style: 'plain', text: '#cfd8ea', plate: '#ffffff', border: '#000000' },
-    toward: 0,
+    shapeText: { rect: null, round: null, cylinder: null, diamond: null }, toward: 0,
   },
   ink: { ref: null, min: 1 },
-  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: 'none', rimWidth: 1.5, flat: false,
+  edge: { color: '#e8edf7', width: 2, head: 'cone', headColor: null, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: 'none', rimWidth: 1.5, flat: false,
     // the trench lit in grey-white at 30% strength: 0.6 times the standard sizes (Bonkei's below, which are 50%), and no rim
     glow: { core: '#e0e0e0', coreWidth: 2.1, halo: '#e0e0e0', haloWidth: 6.6, haloOpacity: 0.17, wash: '#e0e0e0', washIntensity: 0.18 } },
-  seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
+  seq: { partFill: null, partText: null, lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 })
 
 /** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const BONKEI: Theme = deepFreeze({
   name: 'bonkei',
-  ground: { bg: '#EFE6D0', grid: null, major: 0, majorColor: '#EFE6D0', grain: 0.25, lit: false },
+  ground: { bg: '#EFE6D0', grid: null, gridStyle: 'lines', haze: null, hazeWidth: 0.3, major: 0, majorColor: '#EFE6D0', grain: 0.25, lit: false },
   light: { ambient: 1.2, sky: '#fff8e6', floor: '#d8cbaa', hemi: 0.4, sun: 1.5, shadows: false, shading: 'toon', tones: 3, toneMapping: false },
   node: {
     colors: { rect: '#9AAE8C', round: '#5E8F88', cylinder: '#C9A24A', diamond: '#7C93B8' },
@@ -106,20 +112,20 @@ export const BONKEI: Theme = deepFreeze({
   },
   tray: {
     thickness: 0.42,
-    colors: ['#E6DCC3', '#DACDAE', '#CDBF9C'], sides: ['hishi', 'flower', 'stone'], titles: 'free', patternInk: '#24508F', patternPaper: '#f4efe3',
+    colors: ['#E6DCC3', '#DACDAE', '#CDBF9C'], sides: ['hishi', 'flower', 'stone'], titleStyle: 'plain', mark: null, titles: 'free', patternInk: '#24508F', patternPaper: '#f4efe3',
     outline: '#2A2622', hover: '#fff2c0', hoverIntensity: 0.12,
   },
   label: {
     font: 'mincho',
     node: { style: 'cartouche', text: '#2A2622', plate: '#f6efdd', border: '#2A2622' },
     tray: { style: 'cartouche', text: '#f1e8d2', plate: '#23345A', border: '#2A2622' },
-    toward: 0,
+    shapeText: { rect: null, round: null, cylinder: null, diamond: null }, toward: 0,
   },
   ink: { ref: 40, min: 1 },
-  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false,
+  edge: { color: '#2A2622', width: 2, head: 'cone', headColor: null, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false,
     // the light is off (the tunnel looks as it always did); the sizes are the standard light a diagram gets when it sets a colour
     glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 } },
-  seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
+  seq: { partFill: null, partText: null, lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
 })
 
 // Bonkei with a landscape form standing on each node's footprint, and its label pulled in front of the form.
@@ -133,7 +139,7 @@ const PAPER = '#1d4f8c', INK = '#eef6ff', LINE = '#a9d6ff', TRAY_INK = '#bcdcff'
 /** Blueprint, an architect's drawing on blue paper, for passing as `theme` or as a base to copy and edit (it is frozen). */
 export const BLUEPRINT: Theme = deepFreeze({
   name: 'blueprint',
-  ground: { bg: PAPER, grid: ['#6f97c6', '#3c6aa2'], major: 5, majorColor: '#6f97c6', grain: 0.08, lit: false },
+  ground: { bg: PAPER, grid: ['#6f97c6', '#3c6aa2'], gridStyle: 'lines', haze: null, hazeWidth: 0.3, major: 5, majorColor: '#6f97c6', grain: 0.08, lit: false },
   light: { ...BONKEI.light, ambient: 1.4, sky: '#e6f2ff', floor: PAPER, tones: 2 },
   node: {
     ...BONKEI.node,
@@ -142,36 +148,75 @@ export const BLUEPRINT: Theme = deepFreeze({
   },
   tray: {
     ...BONKEI.tray,
-    thickness: 0.35, colors: ['#22599a', '#265f9f', '#2a65a5'], sides: ['hatch', 'hatch', 'hatch'], titles: 'off',
+    thickness: 0.35, colors: ['#22599a', '#265f9f', '#2a65a5'], sides: ['hatch', 'hatch', 'hatch'], titleStyle: 'plain', mark: null, titles: 'off',
     patternInk: '#7fb2e5', patternPaper: '#1f5290', outline: TRAY_INK, hover: '#9fd3ff', hoverIntensity: 0.15,
   },
   label: {
     font: 'architect',
     node: { style: 'plain', text: INK, plate: PAPER, border: INK },
     tray: { style: 'cartouche', text: INK, plate: PAPER, border: TRAY_INK },
+    shapeText: { rect: null, round: null, cylinder: null, diamond: null }, toward: 0,
+  },
+  ink: { ref: 40, min: 1 },
+  edge: {
+    color: LINE, width: 2, head: 'cone', headColor: null, label: INK, labelOutline: PAPER, portal: LINE, rim: TRAY_INK, rimWidth: 1.5, flat: false,
+    // the trench lit in pale blue at the standard 50%
+    glow: { core: '#bfe4ff', coreWidth: 3.5, halo: '#bfe4ff', haloWidth: 11, haloOpacity: 0.28, wash: '#bfe4ff', washIntensity: 0.3 },
+  },
+  seq: { partFill: null, partText: null, lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: INK, blockText: INK, blockSub: TRAY_INK, cross: '#ffd479', crossLine: '#ffd479' },
+})
+
+// LTech: the look of lazertechnologies.com as it is today, a light site (BON-247). White ground with a faint dot grid and a pink haze at the
+// edges, navy line work, hot pink only in small marks (chevrons, the section squares, activations, portals, the tunnel's lip), flat shading,
+// the footer's pixel dither on the tray sides, rounded shapes as the site's black button with white lettering. Nothing glows. Values are the
+// site's tokens (--color-*), from the Mockups/LTech stories.
+const WHITE = '#ffffff', NAVY = '#020a3d', PINK = '#ff42e6', HAZE = '#fff4fd', GREY = '#676c8b', RULE = '#c9cbd8'
+/** LTech, after lazertechnologies.com: white, navy and small marks of hot pink, for passing as `theme` or as a base to copy and edit (it is frozen). */
+export const LTECH: Theme = deepFreeze({
+  name: 'ltech',
+  ground: { bg: WHITE, grid: ['#8e95bd', '#8e95bd'], gridStyle: 'dots', haze: '#f6c8f0', hazeWidth: 0.28, major: 0, majorColor: '#8e95bd', grain: 0, lit: false },
+  light: { ...BONKEI.light, ambient: 1.35, sky: WHITE, floor: '#eeeef4', tones: 2 },
+  node: {
+    ...BONKEI.node,
+    colors: { rect: WHITE, round: '#111111', cylinder: WHITE, diamond: HAZE },
+    outline: NAVY, outlineWidth: 1.2, bevel: 0, form: 'block', hover: PINK, hoverIntensity: 0.12,
+  },
+  tray: {
+    ...BONKEI.tray,
+    thickness: 0.4, colors: [WHITE, '#f4f4f9', '#ececf4'], sides: ['dither', 'dither', 'dither'], titleStyle: 'section', mark: PINK, titles: 'free',
+    patternInk: '#9a9db3', patternPaper: WHITE, outline: RULE, hover: PINK, hoverIntensity: 0.08,
+  },
+  label: {
+    font: 'inter',
+    node: { style: 'plain', text: NAVY, plate: WHITE, border: NAVY },
+    tray: { style: 'plain', text: NAVY, plate: WHITE, border: RULE },
+    shapeText: { rect: null, round: WHITE, cylinder: null, diamond: null },
     toward: 0,
   },
   ink: { ref: 40, min: 1 },
   edge: {
-    color: LINE, width: 2, label: INK, labelOutline: PAPER, portal: LINE, rim: TRAY_INK, rimWidth: 1.5, flat: false,
-    // the trench lit in pale blue at the standard 50%
-    glow: { core: '#bfe4ff', coreWidth: 3.5, halo: '#bfe4ff', haloWidth: 11, haloOpacity: 0.28, wash: '#bfe4ff', washIntensity: 0.3 },
+    color: NAVY, width: 1.5, head: 'chevron', headColor: PINK, label: GREY, labelOutline: WHITE, portal: PINK, rim: PINK, rimWidth: 1.5, flat: false,
+    // no light in the trench: a pink lip is the only accent
+    glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 },
   },
-  seq: { lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: INK, blockText: INK, blockSub: TRAY_INK, cross: '#ffd479', crossLine: '#ffd479' },
+  seq: { partFill: '#111111', partText: WHITE, lifeline: RULE, activation: PINK, note: HAZE, noteText: NAVY, blockText: NAVY, blockSub: GREY, cross: PINK, crossLine: PINK },
 })
 
 /** The built-in themes by the name a diagram or the `theme` prop uses. */
-export const PRESETS: Readonly<Record<string, Theme>> = Object.freeze({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE, blueprint: BLUEPRINT })
-/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape, blueprint. */
+export const PRESETS: Readonly<Record<string, Theme>> = Object.freeze({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE, blueprint: BLUEPRINT, ltech: LTECH })
+/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape, blueprint, ltech. */
 export const THEME_NAMES = Object.keys(PRESETS)
 
 // Tokens that take one of a few words. A path segment `#` stands for any array index.
 const CHOICES: Record<string, readonly string[]> = {
   'light.shading': ['standard', 'toon'],
   'node.form': ['block', 'landscape'],
-  'tray.sides.#': ['plain', 'hishi', 'flower', 'stone', 'hatch'],
+  'tray.sides.#': ['plain', 'hishi', 'flower', 'stone', 'hatch', 'dither'],
   'tray.titles': ['fixed', 'free', 'off'],
-  'label.font': ['mincho', 'architect'],
+  'tray.titleStyle': ['plain', 'section'],
+  'ground.gridStyle': ['lines', 'dots'],
+  'edge.head': ['cone', 'chevron'],
+  'label.font': ['mincho', 'architect', 'inter'],
   'label.node.style': ['plain', 'cartouche'],
   'label.tray.style': ['plain', 'cartouche'],
 }
@@ -184,10 +229,12 @@ const at = (o: unknown, keys: string[]) => keys.reduce<any>((c, k) => (c !== nul
 
 // Tokens that may be null in any theme though a preset sets them: null leaves that part of the trench light out.
 // edge.rim: null is a dark shade of the surface, as it always was (Classic's rim is 'none' now, so no preset shows it).
-const NULLABLE = new Set(['edge.rim', 'edge.glow.core', 'edge.glow.halo', 'edge.glow.wash'])
+const NULLABLE = new Set(['edge.rim', 'edge.glow.core', 'edge.glow.halo', 'edge.glow.wash', 'ground.haze', 'tray.mark', 'edge.headColor', 'seq.partFill', 'seq.partText',
+  'label.shapeText.rect', 'label.shapeText.round', 'label.shapeText.cylinder', 'label.shapeText.diamond'])
 // Tokens whose string is drawn as a colour, with the words they take beside one: a word three.js does not know as a colour would draw
 // in white (an `off` rim drew a light rim), so it is reported instead.
-const COLOURS: Record<string, readonly string[]> = { 'edge.rim': ['none'], 'edge.glow.core': [], 'edge.glow.halo': [], 'edge.glow.wash': [] }
+const COLOURS: Record<string, readonly string[]> = { 'edge.rim': ['none'], 'edge.glow.core': [], 'edge.glow.halo': [], 'edge.glow.wash': [], 'ground.haze': [], 'tray.mark': [], 'edge.headColor': [], 'seq.partFill': [], 'seq.partText': [],
+  'label.shapeText.rect': [], 'label.shapeText.round': [], 'label.shapeText.cylinder': [], 'label.shapeText.diamond': [] }
 // A colour as three.js reads one (Color.setStyle): #rgb, #rrggbb, rgb()/rgba() in numbers or %, hsl()/hsla(), or a CSS colour name.
 const isColour = (s: string) =>
   /^#([\da-f]{3}|[\da-f]{6})$/i.test(s)
@@ -210,6 +257,7 @@ function setPath(t: Theme, path: string, v: unknown): string | null {
   if (old !== null && typeof old === 'object') return `${path} is a group of tokens; ${off ? 'turn it off with off, or ' : ''}set one of them (${Object.keys(old).map(k => `${path}.${k}`).join(', ')})`
   const types = new Set(Object.values(PRESETS).map(p => at(p, keys)).map(x => (x === null ? 'null' : typeof x)))
   if (NULLABLE.has(path)) types.add('null')
+  if (Object.hasOwn(COLOURS, path)) types.add('string') // a colour token that no preset sets (a label colour for a shape) is still a string
   const want = [...types].filter(x => x !== 'null')
   const got = v === null ? 'null' : typeof v
   if (!types.has(got)) return `${path} must be ${want.length ? 'a ' + want.join(' or a ') : 'null'}${types.has('null') ? ' or null' : ''}; got ${JSON.stringify(v)}`

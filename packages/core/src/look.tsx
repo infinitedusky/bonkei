@@ -69,13 +69,13 @@ export function Ink({ color, width }: { color: string | null; width: number }) {
 // ---- tray side patterns, drawn on a canvas (no image files) ----
 // One square tile is exactly the height of the tray's side band: a single bold motif filling the band, an ink line along the top and the bottom.
 const pats = new Map<string, THREE.CanvasTexture>()
-export function patternTexture(kind: Pattern, ink: string, paper: string, line: string): THREE.Texture | null {
+export function patternTexture(kind: Pattern, ink: string, paper: string, line: string, accent: string = ink): THREE.Texture | null {
   if (kind === 'plain') return null
-  const key = `${kind}|${ink}|${paper}|${line}`
+  const key = `${kind}|${ink}|${paper}|${line}|${accent}`
   let t = pats.get(key)
   if (t) return t
-  const N = 128, c = document.createElement('canvas')
-  c.width = c.height = N
+  const N = 128, wide = kind === 'dither' ? 4 : 1, c = document.createElement('canvas') // a dither tile is 4 squares wide, so its noise does not repeat at every tray's height
+  c.width = N * wide; c.height = N
   const g = c.getContext('2d')!
   const bar = N * 0.07, m = N / 2
   if (kind === 'hishi') {
@@ -95,6 +95,28 @@ export function patternTexture(kind: Pattern, ink: string, paper: string, line: 
     g.strokeStyle = ink; g.lineWidth = N * 0.05; g.lineCap = 'butt'
     const p = N / 3
     for (let o = -N; o <= N; o += p) { g.beginPath(); g.moveTo(o, N + 2); g.lineTo(o + N + 4, -2); g.stroke() }
+  } else if (kind === 'dither') { // the footer's dither: 8 rows of square pixels; grey ones thin out towards the top, pink ones are scattered near the lip
+    g.fillStyle = paper; g.fillRect(0, 0, N * wide, N)
+    const rows = 8, cols = rows * wide, px = N / rows
+    let s = 3
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
+    for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) {
+      const up = 1 - r / (rows - 1) // canvas row 0 is the top of the side: 1 at the lip, 0 at the foot
+      const pink = up > 0.45 && rnd() < 0.3 * up
+      if (!pink && rnd() > 0.85 - up * 0.7) continue
+      g.fillStyle = pink ? accent : ink
+      g.fillRect(q * px, r * px, px - 1, px - 1)
+    }
+    g.fillStyle = line
+    g.fillRect(0, 0, N * wide, N * 0.025); g.fillRect(0, N - N * 0.025, N * wide, N * 0.025)
+    t = new THREE.CanvasTexture(c)
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    t.colorSpace = THREE.SRGBColorSpace
+    // crisp squares when a view magnifies them, mipmapped grey when it shrinks them: nearest sampling of a fine tile shimmers while zooming
+    t.magFilter = THREE.NearestFilter; t.minFilter = THREE.LinearMipmapLinearFilter
+    t.anisotropy = 8; t.userData.wide = wide
+    pats.set(key, t)
+    return t
   } else { // stone: dark ground with wavy veins
     g.fillStyle = '#5f5850'; g.fillRect(0, 0, N, N)
     g.strokeStyle = '#4a443d'; g.lineWidth = N * 0.06; g.lineCap = 'round'
@@ -105,7 +127,7 @@ export function patternTexture(kind: Pattern, ink: string, paper: string, line: 
   t = new THREE.CanvasTexture(c)
   t.wrapS = t.wrapT = THREE.RepeatWrapping
   t.colorSpace = THREE.SRGBColorSpace
-  t.anisotropy = 8
+  t.anisotropy = 8; t.userData.wide = 1
   pats.set(key, t)
   return t
 }
@@ -169,7 +191,7 @@ export function grainTexture(bg: string, amount: number): THREE.Texture {
 
 // ---- label plates ----
 /** Text, and behind it a cartouche (border and plate sized to the text) when the plate token asks for one. Lies in its parent's XY plane. */
-export function PlateText({ text, plate, font, fontSize, maxWidth, left = false, right = false, outline = false, toward = 0, inFront = false }: { text: string; plate: Plate; font?: string; fontSize: number; maxWidth: number; left?: boolean; right?: boolean; outline?: boolean; toward?: number; inFront?: boolean }) {
+export function PlateText({ text, plate, font, fontSize, maxWidth, left = false, right = false, outline = false, toward = 0, inFront = false, spacing = 0 }: { text: string; plate: Plate; font?: string; fontSize: number; maxWidth: number; left?: boolean; right?: boolean; outline?: boolean; toward?: number; inFront?: boolean; spacing?: number }) {
   const [b, setB] = useState<[number, number, number, number] | null>(null)
   const cart = plate.style === 'cartouche'
   const pad = fontSize * 0.28
@@ -198,7 +220,7 @@ export function PlateText({ text, plate, font, fontSize, maxWidth, left = false,
           </mesh>
         </group>
       )}
-      <Text layers={TEXT_LAYER as any} renderOrder={3} position={[0, 0, cart ? 0.02 : 0]} depthOffset={cart || inFront ? -12 : 0} font={font} fontSize={fontSize} maxWidth={maxWidth} color={plate.text}
+      <Text layers={TEXT_LAYER as any} renderOrder={3} position={[0, 0, cart ? 0.02 : 0]} depthOffset={cart || inFront ? -12 : 0} font={font} fontSize={fontSize} maxWidth={maxWidth} letterSpacing={spacing} color={plate.text}
         anchorX={left ? 'left' : right ? 'right' : 'center'} anchorY="middle" textAlign={left ? 'left' : right ? 'right' : 'center'}
         outlineWidth={outline ? 0.03 : 0} outlineColor="#000"
         onSync={cart ? (t: any) => { const r = t.textRenderInfo?.blockBounds; if (r) setB(p => (p && p[0] === r[0] && p[1] === r[1] && p[2] === r[2] && p[3] === r[3] ? p : [r[0], r[1], r[2], r[3]])) } : undefined}>{text}</Text>

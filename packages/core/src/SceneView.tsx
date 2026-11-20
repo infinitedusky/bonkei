@@ -12,6 +12,7 @@ import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
 import { CLASSIC, inkPx, type Theme } from './theme'
+import { sectionNumbers } from './titles'
 import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
@@ -88,6 +89,33 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
 }
 
 const NO_SLOTS: Slot[] = []
+// ground.haze: a wash of colour at the left and right edges of the view, mixed into the ground's colour by where the ground's point lands on
+// the screen (clip x over w), so it stays at the edges of the picture whatever the camera does, as the site's hero does. Over a ground plane it
+// is the part of the ground that is at the sides of the view: in iso the two far corners, in 3D the sides of the plane.
+function hazeShader(haze: string | null | undefined, width: number) {
+  if (!haze) return undefined
+  const c = new THREE.Color(haze), w = Math.min(1, Math.max(0.01, Number(width) || 0.3))
+  return (sh: { vertexShader: string; fragmentShader: string }) => {
+    sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying float vHazeX;\nvoid main() {')
+      .replace('#include <project_vertex>', '#include <project_vertex>\n  { vec4 hp = projectionMatrix * mvPosition; vHazeX = hp.x / hp.w; }')
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'varying float vHazeX;\nvoid main() {')
+      .replace('#include <opaque_fragment>', `float hz = 1.0 - smoothstep(0.0, ${(2 * w).toFixed(3)}, 1.0 - abs(vHazeX));\n  outgoingLight = mix(outgoingLight, vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)}), hz * hz);\n  #include <opaque_fragment>`)
+  }
+}
+// ground.gridStyle 'dots': a dot on every crossing of the grid, in the grid's first colour, a fixed size in px, masked over a tunnel's slot like the grid.
+function Dots({ color, masked }: { color: string; masked: boolean }) {
+  const geo = useMemo(() => {
+    const p: number[] = []
+    for (let x = -100; x <= 100; x++) for (let z = -100; z <= 100; z++) p.push(x, 0, z)
+    return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(p, 3))
+  }, [])
+  return (
+    <points geometry={geo} position={[0, -0.01, 0]} renderOrder={1}>
+      <pointsMaterial color={color} size={2} sizeAttenuation={false} transparent opacity={0.55} depthWrite={false}
+        stencilWrite={masked} stencilRef={1} stencilFunc={THREE.NotEqualStencilFunc} />
+    </points>
+  )
+}
 function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; children: React.ReactNode; controls: ResolvedControls; slots?: Slot[] }) {
   const masks = useMemo(() => slots.map(s => new THREE.ShapeGeometry(stadium(s, new THREE.Shape()) as THREE.Shape, 16)), [slots])
   const groundGeo = useMemo(() => new THREE.ShapeGeometry(slotShape(-200, -200, 200, 200, slots)), [slots])
@@ -260,20 +288,21 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       <directionalLight ref={light} position={[10, 18, 7]} intensity={th.light.sun} castShadow={th.light.shadows} shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30} shadow-camera-near={1} shadow-camera-far={80} shadow-bias={-0.0004} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow={th.light.shadows} geometry={groundGeo}>
-        {th.ground.lit ? <meshStandardMaterial color={th.ground.bg} roughness={1} /> : <meshBasicMaterial color={grain ? '#ffffff' : th.ground.bg} map={grain} />}
+        {th.ground.lit ? <meshStandardMaterial color={th.ground.bg} roughness={1} /> : <meshBasicMaterial color={grain ? '#ffffff' : th.ground.bg} map={grain} onBeforeCompile={hazeShader(th.ground.haze, th.ground.hazeWidth)} customProgramCacheKey={() => `haze${th.ground.haze}${th.ground.hazeWidth}`} />}
       </mesh>
       {/* the grid is masked out over a tunnel's slot (stencil), so no grid line floats across it */}
+      {th.ground.grid && th.ground.gridStyle === 'dots' && <Dots color={th.ground.grid[0]} masked={slots.length > 0} />}
       {th.ground.grid && slots.map((_, i) => (
         <mesh key={i} geometry={masks[i]} position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
           <meshBasicMaterial colorWrite={false} depthWrite={false} stencilWrite stencilRef={1} stencilFunc={THREE.AlwaysStencilFunc} stencilZPass={THREE.ReplaceStencilOp} />
         </mesh>
       ))}
-      {th.ground.grid && <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...th.ground.grid]} position={[0, -0.01, 0]} renderOrder={1}
+      {th.ground.grid && th.ground.gridStyle !== 'dots' && <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...th.ground.grid]} position={[0, -0.01, 0]} renderOrder={1}
         material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />}
       {/* ground.major: a heavier line every `major` squares (whole squares), a second grid in its own colour over the fine one. Its lines lie
           exactly on fine ones, centred like them, and are drawn after them (the default depth test passes an equal depth), so the heavier
           colour shows without flicker */}
-      {th.ground.grid && major > 0 && <gridHelper key={`major${major}${slots.length ? 'masked' : 'plain'}`} args={[2 * Math.floor(100 / major) * major, 2 * Math.floor(100 / major), th.ground.majorColor, th.ground.majorColor]} position={[0, -0.01, 0]} renderOrder={2}
+      {th.ground.grid && th.ground.gridStyle !== 'dots' && major > 0 && <gridHelper key={`major${major}${slots.length ? 'masked' : 'plain'}`} args={[2 * Math.floor(100 / major) * major, 2 * Math.floor(100 / major), th.ground.majorColor, th.ground.majorColor]} position={[0, -0.01, 0]} renderOrder={2}
         material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />}
       {children}
     </>
@@ -314,6 +343,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   // steps and crossings, recomputed whenever a box moves (the drag path) or the style changes
   const quality = useMemo<RouteQuality>(() => measureRoutes([...boxes.values()], routes), [boxes, routes])
+  const nums = useMemo(() => (th.tray.titleStyle === 'section' ? sectionNumbers([...boxes.values()]) : new Map<string, number>()), [boxes, th.tray.titleStyle])
   const bodies = useMemo<Body[]>(() => [...boxes.values()].map(b => ({ id: b.id, kind: b.kind, x0: wx(b.x), z0: wz(b.y), x1: wx(b.x + b.w), z1: wz(b.y + b.h), level: b.level, parent: b.parent, height: b.kind === 'node' ? nodeHeight(th, b) : b.height, tray: th.tray.thickness })), [boxes, W, H, th.tray.thickness, th.node.form, th.node.footprint.height])
   const { plans, stats, slots, ms } = useMemo(() => {
     const t0 = performance.now()
@@ -393,7 +423,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
               }}
               onPointerOver={e => { e.stopPropagation(); setHover(b.id); setCursor(cursorFor('group', controls, hasClick)) }}
               onPointerOut={() => { setHover(null); setCursor('') }}>
-              <Tray b={b} labelMode={labelMode} hover={hover === b.id} kids={th.tray.titles === 'free' ? [...boxes.values()].filter(k => k.parent === b.id).map(k => ({ x0: wx(k.x) - pos[0], x1: wx(k.x + k.w) - pos[0], z0: wz(k.y) - pos[2], z1: wz(k.y + k.h) - pos[2] })) : undefined} slots={slots.filter(s => s.tray === b.id).map(s => ({ x0: s.x0 - pos[0], x1: s.x1 - pos[0], z0: s.z0 - pos[2], z1: s.z1 - pos[2] }))} />
+              <Tray b={b} labelMode={labelMode} hover={hover === b.id} num={th.tray.titleStyle === 'section' ? nums.get(b.id) : undefined} kids={th.tray.titles === 'free' ? [...boxes.values()].filter(k => k.parent === b.id).map(k => ({ x0: wx(k.x) - pos[0], x1: wx(k.x + k.w) - pos[0], z0: wz(k.y) - pos[2], z1: wz(k.y + k.h) - pos[2] })) : undefined} slots={slots.filter(s => s.tray === b.id).map(s => ({ x0: s.x0 - pos[0], x1: s.x1 - pos[0], z0: s.z0 - pos[2], z1: s.z1 - pos[2] }))} />
             </group>
           )
         }

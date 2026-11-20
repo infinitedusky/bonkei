@@ -6,6 +6,7 @@ import type { Box } from './model'
 import { NodeBody, type LabelMode } from './shapes'
 import { S } from './scale'
 import { useTheme, fontUrl, Mat } from './look'
+import { Chevron } from './EdgeScene'
 import { cursorFor, ALL_ON } from './controls'
 import type { NodeClick } from './options'
 
@@ -24,6 +25,7 @@ function Arrow({ from, to, color, cross }: { from: THREE.Vector3; to: THREE.Vect
       </group>
     )
   }
+  if (th.edge.head === 'chevron') return <Chevron tip={to} dir={dir} color={th.edge.headColor ?? color} width={th.edge.width} />
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
   return (
     <mesh position={to.clone().addScaledVector(dir, -0.2)} quaternion={q}>
@@ -55,7 +57,7 @@ export function SeqScene({ data, labelMode, onNodeClick, hasClick = !!onNodeClic
             onClick={e => { if (e.delta < 4) { e.stopPropagation(); onNodeClick?.({ id: p.id, label: p.label, kind: 'participant' }) } }}
             onPointerOver={e => { e.stopPropagation(); gl.domElement.style.cursor = cursorFor('participant', ALL_ON, hasClick) }}
             onPointerOut={() => { gl.domElement.style.cursor = '' }}>
-            <NodeBody b={b} labelMode={labelMode} />
+            <NodeBody b={b} labelMode={labelMode} fill={th.seq.partFill} text={th.seq.partText} />
           </group>
         )
       })}
@@ -100,7 +102,7 @@ export function SeqScene({ data, labelMode, onNodeClick, hasClick = !!onNodeClic
         const v = m.pts.map(([x, y]) => new THREE.Vector3(wx(x), LINE_Y, wz(y)))
         const n = v.length
         const dir = new THREE.Vector3().subVectors(v[n - 1], v[n - 2]).normalize()
-        const end = v[n - 1].clone().addScaledVector(dir, m.head === 'cross' ? 0 : -0.3)
+        const end = v[n - 1].clone().addScaledVector(dir, m.head === 'cross' ? 0 : th.edge.head === 'chevron' ? -0.02 : -0.3)
         const pts = [...v.slice(0, n - 1), end].map(p => p.toArray() as [number, number, number])
         return (
           <group key={'m' + i}>

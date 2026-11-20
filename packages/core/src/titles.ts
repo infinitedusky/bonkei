@@ -61,3 +61,16 @@ export function offTitleBoxes(boxes: readonly Box[]): (Box & { title: string })[
     h: OFF_TITLE.depth * PX,
   }))
 }
+
+// theme.tray.titleStyle 'section' (LTech): each tray's title is `NN · NAME`, numbered in reading order: a tray, then the trays inside it,
+// then the next tray beside it; trays at one level are read top to bottom, then left to right.
+/** Each tray's number, 1 up, by id. */
+export function sectionNumbers(boxes: readonly Box[]): Map<string, number> {
+  const trays = boxes.filter(b => b.kind === 'group'), ids = new Set(trays.map(t => t.id)), out = new Map<string, number>()
+  const kids = (p: string | undefined) => trays.filter(t => (t.parent !== undefined && ids.has(t.parent) ? t.parent : undefined) === p).sort((a, b) => a.y - b.y || a.x - b.x)
+  const walk = (p: string | undefined) => { for (const t of kids(p)) { out.set(t.id, out.size + 1); walk(t.id) } }
+  walk(undefined)
+  return out
+}
+/** The title a section-style tray shows: its number (two digits) and its name in capitals. */
+export const sectionTitle = (n: number, name: string) => `${String(n).padStart(2, '0')} · ${name.toUpperCase()}`

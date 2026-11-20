@@ -25,10 +25,13 @@ const withTheme = (name: string, src: string) => `---\nconfig:\n  theme: ${name}
 
 test('Classic, Bonkei and Bonkei · landscape have exactly the settings main had, and the heavier grid line off', () => {
   for (const [name, t] of Object.entries({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE })) {
-    const { major, majorColor, ...ground } = t.ground
+    const { major, majorColor, gridStyle, haze, hazeWidth, ...ground } = t.ground
     assert.equal(major, 0, `${name} keeps a single-weight grid`)
     assert.equal(typeof majorColor, 'string')
-    assert.deepEqual({ ...JSON.parse(JSON.stringify(t)), ground }, THEMES_MAIN[name], name)
+    // LTech's settings (BON-247) are off in these three: lines, no haze, a cone, a plain title, no label colours
+    assert.deepEqual([gridStyle, haze, t.tray.titleStyle, t.tray.mark, t.edge.head, t.edge.headColor, t.seq.partFill, t.seq.partText, ...Object.values(t.label.shapeText)], ['lines', null, 'plain', null, 'cone', null, null, null, null, null, null, null], name)
+    const { titleStyle, mark, ...tray } = t.tray, { head, headColor, ...edge } = t.edge, { shapeText, ...label } = t.label, { partFill, partText, ...seq } = t.seq
+    assert.deepEqual({ ...JSON.parse(JSON.stringify(t)), ground, tray, edge, label, seq }, THEMES_MAIN[name], name)
   }
 })
 
