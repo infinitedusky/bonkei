@@ -66,13 +66,18 @@ export interface Theme {
   // other lines get it in proportion to their own width) and the token width. ref null: fixed widths, as in Classic.
   ink: { ref: number | null; min: number }
   edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean; arrow: 'end' | 'mid'; dotted: 'line' | 'arc'; arc: { color: string; width: number; peak: number; arrow: number } } // arrow: at the end of the line, or one partway along its longest run with none at the end. dotted: a -.-> link drawn as any link, or as a dashed arc overhead (left out of the routing; arc: its colour, width, peak as a share of its span, arrowhead length). rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim. glow: the trench light. flat: lines lie on the surface under them and the arrowhead is a flat triangle
-  seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
+  // textScale: the size of message labels, notes and a block's divider labels, times today's. blockTitles: a block's (alt, loop …) title as a
+  // plain label, or 'ground': big capitals in tray.groundFont lying on the floor, in the block's colour darkened by tray.groundInk (as a zone's
+  // name), with its divider labels in the same font
+  seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string; textScale: number; blockTitles: 'plain' | 'ground' }
 }
 
-// What the themes before Cloud Cartography say for its tokens: nothing (colour by level, no icon, no card, no pill, a link's arrow at its end, a dotted link drawn as any link).
+// What the themes before Cloud Cartography say for its tokens: nothing (colour by level, no icon, no card, no pill, a link's arrow at its end, a dotted link drawn as any link,
+// a sequence's text at its usual size with plain block titles).
 const ICON_OFF = { side: '#dfe3ec', size: 1.2 }
 const ZONES_OFF = { colorBy: 'level' as const, zones: ['#6fae45', '#f0a43c', '#9aa3b2', '#4f7cff'], zoneMix: [0.72, 0.55] as [number, number], radius: 0, groundFont: null, groundInk: 0.35 }
 const CARD_OFF = { sub: '#6b7280', leader: null, gap: 1.1, titleFont: null }
+const SEQ_OFF = { textScale: 1, blockTitles: 'plain' as const }
 const ARC_OFF = { arrow: 'end' as const, dotted: 'line' as const, arc: { color: '#c8743a', width: 2.6, peak: 0.25, arrow: 0.4 } }
 
 // The presets are shared by every diagram on the page, so they are frozen: edit a copy (withVariables, or a spread).
@@ -106,7 +111,7 @@ export const CLASSIC: Theme = deepFreeze({
   edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: 'none', rimWidth: 1.5, flat: false, ...ARC_OFF,
     // the trench lit in grey-white at 30% strength: 0.6 times the standard sizes (Bonkei's below, which are 50%), and no rim
     glow: { core: '#e0e0e0', coreWidth: 2.1, halo: '#e0e0e0', haloWidth: 6.6, haloOpacity: 0.17, wash: '#e0e0e0', washIntensity: 0.18 } },
-  seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
+  seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b', ...SEQ_OFF },
 })
 
 /** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
@@ -134,7 +139,7 @@ export const BONKEI: Theme = deepFreeze({
   edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false, ...ARC_OFF,
     // the light is off (the tunnel looks as it always did); the sizes are the standard light a diagram gets when it sets a colour
     glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 } },
-  seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
+  seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C', ...SEQ_OFF },
 })
 
 // Bonkei with a landscape form standing on each node's footprint, and its label pulled in front of the form.
@@ -172,7 +177,7 @@ export const BLUEPRINT: Theme = deepFreeze({
     // the trench lit in pale blue at the standard 50%
     glow: { core: '#bfe4ff', coreWidth: 3.5, halo: '#bfe4ff', haloWidth: 11, haloOpacity: 0.28, wash: '#bfe4ff', washIntensity: 0.3 },
   },
-  seq: { lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: INK, blockText: INK, blockSub: TRAY_INK, cross: '#ffd479', crossLine: '#ffd479' },
+  seq: { lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: INK, blockText: INK, blockSub: TRAY_INK, cross: '#ffd479', crossLine: '#ffd479', ...SEQ_OFF },
 })
 
 
@@ -206,7 +211,7 @@ export const CLOUD_CARTOGRAPHY: Theme = deepFreeze({
   edge: { color: '#1d36a6', width: 3.2, label: '#333333', labelOutline: '#ffffff', portal: '#1d36a6', rim: 'none', rimWidth: 1.5, flat: true,
     arrow: 'mid', dotted: 'arc', arc: { color: '#c8743a', width: 2.6, peak: 0.25, arrow: 0.4 },
     glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 } },
-  seq: { lifeline: '#7a86a8', activation: '#a9bfff', note: '#ffffff', noteText: '#1f2330', blockText: '#1f2330', blockSub: '#6b7280', cross: '#d9534f', crossLine: '#d9534f' },
+  seq: { lifeline: '#7a86a8', activation: '#a9bfff', note: '#ffffff', noteText: '#1f2330', blockText: '#1f2330', blockSub: '#6b7280', cross: '#d9534f', crossLine: '#d9534f', textScale: 1.4, blockTitles: 'ground' },
 })
 
 /** The built-in themes by the name a diagram or the `theme` prop uses. */
@@ -224,6 +229,7 @@ const CHOICES: Record<string, readonly string[]> = {
   'tray.groundFont': ['mincho', 'architect', 'archivo'],
   'edge.arrow': ['end', 'mid'],
   'edge.dotted': ['line', 'arc'],
+  'seq.blockTitles': ['plain', 'ground'],
   'label.font': ['mincho', 'architect'],
   'label.card.titleFont': ['mincho', 'architect', 'archivo'],
   'label.node.style': ['plain', 'cartouche', 'card'],
@@ -337,7 +343,8 @@ export function trenchParts(th: Theme): string {
 /** The bundled fonts a theme draws with (labels, ground titles, card names), each once, for the missing-font warning. */
 export function themeFonts(th: Theme): string[] {
   const card = th.node.form === 'icon' || th.label.node.style === 'card'
-  return [...new Set([th.label.font, th.tray.titles === 'ground' ? th.tray.groundFont : null, card ? th.label.card.titleFont : null].filter((f): f is string => !!f))]
+  const ground = th.tray.titles === 'ground' || th.seq.blockTitles === 'ground'
+  return [...new Set([th.label.font, ground ? th.tray.groundFont : null, card ? th.label.card.titleFont : null].filter((f): f is string => !!f))]
 }
 
 /**

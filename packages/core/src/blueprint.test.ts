@@ -33,6 +33,7 @@ test('Classic, Bonkei and Bonkei · landscape have exactly the settings main had
     delete j.node.icon; delete j.label.card; delete j.label.pill
     for (const k of ['colorBy', 'zones', 'zoneMix', 'radius', 'groundFont', 'groundInk']) delete j.tray[k]
     for (const k of ['arrow', 'dotted', 'arc']) delete j.edge[k]
+    for (const k of ['textScale', 'blockTitles']) delete j.seq[k] // theme.test.ts holds that they keep today's sequence drawing
     assert.deepEqual({ ...j, ground }, THEMES_MAIN[name], name)
   }
 })
