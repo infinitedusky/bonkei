@@ -1,10 +1,10 @@
 ---
-description: Bonkei's four built-in themes (classic, bonkei, bonkei-landscape, blueprint), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
+description: Bonkei's five built-in themes (classic, bonkei, bonkei-landscape, blueprint, ltech), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
 ---
 
 # Themes
 
-A theme is data: every colour, material, label and line style the scene reads. Four ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape` and `blueprint`. `classic` is the default.
+A theme is data: every colour, material, label and line style the scene reads. Five ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape`, `blueprint` and `ltech`. `classic` is the default.
 
 <div class="grid4">
 
@@ -30,7 +30,7 @@ flowchart LR
 
 </div>
 
-<p class="cap">classic · bonkei · bonkei-landscape · blueprint</p>
+<p class="cap">classic · bonkei · bonkei-landscape · blueprint · ltech</p>
 
 ## Choosing a theme
 
@@ -102,6 +102,35 @@ Its parts are tokens like any other, so another theme can borrow one:
 | `tray.titles` | `off`: the title in a box in front of the tray, with room made for it in the layout; `fixed` and `free` keep it on the tray. |
 | `label.font` | `architect`: the hand lettering; `mincho` is the Bonkei themes' font. |
 
+### LTech
+
+`ltech` is the look of [lazertechnologies.com](https://www.lazertechnologies.com/) as it is today, a light site: a white ground with a faint dot grid and a soft pink haze at the left and right edges of the view, navy line work and lettering in a grotesk (Inter Display, bundled the same way as the other fonts, with the same fallback), flat shading, and hot pink kept to small marks: the arrowheads, a square before each tray's title, activations, portals and a tunnel's lip. Nothing glows (the trench light is off). Rounded shapes are the site's black button with a white label. Each tray's title reads like the site's section labels, `01 · STOREFRONT`, numbered in reading order, and the tray sides carry the footer's pixel dither: grey pixels thinning towards the top with pink ones scattered near the lip. It is drawn without Lazer's own font, logo or wordmark.
+
+```mermaid {height=320 theme=ltech}
+flowchart LR
+  Web([Web app]) --> Cart
+  subgraph Storefront
+    Cart --> Pay
+  end
+  subgraph Payments
+    Charge --> Ledger[(Ledger)]
+  end
+  Pay --> Charge
+```
+
+Its parts are tokens like any other, so another theme can borrow one (each is off in the other themes):
+
+| Token | What it is |
+| --- | --- |
+| `ground.gridStyle` | `dots`: a dot on every crossing of the grid, in the grid's first colour, in place of `lines`. |
+| `ground.haze`, `ground.hazeWidth` | A colour washed over the ground at the left and right edges of the view, and how far in it reaches (0 to 1 of the width). It follows the picture's edges, not the diagram; `null` is none. |
+| `edge.head`, `edge.headColor` | `chevron`: an open chevron in place of the cone, on flowchart edges and sequence messages, in `headColor` (`null`: the line's colour). |
+| `tray.titleStyle`, `tray.mark` | `section`: a small square in `mark`, then the number and the name in capitals. `plain` is the title as written. |
+| `tray.sides.0`, `.1`, `.2` | `dither`: the pixel dither on the tray's sides. Its pink pixels are `tray.mark`. |
+| `label.shapeText.rect`, `.round`, `.cylinder`, `.diamond` | A label colour for the nodes of one shape (a white name on a black fill); `null` keeps the node label colour. |
+| `seq.partFill`, `seq.partText` | A sequence participant's fill and name colour; `null` keeps the node's. |
+| `label.font` | `inter`: Inter Display, beside `mincho` and `architect`. |
+
 ### The trench light
 
 A tunnel's trench can be lit by the theme: a light along the floor, a wash on the walls and a rim round the lip. What each theme does on its own:
@@ -111,6 +140,7 @@ A tunnel's trench can be lit by the theme: a light along the floor, a wash on th
 | `classic` | On: grey-white `#e0e0e0` at 30% strength (core 2.1 wide; halo 6.6 wide at 0.17 opacity; wash intensity 0.18) | None (`edge.rim: none`) |
 | `bonkei`, `bonkei-landscape` | Off (the colours are `null`) | Dark `#2A2622`, 2 wide, as it always was |
 | `blueprint` | On: pale blue `#bfe4ff` at 50% strength | Pale blue `#bcdcff`, 1.5 wide |
+| `ltech` | Off (no glow) | Pink `#ff42e6`, 1.5 wide |
 
 A diagram can change any part, so a Bonkei diagram can switch its light on, or a Classic one put a rim back:
 
@@ -146,4 +176,4 @@ flowchart LR
 
 ## The theme objects
 
-`CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE` and `BLUEPRINT` are frozen `Theme` objects, for passing as `theme` or as a base to copy and edit. Their fields are in the [Theme](/api/interfaces/Theme) reference.
+`CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE`, `BLUEPRINT` and `LTECH` are frozen `Theme` objects, for passing as `theme` or as a base to copy and edit. Their fields are in the [Theme](/api/interfaces/Theme) reference.

@@ -5,7 +5,7 @@
 // Strength is a share of the standard light: 50% is the sizes Bonkei keeps for its (off) light, core 3.5, halo 11 at 0.28 opacity, wall
 // wash 0.3. Classic's own light is 30%.
 
-export const TRENCH_THEMES = ['classic', 'bonkei', 'bonkei-landscape', 'blueprint'] as const
+export const TRENCH_THEMES = ['classic', 'bonkei', 'bonkei-landscape', 'blueprint', 'ltech'] as const
 export type TrenchTheme = (typeof TRENCH_THEMES)[number]
 export interface TrenchState {
   floor: boolean // the light along the floor: edge.glow.core and edge.glow.halo
@@ -16,7 +16,7 @@ export interface TrenchState {
 }
 export type TrenchPreset = 'default' | 'light-only' | 'off'
 
-/** What a theme draws with no themeVariables: Classic lights floor and walls at 30% with no rim; the Bonkei looks have the light off and their dark rim; Blueprint lights both in pale blue at 50% and keeps a pale rim. */
+/** What a theme draws with no themeVariables: Classic lights floor and walls at 30% with no rim; the Bonkei looks have the light off and their dark rim, and so does LTech (its rim is pink); Blueprint lights both in pale blue at 50% and keeps a pale rim. */
 export const own = (t: TrenchTheme): TrenchState =>
   t === 'classic' ? { floor: true, wash: true, rim: false, colour: null, strength: 30 }
     : t === 'blueprint' ? { floor: true, wash: true, rim: true, colour: null, strength: 50 }

@@ -1,8 +1,8 @@
-// Themes: Classic, Bonkei, Bonkei · landscape and Blueprint, each in flat, iso and 3D, plus the three ways to pick one and the
+// Themes: Classic, Bonkei, Bonkei · landscape, Blueprint and LTech, each in flat, iso and 3D, plus the three ways to pick one and the
 // warning for a name nobody knows. The diagram is the one in sketches/brand-theme.html; MADE-UP SAMPLE DATA.
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { BLUEPRINT, Bonkei, type BonkeiWarning, type Mode } from 'bonkei'
+import { BLUEPRINT, LTECH, Bonkei, type BonkeiWarning, type Mode } from 'bonkei'
 import { SAMPLES, bonkeiMockup, nested } from './samples'
 import { TRENCH_THEMES, own, preset, trenchSource, type TrenchPreset, type TrenchState, type TrenchTheme } from '../../../docs/.vitepress/theme/trench'
 
@@ -45,6 +45,33 @@ export const BlueprintFontMissing: Story = {
     return (
       <div style={{ height: '100vh', position: 'relative' }}>
         <Bonkei source={bonkeiMockup} theme={noFont} mode="iso" onWarning={x => setW(p => [...p, x])} />
+        <div role="status" style={{ position: 'absolute', left: 12, bottom: 12, background: '#4a3a10', color: '#ffd479', padding: '6px 12px', borderRadius: 6, font: '12px monospace', whiteSpace: 'pre' }}>
+          {w.length ? w.map(x => `${x.kind} warning: ${x.message}`).join('\n') : 'no warning yet'}
+        </div>
+      </div>
+    )
+  },
+}
+
+// LTech (BON-247): flat, iso and 3D, the sequence sample, a nested diagram, and the font missing. MADE-UP SAMPLE DATA.
+const light = (h = '100vh'): Decorator => Story => <div style={{ height: h, background: '#fff' }}><Story /></div>
+const drawLight = (mode: Mode, source = bonkeiMockup): Story => ({ args: { source, theme: 'ltech', mode, toolbar: true }, decorators: [light()] })
+export const LTechFlat = drawLight('flat')
+export const LTechIso = drawLight('iso')
+export const LTech3D = drawLight('3d')
+export const LTechSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'ltech', mode: 'iso', toolbar: true }, decorators: [light()] }
+export const LTechSequenceFlat: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'ltech', mode: 'flat', toolbar: true }, decorators: [light()] }
+export const LTechSequence3D: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'ltech', mode: '3d', toolbar: true }, decorators: [light()] }
+export const LTechNestedFlat: Story = drawLight('flat', nested)
+export const LTechNestedIso: Story = drawLight('iso', nested)
+export const LTechNested3D: Story = drawLight('3d', nested)
+const noInter = { ...LTECH, label: { ...LTECH.label, font: 'inter-missing' } }
+export const LTechFontMissing: Story = {
+  render: () => {
+    const [w, setW] = useState<BonkeiWarning[]>([])
+    return (
+      <div style={{ height: '100vh', position: 'relative', background: '#fff' }}>
+        <Bonkei source={bonkeiMockup} theme={noInter} mode="iso" onWarning={x => setW(p => [...p, x])} />
         <div role="status" style={{ position: 'absolute', left: 12, bottom: 12, background: '#4a3a10', color: '#ffd479', padding: '6px 12px', borderRadius: 6, font: '12px monospace', whiteSpace: 'pre' }}>
           {w.length ? w.map(x => `${x.kind} warning: ${x.message}`).join('\n') : 'no warning yet'}
         </div>

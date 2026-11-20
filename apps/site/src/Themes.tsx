@@ -6,7 +6,7 @@ import { THEMES_DIAGRAM } from './themes-sample'
 // near the screen, so the page's first paint (and a phone) never waits for it.
 const ThemesScene = lazy(() => import('./ThemesScene'))
 
-export type ThemeId = 'classic' | 'bonkei' | 'bonkei-landscape' | 'blueprint'
+export type ThemeId = 'classic' | 'bonkei' | 'bonkei-landscape' | 'blueprint' | 'ltech'
 
 // The built-in themes, chosen the way a reader would: by config.theme in the diagram's frontmatter.
 // The last is a name only, for the theme still to come (BON-32).
@@ -15,6 +15,7 @@ export const THEMES: { id: ThemeId | null; name: string; note: string }[] = [
   { id: 'bonkei', name: 'Bonkei', note: 'ink and paper, patterned trays' },
   { id: 'bonkei-landscape', name: 'Bonkei · landscape', note: 'nodes become houses, bonsai, rocks' },
   { id: 'blueprint', name: 'Blueprint', note: 'white lines on blue paper, with a grid' },
+  { id: 'ltech', name: 'LTech', note: 'white, navy and small pink marks' },
   { id: null, name: 'Map', note: 'coming with themes' },
 ]
 
