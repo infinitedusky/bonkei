@@ -548,7 +548,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
     <div ref={box} data-bonkei-scene="" onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
-        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={data && 'kind' in data && data.kind === 'stage' ? Math.max(headroom(theme), data.tall + 0.9) : headroom(theme)} />
+        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={data && 'kind' in data && data.kind === 'stage' ? Math.max(headroom(theme), headroom(theme) + 1.2 * data.tall) /* what stands up is cut off the top of the view unless it counts more than once (the fit centres on the floor) */ : headroom(theme)} />
         {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
             and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
         <GateCtx.Provider value={gate}><InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
