@@ -174,8 +174,8 @@ function FireBand({ shape, w, h, y, color }: { shape: Box['shape']; w: number; h
   const hi = useMemo(() => '#' + new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.5).getHexString(), [color])
   return (
     <>
-      <Line points={pts} color={color} lineWidth={7} transparent opacity={0.3} depthWrite={false} />
-      <Line points={pts} color={color} lineWidth={3} />
+      <Line points={pts} color={color} lineWidth={5} transparent opacity={0.3} depthWrite={false} />
+      <Line points={pts} color={color} lineWidth={2.4} />
       <Line points={pts} color={hi} lineWidth={1} />
     </>
   )
