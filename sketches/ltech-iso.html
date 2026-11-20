@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LTech · iso (sketch)</title>
+<style>
+  :root { --pink: #ff42e6; --grey: #676c8b; }
+  body { margin: 0; background: #000; color: #fff; font-family: "Inter Display", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  header { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 28px; border-bottom: 1px solid #fff2; }
+  header h1 { margin: 0; font-weight: 200; font-size: 26px; }
+  header h1 b { color: var(--pink); font-weight: 200; }
+  header span { font: 12px ui-monospace, Menlo, monospace; color: var(--grey); }
+  .stage { height: calc(100vh - 66px); min-height: 640px; }
+  svg { width: 100%; height: 100%; display: block; }
+  .tag { position: fixed; left: 24px; bottom: 18px; font: 11px ui-monospace, Menlo, monospace; color: var(--grey); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Checkout system <b>·</b> iso</h1>
+  <span>theme: ltech — SKETCH, made-up diagram</span>
+</header>
+<div class="stage">
+<svg viewBox="-620 -40 1240 760" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <!-- the dot grid on the ground, laid in iso by a transform -->
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="1.1" fill="#ffffff45"/>
+    </pattern>
+    <!-- pixel-stepped tray sides: a dither of squares, densest at the top -->
+    <pattern id="pix" width="16" height="24" patternUnits="userSpaceOnUse">
+      <rect width="16" height="24" fill="#03071c"/>
+      <rect x="0" y="0" width="4" height="4" fill="#ff42e6aa"/><rect x="8" y="0" width="4" height="4" fill="#ff42e6aa"/>
+      <rect x="4" y="4" width="4" height="4" fill="#ffffff55"/><rect x="12" y="4" width="4" height="4" fill="#ffffff55"/>
+      <rect x="0" y="8" width="4" height="4" fill="#ffffff2a"/><rect x="8" y="12" width="4" height="4" fill="#ffffff1c"/>
+      <rect x="4" y="16" width="4" height="4" fill="#ffffff12"/>
+    </pattern>
+    <filter id="halo" filterUnits="userSpaceOnUse" x="-3000" y="-3000" width="6000" height="6000">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="1.2" result="fat"/>
+      <feGaussianBlur in="fat" stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#ff42e6" flood-opacity="0.85"/>
+      <feComposite in2="blur" operator="in" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+  <g id="ground"></g>
+  <g id="scene"></g>
+</svg>
+</div>
+<div class="tag">Tray sides: pixel dither, pink at the lip. Blocks: dark, white ink edges, flat (toon) shading.</div>
+<script>
+const NS = 'http://www.w3.org/2000/svg', S = document.getElementById('scene'), G = document.getElementById('ground')
+const el = (n, a, p = S) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e }
+const C = Math.cos(Math.PI / 6), N = Math.sin(Math.PI / 6)
+const P = (x, y, z = 0) => [(x - y) * C, (x + y) * N - z]
+const pts = a => a.map(p => p.join(',')).join(' ')
+
+// ground: the dot grid sheared into iso
+el('rect', { x: -2000, y: -2000, width: 4000, height: 4000, fill: 'url(#dots)', transform: `matrix(${C},${N},${-C},${N},0,0)` }, G)
+
+// an iso box: top, left (front-left) and right (front-right) faces
+function box(x, y, w, d, z, h, top, side, ink = '#fff', inkW = 1.2) {
+  const t = [P(x, y, z + h), P(x + w, y, z + h), P(x + w, y + d, z + h), P(x, y + d, z + h)]
+  const l = [P(x, y + d, z + h), P(x + w, y + d, z + h), P(x + w, y + d, z), P(x, y + d, z)]
+  const r = [P(x + w, y, z + h), P(x + w, y + d, z + h), P(x + w, y + d, z), P(x + w, y, z)]
+  el('polygon', { points: pts(l), fill: side.l, stroke: ink, 'stroke-width': inkW })
+  el('polygon', { points: pts(r), fill: side.r, stroke: ink, 'stroke-width': inkW })
+  el('polygon', { points: pts(t), fill: top, stroke: ink, 'stroke-width': inkW })
+}
+function tray(x, y, w, d, z, title) {
+  box(x, y, w, d, z, 18, z ? '#020a3d' : '#05081f', { l: 'url(#pix)', r: 'url(#pix)' }, '#ffffff66', 1)
+  // the pink lip where top meets the sides
+  el('polyline', { points: pts([P(x, y + d, z + 18), P(x + w, y + d, z + 18), P(x + w, y, z + 18)]), fill: 'none', stroke: '#ff42e6', 'stroke-width': 1.4, opacity: 0.9 })
+  const [tx, ty] = P(x + 16, y + 16, z + 18)
+  const t = el('text', { x: tx, y: ty + 4, fill: '#fff', 'font-size': 14, 'font-weight': 300, transform: `rotate(30 ${tx} ${ty})` }); t.textContent = title
+}
+function block(x, y, z, label, top = '#1a1a1a', l = '#0b0b0b', r = '#111') {
+  box(x, y, 90, 60, z, 34, top, { l, r })
+  const [lx, ly] = P(x + 45, y + 30, z + 34)
+  const t = el('text', { x: lx, y: ly - 18, fill: '#fff', 'font-size': 14, 'text-anchor': 'middle', 'paint-order': 'stroke', stroke: '#000', 'stroke-width': 4 }); t.textContent = label
+}
+function link(a, b, z) {
+  const [x1, y1] = P(a[0], a[1], z), [x2, y2] = P(b[0], b[1], z), [xm, ym] = P(b[0], a[1], z)
+  el('polyline', { points: `${x1},${y1} ${xm},${ym} ${x2},${y2}`, fill: 'none', stroke: '#fff', 'stroke-width': 1.6, filter: 'url(#halo)' })
+}
+
+// Storefront tray, Payments tray with Ledger nested in it
+tray(-80, 0, 300, 420, 0, 'Storefront')
+tray(300, 0, 420, 420, 0, 'Payments')
+tray(330, 200, 360, 200, 18, 'Ledger service')
+
+// links on the tray tops (drawn before the blocks so blocks stand over them)
+link([-10, 100], [-10, 230], 18); link([60, 260], [160, 330], 18)
+link([90, 330], [390, 70], 18)
+link([400, 70], [560, 70], 18); link([400, 90], [420, 260], 36)
+
+// the trench between trays: lit pink core and wash
+const [a1, b1] = P(220, 380, 4), [a2, b2] = P(300, 380, 4)
+el('line', { x1: a1, y1: b1, x2: a2, y2: b2, stroke: '#ff42e6', 'stroke-width': 14, opacity: 0.35, filter: 'url(#soft)' })
+el('line', { x1: a1, y1: b1, x2: a2, y2: b2, stroke: '#ff42e6', 'stroke-width': 2.5 })
+
+block(-55, 70, 18, 'Web app', '#1b1f3f', '#0c0f26', '#121636')
+block(-55, 200, 18, 'Cart API')
+block(110, 300, 18, 'Fraud check', '#292929', '#141414', '#1d1d1d')
+block(340, 40, 18, 'Charge')
+block(540, 40, 18, 'Card network', '#1b1f3f', '#0c0f26', '#121636')
+block(380, 240, 36, 'Post entry')
+block(560, 280, 36, 'Ledger DB', '#18205a', '#0a0f33', '#0f1648')
+</script>
+</body>
+</html>
