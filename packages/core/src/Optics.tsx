@@ -104,10 +104,10 @@ function Prism({ at, ins, outs }: { at: V; ins: V[]; outs: V[]; [k: string]: unk
 }
 
 /** Every bend of every drawn line. `lines[i].ci` indexes `pals`. */
-export function Optics({ lines, pals, onCount }: { lines: DrawnLine[]; pals: Pal[]; onCount?: (n: { mirrors: number; periscopes: number; halves: number; prisms: number; prismKinds: Record<string, number> }) => void }) {
+export function Optics({ lines, pals, onCount }: { lines: DrawnLine[]; pals: Pal[]; onCount?: (n: { mirrors: number; periscopes: number; halves: number; prisms: number; prismKinds: Record<string, number>; prismAt: [string, V, V[], V[]][] }) => void }) {
   const th = useTheme().edge.optics
   const bends = useMemo(() => findBends(lines, th.jog), [lines, th.jog])
-  useMemo(() => onCount?.({ mirrors: bends.mirrors.length, periscopes: bends.periscopes.length, halves: bends.halves.length, prisms: bends.prisms.length, prismKinds: bends.prisms.reduce<Record<string, number>>((k, p) => ({ ...k, [p.kind]: (k[p.kind] ?? 0) + 1 }), {}) }), [bends])
+  useMemo(() => onCount?.({ mirrors: bends.mirrors.length, periscopes: bends.periscopes.length, halves: bends.halves.length, prisms: bends.prisms.length, prismKinds: bends.prisms.reduce<Record<string, number>>((k, p) => ({ ...k, [p.kind]: (k[p.kind] ?? 0) + 1 }), {}), prismAt: bends.prisms.map(p => [p.kind, p.at, p.ins, p.outs] as [string, V, V[], V[]]) }), [bends])
   return (
     <>
       {bends.mirrors.map((m, i) => <Mirror key={`m${i}`} {...m} c={pals[m.ci]} />)}

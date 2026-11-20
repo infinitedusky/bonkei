@@ -349,11 +349,12 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
       return p ? drawnParts(p, th.edge.flat, bodies).map(part => ({ ci, pts: part.map(q => q.toArray() as [number, number, number]) })) : []
     })
   }, [plans, routes, bodies, th.edge.optics, th.edge.flat])
-  const lazerCounts = useRef<{ mirrors: number; periscopes: number; halves: number; prisms: number; prismKinds: Record<string, number> } | null>(null)
+  const lazerCounts = useRef<{ mirrors: number; periscopes: number; halves: number; prisms: number; prismKinds: Record<string, number>; prismAt: [string, number[], number[][], number[][]][] } | null>(null)
   useEffect(() => {
     if (!laser && !lazerCounts.current) return
     const c = lazerCounts.current
-    ;(gl.domElement as unknown as { __lazers?: unknown }).__lazers = { ...c, colours_text: laser?.given ?? 0, colours_auto: laser?.auto ?? 0 }
+    ;(gl.domElement as unknown as { __lazers?: unknown; __camera?: unknown }).__lazers = { ...c, colours_text: laser?.given ?? 0, colours_auto: laser?.auto ?? 0 }
+    ;(gl.domElement as unknown as { __camera?: unknown }).__camera = camera
     instant('bonkei.lazers', { 'bonkei.lazers.mirrors': c?.mirrors ?? 0, 'bonkei.lazers.periscopes': c?.periscopes ?? 0, 'bonkei.lazers.half_mirrors': c?.halves ?? 0, 'bonkei.lazers.prisms': c?.prisms ?? 0, 'bonkei.lazers.colours_text': laser?.given ?? 0, 'bonkei.lazers.colours_auto': laser?.auto ?? 0 })
   }, [laser, optLines])
   const groundSlots = useMemo(() => slots.filter(s => !s.tray), [slots])
