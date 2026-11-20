@@ -23,13 +23,11 @@ function onSeg(q: V, a: V, b: V) {
   return dist([a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t], q) < 0.05 // a hair: lines nudged apart by the router still share the corner
 }
 
-// Whether the line `o`, at its segment k (k to k + 1), meets `p` the way a beam coming in along `a` and leaving along `b` does: it comes in along a and
-// leaves along b (a bend at p), or p is an end it runs on from. A beam through p unbent, or turning another way, does not.
-function coincides(o: V[], k: number, p: V, a: V, b: V) {
-  const d = unit(sub(o[k + 1], o[k]))
-  if (dist(p, o[k + 1]) < 0.12) return k + 2 < o.length && dist(d, a) < 0.01 && dist(unit(sub(o[k + 2], o[k + 1])), b) < 0.01 // o turns here: in along a, out along b
-  if (dist(p, o[k]) < 0.12) return k > 0 ? false : dist(d, b) < 0.01 // o starts here, going on along b
-  return false
+// Whether the line `o` meets `p` as a beam that comes in along `a` and leaves along `b` does (a bend at p exactly like the one asked about).
+// A beam through p unbent, ending or starting there, or turning another way, does not.
+function coincides(o: V[], p: V, a: V, b: V) {
+  const j = o.findIndex((q, k) => k > 0 && k < o.length - 1 && dist(q, p) < 0.12)
+  return j > 0 && dist(unit(sub(o[j], o[j - 1])), a) < 0.01 && dist(unit(sub(o[j + 1], o[j])), b) < 0.01
 }
 const SHARE = 0.12 // bends this close are one corner
 const addDir = (set: V[], d: V) => { if (!set.some(x => dist(x, d) < 0.01)) set.push(d) }
@@ -56,7 +54,7 @@ export function findBends(input: Line[], jog = 0.4): Bends {
       if (dist(a, b) < 1e-6) continue
       // shared: another beam runs through this bend, or turns here another way. A beam that coincides with this one (two edges leaving a node
       // together and bending alike, as every beam of a bundle does) is the same beam: one piece, below.
-      const shared = lines.some((o, oi) => oi !== li && o.pts.some((q, k) => k > 0 && onSeg(pts[i], o.pts[k - 1], q) && !coincides(o.pts, k - 1, pts[i], a, b)))
+      const shared = lines.some((o, oi) => oi !== li && o.pts.some((q, k) => k > 0 && onSeg(pts[i], o.pts[k - 1], q)) && !coincides(o.pts, pts[i], a, b))
       if (shared) {
         const c = corners.find(c => dist(c.at, pts[i]) < SHARE)
         if (c) c.lines.add(li); else corners.push({ at: pts[i], ci: l.ci, lines: new Set([li]) })

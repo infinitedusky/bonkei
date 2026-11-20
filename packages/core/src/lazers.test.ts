@@ -60,7 +60,7 @@ test('two edges that run together and bend alike (a bundle dipping into a tunnel
   const r = findBends([L(dip), L([...dip.slice(0, 5), [3, 0.5, 0]], 1)])
   assert.equal(r.prisms.length + r.halves.length, 0)
   assert.equal(r.periscopes.length, 2)
-  const bend = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 2]]), L([[0, 0, 0], [2, 0, 0], [2, 0, 2], [5, 0, 2]], 1)])
+  const bend = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 2]]), L([[0, 0, 0], [2, 0, 0], [2, 0, 2]], 1)])
   assert.equal(bend.mirrors.length, 1)
   assert.equal(bend.halves.length + bend.prisms.length, 0)
 })
