@@ -58,7 +58,7 @@ const GUIDE = [
 const API = [
   ['Components and mounting', ['Bonkei', 'render']],
   ['Props, options, handles', ['BonkeiProps', 'BonkeiOptions', 'DiagramOptions', 'Controls', 'BonkeiHandle', 'BonkeiViewHandle']],
-  ['Themes', ['Theme', 'CLASSIC', 'BONKEI', 'BONKEI_LANDSCAPE', 'THEME_NAMES']],
+  ['Themes', ['Theme', 'CLASSIC', 'BONKEI', 'BONKEI_LANDSCAPE', 'BLUEPRINT', 'THEME_NAMES']],
   ['Events', ['BonkeiError', 'BonkeiWarning', 'NodeClick', 'ReadyInfo', 'isBonkeiError']],
   ['Modes, labels, lines', ['Mode', 'LabelMode', 'CrossingStyle', 'AvoidCrossings']],
   ['Hand-built graphs', ['GraphInput', 'Graph', 'GNode', 'GGroup', 'GEdge', 'Shape', 'Dropped']],

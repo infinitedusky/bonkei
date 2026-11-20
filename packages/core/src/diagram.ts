@@ -7,6 +7,7 @@ import { layout, type LayoutOptions } from './layout.ts'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from './seq.ts'
 import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOptions, type Ready, type ThemeRequest } from './options.ts'
 import { withSpan } from './telemetry.ts'
+import { resolveTheme, type Theme } from './theme.ts'
 
 export interface Prepared {
   data: LayoutResult | SeqLayout
@@ -66,6 +67,11 @@ function nothingRead(what: 'nodes' | 'participants', dropped: Dropped[]): Bonkei
   return fail('parse', `no ${what} found; first unreadable line: ${first.line}: ${first.text}`, first.line, first.text)
 }
 
+/** What prepare takes: the routing options, and the `theme` prop, because a look whose tray titles sit off the tray needs room for them in the layout. */
+export interface PrepareOptions extends Omit<LayoutOptions, 'span' | 'titleRoom'> { theme?: string | Theme }
+/** Whether the look a diagram is drawn in (the theme prop over the frontmatter's, with its themeVariables) puts tray titles off the tray. */
+export const wantsTitleRoom = (prop: string | Theme | undefined, fm?: ThemeRequest) => resolveTheme(prop, fm).theme.tray.titles === 'off'
+
 // Times the layout alone, in its own `bonkei.layout` span; a throw becomes a `layout` error.
 async function timedLayout<T>(parent: Span, run: () => T | Promise<T>): Promise<[T, number]> {
   try {
@@ -79,7 +85,7 @@ async function timedLayout<T>(parent: Span, run: () => T | Promise<T>): Promise<
   }
 }
 
-async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: LayoutOptions): Promise<[Drawn, number]> {
+async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
   if (!src.trim()) throw fail('parse', 'the diagram is empty')
   const fm = readFrontmatter(src)
   for (const w of fm.warnings) {
@@ -101,11 +107,11 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   const g = parse(fm.body, fm.lineOffset)
   const dropped = g.dropped ?? []
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
-  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span }))
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme, fm.theme) }))
   return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped }, t]
 }
 
-async function fromGraph(input: GraphInput, span: Span, lo: LayoutOptions): Promise<[Drawn, number]> {
+async function fromGraph(input: GraphInput, span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
   span.setAttribute('bonkei.diagram', 'flowchart')
   if (typeof input !== 'object' || input === null) throw fail('graph', 'source must be Mermaid text or a graph')
   if (!Array.isArray(input.nodes) || !input.nodes.length) throw fail('graph', 'the graph has no nodes')
@@ -119,7 +125,7 @@ async function fromGraph(input: GraphInput, span: Span, lo: LayoutOptions): Prom
     for (const end of [e.from, e.to]) if (!ids.has(end)) throw fail('graph', `edge ${e.id ?? `${e.from} -> ${e.to}`} points at unknown id ${JSON.stringify(end)}`)
   }
   const g: Graph = { ...input, direction: input.direction ?? 'TD', groups, edges, dropped: input.dropped ?? [] }
-  const [data, t] = await timedLayout(span, () => layout(g, { ...lo, span }))
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme) }))
   return [{ data, options: {}, theme: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped! }, t]
 }
 
@@ -134,8 +140,8 @@ function countReasons(dropped: Dropped[]) {
 
 // Mermaid text or a hand-built graph -> a laid-out diagram with its warnings. Never throws:
 // it resolves to `Prepared` or rejects with a `PrepareError`.
-// `lo` are the routing options from props; the frontmatter's fill in what they leave out.
-export async function prepare(source: string | GraphInput, lo: LayoutOptions = {}): Promise<Prepared> {
+// `lo` are the routing options and the theme from props; the frontmatter's fill in what they leave out.
+export async function prepare(source: string | GraphInput, lo: PrepareOptions = {}): Promise<Prepared> {
   const warnings: BonkeiWarning[] = []
   const input = typeof source === 'string' ? 'mermaid' : 'graph'
   return withSpan('bonkei.prepare', { 'bonkei.input': input }, async span => {

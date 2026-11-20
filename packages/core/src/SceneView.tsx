@@ -94,6 +94,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   const { gl } = useThree()
   const th = useTheme()
   const grain = useMemo(() => (th.ground.grain > 0 ? grainTexture(th.ground.bg, th.ground.grain) : null), [th.ground.bg, th.ground.grain])
+  const major = Math.round(Number(th.ground.major) || 0) // a hand-made theme from before the heavier line has none
   // Flat view: the light is almost overhead (5 degrees off), so shadows are short. It eases between the two like the camera does.
   const light = useRef<THREE.DirectionalLight>(null!)
   const lightAt = useRef(new THREE.Vector3(10, 18, 7))
@@ -269,6 +270,11 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       ))}
       {th.ground.grid && <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...th.ground.grid]} position={[0, -0.01, 0]} renderOrder={1}
         material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />}
+      {/* ground.major: a heavier line every `major` squares (whole squares), a second grid in its own colour over the fine one. Its lines lie
+          exactly on fine ones, centred like them, and are drawn after them (the default depth test passes an equal depth), so the heavier
+          colour shows without flicker */}
+      {th.ground.grid && major > 0 && <gridHelper key={`major${major}${slots.length ? 'masked' : 'plain'}`} args={[2 * Math.floor(100 / major) * major, 2 * Math.floor(100 / major), th.ground.majorColor, th.ground.majorColor]} position={[0, -0.01, 0]} renderOrder={2}
+        material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />}
       {children}
     </>
   )
@@ -353,9 +359,9 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
       const p = groundPoint(ev.clientX, ev.clientY, planeY)
       if (!p) return
       let x = p.x / S + W / 2 - gx, y = p.z / S + H / 2 - gy
-      if (parent) { // keep inside parent tray
+      if (parent) { // keep inside parent tray (with its title off the tray, the top keeps only the side's room, as the layout did)
         x = Math.min(Math.max(x, parent.x + PAD.side), parent.x + parent.w - b.w - PAD.side)
-        y = Math.min(Math.max(y, parent.y + PAD.top), parent.y + parent.h - b.h - PAD.side)
+        y = Math.min(Math.max(y, parent.y + (data.titleRoom ? PAD.side : PAD.top)), parent.y + parent.h - b.h - PAD.side)
       }
       const r = router.current
       if (r) { const at = r.at(id); live.current = r.move(id, x - at.x, y - at.y); moveMs.current = r.stats.moveMs }

@@ -297,3 +297,34 @@ How to check by hand that a pull request no longer builds the docs or opens ever
 2. When it ends, open the run's **Summary**: the same table as in 2.3, one row per step. A red run names the failed step there.
 3. Press **Run workflow** again while a run is going: the second run waits as pending until the first ends; the first is not cancelled.
 4. The next day after 08:00 UTC, **Actions › Nightly** lists a run triggered by `schedule` on `main`.
+
+# Manual test plan: the Blueprint theme (BON-234)
+
+How to check by hand that Blueprint draws as an architect's drawing in every view, that its titles sit off the trays with room for them, that its font falls back, and that Classic and Bonkei are unchanged. First run `pnpm --filter bonkei test`: `blueprint.test.ts` holds Classic, Bonkei and Bonkei · landscape to main's settings and layouts, Blueprint's settings, the room for the titles, and the font fallback.
+
+## 1. The viewer: /app/
+
+Run the viewer (`pnpm dev`, or the smoke test's set-up) and open `/app/`.
+
+1. **Flowchart, every view.** Pick **flow: bonkei mockup**, Theme **blueprint**. Flat, then Iso, then 3D: blue paper, a fine grid with a brighter line every 5 squares, blocks and trays a shade lighter than the paper with white outlines, pale-blue lines and arrowheads, flat shading, labels in a hand-lettered face.
+2. **Hatched sides.** In Iso: the sides of Services, Billing and Data are hatched with diagonal lines.
+3. **Titles off the tray.** In Iso: the Services and Data titles are in coloured-in, hand-drawn boxes on the paper just in front of their trays; Billing's is on Services' top, in front of Billing. No title box touches another tray, a block or a line, and Billing's ends inside Services' edge. Same in Flat and 3D.
+4. **Lines behind blocks.** In Iso and 3D, turn the view: no line shows through a block or tray standing in front of it.
+5. **Deeper nesting.** Pick **flow: nested (4 deep)**: Keys' title on Auth, Auth's on Core, Core's and Jobs' on Platform, Platform's and Data's on the paper; each inside its parent tray and clear of every line, in Flat, Iso and 3D.
+6. **Sequence.** Pick **seq: login flow**, Flat, Iso, 3D: blue paper, grid, pale lifelines and messages, white lettering.
+7. **Drag and fly in.** Drag a block inside a tray: the lines follow; it does not jump when first picked up. Click a tray: the camera flies in.
+8. **Font missing.** Open the browser's developer tools, block the request for `ArchitectsDaughter-Regular-latin` (Network › right-click › Block request URL; or the smoke test's missing-font page), reload with Blueprint picked: the labels still draw, in the default font, and the warning at the bottom says `font architect could not be loaded …`.
+9. **Classic and Bonkei unchanged.** Theme **classic**, **bonkei** and **bonkei-landscape** on **flow: bonkei mockup**: titles on the trays as before (Classic back-left; Bonkei on a free corner), the trays' sizes and places as on main, no grid change.
+10. **From the frontmatter.** Theme **from source**, click **source**, put `---` / `config:` / `  theme: blueprint` / `---` before the diagram: it turns Blueprint and is laid out again with room for the titles. Then pick Theme **classic** in the menu: it is laid out again without the room.
+
+## 2. The homepage
+
+Open `/`, scroll to **Use themes to see how far you can go**. **Blueprint** is a button like the others (note: white lines on blue paper, with a grid); click it: the diagram is drawn live in Blueprint and the frontmatter box says `theme: blueprint`. **Map** is still disabled, saying "coming with themes".
+
+## 3. Storybook
+
+**Themes / Blueprint Flat, Blueprint Iso, Blueprint 3D** and **Blueprint Sequence**: drawn from `theme: 'blueprint'`, as in section 1. **Blueprint Nested Flat, Iso, 3D**: as in step 1.5. **Blueprint Font Missing**: labels in the default font and a `theme warning: font architect-missing …` line at the bottom left. **Screens / Site / Themes Blueprint**: the Themes section with Blueprint pressed. Then **Themes / Classic, Bonkei, Landscape × Flat, Iso, 3D** side by side with the same stories on main: they look the same.
+
+## 4. The docs
+
+`pnpm docs:dev`, **Themes**: four diagrams at the top, the last one Blueprint; the **Blueprint** section's diagram has its titles in front of the trays, and its tokens table lists `ground.major`, `tray.sides` `hatch`, `tray.titles` `off` and `label.font` `architect`.
