@@ -471,3 +471,18 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **`scripts/smoke/docs-nightly.test.mjs`** (in the root `pnpm test`) holds the split: `pnpm smoke` ends at the embeds, the PR's smoke step does not mention the docs, `nightly.yml` runs on a schedule and by hand, sets up what the docs run needs before it, and calls only scripts that exist. The repo has no YAML parser, so it reads the workflows line by line. Turned down: adding a YAML dependency for one test.
 
 **Consequences.** A pull request that breaks a docs page goes green; the break shows the next morning on main, at most a day later. Whoever changes the docs runs `pnpm docs:smoke` themselves before merging (CONTRIBUTING says so). GitHub disables scheduled workflows in a repository with no activity for 60 days; the Nightly page then says so and offers to re-enable it.
+
+## 2026-11-19 — Blueprint theme: the three extras are in (BON-234)
+
+**Context.** Research found Blueprint can be made from today's theme settings alone, except three touches that need a little drawing code. The sketch (`sketches/blueprint.html`) showed each as a switch.
+
+**Decision.** Blueprint has all three:
+- a heavier grid line every 5 squares over the fine grid;
+- hatched tray sides (a new tray side pattern);
+- architect's lettering (a new bundled label font, OFL).
+
+Each is a new setting Blueprint uses; Classic and Bonkei keep theirs as they are, so they draw as before.
+
+**Alternatives considered.** A settings-only preset (single-weight grid, plain sides, the default font): less code, but it reads less like a blueprint.
+
+**Consequences.** The build adds a grid-weight setting, a `hatch` side pattern and a second font file to the package. Still open from the sketch: fill a shade off the paper or outline only, and the exact blue. Lines must be hidden behind blocks, as in the other themes (checked in the mockup).
