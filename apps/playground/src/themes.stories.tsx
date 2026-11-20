@@ -1,9 +1,10 @@
-// Themes: Classic, Bonkei, Bonkei · landscape and Blueprint, each in flat, iso and 3D, plus the three ways to pick one and the
-// warning for a name nobody knows. The diagram is the one in sketches/brand-theme.html; MADE-UP SAMPLE DATA.
+// Themes: Classic, Bonkei, Bonkei · landscape, Blueprint and Cloud Cartography, each in flat, iso and 3D, plus the three ways to pick
+// one and the warning for a name nobody knows. The diagram is the one in sketches/brand-theme.html (Cloud Cartography's: its own map
+// sample, samples.ts cloudMap); MADE-UP SAMPLE DATA.
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { BLUEPRINT, Bonkei, type BonkeiWarning, type Mode } from 'bonkei'
-import { SAMPLES, bonkeiMockup, nested } from './samples'
+import { BLUEPRINT, CLOUD_CARTOGRAPHY, Bonkei, type BonkeiWarning, type Mode } from 'bonkei'
+import { SAMPLES, bonkeiMockup, cloudMap, nested } from './samples'
 import { TRENCH_THEMES, own, preset, trenchSource, type TrenchPreset, type TrenchState, type TrenchTheme } from '../../../docs/.vitepress/theme/trench'
 
 const meta: Meta<typeof Bonkei> = { title: 'Themes', component: Bonkei, parameters: { layout: 'fullscreen' } }
@@ -39,19 +40,51 @@ export const BlueprintNested3D: Story = { args: { source: nested, theme: 'bluepr
 // cannot take the bundled file away, so this copy of BLUEPRINT names a font that is not bundled (taking the real file away is tried by
 // hand, TESTING.md).
 const noFont = { ...BLUEPRINT, label: { ...BLUEPRINT.label, font: 'architect-missing' } }
-export const BlueprintFontMissing: Story = {
-  render: () => {
-    const [w, setW] = useState<BonkeiWarning[]>([])
-    return (
-      <div style={{ height: '100vh', position: 'relative' }}>
-        <Bonkei source={bonkeiMockup} theme={noFont} mode="iso" onWarning={x => setW(p => [...p, x])} />
-        <div role="status" style={{ position: 'absolute', left: 12, bottom: 12, background: '#4a3a10', color: '#ffd479', padding: '6px 12px', borderRadius: 6, font: '12px monospace', whiteSpace: 'pre' }}>
-          {w.length ? w.map(x => `${x.kind} warning: ${x.message}`).join('\n') : 'no warning yet'}
-        </div>
+// A diagram drawn with `theme` (a Theme object), and the warnings it sends shown under it.
+function Warned({ source, theme }: { source: string; theme: typeof BLUEPRINT }) {
+  const [w, setW] = useState<BonkeiWarning[]>([])
+  return (
+    <div style={{ height: '100vh', position: 'relative' }}>
+      <Bonkei source={source} theme={theme} mode="iso" onWarning={x => setW(p => [...p, x])} />
+      <div role="status" style={{ position: 'absolute', left: 12, bottom: 12, background: '#4a3a10', color: '#ffd479', padding: '6px 12px', borderRadius: 6, font: '12px monospace', whiteSpace: 'pre' }}>
+        {w.length ? w.map(x => `${x.kind} warning: ${x.message}`).join('\n') : 'no warning yet'}
       </div>
-    )
-  },
+    </div>
+  )
 }
+export const BlueprintFontMissing: Story = { render: () => <Warned source={bonkeiMockup} theme={noFont} /> }
+
+// Cloud Cartography on its map sample (three top-level zones and a nested one, all four shapes, two-line labels, two dotted links;
+// MADE-UP SAMPLE DATA): coloured floors named on the ground, an icon per shape under a callout card, navy links with one arrow
+// partway along, and the two dotted links (-.->) as dashed arcs overhead.
+const map = (mode: Mode): Story => ({ args: { source: cloudMap, mode, toolbar: true }, decorators: [stage()] })
+export const CloudCartographyFlat = map('flat')
+export const CloudCartographyIso = map('iso')
+export const CloudCartography3D = map('3d')
+// The same source with the theme prop set to classic: the dotted links are ordinary lines and each two-line label reads on one line.
+export const CloudCartographySourceInClassic: Story = { args: { source: cloudMap, theme: 'classic', mode: 'iso', toolbar: true }, decorators: [stage()] }
+// The brand diagram every other theme is shown on, in Cloud Cartography: one-line labels only, so every card is a name alone.
+export const CloudCartographyBrandIso = draw('cloud-cartography', 'iso')
+export const CloudCartographySequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'cloud-cartography', mode: 'iso' }, decorators: [stage()] }
+export const CloudCartographySequence3D: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'cloud-cartography', mode: '3d' }, decorators: [stage()] }
+// Labels far longer than a box: each card wraps at its widest instead of running off it. A dotted link from a node to itself loops
+// over it. MADE-UP SAMPLE DATA.
+export const CloudCartographyLongLabels: Story = {
+  args: {
+    source: `flowchart LR
+  subgraph z[A zone whose name is far longer than the zone is wide]
+    a["Ingestion gateway for every partner upload<br>Rust · 12 pods · three regions · autoscaled on queue depth"] --> b{Accepted by the schema check?}
+  end
+  a -.->|retries| a
+  b --> c[(Archive)]`,
+    theme: 'cloud-cartography', mode: 'iso', toolbar: true,
+  },
+  decorators: [stage()],
+}
+// Cloud Cartography with its lettering font out of reach: the zone names and card names draw in the default font, and onWarning
+// gets why (shown here), once for the font. This copy names a font that is not bundled.
+const noArchivo = { ...CLOUD_CARTOGRAPHY, tray: { ...CLOUD_CARTOGRAPHY.tray, groundFont: 'archivo-missing' }, label: { ...CLOUD_CARTOGRAPHY.label, card: { ...CLOUD_CARTOGRAPHY.label.card, titleFont: 'archivo-missing' } } }
+export const CloudCartographyFontMissing: Story = { render: () => <Warned source={cloudMap} theme={noArchivo} /> }
 
 export const LandscapeSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'bonkei-landscape', mode: 'iso' }, decorators: [stage()] }
 

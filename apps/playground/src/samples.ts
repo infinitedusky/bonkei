@@ -249,6 +249,34 @@ export const nested = `flowchart TD
   Worker --> DB
 `
 
+// MADE-UP SAMPLE DATA: the Cloud Cartography mockup's "source, as written" (BON-235): three top-level zones and a nested one, all four shapes, two-line labels and two dotted links.
+export const cloudMap = `---
+config:
+  theme: cloud-cartography
+---
+flowchart LR
+  subgraph edge[Edge]
+    browser(["Browser<br>Web · mobile"]) --> gw["API Gateway<br>Envoy · TLS"]
+  end
+  subgraph orders[Orders]
+    oapi["Order API<br>Go · 3 pods"] --> valid{Valid?}
+    valid -->|yes| osvc["Order Svc<br>Go · 2 pods"]
+    subgraph data[Data]
+      queue[("Order Queue<br>Kafka")]
+    end
+    osvc --> queue
+  end
+  subgraph payments[Payments]
+    papi["Payment API<br>Node · 3 pods"] --> fraud{Fraud?}
+    fraud -->|ok| charge(["Charge Card<br>Stripe adapter"])
+    charge --> ledger[("Ledger<br>Postgres · HA")]
+  end
+  gw --> oapi
+  gw --> papi
+  queue -.->|pay| papi
+  ledger -.->|receipt| browser
+`
+
 export const SAMPLES: Record<string, string> = {
   'flow: small (sample.mmd)': small,
   'flow: bonkei mockup': bonkeiMockup,
@@ -258,4 +286,5 @@ export const SAMPLES: Record<string, string> = {
   'flow: nested (4 deep)': nested,
   'seq: login flow': login,
   'seq: checkout flow': checkout,
+  'flow: cloud cartography (map)': cloudMap,
 }
