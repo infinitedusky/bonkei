@@ -485,4 +485,4 @@ Each is a new setting Blueprint uses; Classic and Bonkei keep theirs as they are
 
 **Alternatives considered.** A settings-only preset (single-weight grid, plain sides, the default font): less code, but it reads less like a blueprint.
 
-**Consequences.** The build adds a grid-weight setting, a `hatch` side pattern and a second font file to the package. Still open from the sketch: fill a shade off the paper or outline only, and the exact blue. Lines must be hidden behind blocks, as in the other themes (checked in the mockup).
+**Consequences.** The build adds a grid-weight setting, a `hatch` side pattern and a second font file to the package. From the mockups (Mockups/Blueprint): shaded fills (a shade lighter than the paper), not outline only; the lighter paper `#1d4f8c`, not the deeper `#123a6b`; and the hatched tray sides stay. Lines must be hidden behind blocks, as in the other themes (checked in the mockup).
