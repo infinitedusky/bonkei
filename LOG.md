@@ -506,3 +506,22 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 **Size.** The main chunk grew 4.2 kB gzip (196.2 to 200.4 kB), so its budget is now 202 kB (`.size-limit.mjs`); the font is a file of its own (22.2 kB gzip, budget 24 kB), fetched only when a theme names it.
 
 **Consequences.** A Cloud Cartography diagram is a little taller than the same diagram in Classic (the room for the names). The homepage's "Map" placeholder is now Cloud Cartography, live. `-.->` and `<br>` mean something only to this theme; the other themes read them as before.
+
+## 2026-11-20 — A stage from a 3D model (BON-253)
+
+**Context.** The first piece of "Act it out": a 3D model made in SketchUp, Blender, Spline or the three.js editor shown as a stage, with its named parts known, so a later script (BON-255) can point at them. This entry is what the prototype showed; the real build follows it.
+
+**Decision.**
+- **Syntax.** `config.bonkei.stage: kitchen.glb` in the frontmatter, resolved relative to the page (as `fetch` does); a `stage` prop overrides it (props over frontmatter). A source of only frontmatter with a stage shows the stage alone; a diagram body beside a stage is not drawn yet and gives a `stage` warning.
+- **Loading.** three's own `GLTFLoader`, imported dynamically on the first stage (`bonkei.stage.loader.load` span), so a diagram without one fetches nothing; the host's bundler makes it a chunk of its own. Bonkei fetches the bytes itself and reads the glTF JSON before the loader does, so a Draco, meshopt or KTX2 model is refused with the extension named, and a text file is "not a glTF". Not drei's `useGLTF` (Draco decoder from Google's CDN). A server that answers a missing file with a web page (a single-page-app fallback) counts as 404.
+- **Parts.** The named nodes directly under the scene, a lone wrapper node looked through; named nodes inside a part are its pieces (counted, not labelled). The label is the glTF node's own name (`userData.name`), since `object.name` is sanitised ("prep line" → "prep_line"). Two parts named alike are both kept, with one warning.
+- **One normaliser** `normaliseName` (case, runs of space, `_` and `-`, ends), exported from `bonkei`, for matching names; BON-254's block-diagram stations use the same one.
+- **Public type changes.** `BonkeiError.kind` and `BonkeiWarning.kind` gain `'stage'`; `DiagramOptions` and `BonkeiOptions` gain `stage`; `ReadyInfo` gains `stage?: { url, parts: { name, pieces }[] }`, which is how an embedder gets the parts (the playground's "Stage parts" list is built on it, not inside the embed).
+- **Drawing.** The model is centred on the origin standing on the floor, in metres as world units; its footprint is the layout's width and height, so camera, toolbar, fit, pan, zoom and rotate are the ones every diagram has. Materials are as exported, under the theme's lights; labels are the theme's node plates, over each part's box.
+- **Samples** are written by `apps/playground/scripts/make-stages.mjs` (hand-written binary glTF, no 3D tool), into the playground's `public/stages/` and the core test fixtures.
+
+**Telemetry.** `bonkei.stage.load` (host only, bytes, ms, parts, pieces skipped, duplicate names, error kind and first line), `bonkei.stage.loader.load`; `bonkei.prepare` has `bonkei.diagram: stage`.
+
+**Size.** The main chunk grew 2.1 kB gzip (201.1 to 203.2 kB), budget now 204 kB; the script-tag bundle grew 16.4 kB (867.2 to 883.6, the loader cannot be split out of one file), budget now 890 kB.
+
+**Consequences.** A new embedder-visible kind of error and option. Model files are the author's: Bonkei does not restyle them. Not done: compressed models, a diagram played on a stage (BON-255), a stage from text (BON-137, BON-254).

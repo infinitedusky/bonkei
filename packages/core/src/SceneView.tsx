@@ -8,6 +8,8 @@ import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { instant } from './telemetry'
 import { createCamera, biggestTray, contentOf, frameOf, PRESET, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
+import { StageScene } from './StageScene'
+import type { StageLayout } from './stage'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
@@ -439,8 +441,8 @@ function NodeLift({ pos, hover, children, onDown, onClick, onOver, onOut }: { po
 // On the first frame drawn with each new `data`. The camera's first layout ever is framed (with the real aspect, known only once
 // the canvas has a size) and snapped to. Every later one (a new source, a new theme, another avoid-crossings level) keeps the view:
 // same pose, same tray flown into, lined up on what is on screen (camera.relayout, BON-195). Then it is reported once.
-function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: LayoutResult | SeqLayout | null; onFirstFrame?: () => void; top: number }) {
-  const seen = useRef<LayoutResult | SeqLayout | null>(null)
+function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: LayoutResult | SeqLayout | StageLayout | null; onFirstFrame?: () => void; top: number }) {
+  const seen = useRef<LayoutResult | SeqLayout | StageLayout | null>(null)
   const cb = useRef(onFirstFrame)
   cb.current = onFirstFrame
   useFrame(({ size }) => {
@@ -475,7 +477,7 @@ function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: Layou
 export interface EdgeStats extends Stats { trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; quality: RouteQuality }
 
 export interface SceneViewProps {
-  data: LayoutResult | SeqLayout | null
+  data: LayoutResult | SeqLayout | StageLayout | null
   labelMode: LabelMode
   mode: Mode
   /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
@@ -546,14 +548,16 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
     <div ref={box} data-bonkei-scene="" onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
-        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={headroom(theme)} />
+        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={data && 'kind' in data && data.kind === 'stage' ? Math.max(headroom(theme), data.tall + 0.9) : headroom(theme)} />
         {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
             and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
         <GateCtx.Provider value={gate}><InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
           <ToneSetup />
           <Rig cam={c} fpsRef={fpsRef} />
           {data && ('kind' in data
-            ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
+            ? data.kind === 'stage'
+              ? <Env cam={c} controls={ctl}><StageScene data={data} labelMode={labelMode} /></Env>
+              : <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
             : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
         </ThemeProvider></InkCtx.Provider></GateCtx.Provider>
       </Canvas>

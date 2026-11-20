@@ -6,6 +6,7 @@ import type { LabelMode } from './model.ts'
 import { themeByName, withVariables, type Theme } from './theme.ts'
 import { CROSSING_STYLES, type CrossingStyle } from './edges3d.ts'
 import { AVOID_CROSSINGS, type AvoidCrossings } from './avoid.ts'
+import type { StageInfo } from './stage.ts'
 
 export type ControlName = 'zoom' | 'pan' | 'move' | 'drillIn'
 // One setting for the reader's controls: all on, all off, or per control (a key left out means on).
@@ -26,13 +27,15 @@ export interface DiagramOptions {
   avoidCrossings?: AvoidCrossings
   /** Show the crossing-style and avoid-crossings groups in the toolbar. Default false. */
   crossingControls?: boolean
+  /** A 3D model to draw as a stage: the URL of a .glb (or .gltf), resolved relative to the page. A diagram with only frontmatter and a stage shows the stage alone. */
+  stage?: string
 }
-export type ResolvedOptions = Required<DiagramOptions>
+export type ResolvedOptions = Required<Omit<DiagramOptions, 'stage'>>
 
 // A BonkeiError means nothing can be drawn. It goes to `onError`.
 /** What onError receives when nothing could be drawn (kind: parse, graph, layout or render). */
 export interface BonkeiError {
-  kind: 'parse' | 'layout' | 'graph' | 'render'
+  kind: 'parse' | 'layout' | 'graph' | 'render' | 'stage'
   message: string
   line?: number
   text?: string
@@ -40,14 +43,14 @@ export interface BonkeiError {
 // A BonkeiWarning is a problem the diagram is drawn despite. It goes to `onWarning`.
 /** What onWarning receives for a dropped line, a bad frontmatter key or an unknown theme or theme variable; the diagram still draws. */
 export interface BonkeiWarning {
-  kind: 'dropped' | 'frontmatter' | 'theme'
+  kind: 'dropped' | 'frontmatter' | 'theme' | 'stage'
   message: string
   line: number
   text?: string
 }
 // Reported to `onReady` on the first frame drawn with a diagram's data.
 /** What onReady receives once a new source's first frame is drawn. */
-export interface ReadyInfo { layoutMs: number; nodes: number; edges: number; dropped: number }
+export interface ReadyInfo { layoutMs: number; nodes: number; edges: number; dropped: number; /** A stage's parts (named top-level objects of the model), with how many named pieces each holds. */ stage?: StageInfo }
 /** @deprecated use ReadyInfo */
 export type Ready = ReadyInfo
 
@@ -176,6 +179,7 @@ export function readFrontmatter(src: string): Frontmatter {
     else if (key === 'labels') options.labels = oneOf(key, v, LABELS)
     else if (key === 'crossings') options.crossings = oneOf(key, v, CROSSING_STYLES)
     else if (key === 'avoidCrossings') options.avoidCrossings = oneOf(key, v, AVOID_CROSSINGS)
+    else if (key === 'stage') { if (typeof v === 'string' && v.trim()) options.stage = v.trim(); else warn(`config.bonkei.stage must be the address of a .glb file; got ${show(v)}`, lineOf(['config', 'bonkei', key])) }
     else if (key === 'toolbar') options.toolbar = bool(['bonkei', key], v)
     else if (key === 'crossingControls') options.crossingControls = bool(['bonkei', key], v)
     else if (key === 'controls') {
@@ -188,7 +192,7 @@ export function readFrontmatter(src: string): Frontmatter {
         if (b !== undefined) c[name as ControlName] = b
       }
       options.controls = c
-    } else warn(`unknown option config.bonkei.${key}; known: mode, labels, toolbar, controls, crossings, avoidCrossings, crossingControls`, lineOf(['config', 'bonkei', key]))
+    } else warn(`unknown option config.bonkei.${key}; known: mode, labels, toolbar, controls, crossings, avoidCrossings, crossingControls, stage`, lineOf(['config', 'bonkei', key]))
   }
   for (const k of Object.keys(options) as (keyof DiagramOptions)[]) if (options[k] === undefined) delete options[k]
   return { body, lineOffset, options, theme, warnings }

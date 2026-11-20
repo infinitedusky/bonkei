@@ -30,7 +30,7 @@ export { CLASSIC, BONKEI, BONKEI_LANDSCAPE, BLUEPRINT, CLOUD_CARTOGRAPHY } from 
 export { THEME_NAMES } from './theme'
 
 // Events
-/** What onError receives when nothing could be drawn (kind: parse, graph, layout or render). */
+/** What onError receives when nothing could be drawn (kind: parse, graph, layout, render or stage). */
 export type { BonkeiError } from './options'
 /** What onWarning receives for a dropped line, a bad frontmatter key or an unknown theme or theme variable; the diagram still draws. */
 export type { BonkeiWarning } from './options'
@@ -38,6 +38,10 @@ export type { BonkeiWarning } from './options'
 export type { NodeClick } from './options'
 /** What onReady receives once a new source's first frame is drawn. */
 export type { ReadyInfo } from './options'
+/** A stage's parts, as onReady reports them: the named top-level objects of the model. */
+export type { StageInfo } from './stage'
+/** The one way part names are matched (case, spaces, `_` and `-` do not matter): a script's "Prep Line" finds the model's "prep line". */
+export { normaliseName } from './stage'
 /** Tells a BonkeiError from any other thrown value. */
 export { isBonkeiError } from './diagram'
 

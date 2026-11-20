@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SAMPLES } from './samples'
-import { Bonkei, THEME_NAMES, type LabelMode } from 'bonkei'
+import { Bonkei, THEME_NAMES, normaliseName, type LabelMode, type StageInfo } from 'bonkei'
 import type { EdgeStats } from 'bonkei/internal'
 
 // The site sits one level above the viewer (/app/ in dev, /merman/app/ on Pages).
@@ -12,8 +12,10 @@ const THEME_MENU = [FROM_SOURCE, ...THEME_NAMES, UNKNOWN]
 const btn = (on: boolean): React.CSSProperties => ({ padding: '5px 12px', border: '1px solid #3a4560', background: on ? '#4b6bdc' : '#1a2030', color: '#fff', borderRadius: 5, cursor: 'pointer' })
 
 export default function App() {
-  const [src, setSrc] = useState(Object.values(SAMPLES)[0])
-  const [sel, setSel] = useState(Object.keys(SAMPLES)[0])
+  // /app/?sample=stage: kitchen opens that sample first (a prefix of its name is enough)
+  const first = Object.keys(SAMPLES).find(k => k.startsWith(new URLSearchParams(location.search).get('sample') ?? '\0')) ?? Object.keys(SAMPLES)[0]
+  const [src, setSrc] = useState(SAMPLES[first])
+  const [sel, setSel] = useState(first)
   const [debounced, setDebounced] = useState(src)
   const [labelMode, setLabelMode] = useState<LabelMode>('top')
   const [theme, setTheme] = useState(FROM_SOURCE)
@@ -31,6 +33,8 @@ export default function App() {
   const [ms, setMs] = useState<number | null>(null)
   const [dropped, setDropped] = useState(0)
   const [edges, setEdges] = useState<EdgeStats | null>(null)
+  const [stage, setStage] = useState<StageInfo | null>(null) // the stage's parts, from onReady
+  const [find, setFind] = useState('')
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(src), 250)
@@ -38,15 +42,17 @@ export default function App() {
   }, [src])
   // The dropped count and the theme warning are per source.
   useEffect(() => { setDropped(0); setWarn(w => (w && w.line === 0 ? w : null)) }, [debounced])
+  const wanted = normaliseName(find)
+  const shown = stage?.parts.filter(p => !wanted || normaliseName(p.name).includes(wanted)) ?? []
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
       <Bonkei source={debounced} labels={labelMode} theme={theme === FROM_SOURCE ? undefined : theme === UNKNOWN ? 'nope' : theme}
         crossingControls
-        onReady={r => setMs(r.layoutMs)}
+        onReady={r => { setMs(r.layoutMs); setStage(r.stage ?? null) }}
         onError={() => setMs(null)}
         onEdgeStats={setEdges}
-        onWarning={w => { if (w.kind === 'dropped') setDropped(n => n + 1); else if (w.kind === 'theme') setWarn({ message: w.message, line: w.line }) }} />
+        onWarning={w => { if (w.kind === 'dropped') setDropped(n => n + 1); else if (w.kind === 'theme' || w.kind === 'stage') setWarn({ message: w.message, line: w.kind === 'stage' ? 0 : w.line }) }} />
       <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6, alignItems: 'center', color: '#9aa6c0' }}>
         <a href={SITE} style={{ ...btn(false), textDecoration: 'none', font: 'inherit' }}>← Site</a>
         <button style={btn(false)} onClick={() => setLabelMode(l => l === 'top' ? 'billboard' : 'top')}>labels: {labelMode}</button>
@@ -58,6 +64,16 @@ export default function App() {
       <div data-readout style={{ position: 'absolute', top: 48, left: 10, color: '#9aa6c0', font: '12px monospace', pointerEvents: 'none', whiteSpace: 'pre' }}>
         <span>{fps} fps · layout {ms === null ? '–' : Math.round(ms)} ms · {dropped} lines dropped{edges && ` · routed in ${Math.round(edges.routeMs)} ms · drag frame ${edges.dragMs.toFixed(1)} ms · ${edges.unroutable} unroutable\n[avoid ${edges.avoidCrossings}] crossings ${edges.quality.crossings} (${edges.bridge}/${edges.tunnel}/${edges.portal} drawn, ${edges.skipped} no room) · overlapping ${edges.quality.overlaps} · doubling back ${edges.quality.doublingBack} · length/direct ${edges.quality.lengthRatio} · through blocks ${edges.quality.throughBlocks} / foreign trays ${edges.quality.throughTrays}${edges.routingError ? ` · ROUTING FELL BACK TO ELK: ${edges.routingError}` : ''}`}</span>
       </div>
+      {stage && (
+        <div data-stage-parts style={{ position: 'absolute', top: 88, right: 10, width: 220, background: '#1a2030cc', border: '1px solid #3a4560', borderRadius: 6, padding: 8, color: '#cfd8ea', font: '12px system-ui, sans-serif' }}>
+          <b>Stage parts</b> <span style={{ color: '#9aa6c0' }}>({stage.parts.length})</span>
+          <input aria-label="Find a part" placeholder="find: Prep Line, prep_line…" value={find} onChange={e => setFind(e.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', margin: '6px 0', padding: 4, background: '#10151f', color: '#cfd8ea', border: '1px solid #3a4560', borderRadius: 4 }} />
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            {shown.map((p, i) => <li key={i} style={{ padding: '2px 0' }}>{p.name} <span style={{ color: '#9aa6c0' }}>· {p.pieces} {p.pieces === 1 ? 'piece' : 'pieces'}</span></li>)}
+            {!shown.length && <li style={{ color: '#9aa6c0' }}>no part is called that</li>}
+          </ul>
+        </div>
+      )}
       {warn && <div role="status" style={{ position: 'absolute', bottom: 34, left: '50%', maxWidth: '80%', pointerEvents: 'none', transform: 'translateX(-50%)', background: '#4a3a10', color: '#ffd479', padding: '6px 12px', borderRadius: 6, font: '12px monospace' }}>warning{warn.line ? ` (line ${warn.line})` : ''}: {warn.message}</div>}
       {edit && <textarea value={src} onChange={e => setSrc(e.target.value)} spellCheck={false}
         style={{ position: 'absolute', top: 88, left: 10, width: 360, height: '60%', background: '#10151f', color: '#cfd8ea', border: '1px solid #3a4560', font: '12px monospace' }} />}

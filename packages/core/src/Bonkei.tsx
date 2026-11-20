@@ -232,7 +232,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   const acceptedAt = useRef(0)
 
   // A string is its own key; a graph is keyed by structure, so an inline literal is stable.
-  const key = useMemo(() => typeof source === 'string' ? 's:' + source : 'g:' + stableStringify(source), [source])
+  const key = useMemo(() => (typeof source === 'string' ? 's:' + source : 'g:' + stableStringify(source)) + '|' + (props.stage ?? ''), [source, props.stage])
   const sourceRef = useRef(source)
   sourceRef.current = source
   const seq = useRef(0)
@@ -247,7 +247,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     let alive = true
     const accepted = performance.now()
     setStatus('loading')
-    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: themeRef.current }).then(p => {
+    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: themeRef.current, stage: props.stage }).then(p => {
       if (!alive || run !== seq.current) return
       acceptedAt.current = accepted
       setPrepared({ ...p, key })
