@@ -23,7 +23,7 @@ test('importing bonkei and bonkei/internal runs nothing: no fetch, no ELK, no wa
   try {
     const m = await import(new URL('index.js', dist).href)
     // the theme exports are BON-116's public API, with BLUEPRINT (BON-234)
-    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'THEME_NAMES', 'isBonkeiError', 'render'])
+    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'LTECH', 'THEME_NAMES', 'isBonkeiError', 'render'])
     const i = await import(new URL('internal.js', dist).href)
     assert.equal(i.avoidLoaded(), null, 'the wasm is not loaded on import')
   } finally { globalThis.fetch = real }
