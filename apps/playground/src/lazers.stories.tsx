@@ -133,19 +133,20 @@ function Beam({ pts, c }: { pts: V3[]; c: Pal }) {
 }
 
 // A solid plate on a bend: its face normal is (out - in), it spans (in + out) and the hinge (in x out). Silver where the beam bounces.
-function Mirror({ at, a, b, c }: { at: V3; a: THREE.Vector3; b: THREE.Vector3; c: Pal }) {
+function Mirror({ at, a, b, c, size = 1 }: { at: V3; a: THREE.Vector3; b: THREE.Vector3; c: Pal; size?: number }) {
   const q = useMemo(() => {
-    const u = a.clone().add(b).normalize(), w = a.clone().cross(b).normalize(), n = b.clone().sub(a).normalize()
+    // u, w, n must be right-handed (u x w = n) for a rotation: w = b x a, since (a + b) x (b x a) = b - a
+    const u = a.clone().add(b).normalize(), w = b.clone().cross(a).normalize(), n = b.clone().sub(a).normalize()
     return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, w, n))
   }, [a, b])
   const upright = Math.abs(a.clone().cross(b).normalize().y) > 0.9
   return (
     <group position={at}>
-      <group quaternion={q}>
+      <group quaternion={q} scale={size}>
         <mesh position={[0, 0, -0.04]}><boxGeometry args={[0.4, 0.32, 0.08]} /><meshStandardMaterial color="#3a4560" metalness={0.6} roughness={0.4} /></mesh>
         <mesh position={[0, 0, 0.002]}><planeGeometry args={[0.38, 0.3]} /><meshStandardMaterial color="#dbe9ff" metalness={1} roughness={0.08} emissive="#9fb8e0" emissiveIntensity={0.35} /></mesh>
       </group>
-      {upright && <mesh position={[0, -0.28, 0]}><cylinderGeometry args={[0.025, 0.04, 0.24, 8]} /><meshStandardMaterial color="#55607a" /></mesh>}
+      {upright && size === 1 && <mesh position={[0, -0.28, 0]}><cylinderGeometry args={[0.025, 0.04, 0.24, 8]} /><meshStandardMaterial color="#55607a" /></mesh>}
       <mesh><sphereGeometry args={[0.05, 12, 12]} /><meshBasicMaterial color={c.core} /></mesh>
       <mesh><sphereGeometry args={[0.12, 12, 12]} /><meshBasicMaterial color={c.halo} transparent opacity={0.3} depthWrite={false} /></mesh>
     </group>
@@ -166,14 +167,51 @@ const onSeg = (q: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3) => {
   return t >= 0 && t <= 1 && a.clone().addScaledVector(ab, t).distanceTo(q) < 1e-6
 }
 // every bend of every beam: a mirror, or a splitter where another beam runs through the same point
-function Bends({ lines, cs }: { lines: V3[][]; cs: Pal[] }) {
+// Two bends close together where the beam carries on the way it came (a jog: the step onto a tray, a short sideways kink): one box with
+// both mirrors inside, the beam going in at one window and out at the other.
+function Periscope({ from, to, a, c }: { from: V3; to: V3; a: THREE.Vector3; c: Pal }) {
+  const p = v(from), q = v(to), d = q.clone().sub(p), L = d.length()
+  const quat = useMemo(() => {
+    const y = d.clone().normalize(), z = a.clone().cross(y).normalize()
+    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(a.clone().normalize(), y, z))
+  }, [from, to, a])
+  const mid = p.clone().add(q).multiplyScalar(0.5)
+  return (
+    <group position={mid} quaternion={quat}>
+      <mesh><boxGeometry args={[0.34, L + 0.3, 0.26]} /><meshStandardMaterial color="#3a4560" metalness={0.6} roughness={0.4} /></mesh>
+      {/* the windows: in at the low end (facing back along the beam), out at the high end */}
+      <mesh position={[-0.171, -L / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><circleGeometry args={[0.07, 16]} /><meshBasicMaterial color={c.core} side={THREE.DoubleSide} /></mesh>
+      <mesh position={[0.171, L / 2, 0]} rotation={[0, Math.PI / 2, 0]}><circleGeometry args={[0.07, 16]} /><meshBasicMaterial color={c.core} side={THREE.DoubleSide} /></mesh>
+      {/* the two mirrors' backs show as diagonal ribs on the side */}
+      {[-L / 2, L / 2].map((y, i) => (
+        <mesh key={i} position={[0, y, 0.131]} rotation={[0, 0, Math.PI / 4]}><planeGeometry args={[0.3, 0.03]} /><meshBasicMaterial color="#8fa0c0" /></mesh>
+      ))}
+    </group>
+  )
+}
+
+type Tight = 'periscope box' | 'smaller mirrors' | 'as they are'
+const JOG = 0.4 // two bends closer than this, forming a jog, share one periscope box
+// every bend of every beam: a mirror, a splitter where another beam runs through the same point, or a periscope over a tight jog
+function Bends({ lines, cs, tight }: { lines: V3[][]; cs: Pal[]; tight: Tight }) {
   const out: React.ReactNode[] = []
   lines.forEach((pts, li) => {
+    const dir = (i: number) => v(pts[i + 1]).sub(v(pts[i])).normalize() // the run from point i to i + 1
+    const run = (i: number) => v(pts[i + 1]).distanceTo(v(pts[i]))
     for (let i = 1; i < pts.length - 1; i++) {
-      const a = v(pts[i]).sub(v(pts[i - 1])).normalize(), b = v(pts[i + 1]).sub(v(pts[i])).normalize()
+      const a = dir(i - 1), b = dir(i)
       if (a.distanceTo(b) < 1e-6) continue
       const shared = lines.some((o, oi) => oi !== li && o.slice(1).some((q, k) => onSeg(v(pts[i]), v(o[k]), v(q))))
-      out.push(shared ? <Splitter key={`${li}-${i}`} at={pts[i]} /> : <Mirror key={`${li}-${i}`} at={pts[i]} a={a} b={b} c={cs[li]} />)
+      if (shared) { out.push(<Splitter key={`${li}-${i}`} at={pts[i]} />); continue }
+      // a jog: this bend and the next are close, and the beam leaves the second the way it came into the first
+      if (tight === 'periscope box' && i + 1 < pts.length - 1 && run(i) < JOG && dir(i + 1).distanceTo(a) < 1e-6) {
+        out.push(<Periscope key={`${li}-${i}`} from={pts[i]} to={pts[i + 1]} a={a} c={cs[li]} />)
+        i++ // the next bend is inside the box
+        continue
+      }
+      // a mirror as big as the room either side of its bend allows
+      const size = tight === 'as they are' ? 1 : Math.min(1, Math.max(0.4, Math.min(run(i - 1), run(i)) / 0.8))
+      out.push(<Mirror key={`${li}-${i}`} at={pts[i]} a={a} b={b} c={cs[li]} size={size} />)
     }
   })
   return <>{out}</>
@@ -215,7 +253,7 @@ function Target({ at, dir, c }: { at: V3; dir: THREE.Vector3; c: Pal }) {
   )
 }
 
-function Bench({ palette, colouring }: { palette: Palette; colouring: Colouring }) {
+function Bench({ palette, colouring, tight }: { palette: Palette; colouring: Colouring; tight: Tight }) {
   const one = PALETTES[palette]
   const senders = NODES.filter(n => EDGES.some(e => e.from === n.id)).map(n => n.id)
   const given = colouring === 'from the text' ? textColours(SOURCE_TEXT) : {}
@@ -239,7 +277,7 @@ function Bench({ palette, colouring }: { palette: Palette; colouring: Colouring 
       <Text position={[19, 0.01, 9.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.3} color="#7f8aa3">Tunnel</Text>
       {NODES.map(n => <Device key={n.id} n={n} c={caught(n.id)} />)}
       {all.map((pts, i) => <Beam key={i} pts={pts} c={cs[i]} />)}
-      <Bends lines={all} cs={cs} />
+      <Bends lines={all} cs={cs} tight={tight} />
       {EDGES.map((e, i) => {
         const n = e.pts.length
         return (
@@ -253,23 +291,23 @@ function Bench({ palette, colouring }: { palette: Palette; colouring: Colouring 
   )
 }
 
-type PiecesArgs = { palette: Palette; colouring: Colouring }
-const pieces = (view: 'flat' | 'iso' | '3d', colouring: Colouring = 'one colour'): StoryObj<PiecesArgs> => ({
-  args: { palette: 'red', colouring },
-  argTypes: { palette: { control: 'inline-radio', options: Object.keys(PALETTES) }, colouring: { control: 'inline-radio', options: ['one colour', 'by source', 'from the text'] } },
+type PiecesArgs = { palette: Palette; colouring: Colouring; tight: Tight }
+const pieces = (view: 'flat' | 'iso' | '3d', colouring: Colouring = 'one colour', close?: { position: V3; target: V3 }): StoryObj<PiecesArgs> => ({
+  args: { palette: 'red', colouring, tight: 'periscope box' },
+  argTypes: { palette: { control: 'inline-radio', options: Object.keys(PALETTES) }, colouring: { control: 'inline-radio', options: ['one colour', 'by source', 'from the text'] }, tight: { name: 'tight bends', control: 'inline-radio', options: ['periscope box', 'smaller mirrors', 'as they are'] } },
   decorators: [stage],
-  render: ({ palette, colouring }) => (
+  render: ({ palette, colouring, tight }) => (
     <div style={{ height: '100vh', position: 'relative' }}>
       <Canvas
         orthographic={view !== '3d'}
-        camera={view === 'flat' ? { position: [0, 30, 0.001], zoom: 56 } : view === 'iso' ? { position: [20, 20, 20], zoom: 56 } : { position: [10, 9, 14], fov: 45 }}
+        camera={view === 'flat' ? { position: [0, 30, 0.001], zoom: 56 } : view === 'iso' ? { position: [20, 20, 20], zoom: 56 } : { position: close?.position ?? [10, 9, 14], fov: 45 }}
         gl={{ antialias: true }}>
         <color attach="background" args={[GROUND]} />
         <ambientLight intensity={0.5} />
         <hemisphereLight args={['#9fb2d6', '#0a0e16', 0.6]} />
         <directionalLight position={[8, 14, 6]} intensity={1.2} />
-        <Bench palette={palette} colouring={colouring} />
-        <OrbitControls makeDefault enableRotate={view !== 'flat'} />
+        <Bench palette={palette} colouring={colouring} tight={tight} />
+        <OrbitControls makeDefault enableRotate={view !== 'flat'} target={close?.target} />
       </Canvas>
       {colouring === 'from the text' && (
         <pre style={{ position: 'absolute', top: 12, left: 12, margin: 0, padding: '10px 12px', background: 'rgba(13,18,32,.9)', color: '#c9d3e6', border: '1px solid #222c42', borderRadius: 6, font: '12px/1.5 ui-monospace, monospace' }}>{SOURCE_TEXT}</pre>
@@ -282,4 +320,8 @@ export const PiecesIso = { ...pieces('iso'), name: 'Pieces / Iso' }
 export const Pieces3D = { ...pieces('3d'), name: 'Pieces / 3D' }
 export const PiecesBySourceIso = { ...pieces('iso', 'by source'), name: 'Pieces / By source, iso' }
 export const PiecesBySource3D = { ...pieces('3d', 'by source'), name: 'Pieces / By source, 3D' }
+// close up on Client's beam: two flat turns a run apart, then the step up onto the tray (a jog 0.25 high)
+export const PiecesTightBends = { ...pieces('3d', 'one colour', { position: [-5.2, 1.3, -1.2], target: [-7.2, 0.35, -3.3] }), name: 'Pieces / Tight bends, close up' }
+// close up on the bridge and the tunnel: every mirror at 45 degrees, its silver face turned to both the beam in and the beam out
+export const PiecesCrossings = { ...pieces('3d', 'one colour', { position: [12.5, 1.6, 2.2], target: [9, 0.1, 0.5] }), name: 'Pieces / Bridge and tunnel, close up' }
 export const PiecesFromTheText = { ...pieces('3d', 'from the text'), name: 'Pieces / Colours from the text, 3D' }
