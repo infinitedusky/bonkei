@@ -1,9 +1,9 @@
-// Themes: Classic, Bonkei and Bonkei · landscape, each in flat, iso and 3D, plus the three ways to pick one and the
+// Themes: Classic, Bonkei, Bonkei · landscape and Blueprint, each in flat, iso and 3D, plus the three ways to pick one and the
 // warning for a name nobody knows. The diagram is the one in sketches/brand-theme.html; MADE-UP SAMPLE DATA.
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Bonkei, type BonkeiWarning, type Mode } from 'bonkei'
-import { SAMPLES, bonkeiMockup } from './samples'
+import { BLUEPRINT, Bonkei, type BonkeiWarning, type Mode } from 'bonkei'
+import { SAMPLES, bonkeiMockup, nested } from './samples'
 import { TRENCH_THEMES, own, preset, trenchSource, type TrenchPreset, type TrenchState, type TrenchTheme } from '../../../docs/.vitepress/theme/trench'
 
 const meta: Meta<typeof Bonkei> = { title: 'Themes', component: Bonkei, parameters: { layout: 'fullscreen' } }
@@ -22,9 +22,37 @@ export const Bonkei3D = draw('bonkei', '3d')
 export const LandscapeFlat = draw('bonkei-landscape', 'flat')
 export const LandscapeIso = draw('bonkei-landscape', 'iso')
 export const Landscape3D = draw('bonkei-landscape', '3d')
+export const BlueprintFlat = draw('blueprint', 'flat')
+export const BlueprintIso = draw('blueprint', 'iso')
+export const Blueprint3D = draw('blueprint', '3d')
 
-// The sequence diagram in both Bonkei looks.
+// The sequence diagram in the Bonkei looks and Blueprint.
 export const BonkeiSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'bonkei', mode: 'iso' }, decorators: [stage()] }
+export const BlueprintSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'blueprint', mode: 'iso' }, decorators: [stage()] }
+// Blueprint on a diagram four trays deep: every title on the surface in front of its tray (Keys' on Auth, Auth's on Core, Core's and
+// Jobs' on Platform, Platform's and Data's on the paper), each inside its parent and clear of the lines. MADE-UP SAMPLE DATA.
+export const BlueprintNestedFlat: Story = { args: { source: nested, theme: 'blueprint', mode: 'flat', toolbar: true }, decorators: [stage()] }
+export const BlueprintNestedIso: Story = { args: { source: nested, theme: 'blueprint', mode: 'iso', toolbar: true }, decorators: [stage()] }
+export const BlueprintNested3D: Story = { args: { source: nested, theme: 'blueprint', mode: '3d', toolbar: true }, decorators: [stage()] }
+
+// Blueprint with its lettering font out of reach: the labels draw in the default font, and onWarning gets why (shown here). A story
+// cannot take the bundled file away, so this copy of BLUEPRINT names a font that is not bundled (taking the real file away is tried by
+// hand, TESTING.md).
+const noFont = { ...BLUEPRINT, label: { ...BLUEPRINT.label, font: 'architect-missing' } }
+export const BlueprintFontMissing: Story = {
+  render: () => {
+    const [w, setW] = useState<BonkeiWarning[]>([])
+    return (
+      <div style={{ height: '100vh', position: 'relative' }}>
+        <Bonkei source={bonkeiMockup} theme={noFont} mode="iso" onWarning={x => setW(p => [...p, x])} />
+        <div role="status" style={{ position: 'absolute', left: 12, bottom: 12, background: '#4a3a10', color: '#ffd479', padding: '6px 12px', borderRadius: 6, font: '12px monospace', whiteSpace: 'pre' }}>
+          {w.length ? w.map(x => `${x.kind} warning: ${x.message}`).join('\n') : 'no warning yet'}
+        </div>
+      </div>
+    )
+  },
+}
+
 export const LandscapeSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'bonkei-landscape', mode: 'iso' }, decorators: [stage()] }
 
 // The theme and one overridden token, chosen by the diagram's own frontmatter (config.theme, config.themeVariables).

@@ -223,6 +223,31 @@ export const bonkeiMockup = `flowchart LR
   Orders --> PG
   Auth --> Cache
 `
+// made-up platform four trays deep (Platform > Core > Auth > Keys), top to bottom: where each tray's title goes in Blueprint
+export const nested = `flowchart TD
+  Web[Web] --> API[API]
+  subgraph Platform
+    subgraph Core
+      API
+      subgraph Auth
+        Login[Login] --> Tokens[Tokens]
+        subgraph Keys
+          KMS[(KMS)]
+        end
+      end
+    end
+    subgraph Jobs
+      Queue((Queue)) --> Worker[Worker]
+    end
+  end
+  subgraph Data
+    DB[(DB)]
+  end
+  API --> Login
+  Tokens --> KMS
+  API --> Queue
+  Worker --> DB
+`
 
 export const SAMPLES: Record<string, string> = {
   'flow: small (sample.mmd)': small,
@@ -230,6 +255,7 @@ export const SAMPLES: Record<string, string> = {
   'flow: large (~50 nodes)': large,
   'flow: wide (30 → 5)': wide,
   'flow: checkout': checkoutFlow,
+  'flow: nested (4 deep)': nested,
   'seq: login flow': login,
   'seq: checkout flow': checkout,
 }

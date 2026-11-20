@@ -4,6 +4,7 @@ import sample from './sample.mmd?raw'
 import { login } from './login'
 import { Home } from './Home'
 import { Hero } from './Hero'
+import { Themes } from './Themes'
 import './site.css'
 
 const meta: Meta<typeof Home> = { title: 'Screens/Site', component: Home }
@@ -50,4 +51,10 @@ export const HeroSceneFailedToLoad: StoryObj<typeof Hero> = {
 // probe passed). Here a made-up source it can't read makes it report one: the poster takes the stage, never an empty one.
 export const HeroSceneError: StoryObj<typeof Hero> = {
   render: () => <Wrap label="made up: a source the scene can't read ('not a diagram'), so it reports an error before drawing: the poster instead"><Hero live source="not a diagram" /></Wrap>,
+}
+
+// The Themes section on its own with Blueprint picked: its button pressed, its frontmatter shown, the made-up THEMES_DIAGRAM
+// (themes-sample.ts) drawn live in Blueprint. Map is still a name only.
+export const ThemesBlueprint: StoryObj<typeof Themes> = {
+  render: () => <Wrap label="the Themes section's diagram (made up, themes-sample.ts), theme blueprint"><Themes live start="blueprint" /></Wrap>,
 }
