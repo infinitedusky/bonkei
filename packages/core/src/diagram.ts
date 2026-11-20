@@ -15,6 +15,7 @@ export interface Prepared {
   theme: ThemeRequest // config.theme / config.themeVariables as written; resolved with the theme prop in the component
   warnings: BonkeiWarning[] // frontmatter problems first, then dropped lines in line order
   ready: Ready
+  arcs: boolean // the dotted links were left out of the layout and returned as data.arcs (the look asked for them)
 }
 
 // What `prepare` rejects with: the error itself (so it can go straight to `onError`), carrying
@@ -47,6 +48,7 @@ interface Drawn {
   nodes: number
   edges: number
   dropped: Dropped[]
+  arcs: boolean
 }
 
 function finish(result: Drawn, warnings: BonkeiWarning[], t: number): Prepared {
@@ -57,6 +59,7 @@ function finish(result: Drawn, warnings: BonkeiWarning[], t: number): Prepared {
     theme: result.theme,
     warnings: all,
     ready: { layoutMs: t, nodes: result.nodes, edges: result.edges, dropped: result.dropped.length },
+    arcs: result.arcs,
   }
 }
 
@@ -68,8 +71,9 @@ function nothingRead(what: 'nodes' | 'participants', dropped: Dropped[]): Bonkei
 }
 
 /** What prepare takes: the routing options, and the `theme` prop, because a look whose tray titles sit off the tray needs room for them in the layout. */
-export interface PrepareOptions extends Omit<LayoutOptions, 'span' | 'titleRoom'> { theme?: string | Theme }
+export interface PrepareOptions extends Omit<LayoutOptions, 'span' | 'titleRoom' | 'groundRoom' | 'arcs'> { theme?: string | Theme }
 /** Whether the look a diagram is drawn in (the theme prop over the frontmatter's, with its themeVariables) puts tray titles off the tray. */
+export const wantsGroundRoom = (prop: string | Theme | undefined, fm?: ThemeRequest) => resolveTheme(prop, fm).theme.tray.titles === 'ground'
 export const wantsTitleRoom = (prop: string | Theme | undefined, fm?: ThemeRequest) => resolveTheme(prop, fm).theme.tray.titles === 'off'
 
 // Times the layout alone, in its own `bonkei.layout` span; a throw becomes a `layout` error.
@@ -101,14 +105,15 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
     const doc = parseSeq(fm.body, fm.lineOffset)
     if (!doc.parts.length) throw nothingRead('participants', doc.dropped)
     const [data, t] = await timedLayout(span, () => layoutSeq(doc))
-    return [{ data, options: fm.options, theme: fm.theme, nodes: doc.parts.length, edges: data.msgs.length, dropped: doc.dropped }, t]
+    return [{ data, options: fm.options, theme: fm.theme, nodes: doc.parts.length, edges: data.msgs.length, dropped: doc.dropped, arcs: false }, t]
   }
   span.setAttribute('bonkei.diagram', 'flowchart')
   const g = parse(fm.body, fm.lineOffset)
   const dropped = g.dropped ?? []
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
-  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme, fm.theme) }))
-  return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped }, t]
+  const arcs = resolveTheme(lo.theme, fm.theme).theme.edge.dotted === 'arc'
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme, fm.theme), groundRoom: wantsGroundRoom(lo.theme, fm.theme), arcs }))
+  return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped, arcs }, t]
 }
 
 async function fromGraph(input: GraphInput, span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
@@ -125,8 +130,9 @@ async function fromGraph(input: GraphInput, span: Span, lo: PrepareOptions): Pro
     for (const end of [e.from, e.to]) if (!ids.has(end)) throw fail('graph', `edge ${e.id ?? `${e.from} -> ${e.to}`} points at unknown id ${JSON.stringify(end)}`)
   }
   const g: Graph = { ...input, direction: input.direction ?? 'TD', groups, edges, dropped: input.dropped ?? [] }
-  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme) }))
-  return [{ data, options: {}, theme: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped! }, t]
+  const arcs = resolveTheme(lo.theme).theme.edge.dotted === 'arc'
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme), groundRoom: wantsGroundRoom(lo.theme), arcs }))
+  return [{ data, options: {}, theme: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped!, arcs }, t]
 }
 
 function countReasons(dropped: Dropped[]) {
@@ -152,6 +158,7 @@ export async function prepare(source: string | GraphInput, lo: PrepareOptions = 
         'bonkei.edges': drawn.edges,
         'bonkei.dropped': drawn.dropped.length,
         'bonkei.layout_ms': t,
+        ...(drawn.arcs ? { 'bonkei.arcs': 'boxes' in drawn.data ? drawn.data.arcs?.length ?? 0 : 0 } : {}),
       })
       if (drawn.dropped.length) span.addEvent('bonkei.dropped_lines', countReasons(drawn.dropped))
       return finish(drawn, warnings, t)

@@ -22,8 +22,8 @@ test('importing bonkei and bonkei/internal runs nothing: no fetch, no ELK, no wa
   globalThis.fetch = (...a) => { fetched.push(String(a[0])); return real(...a) }
   try {
     const m = await import(new URL('index.js', dist).href)
-    // the theme exports are BON-116's public API, with BLUEPRINT (BON-234)
-    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'THEME_NAMES', 'isBonkeiError', 'render'])
+    // the theme exports are BON-116's public API, with BLUEPRINT (BON-234) and CLOUD_CARTOGRAPHY (BON-235)
+    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'CLOUD_CARTOGRAPHY', 'THEME_NAMES', 'isBonkeiError', 'render'])
     const i = await import(new URL('internal.js', dist).href)
     assert.equal(i.avoidLoaded(), null, 'the wasm is not loaded on import')
   } finally { globalThis.fetch = real }
@@ -61,6 +61,14 @@ test('Blueprint\'s bundled font sits in dist/fonts with its licence, found by th
   assert.deepEqual([...fs.readFileSync(new URL('fonts/ArchitectsDaughter-Regular-latin.ttf', dist)).subarray(0, 4)], [0, 1, 0, 0], 'TrueType magic')
   assert.match(read('fonts/OFL-ArchitectsDaughter.txt'), /SIL Open Font License, Version 1\.1/)
   assert.ok(esm.some(f => read(f).includes('new URL("./fonts/ArchitectsDaughter-Regular-latin.ttf", import.meta.url)')))
+})
+
+test('Cloud Cartography\'s bundled font sits in dist/fonts with its licence, found by the same pattern', () => {
+  const st = fs.lstatSync(new URL('fonts/ArchivoBlack-latin.ttf', dist))
+  assert.ok(st.isFile() && !st.isSymbolicLink())
+  assert.deepEqual([...fs.readFileSync(new URL('fonts/ArchivoBlack-latin.ttf', dist)).subarray(0, 4)], [0, 1, 0, 0], 'TrueType magic')
+  assert.match(read('fonts/OFL-ArchivoBlack.txt'), /SIL Open Font License, Version 1\.1/)
+  assert.ok(esm.some(f => read(f).includes('new URL("./fonts/ArchivoBlack-latin.ttf", import.meta.url)')))
 })
 
 test('the wasm fallback is a lazy chunk: only a dynamic import reaches it', () => {

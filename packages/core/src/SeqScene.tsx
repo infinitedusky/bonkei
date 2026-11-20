@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import * as THREE from 'three'
 import { Line, Text } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
@@ -5,12 +6,37 @@ import type { SeqLayout } from './seq'
 import type { Box } from './model'
 import { NodeBody, type LabelMode } from './shapes'
 import { S } from './scale'
-import { useTheme, fontUrl, Mat } from './look'
+import { useTheme, fontUrl, fontOf, Mat } from './look'
 import { cursorFor, ALL_ON } from './controls'
 import type { NodeClick } from './options'
 
 const BLOCK_COL: Record<string, string> = { loop: '#3b6ea8', alt: '#a86b3b', opt: '#4f9a6a', par: '#8a5aa8' }
 const LINE_Y = 0.42
+// A block title in ground lettering (theme.seq.blockTitles 'ground'): its size, and its gap from the block's left and top edges. Its top
+// edge is 0.15 below the block's and it is about 0.66 deep, so it ends well before the block's first row (a message's label is 1.2 below
+// the top, a note 1.5, a nested block 1.0, an empty first section's divider 0.9).
+const GROUND_TITLE = { size: 0.55, left: 0.3, top: 0.15 }
+
+type Rot = [number, number, number]
+// A block's title in big capitals in the ground font, lying on the floor (labels on top) or standing at the block's top edge, in the block's
+// colour darkened as a zone's name is. A title wider than the block is drawn smaller to fit inside it.
+function GroundBlockTitle({ text, x, z, y, room, color, top }: { text: string; x: number; z: number; y: number; room: number; color: string; top: boolean }) {
+  const th = useTheme()
+  const font = fontOf(th.tray.groundFont)
+  const [k, setK] = useState(1)
+  const { size } = GROUND_TITLE
+  const ink = '#' + new THREE.Color(color).multiplyScalar(1 - th.tray.groundInk).getHexString()
+  return (
+    <Text position={top ? [x, y, z] : [x, y, z + size / 2]} rotation={(top ? [-Math.PI / 2, 0, 0] : [0, 0, 0]) as Rot} scale={k}
+      font={font} fontSize={size} letterSpacing={0.04} whiteSpace="nowrap" anchorX="left" anchorY={top ? 'top' : 'bottom'} color={ink} fillOpacity={0.8}
+      onSync={(t: any) => {
+        const r = t.textRenderInfo?.blockBounds
+        if (!r) return
+        const fit = Math.min(1, Math.max(room, 0) / (r[2] - r[0]))
+        setK(p => (Math.abs(p - fit) < 1e-3 ? p : fit))
+      }}>{text.toUpperCase()}</Text>
+  )
+}
 
 function Arrow({ from, to, color, cross }: { from: THREE.Vector3; to: THREE.Vector3; color: string; cross?: boolean }) {
   const th = useTheme()
@@ -45,7 +71,9 @@ export function SeqScene({ data, labelMode, onNodeClick, hasClick = !!onNodeClic
   const W = data.width, H = data.height
   const wx = (x: number) => (x - W / 2) * S, wz = (y: number) => (y - H / 2) * S
   const top = labelMode === 'top'
-  const txt = (extra: object) => ({ rotation: top ? ([-Math.PI / 2, 0, 0] as [number, number, number]) : ([0, 0, 0] as [number, number, number]), ...extra })
+  const txt = (extra: object) => ({ rotation: top ? ([-Math.PI / 2, 0, 0] as Rot) : ([0, 0, 0] as Rot), ...extra })
+  const scale = th.seq.textScale ?? 1, ground = th.seq.blockTitles === 'ground'
+  const divFont = ground ? fontOf(th.tray.groundFont) : font
   return (
     <group>
       {data.parts.map(p => {
@@ -72,11 +100,14 @@ export function SeqScene({ data, labelMode, onNodeClick, hasClick = !!onNodeClic
             <mesh position={[cxw, 0.02 + t / 2 + b.level * 0.02, czw]}>
               <boxGeometry args={[w, t, h]} /><Mat color={col} transparent opacity={0.22} depthWrite={false} />
             </mesh>
-            <Text {...txt({ position: [wx(b.x0 + inset) + 0.1, 0.17 + b.level * 0.02, wz(b.y0 + inset) + 0.28] })} font={font} fontSize={0.3} anchorX="left" anchorY="middle" color={th.seq.blockText}>{`${b.kind}${b.label ? ' [' + b.label + ']' : ''}`}</Text>
+            {ground
+              ? <GroundBlockTitle text={`${b.kind}${b.label ? ' [' + b.label + ']' : ''}`} x={wx(b.x0 + inset) + GROUND_TITLE.left} y={0.17 + b.level * 0.02} z={wz(b.y0 + inset) + GROUND_TITLE.top}
+                  room={w - 2 * GROUND_TITLE.left} color={col} top={top} />
+              : <Text {...txt({ position: [wx(b.x0 + inset) + 0.1, 0.17 + b.level * 0.02, wz(b.y0 + inset) + 0.28] })} font={font} fontSize={0.3} anchorX="left" anchorY="middle" color={th.seq.blockText}>{`${b.kind}${b.label ? ' [' + b.label + ']' : ''}`}</Text>}
             {b.divs.map((d, k) => (
               <group key={k}>
                 <Line points={[[wx(b.x0 + inset), 0.18, wz(d.y)], [wx(b.x1 - inset), 0.18, wz(d.y)]]} color={col} lineWidth={1.5} dashed dashSize={0.2} gapSize={0.15} />
-                <Text {...txt({ position: [wx(b.x0 + inset) + 0.1, 0.18, wz(d.y) + 0.26] })} font={font} fontSize={0.26} anchorX="left" color={th.seq.blockSub}>{d.label ? `[${d.label}]` : ''}</Text>
+                <Text {...txt({ position: [wx(b.x0 + inset) + 0.1, 0.18, wz(d.y) + 0.26] })} font={divFont} fontSize={0.26 * scale} anchorX="left" color={th.seq.blockSub}>{d.label ? `[${d.label}]` : ''}</Text>
               </group>
             ))}
           </group>
@@ -93,7 +124,7 @@ export function SeqScene({ data, labelMode, onNodeClick, hasClick = !!onNodeClic
       {data.notes.map((n, i) => (
         <group key={'n' + i} position={[wx(n.x + n.w / 2), 0, wz(n.y + n.h / 2)]}>
           <mesh position={[0, 0.1, 0]} castShadow={th.light.shadows} receiveShadow={th.light.shadows}><boxGeometry args={[n.w * S, 0.2, n.h * S]} /><Mat color={th.seq.note} /></mesh>
-          <Text {...txt({ position: [0, top ? 0.22 : 0.6, 0] })} font={font} fontSize={0.26} maxWidth={n.w * S - 0.2} color={th.seq.noteText} anchorX="center" anchorY="middle">{n.text}</Text>
+          <Text {...txt({ position: [0, top ? 0.22 : 0.6, 0] })} font={font} fontSize={0.26 * scale} maxWidth={n.w * S - 0.2} color={th.seq.noteText} anchorX="center" anchorY="middle">{n.text}</Text>
         </group>
       ))}
       {data.msgs.map((m, i) => {
@@ -106,7 +137,7 @@ export function SeqScene({ data, labelMode, onNodeClick, hasClick = !!onNodeClic
           <group key={'m' + i}>
             <Line points={pts} color={m.head === 'cross' ? th.seq.crossLine : th.edge.color} lineWidth={th.edge.width} dashed={m.dashed} dashSize={0.25} gapSize={0.15} />
             <Arrow from={v[n - 2]} to={v[n - 1]} color={th.edge.color} cross={m.head === 'cross'} />
-            <Text {...txt({ position: [wx(m.lx), LINE_Y + (top ? 0.02 : 0.35), wz(m.ly) + (top ? 0 : 0.3)] })} font={font} fontSize={0.24} color={th.edge.label} anchorX={m.pts.length > 2 ? 'left' : 'center'} anchorY="middle" outlineWidth={0.015} outlineColor={th.edge.labelOutline}>{m.label}</Text>
+            <Text {...txt({ position: [wx(m.lx), LINE_Y + (top ? 0.02 : 0.35), wz(m.ly) + (top ? 0 : 0.3)] })} font={font} fontSize={0.24 * scale} color={th.edge.label} anchorX={m.pts.length > 2 ? 'left' : 'center'} anchorY="middle" outlineWidth={0.015} outlineColor={th.edge.labelOutline}>{m.label}</Text>
           </group>
         )
       })}

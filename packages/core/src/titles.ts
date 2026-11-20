@@ -21,16 +21,49 @@ export interface Grow { x0: number; x1: number; z0: number; z1: number }
 const grown = (r: Rect, g: Grow): Rect => ({ x0: r.x0 - g.x0, x1: r.x1 + g.x1, z0: r.z0 - g.z0, z1: r.z1 + g.z1 })
 
 /** Picks a corner: `prev` if it is still free (so the title does not jump about while a node is dragged), else the first free one, else the least covered. */
-export function pickCorner(w: number, h: number, tw: number, th: number, kids: Rect[], grow: Grow, prev?: Corner): Corner {
+export function pickCorner(w: number, h: number, tw: number, th: number, kids: Rect[], grow: Grow, prev?: Corner, order: Corner[] = CORNERS): Corner {
   const cover = (c: Corner) => { const t = titleRect(c, w, h, tw, th); return kids.reduce((s, k) => s + overlap(t, grown(k, grow)), 0) }
   if (prev && cover(prev) === 0) return prev
   let best: Corner = 'fl', least = Infinity
-  for (const c of CORNERS) { const v = cover(c); if (v === 0) return c; if (v < least) { least = v; best = c } }
+  for (const c of order) { const v = cover(c); if (v === 0) return c; if (v < least) { least = v; best = c } }
   return best
 }
 
 /** About how wide a title is (world units) at font size `size`. */
 export const titleWidth = (text: string, size: number) => text.length * size * 0.56 + size * 1.1
+
+// theme.tray.titles 'ground' (Cloud Cartography): the zone's name in big capitals lying on its floor, inset from the floor's edges.
+/** Ground title metrics, world units: inset from the floor's edges, line height (in font sizes), the smallest size a one-line name is
+ * drawn at before it wraps instead, and the largest size. */
+export const GROUND = { inset: 0.45, line: 1.2, min: 0.35, max: 1.3 } as const
+/** About how wide a ground title's line is (world units) at font size `size`. */
+export const groundWidth = (text: string, size: number) => text.length * size * 0.8 + size * 0.2
+export interface GroundFit { lines: string[]; size: number }
+const wrap = (words: string[], limit: number) => words.reduce<string[]>((ls, w) => {
+  const last = ls[ls.length - 1]
+  if (last !== undefined && last.length + 1 + w.length <= limit) ls[ls.length - 1] = last + ' ' + w
+  else ls.push(w)
+  return ls
+}, [])
+/** A zone's ground title on a floor `w` by `h`: its size follows the zone's (a nested zone's smaller). A name that fits on one line at
+ * GROUND.min or more stays on one line; a longer one wraps between words onto the lines that let it be drawn largest, and is drawn smaller
+ * still if even that does not fit, so it never runs past the floor's edge. */
+export function groundTitle(w: number, h: number, text: string, level: number): GroundFit {
+  const want = Math.min(w, h) * 0.16 * (level > 0 ? 0.65 : 1)
+  const target = Math.max(GROUND.min, Math.min(want, GROUND.max))
+  const roomW = w - 2 * GROUND.inset, roomH = h - 2 * GROUND.inset
+  const sized = (lines: string[]) => Math.min(target, roomW / Math.max(...lines.map(l => groundWidth(l, 1))), roomH / (lines.length * GROUND.line))
+  const words = text.split(/\s+/).filter(Boolean)
+  const one = [words.join(' ')]
+  let best = { lines: one, size: sized(one) }
+  if (best.size >= GROUND.min || words.length < 2) return best
+  const longest = Math.max(...words.map(x => x.length))
+  for (let limit = one[0].length - 1; limit >= longest; limit--) {
+    const lines = wrap(words, limit), size = sized(lines)
+    if (size > best.size) best = { lines, size }
+  }
+  return best
+}
 
 // theme.tray.titles 'off' (Blueprint): the title is a box lying on the surface the tray stands on (the paper, or its parent tray's
 // top), just in front of the tray's front edge (+z, down the screen in layout px). Its size is worked out here once, so the box

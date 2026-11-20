@@ -1,10 +1,10 @@
 ---
-description: Bonkei's four built-in themes (classic, bonkei, bonkei-landscape, blueprint), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
+description: Bonkei's five built-in themes (classic, bonkei, bonkei-landscape, blueprint, cloud-cartography), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
 ---
 
 # Themes
 
-A theme is data: every colour, material, label and line style the scene reads. Four ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape` and `blueprint`. `classic` is the default.
+A theme is data: every colour, material, label and line style the scene reads. Five ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape`, `blueprint` and `cloud-cartography`. `classic` is the default.
 
 <div class="grid4">
 
@@ -102,6 +102,49 @@ Its parts are tokens like any other, so another theme can borrow one:
 | `tray.titles` | `off`: the title in a box in front of the tray, with room made for it in the layout; `fixed` and `free` keep it on the tray. |
 | `label.font` | `architect`: the hand lettering; `mincho` is the Bonkei themes' font. |
 
+### Cloud Cartography
+
+`cloud-cartography` draws a diagram like an illustrated map of a system. Each top-level subgraph is a coloured floor (green, orange, grey, blue, then round again) with its name in big capitals lying on it, front-left; a subgraph inside another is a stronger tint of its parent's colour. Each node is an outlined icon chosen by its shape, modelled so it turns with the view: a server for `[rect]`, a hex puck for `(round)`, a stack of discs for `[(cylinder)]` and a pyramid for `{diamond}`. Its label sits on a callout card above it, on a dotted leader. Links are navy lines on the floor with one arrow partway along and none at the end, and their labels sit on pills.
+
+Two things written in plain Mermaid read differently here, and only here:
+
+- A label written over two lines, `A["Order API<br>Go · 3 pods"]`, shows **Order API** in bold on the card and *Go · 3 pods* smaller and grey beneath. A one-line label is the name alone. The other themes still read it on one line, `Order API Go · 3 pods`.
+- A dotted link, `A -.-> B`, arcs overhead as a dashed line with an arrowhead at its target, and takes no part in the layout (it does not push the nodes about, and no line is routed round it). The other themes draw it as any link. Mermaid itself draws the same source as it always does.
+
+The zone names and the card names are lettered in Archivo Black (SIL OFL, bundled, fetched only when this theme draws); if the file cannot be loaded they use the default font and [`onWarning`](./errors) says why. The layout leaves a strip at the bottom of every tray for its name, so a diagram is a little taller than in Classic.
+
+```mermaid {height=380 theme=cloud-cartography}
+flowchart LR
+  subgraph edge[Edge]
+    browser(["Browser<br>Web · mobile"]) --> gw["API Gateway<br>Envoy · TLS"]
+  end
+  subgraph orders[Orders]
+    api["Order API<br>Go · 3 pods"] --> ok{Valid?}
+    subgraph data[Data]
+      db[("Orders DB<br>Postgres")]
+    end
+    ok -->|yes| db
+  end
+  gw --> api
+  db -.->|receipt| browser
+```
+
+A sequence diagram draws too: each participant is an icon under its card, with its lifeline on the floor.
+
+Its parts are tokens like any other:
+
+| Token | What it is |
+| --- | --- |
+| `node.form` | `icon`: an outlined icon by shape, beside `block` and `landscape`. `node.icon.side` is the icons' body colour, `node.icon.size` the footprint they fill. |
+| `label.node.style`, `label.card` | `card`: the callout card. `label.card.sub` is the subtitle's colour, `.leader` the leader's (`null`: no leader), `.gap` the card's lift above the icon, `.titleFont` the name's font. |
+| `label.pill` | A link label on a pill of this colour; `null` (every other theme): bare text. |
+| `tray.titles` | `ground`: the name in big capitals lying on the floor, with room made for it; `tray.groundFont` its font, `tray.groundInk` how much darker than the floor it is. |
+| `tray.colorBy`, `tray.zones`, `tray.zoneMix` | `zone`: each top-level tray takes the next colour of `tray.zones`, mixed with white by `tray.zoneMix` (top-level, nested); `level` (every other theme) colours trays by depth. `tray.radius` rounds the floor's corners. |
+| `edge.arrow` | `mid`: one arrow partway along the line, none at its end; `end` (every other theme): an arrowhead at the end. |
+| `edge.dotted`, `edge.arc` | `arc`: a dotted link as a dashed arc overhead (`edge.arc.color`, `.width`, `.peak` as a share of its span, `.arrow` the arrowhead's length); `line` (every other theme): drawn as any link. |
+
+So a Cloud Cartography diagram can keep its dotted links on the ground with `themeVariables: { edge.dotted: line }`.
+
 ### The trench light
 
 A tunnel's trench can be lit by the theme: a light along the floor, a wash on the walls and a rim round the lip. What each theme does on its own:
@@ -111,6 +154,7 @@ A tunnel's trench can be lit by the theme: a light along the floor, a wash on th
 | `classic` | On: grey-white `#e0e0e0` at 30% strength (core 2.1 wide; halo 6.6 wide at 0.17 opacity; wash intensity 0.18) | None (`edge.rim: none`) |
 | `bonkei`, `bonkei-landscape` | Off (the colours are `null`) | Dark `#2A2622`, 2 wide, as it always was |
 | `blueprint` | On: pale blue `#bfe4ff` at 50% strength | Pale blue `#bcdcff`, 1.5 wide |
+| `cloud-cartography` | No trench: its lines lie flat on the floor (`edge.flat`), so a tunnel is drawn level | None |
 
 A diagram can change any part, so a Bonkei diagram can switch its light on, or a Classic one put a rim back:
 

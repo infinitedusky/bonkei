@@ -6,16 +6,15 @@ import { THEMES_DIAGRAM } from './themes-sample'
 // near the screen, so the page's first paint (and a phone) never waits for it.
 const ThemesScene = lazy(() => import('./ThemesScene'))
 
-export type ThemeId = 'classic' | 'bonkei' | 'bonkei-landscape' | 'blueprint'
+export type ThemeId = 'classic' | 'bonkei' | 'bonkei-landscape' | 'blueprint' | 'cloud-cartography'
 
 // The built-in themes, chosen the way a reader would: by config.theme in the diagram's frontmatter.
-// The last is a name only, for the theme still to come (BON-32).
-export const THEMES: { id: ThemeId | null; name: string; note: string }[] = [
+export const THEMES: { id: ThemeId; name: string; note: string }[] = [
   { id: 'classic', name: 'Classic', note: 'the default' },
   { id: 'bonkei', name: 'Bonkei', note: 'ink and paper, patterned trays' },
   { id: 'bonkei-landscape', name: 'Bonkei · landscape', note: 'nodes become houses, bonsai, rocks' },
   { id: 'blueprint', name: 'Blueprint', note: 'white lines on blue paper, with a grid' },
-  { id: null, name: 'Map', note: 'coming with themes' },
+  { id: 'cloud-cartography', name: 'Cloud Cartography', note: 'an illustrated map: zones, icons, callouts' },
 ]
 
 /** The diagram's source with the frontmatter that picks the theme. */
@@ -66,7 +65,7 @@ export function Themes({ start = 'bonkei-landscape', source = THEMES_DIAGRAM, li
       <div className="site-tleft">
         <div className="site-tlist" role="group" aria-label="Theme">
           {THEMES.map(x => (
-            <button key={x.name} type="button" disabled={!x.id} aria-pressed={x.id === on} onClick={() => x.id && setOn(x.id)}>
+            <button key={x.name} type="button" aria-pressed={x.id === on} onClick={() => setOn(x.id)}>
               <b>{x.name}</b><span>{x.note}</span>
             </button>
           ))}

@@ -27,9 +27,9 @@ test('variables override single tokens on a copy, and bad ones are reported', ()
   assert.deepEqual(r.problems.map(p => p.key), ['node.nope', 'edge.color', 'node'])
 })
 
-test('the names a diagram can use are classic, bonkei, bonkei-landscape and blueprint, and each preset is named for its key', async () => {
+test('the names a diagram can use are classic, bonkei, bonkei-landscape, blueprint and cloud-cartography, and each preset is named for its key', async () => {
   const { PRESETS, THEME_NAMES } = await import('./theme.ts')
-  assert.deepEqual(THEME_NAMES, ['classic', 'bonkei', 'bonkei-landscape', 'blueprint'])
+  assert.deepEqual(THEME_NAMES, ['classic', 'bonkei', 'bonkei-landscape', 'blueprint', 'cloud-cartography'])
   for (const n of THEME_NAMES) assert.equal(PRESETS[n].name, n)
   assert.equal(themeByName('bonkei-landscape').theme, BONKEI_LANDSCAPE)
 })
@@ -183,6 +183,36 @@ test('edge.rim: null is a dark shade of the surface, in every theme (Classic\'s 
     assert.equal(r.theme.edge.rim, null)
     assert.equal(trenchParts(r.theme), t === CLASSIC ? 'core,halo,wash,rim' : 'rim')
   }
+})
+
+test('sequence tokens: every preset but Cloud Cartography keeps its sequence look exactly (text at its usual size, plain block titles)', async () => {
+  const { CLOUD_CARTOGRAPHY, PRESETS, themeFonts } = await import('./theme.ts')
+  const SEQ = {
+    classic: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b', textScale: 1, blockTitles: 'plain' },
+    bonkei: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C', textScale: 1, blockTitles: 'plain' },
+    'bonkei-landscape': { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C', textScale: 1, blockTitles: 'plain' },
+    blueprint: { lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: '#eef6ff', blockText: '#eef6ff', blockSub: '#bcdcff', cross: '#ffd479', crossLine: '#ffd479', textScale: 1, blockTitles: 'plain' },
+  }
+  for (const [name, seq] of Object.entries(SEQ)) assert.deepEqual(PRESETS[name].seq, seq, name)
+  // Cloud Cartography: text about 1.4 times larger, block titles in its zone lettering
+  assert.equal(CLOUD_CARTOGRAPHY.seq.textScale, 1.4)
+  assert.equal(CLOUD_CARTOGRAPHY.seq.blockTitles, 'ground')
+  assert.equal(CLOUD_CARTOGRAPHY.tray.groundFont, 'archivo')
+  // a theme whose block titles alone are in ground lettering still names the ground font for the missing-font warning
+  assert.deepEqual(themeFonts(withVariables(BONKEI, { 'seq.blockTitles': 'ground', 'tray.groundFont': 'archivo' }).theme), ['mincho', 'archivo'])
+  assert.deepEqual(themeFonts(BONKEI), ['mincho'])
+})
+
+test('the sequence tokens are checked like the others: a word not known, a wrong type or a negative scale is skipped and reported', () => {
+  const ok = withVariables(CLASSIC, { 'seq.textScale': 1.2, 'seq.blockTitles': 'ground' })
+  assert.deepEqual(ok.problems, [])
+  assert.equal(ok.theme.seq.textScale, 1.2); assert.equal(ok.theme.seq.blockTitles, 'ground')
+  const bad = withVariables(CLASSIC, { 'seq.textScale': -1, 'seq.blockTitles': 'bold', 'seq.textScale ': 2, 'seq.blockTitles.x': 'ground' })
+  assert.deepEqual(bad.problems.map(p => p.key), ['seq.textScale', 'seq.blockTitles', 'seq.textScale ', 'seq.blockTitles.x'])
+  assert.match(bad.problems[0].message, /0 or more/)
+  assert.match(bad.problems[1].message, /one of plain, ground/)
+  assert.equal(withVariables(CLASSIC, { 'seq.textScale': '2' }).problems[0].message, 'seq.textScale must be a number; got "2"')
+  assert.deepEqual(bad.theme.seq, CLASSIC.seq)
 })
 
 test('a trench colour must be a colour: a word three.js does not know is reported, not drawn in white', () => {

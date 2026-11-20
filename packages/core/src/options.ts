@@ -66,7 +66,7 @@ export type BonkeiOptions = DiagramOptions & {
   fit?: 'default' | 'tight'
   /** Open zoomed in on the largest tray when the whole diagram would make node labels smaller than this many pixels (a phone). 0 = off. */
   minLabelPx?: number
-  /** A preset by name ('classic', 'bonkei', 'bonkei-landscape', 'blueprint') or a whole Theme object. Over the frontmatter's config.theme. */
+  /** A preset by name ('classic', 'bonkei', 'bonkei-landscape', 'blueprint', 'cloud-cartography') or a whole Theme object. Over the frontmatter's config.theme. */
   theme?: string | Theme
   onError?: (error: BonkeiError) => void
   onWarning?: (warning: BonkeiWarning) => void

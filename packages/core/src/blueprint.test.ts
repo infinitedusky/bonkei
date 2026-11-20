@@ -28,7 +28,13 @@ test('Classic, Bonkei and Bonkei · landscape have exactly the settings main had
     const { major, majorColor, ...ground } = t.ground
     assert.equal(major, 0, `${name} keeps a single-weight grid`)
     assert.equal(typeof majorColor, 'string')
-    assert.deepEqual({ ...JSON.parse(JSON.stringify(t)), ground }, THEMES_MAIN[name], name)
+    // the tokens Cloud Cartography added (BON-235) are not main's; cloud.test.ts holds that they are off here
+    const j = JSON.parse(JSON.stringify(t))
+    delete j.node.icon; delete j.label.card; delete j.label.pill
+    for (const k of ['colorBy', 'zones', 'zoneMix', 'radius', 'groundFont', 'groundInk']) delete j.tray[k]
+    for (const k of ['arrow', 'dotted', 'arc']) delete j.edge[k]
+    for (const k of ['textScale', 'blockTitles']) delete j.seq[k] // theme.test.ts holds that they keep today's sequence drawing
+    assert.deepEqual({ ...j, ground }, THEMES_MAIN[name], name)
   }
 })
 

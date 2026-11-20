@@ -1,4 +1,4 @@
-import type { Graph, Box, Route, LayoutResult } from './model.ts'
+import type { Graph, GNode, Box, Route, LayoutResult } from './model.ts'
 import { loadAvoid, wasmInfo, createRouter, keepRouter, sideMid, TUNE, type AvoidCrossings, type Side } from './avoid.ts'
 import { straighten, unblock } from './monotone.ts'
 import { withSpan } from './telemetry.ts'
@@ -12,8 +12,12 @@ export interface LayoutOptions {
   avoidCrossings?: AvoidCrossings
   /** The span the routing span hangs under (bonkei.layout). */
   span?: Span
+  /** Leave the dotted links (-.->) out of the placing and the routing and return them as `arcs`, for a theme that draws them overhead (theme.edge.dotted 'arc'). */
+  arcs?: boolean
   /** Leave room in front of every tray for its title, off the tray (a theme whose tray.titles is 'off'). Without it the layout is what it always was. */
   titleRoom?: boolean
+  /** Leave room at the bottom of every tray for its title lying on its floor, in front (a theme whose tray.titles is 'ground'). */
+  groundRoom?: boolean
 }
 export type LayoutEngine = (g: Graph, o?: LayoutOptions) => Promise<LayoutResult>
 
@@ -45,6 +49,8 @@ function getElk(parent?: Span): Promise<ElkInstance> {
 // Room inside a tray: the label sits in the top, and a step stands 20 px outside a tray's rim without landing on a node.
 // The drag clamp in SceneView follows it.
 export const PAD = { top: 60, side: 40 }
+// Room at the bottom of a tray for its title lying on the floor in front (groundRoom, theme.tray.titles 'ground'): px.
+export const GROUND_ROOM = 44
 // Spacing, shared by the root and every tray so they cannot drift: ELK applies these to the children of the node they are set on.
 export const SPACING = {
   'elk.spacing.nodeNode': '56',
@@ -63,10 +69,17 @@ function sizeOf(n: { label: string; shape: string }) {
 
 // ELK places the boxes; libavoid routes the lines (BON-100). If the wasm cannot load or routing throws, ELK's own routes stay
 // (with U-turns straightened where it can) and `stats.route.error` says why; the `bonkei.route` span records it too.
-export const layout: LayoutEngine = async (g, o = {}) => {
-  const placed = await place(g, o.span, o.titleRoom === true)
+export const layout: LayoutEngine = async (g0, o = {}) => {
+  // dotted links as arcs overhead take no part in the layout: nothing routes them, and they do not push the nodes about
+  const arcs = o.arcs ? g0.edges.filter(e => e.dotted).map(e => ({ id: e.id, from: e.from, to: e.to, label: e.label })) : []
+  const g = arcs.length ? { ...g0, edges: g0.edges.filter(e => !e.dotted) } : g0
+  const r = await route(g, o)
+  return o.arcs ? { ...r, arcs } : r
+}
+const route: LayoutEngine = async (g, o = {}) => {
+  const placed = await place(g, o.span, o.titleRoom === true, o.groundRoom === true)
   const level = o.avoidCrossings ?? 'some'
-  return withSpan('bonkei.route', { 'bonkei.avoid_crossings': level, 'bonkei.edges': placed.routes.length, 'bonkei.title_room': !!placed.titleRoom }, async span => {
+  return withSpan('bonkei.route', { 'bonkei.avoid_crossings': level, 'bonkei.edges': placed.routes.length, 'bonkei.title_room': !!placed.titleRoom, 'bonkei.ground_room': !!placed.groundRoom }, async span => {
     const t0 = performance.now()
     try {
       const A = await loadAvoid(span)
@@ -86,7 +99,7 @@ export const layout: LayoutEngine = async (g, o = {}) => {
   }, o.span)
 }
 
-async function place(g: Graph, parent?: Span, titleRoom = false): Promise<LayoutResult> {
+async function place(g: Graph, parent?: Span, titleRoom = false, groundRoom = false): Promise<LayoutResult> {
   const groupIds = new Set(g.groups.map(x => x.id))
   const parentOf = new Map<string, string | undefined>()
   g.groups.forEach(x => parentOf.set(x.id, x.parent))
@@ -103,7 +116,7 @@ async function place(g: Graph, parent?: Span, titleRoom = false): Promise<Layout
   if (titleRoom) spacing[across] = String(Number(SPACING[across]) + TITLE_ROOM)
   const holdsTray = new Set(g.groups.map(x => x.parent).filter((p): p is string => !!p))
   for (const grp of g.groups) {
-    const top = titleRoom ? PAD.side : PAD.top, bottom = PAD.side + (titleRoom && holdsTray.has(grp.id) ? TITLE_ROOM : 0)
+    const top = titleRoom || groundRoom ? PAD.side : PAD.top, bottom = PAD.side + (titleRoom && holdsTray.has(grp.id) ? TITLE_ROOM : 0) + (groundRoom ? GROUND_ROOM : 0)
     eNodes.set(grp.id, { id: grp.id, children: [], edges: [], layoutOptions: { ...spacing, 'elk.padding': `[top=${top},left=${PAD.side},bottom=${bottom},right=${PAD.side}]` } })
   }
   // ELK places the nodes with a port fixed at the middle of the side the flow leaves by and the side it arrives at,
@@ -154,8 +167,10 @@ async function place(g: Graph, parent?: Span, titleRoom = false): Promise<Layout
     for (const c of n.children ?? []) {
       const isGroup = groupIds.has(c.id)
       const src = isGroup ? g.groups.find(x => x.id === c.id)! : g.nodes.find(x => x.id === c.id)!
+      const node = isGroup ? undefined : src as GNode
+      const two = node?.sub ? { title: node.title, sub: node.sub } : {} // a two-line label's lines, for a theme that draws them apart
       boxes.push({
-        id: c.id, label: src.label, kind: isGroup ? 'group' : 'node',
+        id: c.id, label: src.label, kind: isGroup ? 'group' : 'node', ...two,
         shape: isGroup ? 'rect' : (src as any).shape,
         x: ox + c.x, y: oy + c.y, w: c.width, h: c.height, level, parent,
       })
@@ -200,7 +215,7 @@ async function place(g: Graph, parent?: Span, titleRoom = false): Promise<Layout
   // With titles off the tray, a block never slides onto one (they do not move: the trays do not).
   const room = titleRoom ? TITLE_ROOM : 0
   const u = unblock(boxes, routes, TUNE.buffer, g.direction === 'LR' ? 1 : 0, Number(SPACING['elk.spacing.edgeNode']), PAD.side, { x0: 40, y0: 40, x1: res.width - 40, y1: res.height - 40 - room }, titleRoom ? offTitleBoxes(boxes) : [])
-  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, ...(titleRoom ? { titleRoom } : {}), stats: { trayDocks, slid: u.moved } }
+  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, ...(titleRoom ? { titleRoom } : {}), ...(groundRoom ? { groundRoom } : {}), stats: { trayDocks, slid: u.moved } }
 }
 
 const NORMAL: Record<Side, [number, number]> = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }
@@ -240,4 +255,27 @@ export function reroute(a: Box, b: Box): [number, number][] {
   if (Math.abs(acy - bcy) < 1e-6) return [[x1, acy], [x2, bcy]]
   const m = (x1 + x2) / 2
   return [[x1, acy], [m, acy], [m, bcy], [x2, bcy]]
+}
+
+/**
+ * Lines end at a node's box, which is larger than a Cloud Cartography icon: each end that meets a side midpoint is lengthened inwards,
+ * along its own last segment, until it reaches the icon's footprint (`half`, px). A line a node's box leaves too short to reach keeps its end.
+ */
+export function trimToIcons(routes: Route[], boxes: Map<string, Box>, half: number): Route[] {
+  return routes.map(r => {
+    const pts = r.points.map(p => [...p] as [number, number])
+    for (const atEnd of [false, true]) {
+      const b = boxes.get(atEnd ? r.to : r.from)
+      const i = atEnd ? pts.length - 1 : 0, q = pts[atEnd ? i - 1 : i + 1]
+      if (!b || !q) continue
+      const p = pts[i]
+      const side = (['N', 'S', 'E', 'W'] as Side[]).find(sd => { const m = sideMid(b, sd); return Math.hypot(m[0] - p[0], m[1] - p[1]) < 0.5 })
+      if (!side) continue
+      const [nx, ny] = NORMAL[side]
+      if (Math.abs((q[0] - p[0]) * nx + (q[1] - p[1]) * ny) < 0.5) continue // the line does not leave the side straight out: leave it
+      const inset = (nx !== 0 ? b.w : b.h) / 2 - half
+      if (inset > 0) pts[i] = [p[0] - nx * inset, p[1] - ny * inset]
+    }
+    return { ...r, points: pts }
+  })
 }

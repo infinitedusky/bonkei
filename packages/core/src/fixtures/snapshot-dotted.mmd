@@ -1,0 +1,21 @@
+flowchart LR
+  subgraph edge[Edge]
+    browser(["Browser<br>Web · mobile"]) --> gw["API Gateway<br>Envoy · TLS"]
+  end
+  subgraph orders[Orders]
+    oapi["Order API<br>Go · 3 pods"] --> valid{Valid?}
+    valid -->|yes| osvc["Order Svc<br>Go · 2 pods"]
+    subgraph data[Data]
+      queue[("Order Queue<br>Kafka")]
+    end
+    osvc --> queue
+  end
+  subgraph payments[Payments]
+    papi["Payment API<br>Node · 3 pods"] --> fraud{Fraud?}
+    fraud -->|ok| charge(["Charge Card<br>Stripe adapter"])
+    charge --> ledger[("Ledger<br>Postgres · HA")]
+  end
+  gw --> oapi
+  gw --> papi
+  queue -.->|pay| papi
+  ledger -.->|receipt| browser
