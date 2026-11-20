@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stage: when the model can't be used (sketch, BON-253)</title>
+<style>
+  :root { --bg:#0f1218; --line:#2a3246; --text:#e6ebf5; --dim:#9aa6c0 }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, sans-serif }
+  .note { background:#3b2f0b; color:#f5d77a; font-size:12px; text-align:center; padding:6px }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:18px }
+  figure { margin:0 }
+  figcaption { color:var(--dim); font-size:12px; margin-bottom:6px }
+  pre { margin:0 0 8px; background:#0b0e14; color:#cfe0ff; padding:10px; border-radius:6px; font:12px/1.5 ui-monospace, monospace }
+  .view { position:relative; height:260px; border:1px solid var(--line); border-radius:10px; background:radial-gradient(ellipse at 50% 45%, #18203a, #0b0e14 70%); display:grid; place-items:center; overflow:hidden }
+  .card { max-width:360px; background:#1a1f2b; border:1px solid #5a2a2a; border-radius:8px; padding:12px 14px; font-size:13px }
+  .card b { display:block; margin-bottom:6px }
+  .card code { color:#ffb4a8 }
+  .card .hint { color:var(--dim); margin-top:6px; font-size:12px }
+  .strip { position:absolute; bottom:0; left:0; right:0; background:#3a2a10; color:#f5d77a; font-size:12px; padding:6px 10px }
+  .ghost { opacity:.5; font-size:12px; color:var(--dim) }
+</style>
+</head>
+<body>
+<div class="note">SKETCH: the existing "couldn't be drawn" card, with the messages a stage would give. Made-up file names.</div>
+<div class="grid">
+
+<figure>
+  <figcaption>1. The file isn't there</figcaption>
+  <pre>stage: kichen.glb</pre>
+  <div class="view"><div class="card"><b>This diagram couldn't be drawn</b>line 4: the stage <code>kichen.glb</code> wasn't found (404)<div class="hint">The path is read from this page's address.</div></div></div>
+</figure>
+
+<figure>
+  <figcaption>2. A model with no names</figcaption>
+  <pre>stage: blob.glb</pre>
+  <div class="view"><div class="card"><b>This stage has no named parts</b>line 4: <code>blob.glb</code> loaded, but none of its top-level objects has a name, so a script has nothing to point at.<div class="hint">Name the objects in your 3D tool (grill, register…) and export again.</div></div></div>
+</figure>
+
+<figure>
+  <figcaption>3. Not a glTF, or another site won't share it</figcaption>
+  <pre>stage: https://example.com/kitchen.glb</pre>
+  <div class="view"><div class="card"><b>This diagram couldn't be drawn</b>line 4: the stage <code>example.com/kitchen.glb</code> couldn't be fetched. The site may not allow other pages to load it (CORS).</div></div>
+</figure>
+
+<figure>
+  <figcaption>4. Compressed (Draco) model: not supported yet</figcaption>
+  <pre>stage: kitchen-draco.glb</pre>
+  <div class="view"><div class="card"><b>This diagram couldn't be drawn</b>line 4: <code>kitchen-draco.glb</code> uses Draco compression, which Bonkei can't read yet.<div class="hint">Export again with compression off.</div></div></div>
+</figure>
+
+<figure>
+  <figcaption>5. Draws, with a warning: two parts share a name</figcaption>
+  <pre>stage: kitchen.glb   (two "grill"s)</pre>
+  <div class="view"><span class="ghost">[ the kitchen draws, both grills labelled ]</span><div class="strip">⚠ Two parts are named "grill"; a script pointing at grill will use the first.</div></div>
+</figure>
+
+<figure>
+  <figcaption>6. Changed the path while editing: last stage stays</figcaption>
+  <pre>stage: kitchen2.glb</pre>
+  <div class="view"><span class="ghost">[ the previous kitchen still shows ]</span><div class="strip">Not updated · line 4: the stage kitchen2.glb wasn't found (404)</div></div>
+</figure>
+
+</div>
+</body>
+</html>
