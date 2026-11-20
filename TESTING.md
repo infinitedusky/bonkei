@@ -328,3 +328,35 @@ Open `/`, scroll to **Use themes to see how far you can go**. **Blueprint** is a
 ## 4. The docs
 
 `pnpm docs:dev`, **Themes**: four diagrams at the top, the last one Blueprint; the **Blueprint** section's diagram has its titles in front of the trays, and its tokens table lists `ground.major`, `tray.sides` `hatch`, `tray.titles` `off` and `label.font` `architect`.
+
+# Manual test plan: the Cloud Cartography theme (BON-235)
+
+How to check by hand that Cloud Cartography reads like an illustrated map in every view, that dotted links and two-line labels draw as the theme says and only there, and that Classic and Bonkei are unchanged. First run `pnpm --filter bonkei test`: `cloud.test.ts` holds Classic, Bonkei and Bonkei · landscape to main's tokens and layouts, and checks the parser, the arcs, the room for the zone names, the zone colours, the icon ends of lines and the font list.
+
+## 1. The viewer: /app/
+
+Run the viewer (`pnpm dev`, or the smoke test's set-up) and open `/app/`.
+
+1. **The map, every view.** Pick **flow: cloud cartography (map)** (Theme **from source**: its frontmatter says `theme: cloud-cartography`), press **Fit**. Flat, then Iso, then 3D: a light ground with a faint grid; Edge a green floor, Orders orange, Payments grey, and Data (inside Orders) a stronger orange; each zone's name in big capitals lying on its floor, front-left.
+2. **Icons by shape.** API Gateway, Order API, Order Svc and Payment API are server cubes; Browser and Charge Card hex pucks; Order Queue and Ledger stacks of discs; Valid? and Fraud? pyramids. Drag the background in 3D to turn the view: the icons turn with the scene. In Flat they show from above.
+3. **Callout cards.** Each icon has a white card above it on a dotted leader. Order API's card reads **Order API** in bold with *Go · 3 pods* smaller and grey beneath; Valid? and Fraud? show the name alone.
+4. **Links.** The solid links are navy lines on the floor, routed as in the other themes, each with one arrow partway along and none at the end; `yes` and `ok` sit on white pills.
+5. **Dotted links.** Exactly two links arc overhead as dashed orange lines with an arrowhead at their target and a pill at the top: `pay` (Order Queue to Payment API) and `receipt` (Ledger to Browser). In Flat, Iso and 3D.
+6. **Drag.** Drag Order API inside Orders: its lines follow, its card goes with it, and it cannot be dropped on the ORDERS name strip at the bottom of the floor. Drag Order Queue: the `pay` arc follows.
+7. **The same source elsewhere.** Theme **classic** on the same sample: it is laid out again, the dotted links are ordinary lines, and the label reads `Order API Go · 3 pods` on one line. Back to **from source**: arcs and cards again. Paste the source into mermaid.live: it draws there with no error.
+8. **Sequence.** Pick **seq: login flow**, Theme **cloud-cartography**, Flat, Iso, 3D: each participant an icon under its card, lifelines on the floor, messages readable, no error in the status line.
+9. **Long labels.** Storybook's **Themes / Cloud Cartography Long Labels** (below): long names wrap inside their cards; the self-link `retries` loops over its node.
+10. **Font missing.** In the developer tools block the request for `ArchivoBlack-latin` and reload with the map sample: zone names and card names draw in the default font, and the warning at the bottom says `font archivo could not be loaded …`, once.
+11. **Classic and Bonkei unchanged.** Theme **classic**, **bonkei** and **bonkei-landscape** on the first sample and on **flow: cloud cartography (map)**: the same as on main in Flat, Iso and 3D (the person's side-by-side; the token and layout snapshots are in `cloud.test.ts`).
+
+## 2. The homepage
+
+Open `/`, scroll to **Use themes to see how far you can go**. The last button is **Cloud Cartography** (an illustrated map: zones, icons, callouts); there is no **Map**. Click it: the diagram is drawn live as a map and the frontmatter box says `theme: cloud-cartography`. Click another theme and back: it redraws each time.
+
+## 3. Storybook
+
+**Themes / Cloud Cartography Flat, Iso, 3D**: as in section 1. **Cloud Cartography Source In Classic**: the same source in Classic, one-line labels and no arcs. **Cloud Cartography Brand Iso**: the brand diagram as a map, cards with names only. **Cloud Cartography Sequence**, **Sequence 3D**: as in step 1.8. **Cloud Cartography Long Labels**: as in step 1.9. **Cloud Cartography Font Missing**: default font and one `theme warning: font archivo-missing …` line. **Screens / Site / Themes Cloud Cartography**: the Themes section with Cloud Cartography pressed.
+
+## 4. The docs
+
+`pnpm docs:dev`, **Themes**: the intro says five themes; the **Cloud Cartography** section's diagram is a map (zones named on the floor, cards, a `receipt` arc), and its tokens table lists `node.form` `icon`, `label.card`, `label.pill`, `tray.titles` `ground`, `tray.colorBy`, `edge.arrow` and `edge.dotted`. **Reference › Script tag** lists `cloud-cartography` as a `theme` value.
