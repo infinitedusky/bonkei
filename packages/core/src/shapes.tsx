@@ -175,7 +175,7 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
   const T = th.tray.thickness
   const ground = th.tray.titles === 'ground'
   // the title's corner: fixed back-left, or the first corner nothing stands on (a form stands taller than its footprint, so it is grown more)
-  const last = useRef<Corner>('bl')
+  const last = useRef<Corner>(ground ? 'fl' : 'bl')
   const gsize = groundSize(w, h, b.label, b.level)
   const corner: Corner = useMemo(() => {
     if (ground) {
