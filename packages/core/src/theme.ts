@@ -19,7 +19,7 @@ export interface Glow { core: string | null; coreWidth: number; halo: string | n
  * in themeVariables turns it off (plain lines in edge.color); a null halo colour uses the beam's own.
  */
 export interface Beam { on: boolean; width: number; centre: number; centreWidth: number; halo: string | null; haloWidth: number; haloOpacity: number }
-/** Mirrors on every bend of an edge (theme.edge.optics): a plate at 45° where the beam turns, a periscope box where two bends are a jog, a glass splitter where beams share a corner. */
+/** Mirrors on every bend of an edge (theme.edge.optics): a plate at 45° where the beam turns, a periscope box where two bends are a jog, a half-silvered plate (or a glass prism) where beams share a corner. */
 export interface Optics { on: boolean; metal: string; face: string; glass: string; jog: number }
 
 /** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */

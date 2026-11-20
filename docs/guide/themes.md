@@ -108,8 +108,8 @@ Its parts are tokens like any other, so another theme can borrow one:
 
 - **Beams.** Each node has a laser colour and every beam it fires is that colour. A node without one takes the next colour of `node.lasers`, chosen so that nodes next to each other differ. A relay fires in its own colour, not the one it caught.
 - **Your own colours.** Set a node's colour the Mermaid way: `style Client fill:#ff3b3b`, or `classDef cool fill:#2ff0ff` with `class Metrics cool` (or `Metrics:::cool`). Only `fill` is read, as `#rgb`, `#rrggbb`, `rgb()` or `hsl()`; a fill that is not a colour is skipped and reported to [`onWarning`](./errors). Other themes read these lines too and draw exactly as without them.
-- **Mirrors.** A plate at 45° sits on every bend, including the steps onto trays and every bend of a bridge or a tunnel. Two bends that are a short jog apart (every tray step) share one periscope box; other tight bends get a smaller mirror; where beams share a corner there is one glass splitter instead of two plates through each other.
-- **Devices.** A node that only sends is an emitter (a lens barrel where each beam leaves), one that only receives is a detector (a lit hit spot where each beam lands), one that does both is a relay, and one with no edges is dark. Lazers has no arrowhead: the beam ends in the hit spot.
+- **Mirrors.** A plate at 45° sits on every bend, including the steps onto trays and every bend of a bridge or a tunnel. Two bends that are a short jog apart (every tray step) share one periscope box; other tight bends get a smaller mirror; where beams share a corner there is one piece instead of two plates through each other: a half-silvered plate (a thin silver coat on see-through glass) where one beam splits in two, one going straight on and one turning, and a small glass prism where they part with no straight way on (a T).
+- **Devices.** A node that fires wears its laser colour as a lit band round its top edge, so you can tell which node a beam belongs to. A node that only sends is an emitter (a lens barrel where each beam leaves), one that only receives is a detector (a lit hit spot where each beam lands), one that does both is a relay, and one with no edges is dark. Lazers has no arrowhead: the beam ends in the hit spot.
 
 ```mermaid {height=320 theme=lazers}
 flowchart LR
@@ -127,8 +127,8 @@ flowchart LR
 | `edge.beam` | `off` (or `false`) turns the glow and the colours off: plain lines in `edge.color`. |
 | `edge.beam.width`, `edge.beam.centre`, `edge.beam.centreWidth` | The beam line's width, how far its centre line is mixed towards white (0 to 1), and that line's width. |
 | `edge.beam.halo`, `edge.beam.haloWidth`, `edge.beam.haloOpacity` | The faint wide lines round the beam. `null` is the beam's own colour. |
-| `edge.optics` | `off` leaves out the mirrors, periscopes and splitters. |
-| `edge.optics.metal`, `.face`, `.glass`, `.jog` | A mirror's body and face, the splitter's glass, and how close two bends must be to count as a jog. |
+| `edge.optics` | `off` leaves out the mirrors, periscopes, half-silvered plates and prisms. |
+| `edge.optics.metal`, `.face`, `.glass`, `.jog` | A mirror's body and face, the half-silvered plate's and prism's glass, and how close two bends must be to count as a jog. |
 | `edge.arrow` | `head` (a cone) or `spot` (a lit hit spot where the beam lands). |
 | `node.form` | `device` draws the status light and lens barrels; `block` and `landscape` are the other forms. |
 | `node.lasers.0` … | The automatic laser colours. |

@@ -1,4 +1,4 @@
-// Lazers' pieces: the beam (layered lines), mirrors, periscope boxes, splitters, lens barrels and hit spots. Drawn from the edges' own
+// Lazers' pieces: the beam (layered lines), mirrors, periscope boxes, half-silvered plates, prisms, lens barrels and hit spots. Drawn from the edges' own
 // drawn lines (optics.ts), so they follow every re-plan. No bloom and no scene light: the glow is lines, as the trench light is.
 import * as THREE from 'three'
 import { useMemo } from 'react'
