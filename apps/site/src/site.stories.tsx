@@ -54,7 +54,12 @@ export const HeroSceneError: StoryObj<typeof Hero> = {
 }
 
 // The Themes section on its own with Blueprint picked: its button pressed, its frontmatter shown, the made-up THEMES_DIAGRAM
-// (themes-sample.ts) drawn live in Blueprint. Map is still a name only.
+// (themes-sample.ts) drawn live in Blueprint.
 export const ThemesBlueprint: StoryObj<typeof Themes> = {
   render: () => <Wrap label="the Themes section's diagram (made up, themes-sample.ts), theme blueprint"><Themes live start="blueprint" /></Wrap>,
+}
+// The same with Cloud Cartography picked (where Map was): its button pressed, theme: cloud-cartography in the frontmatter, the
+// same made-up diagram drawn live as a map: zone floors named on the ground, icons under cards, navy links with a mid arrow.
+export const ThemesCloudCartography: StoryObj<typeof Themes> = {
+  render: () => <Wrap label="the Themes section's diagram (made up, themes-sample.ts), theme cloud-cartography"><Themes live start="cloud-cartography" /></Wrap>,
 }
