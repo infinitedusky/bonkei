@@ -29,10 +29,10 @@ export function Chevron({ tip, dir, color, width }: { tip: THREE.Vector3; dir: T
     const h = new THREE.Vector3(dir.x, 0, dir.z)
     const d = h.lengthSq() > 0.01 ? h.normalize() : new THREE.Vector3(1, 0, 0) // a line going straight up or down: any side will do
     const n = new THREE.Vector3(-d.z, 0, d.x)
-    const back = tip.clone().addScaledVector(dir, -0.3)
-    return [back.clone().addScaledVector(n, 0.2), tip.clone(), back.clone().addScaledVector(n, -0.2)].map(p => p.toArray() as [number, number, number])
+    const back = tip.clone().addScaledVector(dir, -0.36)
+    return [back.clone().addScaledVector(n, 0.26), tip.clone(), back.clone().addScaledVector(n, -0.26)].map(p => p.toArray() as [number, number, number])
   }, [tip, dir])
-  return <Line points={pts} color={color} lineWidth={width * 1.25} />
+  return <Line points={pts} color={color} lineWidth={width * 1.7} />
 }
 
 export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label?: string; labelMode: LabelMode; bodies?: Body[] }) {

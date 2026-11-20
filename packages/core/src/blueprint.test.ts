@@ -29,8 +29,8 @@ test('Classic, Bonkei and Bonkei · landscape have exactly the settings main had
     assert.equal(major, 0, `${name} keeps a single-weight grid`)
     assert.equal(typeof majorColor, 'string')
     // LTech's settings (BON-247) are off in these three: lines, no haze, a cone, a plain title, no label colours
-    assert.deepEqual([gridStyle, haze, t.tray.titleStyle, t.tray.mark, t.edge.head, t.edge.headColor, t.seq.partFill, t.seq.partText, ...Object.values(t.label.shapeText)], ['lines', null, 'plain', null, 'cone', null, null, null, null, null, null, null], name)
-    const { titleStyle, mark, ...tray } = t.tray, { head, headColor, ...edge } = t.edge, { shapeText, ...label } = t.label, { partFill, partText, ...seq } = t.seq
+    assert.deepEqual([gridStyle, haze, t.tray.titleStyle, t.tray.mark, t.edge.head, t.edge.headColor, t.seq.block, t.seq.partFill, t.seq.partText, ...Object.values(t.label.shapeText)], ['lines', null, 'plain', null, 'cone', null, null, null, null, null, null, null, null], name)
+    const { titleStyle, mark, ...tray } = t.tray, { head, headColor, ...edge } = t.edge, { shapeText, ...label } = t.label, { block, partFill, partText, ...seq } = t.seq
     assert.deepEqual({ ...JSON.parse(JSON.stringify(t)), ground, tray, edge, label, seq }, THEMES_MAIN[name], name)
   }
 })

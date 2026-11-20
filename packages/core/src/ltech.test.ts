@@ -29,8 +29,8 @@ test('LTech is a built-in theme: white, navy and small pink marks, nothing glowi
 
 test('the other themes have the new settings off', () => {
   for (const t of [CLASSIC, BONKEI, BONKEI_LANDSCAPE, BLUEPRINT]) {
-    assert.deepEqual([t.ground.gridStyle, t.ground.haze, t.edge.head, t.edge.headColor, t.tray.titleStyle, t.tray.mark, t.seq.partFill, t.seq.partText, ...Object.values(t.label.shapeText)],
-      ['lines', null, 'cone', null, 'plain', null, null, null, null, null, null, null], t.name)
+    assert.deepEqual([t.ground.gridStyle, t.ground.haze, t.edge.head, t.edge.headColor, t.tray.titleStyle, t.tray.mark, t.seq.block, t.seq.partFill, t.seq.partText, ...Object.values(t.label.shapeText)],
+      ['lines', null, 'cone', null, 'plain', null, null, null, null, null, null, null, null], t.name)
     assert.ok(!t.tray.sides.includes('dither'))
   }
 })
@@ -38,7 +38,7 @@ test('the other themes have the new settings off', () => {
 test('every new setting can be set on any other theme, and a bad value is reported', () => {
   const ok = withVariables(BLUEPRINT, {
     'ground.gridStyle': 'dots', 'ground.haze': '#f6c8f0', 'ground.hazeWidth': 0.2, 'edge.head': 'chevron', 'edge.headColor': '#ff42e6', 'tray.titleStyle': 'section', 'tray.mark': 'hotpink',
-    'tray.sides.2': 'dither', 'label.shapeText.rect': '#fff', 'label.shapeText.diamond': null, 'seq.partFill': '#111', 'seq.partText': '#fff', 'label.font': 'inter',
+    'tray.sides.2': 'dither', 'label.shapeText.rect': '#fff', 'label.shapeText.diamond': null, 'seq.partFill': '#111', 'seq.block': '#999', 'seq.partText': '#fff', 'label.font': 'inter',
   })
   assert.deepEqual(ok.problems, [])
   assert.equal(ok.theme.ground.gridStyle, 'dots')
@@ -52,9 +52,9 @@ test('every new setting can be set on any other theme, and a bad value is report
   assert.equal(off.theme.ground.haze, null)
   const bad = withVariables(BONKEI, {
     'ground.gridStyle': 'squares', 'edge.head': 'arrow', 'tray.titleStyle': 'banner', 'tray.sides.0': 'dots', 'ground.haze': 'pinkish', 'ground.hazeWidth': -1, 'edge.headColor': 5,
-    'tray.mark': 'nope', 'label.shapeText.round': 'blorp', 'seq.partFill': 7, 'label.shapeText': 'white', 'label.font': 'comic',
+    'tray.mark': 'nope', 'label.shapeText.round': 'blorp', 'seq.partFill': 7, 'seq.block': 'blorp', 'label.shapeText': 'white', 'label.font': 'comic',
   })
-  assert.deepEqual(bad.problems.map(p => p.key), ['ground.gridStyle', 'edge.head', 'tray.titleStyle', 'tray.sides.0', 'ground.haze', 'ground.hazeWidth', 'edge.headColor', 'tray.mark', 'label.shapeText.round', 'seq.partFill', 'label.shapeText', 'label.font'])
+  assert.deepEqual(bad.problems.map(p => p.key), ['ground.gridStyle', 'edge.head', 'tray.titleStyle', 'tray.sides.0', 'ground.haze', 'ground.hazeWidth', 'edge.headColor', 'tray.mark', 'label.shapeText.round', 'seq.partFill', 'seq.block', 'label.shapeText', 'label.font'])
   assert.equal(bad.theme.edge.head, 'cone')
 })
 

@@ -67,7 +67,7 @@ export function SeqScene({ data, labelMode, onNodeClick, hasClick = !!onNodeClic
       {data.blocks.map((b, i) => {
         const inset = b.level * 6
         const w = (b.x1 - b.x0 - inset * 2) * S, h = (b.y1 - b.y0 - inset) * S, t = 0.12
-        const col = BLOCK_COL[b.kind] ?? '#667'
+        const col = th.seq.block ?? BLOCK_COL[b.kind] ?? '#667'
         const cxw = wx((b.x0 + b.x1) / 2), czw = wz((b.y0 + inset + b.y1) / 2)
         return (
           <group key={'b' + i}>

@@ -62,8 +62,8 @@ export interface Theme {
   // Ink follows the drawing's on-screen scale: width in px = token width x (px per world unit / ref), kept between min (px, for an outline;
   // other lines get it in proportion to their own width) and the token width. ref null: fixed widths, as in Classic.
   ink: { ref: number | null; min: number }
-  edge: { color: string; width: number; head: 'cone' | 'chevron'; headColor: string | null; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim. glow: the trench light. flat: lines lie on the surface under them and the arrowhead is a flat triangle. head: a cone, or an open chevron lying in the plane of the line (in headColor; null: the line's). seq.partFill/partText: a sequence participant's fill and name colour; null: the node's
-  seq: { partFill: string | null; partText: string | null; lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
+  edge: { color: string; width: number; head: 'cone' | 'chevron'; headColor: string | null; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim. glow: the trench light. flat: lines lie on the surface under them and the arrowhead is a flat triangle. head: a cone, or an open chevron lying in the plane of the line (in headColor; null: the line's). seq.partFill/partText: a sequence participant's fill and name colour; null: the node's. seq.block: one colour for every loop/alt/opt/par block; null: a colour for each kind
+  seq: { block: string | null; partFill: string | null; partText: string | null; lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
 }
 
 // The presets are shared by every diagram on the page, so they are frozen: edit a copy (withVariables, or a spread).
@@ -97,7 +97,7 @@ export const CLASSIC: Theme = deepFreeze({
   edge: { color: '#e8edf7', width: 2, head: 'cone', headColor: null, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: 'none', rimWidth: 1.5, flat: false,
     // the trench lit in grey-white at 30% strength: 0.6 times the standard sizes (Bonkei's below, which are 50%), and no rim
     glow: { core: '#e0e0e0', coreWidth: 2.1, halo: '#e0e0e0', haloWidth: 6.6, haloOpacity: 0.17, wash: '#e0e0e0', washIntensity: 0.18 } },
-  seq: { partFill: null, partText: null, lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
+  seq: { block: null, partFill: null, partText: null, lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
 })
 
 /** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
@@ -125,7 +125,7 @@ export const BONKEI: Theme = deepFreeze({
   edge: { color: '#2A2622', width: 2, head: 'cone', headColor: null, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false,
     // the light is off (the tunnel looks as it always did); the sizes are the standard light a diagram gets when it sets a colour
     glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 } },
-  seq: { partFill: null, partText: null, lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
+  seq: { block: null, partFill: null, partText: null, lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
 })
 
 // Bonkei with a landscape form standing on each node's footprint, and its label pulled in front of the form.
@@ -163,7 +163,7 @@ export const BLUEPRINT: Theme = deepFreeze({
     // the trench lit in pale blue at the standard 50%
     glow: { core: '#bfe4ff', coreWidth: 3.5, halo: '#bfe4ff', haloWidth: 11, haloOpacity: 0.28, wash: '#bfe4ff', washIntensity: 0.3 },
   },
-  seq: { partFill: null, partText: null, lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: INK, blockText: INK, blockSub: TRAY_INK, cross: '#ffd479', crossLine: '#ffd479' },
+  seq: { block: null, partFill: null, partText: null, lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: INK, blockText: INK, blockSub: TRAY_INK, cross: '#ffd479', crossLine: '#ffd479' },
 })
 
 // LTech: the look of lazertechnologies.com as it is today, a light site (BON-247). White ground with a faint dot grid and a pink haze at the
@@ -199,7 +199,7 @@ export const LTECH: Theme = deepFreeze({
     // no light in the trench: a pink lip is the only accent
     glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 },
   },
-  seq: { partFill: '#111111', partText: WHITE, lifeline: RULE, activation: PINK, note: HAZE, noteText: NAVY, blockText: NAVY, blockSub: GREY, cross: PINK, crossLine: PINK },
+  seq: { block: '#8e95bd', partFill: '#111111', partText: WHITE, lifeline: RULE, activation: PINK, note: HAZE, noteText: NAVY, blockText: NAVY, blockSub: GREY, cross: PINK, crossLine: PINK },
 })
 
 /** The built-in themes by the name a diagram or the `theme` prop uses. */
@@ -229,11 +229,11 @@ const at = (o: unknown, keys: string[]) => keys.reduce<any>((c, k) => (c !== nul
 
 // Tokens that may be null in any theme though a preset sets them: null leaves that part of the trench light out.
 // edge.rim: null is a dark shade of the surface, as it always was (Classic's rim is 'none' now, so no preset shows it).
-const NULLABLE = new Set(['edge.rim', 'edge.glow.core', 'edge.glow.halo', 'edge.glow.wash', 'ground.haze', 'tray.mark', 'edge.headColor', 'seq.partFill', 'seq.partText',
+const NULLABLE = new Set(['edge.rim', 'edge.glow.core', 'edge.glow.halo', 'edge.glow.wash', 'ground.haze', 'tray.mark', 'edge.headColor', 'seq.block', 'seq.partFill', 'seq.partText',
   'label.shapeText.rect', 'label.shapeText.round', 'label.shapeText.cylinder', 'label.shapeText.diamond'])
 // Tokens whose string is drawn as a colour, with the words they take beside one: a word three.js does not know as a colour would draw
 // in white (an `off` rim drew a light rim), so it is reported instead.
-const COLOURS: Record<string, readonly string[]> = { 'edge.rim': ['none'], 'edge.glow.core': [], 'edge.glow.halo': [], 'edge.glow.wash': [], 'ground.haze': [], 'tray.mark': [], 'edge.headColor': [], 'seq.partFill': [], 'seq.partText': [],
+const COLOURS: Record<string, readonly string[]> = { 'edge.rim': ['none'], 'edge.glow.core': [], 'edge.glow.halo': [], 'edge.glow.wash': [], 'ground.haze': [], 'tray.mark': [], 'edge.headColor': [], 'seq.block': [], 'seq.partFill': [], 'seq.partText': [],
   'label.shapeText.rect': [], 'label.shapeText.round': [], 'label.shapeText.cylinder': [], 'label.shapeText.diamond': [] }
 // A colour as three.js reads one (Color.setStyle): #rgb, #rrggbb, rgb()/rgba() in numbers or %, hsl()/hsla(), or a CSS colour name.
 const isColour = (s: string) =>

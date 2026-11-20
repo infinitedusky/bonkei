@@ -101,8 +101,8 @@ export function patternTexture(kind: Pattern, ink: string, paper: string, line: 
     let s = 3
     const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
     for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) {
-      const up = 1 - r / (rows - 1) // canvas row 0 is the top of the side: 1 at the lip, 0 at the foot
-      const pink = up > 0.45 && rnd() < 0.3 * up
+      const up = r / (rows - 1) // this canvas's rows run from the foot (0) to the lip (1): the side's v runs the other way up
+      const pink = up > 0.45 && rnd() < 0.22 * up
       if (!pink && rnd() > 0.85 - up * 0.7) continue
       g.fillStyle = pink ? accent : ink
       g.fillRect(q * px, r * px, px - 1, px - 1)

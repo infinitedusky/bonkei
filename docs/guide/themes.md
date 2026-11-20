@@ -129,6 +129,7 @@ Its parts are tokens like any other, so another theme can borrow one (each is of
 | `tray.sides.0`, `.1`, `.2` | `dither`: the pixel dither on the tray's sides. Its pink pixels are `tray.mark`. |
 | `label.shapeText.rect`, `.round`, `.cylinder`, `.diamond` | A label colour for the nodes of one shape (a white name on a black fill); `null` keeps the node label colour. |
 | `seq.partFill`, `seq.partText` | A sequence participant's fill and name colour; `null` keeps the node's. |
+| `seq.block` | One colour for every loop, alt, opt and par block in a sequence diagram; `null` keeps a colour for each kind. |
 | `label.font` | `inter`: Inter Display, beside `mincho` and `architect`. |
 
 ### The trench light

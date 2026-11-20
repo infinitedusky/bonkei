@@ -89,17 +89,16 @@ function Rig({ cam, fpsRef }: { cam: Camera; fpsRef: React.RefObject<HTMLDivElem
 }
 
 const NO_SLOTS: Slot[] = []
-// ground.haze: a wash of colour at the left and right edges of the view, mixed into the ground's colour by where the ground's point lands on
-// the screen (clip x over w), so it stays at the edges of the picture whatever the camera does, as the site's hero does. Over a ground plane it
-// is the part of the ground that is at the sides of the view: in iso the two far corners, in 3D the sides of the plane.
-function hazeShader(haze: string | null | undefined, width: number) {
+// ground.haze: a wash of colour at the left and right edges of the view, mixed into the ground's colour by where the pixel is on the screen
+// (gl_FragCoord over the drawing buffer's size), so it stays at the edges of the picture whatever the camera does, as the site's hero does.
+// Over a ground plane that is the part of the ground at the two sides of the view: in iso the far corners, in 3D the sides of the plane.
+function hazeShader(haze: string | null | undefined, width: number, res: THREE.Vector2) {
   if (!haze) return undefined
   const c = new THREE.Color(haze), w = Math.min(1, Math.max(0.01, Number(width) || 0.3))
-  return (sh: { vertexShader: string; fragmentShader: string }) => {
-    sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying float vHazeX;\nvoid main() {')
-      .replace('#include <project_vertex>', '#include <project_vertex>\n  { vec4 hp = projectionMatrix * mvPosition; vHazeX = hp.x / hp.w; }')
-    sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'varying float vHazeX;\nvoid main() {')
-      .replace('#include <opaque_fragment>', `float hz = 1.0 - smoothstep(0.0, ${(2 * w).toFixed(3)}, 1.0 - abs(vHazeX));\n  outgoingLight = mix(outgoingLight, vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)}), hz * hz);\n  #include <opaque_fragment>`)
+  return (sh: { uniforms: Record<string, { value: unknown }>; fragmentShader: string }) => {
+    sh.uniforms.uRes = { value: res }
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'uniform vec2 uRes;\nvoid main() {')
+      .replace('#include <opaque_fragment>', `float hx = abs(gl_FragCoord.x / uRes.x * 2.0 - 1.0);\n  float hz = 1.0 - smoothstep(0.0, ${(2 * w).toFixed(3)}, 1.0 - hx);\n  outgoingLight = mix(outgoingLight, vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)}), hz * hz);\n  #include <opaque_fragment>`)
   }
 }
 // ground.gridStyle 'dots': a dot on every crossing of the grid, in the grid's first colour, a fixed size in px, masked over a tunnel's slot like the grid.
@@ -121,6 +120,8 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
   const groundGeo = useMemo(() => new THREE.ShapeGeometry(slotShape(-200, -200, 200, 200, slots)), [slots])
   const { gl } = useThree()
   const th = useTheme()
+  const res = useMemo(() => new THREE.Vector2(1, 1), [])
+  useFrame(({ gl }) => { gl.getDrawingBufferSize(res) })
   const grain = useMemo(() => (th.ground.grain > 0 ? grainTexture(th.ground.bg, th.ground.grain) : null), [th.ground.bg, th.ground.grain])
   const major = Math.round(Number(th.ground.major) || 0) // a hand-made theme from before the heavier line has none
   // Flat view: the light is almost overhead (5 degrees off), so shadows are short. It eases between the two like the camera does.
@@ -288,7 +289,7 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       <directionalLight ref={light} position={[10, 18, 7]} intensity={th.light.sun} castShadow={th.light.shadows} shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30} shadow-camera-near={1} shadow-camera-far={80} shadow-bias={-0.0004} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} onPointerDown={startCamDrag} receiveShadow={th.light.shadows} geometry={groundGeo}>
-        {th.ground.lit ? <meshStandardMaterial color={th.ground.bg} roughness={1} /> : <meshBasicMaterial color={grain ? '#ffffff' : th.ground.bg} map={grain} onBeforeCompile={hazeShader(th.ground.haze, th.ground.hazeWidth)} customProgramCacheKey={() => `haze${th.ground.haze}${th.ground.hazeWidth}`} />}
+        {th.ground.lit ? <meshStandardMaterial color={th.ground.bg} roughness={1} /> : <meshBasicMaterial color={grain ? '#ffffff' : th.ground.bg} map={grain} onBeforeCompile={hazeShader(th.ground.haze, th.ground.hazeWidth, res)} customProgramCacheKey={() => `haze${th.ground.haze}${th.ground.hazeWidth}`} />}
       </mesh>
       {/* the grid is masked out over a tunnel's slot (stencil), so no grid line floats across it */}
       {th.ground.grid && th.ground.gridStyle === 'dots' && <Dots color={th.ground.grid[0]} masked={slots.length > 0} />}
