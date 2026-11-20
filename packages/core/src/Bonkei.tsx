@@ -295,6 +295,10 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   const arcsWanted = theme.edge.dotted === 'arc'
   const arcsMade = prepared ? prepared.arcs : arcsWanted
   useEffect(() => { if (arcsMade !== arcsWanted) setRelayout(n => n + 1) }, [arcsMade, arcsWanted])
+  // and for a look whose tray titles lie on the floor in front: the layout leaves room at the bottom of each tray for them
+  const groundWanted = theme.tray.titles === 'ground'
+  const groundMade = prepared && 'boxes' in prepared.data ? !!prepared.data.groundRoom : groundWanted
+  useEffect(() => { if (groundMade !== groundWanted) setRelayout(n => n + 1) }, [groundMade, groundWanted])
   // one event per look a diagram is drawn in: which theme, asked for how, and whether the name was known
   const lookKey = prepared ? `${look.source}|${look.requested ?? ''}|${JSON.stringify(theme)}` : ''
   useEffect(() => {

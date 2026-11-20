@@ -71,8 +71,9 @@ function nothingRead(what: 'nodes' | 'participants', dropped: Dropped[]): Bonkei
 }
 
 /** What prepare takes: the routing options, and the `theme` prop, because a look whose tray titles sit off the tray needs room for them in the layout. */
-export interface PrepareOptions extends Omit<LayoutOptions, 'span' | 'titleRoom' | 'arcs'> { theme?: string | Theme }
+export interface PrepareOptions extends Omit<LayoutOptions, 'span' | 'titleRoom' | 'groundRoom' | 'arcs'> { theme?: string | Theme }
 /** Whether the look a diagram is drawn in (the theme prop over the frontmatter's, with its themeVariables) puts tray titles off the tray. */
+export const wantsGroundRoom = (prop: string | Theme | undefined, fm?: ThemeRequest) => resolveTheme(prop, fm).theme.tray.titles === 'ground'
 export const wantsTitleRoom = (prop: string | Theme | undefined, fm?: ThemeRequest) => resolveTheme(prop, fm).theme.tray.titles === 'off'
 
 // Times the layout alone, in its own `bonkei.layout` span; a throw becomes a `layout` error.
@@ -111,7 +112,7 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   const dropped = g.dropped ?? []
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
   const arcs = resolveTheme(lo.theme, fm.theme).theme.edge.dotted === 'arc'
-  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme, fm.theme), arcs }))
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme, fm.theme), groundRoom: wantsGroundRoom(lo.theme, fm.theme), arcs }))
   return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped, arcs }, t]
 }
 
@@ -130,7 +131,7 @@ async function fromGraph(input: GraphInput, span: Span, lo: PrepareOptions): Pro
   }
   const g: Graph = { ...input, direction: input.direction ?? 'TD', groups, edges, dropped: input.dropped ?? [] }
   const arcs = resolveTheme(lo.theme).theme.edge.dotted === 'arc'
-  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme), arcs }))
+  const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme), groundRoom: wantsGroundRoom(lo.theme), arcs }))
   return [{ data, options: {}, theme: {}, nodes: g.nodes.length, edges: g.edges.length, dropped: g.dropped!, arcs }, t]
 }
 

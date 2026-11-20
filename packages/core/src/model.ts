@@ -46,9 +46,10 @@ export interface Route { id: string; from: string; to: string; label?: string; p
 // no ports) and that were docked at one. stats.slid: blocks slid across the flow so a line could go direct (BON-102).
 // stats.route: how the lines were routed. titleRoom: room was left in front of every tray for its title, off the tray
 // (theme.tray.titles 'off', titles.ts offTitleBoxes), and the lines are kept off the title boxes.
+// groundRoom: room was left at the bottom of every tray for its title, lying on its floor (theme.tray.titles 'ground').
 // arcs: the dotted links left out of the routing (layout option `arcs`), for a theme that draws them overhead.
 export interface Arc { id: string; from: string; to: string; label?: string }
-export interface LayoutResult { boxes: Box[]; routes: Route[]; arcs?: Arc[]; direction?: 'TD' | 'LR'; width: number; height: number; titleRoom?: boolean; stats?: { trayDocks: number; slid?: string[]; route?: RouteStats } }
+export interface LayoutResult { boxes: Box[]; routes: Route[]; arcs?: Arc[]; direction?: 'TD' | 'LR'; width: number; height: number; titleRoom?: boolean; groundRoom?: boolean; stats?: { trayDocks: number; slid?: string[]; route?: RouteStats } }
 // How the lines were routed (BON-100): total ms (wasm load included), router build ms, lines libavoid could not route, lines given
 // the direct route because libavoid's turned back or crossed a foreign tray, lines that must turn back (no direct route exists), the crossing-avoidance level, and why it fell back to
 // ELK's routes (null: it did not).

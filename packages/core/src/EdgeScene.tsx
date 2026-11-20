@@ -23,14 +23,11 @@ function FlatArrow({ tip, dir, color }: { tip: THREE.Vector3; dir: THREE.Vector3
   return <mesh geometry={geo}><meshBasicMaterial color={color} side={THREE.DoubleSide} /></mesh>
 }
 
-// A label on a pill: a white plate with a border in the line's colour, standing in the camera's frame (or lying on the surface in 'top' mode).
-function Pill({ at, text, color, labelMode }: { at: THREE.Vector3; text: string; color: string; labelMode: LabelMode }) {
+// A label on a pill: a white plate with a border in the line's colour, always standing in the camera's frame (an arc's label hangs in the air; a link's sits just above its run).
+function Pill({ at, text, color }: { at: THREE.Vector3; text: string; color: string; labelMode?: LabelMode }) {
   const th = useTheme()
   const plate = { style: 'cartouche' as const, text: th.edge.label, plate: th.label.pill!, border: color }
-  const body = <PlateText text={text} plate={plate} fontSize={0.24} maxWidth={4} inFront />
-  return labelMode === 'top'
-    ? <group position={[at.x, at.y + 0.03, at.z]} rotation={[-Math.PI / 2, 0, 0]}>{body}</group>
-    : <Billboard position={[at.x, at.y + 0.3, at.z]}>{body}</Billboard>
+  return <Billboard position={[at.x, at.y + 0.3, at.z]}><PlateText text={text} plate={plate} fontSize={0.27} maxWidth={4} inFront /></Billboard>
 }
 
 // The one arrow of a line that has none at its end: a flat chevron lying in the surface, pointing along `dir`.

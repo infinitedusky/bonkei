@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
-import { reroute, trimToIcons, PAD } from './layout'
+import { reroute, trimToIcons, PAD, GROUND_ROOM } from './layout'
 import { loadAvoid, routerFor, type EdgeRouter, type AvoidCrossings } from './avoid.ts'
 import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { instant } from './telemetry'
@@ -379,7 +379,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
       let x = p.x / S + W / 2 - gx, y = p.z / S + H / 2 - gy
       if (parent) { // keep inside parent tray (with its title off the tray, the top keeps only the side's room, as the layout did)
         x = Math.min(Math.max(x, parent.x + PAD.side), parent.x + parent.w - b.w - PAD.side)
-        y = Math.min(Math.max(y, parent.y + (data.titleRoom ? PAD.side : PAD.top)), parent.y + parent.h - b.h - PAD.side)
+        y = Math.min(Math.max(y, parent.y + (data.titleRoom || data.groundRoom ? PAD.side : PAD.top)), parent.y + parent.h - b.h - PAD.side - (data.groundRoom ? GROUND_ROOM : 0))
       }
       const r = router.current
       if (r) { const at = r.at(id); live.current = r.move(id, x - at.x, y - at.y); moveMs.current = r.stats.moveMs }

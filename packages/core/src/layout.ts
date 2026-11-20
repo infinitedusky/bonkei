@@ -16,6 +16,8 @@ export interface LayoutOptions {
   arcs?: boolean
   /** Leave room in front of every tray for its title, off the tray (a theme whose tray.titles is 'off'). Without it the layout is what it always was. */
   titleRoom?: boolean
+  /** Leave room at the bottom of every tray for its title lying on its floor, in front (a theme whose tray.titles is 'ground'). */
+  groundRoom?: boolean
 }
 export type LayoutEngine = (g: Graph, o?: LayoutOptions) => Promise<LayoutResult>
 
@@ -47,6 +49,8 @@ function getElk(parent?: Span): Promise<ElkInstance> {
 // Room inside a tray: the label sits in the top, and a step stands 20 px outside a tray's rim without landing on a node.
 // The drag clamp in SceneView follows it.
 export const PAD = { top: 60, side: 40 }
+// Room at the bottom of a tray for its title lying on the floor in front (groundRoom, theme.tray.titles 'ground'): px.
+export const GROUND_ROOM = 44
 // Spacing, shared by the root and every tray so they cannot drift: ELK applies these to the children of the node they are set on.
 export const SPACING = {
   'elk.spacing.nodeNode': '56',
@@ -73,7 +77,7 @@ export const layout: LayoutEngine = async (g0, o = {}) => {
   return o.arcs ? { ...r, arcs } : r
 }
 const route: LayoutEngine = async (g, o = {}) => {
-  const placed = await place(g, o.span, o.titleRoom === true)
+  const placed = await place(g, o.span, o.titleRoom === true, o.groundRoom === true)
   const level = o.avoidCrossings ?? 'some'
   return withSpan('bonkei.route', { 'bonkei.avoid_crossings': level, 'bonkei.edges': placed.routes.length, 'bonkei.title_room': !!placed.titleRoom }, async span => {
     const t0 = performance.now()
@@ -95,7 +99,7 @@ const route: LayoutEngine = async (g, o = {}) => {
   }, o.span)
 }
 
-async function place(g: Graph, parent?: Span, titleRoom = false): Promise<LayoutResult> {
+async function place(g: Graph, parent?: Span, titleRoom = false, groundRoom = false): Promise<LayoutResult> {
   const groupIds = new Set(g.groups.map(x => x.id))
   const parentOf = new Map<string, string | undefined>()
   g.groups.forEach(x => parentOf.set(x.id, x.parent))
@@ -112,7 +116,7 @@ async function place(g: Graph, parent?: Span, titleRoom = false): Promise<Layout
   if (titleRoom) spacing[across] = String(Number(SPACING[across]) + TITLE_ROOM)
   const holdsTray = new Set(g.groups.map(x => x.parent).filter((p): p is string => !!p))
   for (const grp of g.groups) {
-    const top = titleRoom ? PAD.side : PAD.top, bottom = PAD.side + (titleRoom && holdsTray.has(grp.id) ? TITLE_ROOM : 0)
+    const top = titleRoom || groundRoom ? PAD.side : PAD.top, bottom = PAD.side + (titleRoom && holdsTray.has(grp.id) ? TITLE_ROOM : 0) + (groundRoom ? GROUND_ROOM : 0)
     eNodes.set(grp.id, { id: grp.id, children: [], edges: [], layoutOptions: { ...spacing, 'elk.padding': `[top=${top},left=${PAD.side},bottom=${bottom},right=${PAD.side}]` } })
   }
   // ELK places the nodes with a port fixed at the middle of the side the flow leaves by and the side it arrives at,
@@ -209,7 +213,7 @@ async function place(g: Graph, parent?: Span, titleRoom = false): Promise<Layout
   // With titles off the tray, a block never slides onto one (they do not move: the trays do not).
   const room = titleRoom ? TITLE_ROOM : 0
   const u = unblock(boxes, routes, TUNE.buffer, g.direction === 'LR' ? 1 : 0, Number(SPACING['elk.spacing.edgeNode']), PAD.side, { x0: 40, y0: 40, x1: res.width - 40, y1: res.height - 40 - room }, titleRoom ? offTitleBoxes(boxes) : [])
-  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, ...(titleRoom ? { titleRoom } : {}), stats: { trayDocks, slid: u.moved } }
+  return { boxes: u.boxes, routes: u.routes, direction: g.direction, width: res.width, height: res.height, ...(titleRoom ? { titleRoom } : {}), ...(groundRoom ? { groundRoom } : {}), stats: { trayDocks, slid: u.moved } }
 }
 
 const NORMAL: Record<Side, [number, number]> = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }

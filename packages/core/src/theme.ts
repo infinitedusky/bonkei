@@ -206,7 +206,7 @@ export const CLOUD_CARTOGRAPHY: Theme = deepFreeze({
   edge: { color: '#1d36a6', width: 3.2, label: '#333333', labelOutline: '#ffffff', portal: '#1d36a6', rim: 'none', rimWidth: 1.5, flat: true,
     arrow: 'mid', dotted: 'arc', arc: { color: '#c8743a', width: 2.6, peak: 0.25, arrow: 0.4 },
     glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 } },
-  seq: { lifeline: '#7a86a8', activation: '#4f7cff', note: '#ffffff', noteText: '#1f2330', blockText: '#1f2330', blockSub: '#6b7280', cross: '#d9534f', crossLine: '#d9534f' },
+  seq: { lifeline: '#7a86a8', activation: '#a9bfff', note: '#ffffff', noteText: '#1f2330', blockText: '#1f2330', blockSub: '#6b7280', cross: '#d9534f', crossLine: '#d9534f' },
 })
 
 /** The built-in themes by the name a diagram or the `theme` prop uses. */
