@@ -78,11 +78,12 @@ const G = 20 // grid square in px (one world unit)
 const PAD = 400
 const DIAGRAMS = {
   flow: {
-    W: 900, H: 500,
+    W: 900, H: 560,
     trays: [
-      { x: 360, y: 20, w: 340, d: 290, z: 0, h: 14, title: 'Services' },
+      // room is left under each tray for its title: on the parent tray under a sub-tray (Services is deeper than Billing needs), on the paper under a top tray (the gap before Data)
+      { x: 360, y: 20, w: 340, d: 330, z: 0, h: 14, title: 'Services' },
       { x: 380, y: 160, w: 300, d: 130, z: 14, h: 12, title: 'Billing', l2: true },
-      { x: 360, y: 340, w: 340, d: 140, z: 0, h: 14, title: 'Data' },
+      { x: 360, y: 390, w: 340, d: 140, z: 0, h: 14, title: 'Data' },
     ],
     nodes: [
       { id: 'Client', x: 20, y: 200, w: 120, d: 60, z: 0, shape: 'rect' },
@@ -91,12 +92,12 @@ const DIAGRAMS = {
       { id: 'Orders', x: 540, y: 70, w: 130, d: 60, z: 14, shape: 'rect' },
       { id: 'Invoices', x: 400, y: 200, w: 120, d: 60, z: 26, shape: 'rect' },
       { id: 'Paid?', x: 570, y: 195, w: 70, d: 70, z: 26, shape: 'diamond' },
-      { id: 'Postgres', x: 390, y: 380, w: 110, d: 70, z: 14, shape: 'cyl' },
-      { id: 'Cache', x: 560, y: 375, w: 80, d: 80, z: 14, shape: 'circle' },
+      { id: 'Postgres', x: 390, y: 430, w: 110, d: 70, z: 14, shape: 'cyl' },
+      { id: 'Cache', x: 560, y: 425, w: 80, d: 80, z: 14, shape: 'circle' },
     ],
     edges: [
       ['M140 230 H180'], ['M320 220 H360 V100 H400'], ['M320 240 H350 V30 H605 V70'],
-      ['M605 130 V160 H460 V200'], ['M520 230 H570'], ['M670 100 H720 V415 H500'], ['M440 140 V170 H700 V500 H600 V455'],
+      ['M605 130 V160 H460 V200'], ['M520 230 H570'], ['M670 100 H720 V465 H500'], ['M440 140 V170 H700 V550 H600 V505'],
     ],
   },
   seq: {
