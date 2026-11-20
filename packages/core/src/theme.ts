@@ -197,7 +197,7 @@ export const LAZERS: Theme = deepFreeze({
     color: '#ff3b3b', width: 2.5, label: '#e9eefb', labelOutline: BENCH, portal: '#9fd3ff', rim: 'none', rimWidth: 1.5, flat: false,
     beam: { on: true, width: 2.6, centre: 0.85, centreWidth: 1, halo: null, haloWidth: 6, haloOpacity: 0.3 },
     optics: { on: true, metal: '#3a4560', face: '#dbe9ff', glass: '#a0dcff', jog: 0.4 }, arrow: 'spot',
-    glow: { core: '#ffe9e9', coreWidth: 3.5, halo: '#ff3b3b', haloWidth: 11, haloOpacity: 0.28, wash: '#ff3b3b', washIntensity: 0.3 },
+    glow: { core: '#9fd3ff', coreWidth: 3.5, halo: '#9fd3ff', haloWidth: 11, haloOpacity: 0.28, wash: '#9fd3ff', washIntensity: 0.3 },
   },
   seq: { lifeline: '#3a4866', activation: '#39ff6a', note: '#141c30', noteText: '#e9eefb', blockText: '#e9eefb', blockSub: '#9aa6c0', cross: '#ff3b3b', crossLine: '#ff3b3b' },
 })

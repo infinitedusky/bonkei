@@ -1,10 +1,10 @@
 ---
-description: Bonkei's four built-in themes (classic, bonkei, bonkei-landscape, blueprint), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
+description: Bonkei's five built-in themes (classic, bonkei, bonkei-landscape, blueprint, lazers), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
 ---
 
 # Themes
 
-A theme is data: every colour, material, label and line style the scene reads. Four ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape` and `blueprint`. `classic` is the default.
+A theme is data: every colour, material, label and line style the scene reads. Five ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape`, `blueprint` and `lazers`. `classic` is the default.
 
 <div class="grid4">
 
@@ -30,7 +30,7 @@ flowchart LR
 
 </div>
 
-<p class="cap">classic · bonkei · bonkei-landscape · blueprint</p>
+<p class="cap">classic · bonkei · bonkei-landscape · blueprint · lazers</p>
 
 ## Choosing a theme
 
@@ -102,6 +102,37 @@ Its parts are tokens like any other, so another theme can borrow one:
 | `tray.titles` | `off`: the title in a box in front of the tray, with room made for it in the layout; `fixed` and `free` keep it on the tray. |
 | `label.font` | `architect`: the hand lettering; `mincho` is the Bonkei themes' font. |
 
+### Lazers
+
+`lazers` is an optics bench. The ground is dark, every edge is a glowing laser beam, every bend has a mirror, and nodes are devices.
+
+- **Beams.** Each node has a laser colour and every beam it fires is that colour. A node without one takes the next colour of `node.lasers`, chosen so that nodes next to each other differ. A relay fires in its own colour, not the one it caught.
+- **Your own colours.** Set a node's colour the Mermaid way: `style Client fill:#ff3b3b`, or `classDef cool fill:#2ff0ff` with `class Metrics cool` (or `Metrics:::cool`). Only `fill` is read, as `#rgb`, `#rrggbb`, `rgb()` or `hsl()`; a fill that is not a colour is skipped and reported to [`onWarning`](./errors). Other themes read these lines too and draw exactly as without them.
+- **Mirrors.** A plate at 45° sits on every bend, including the steps onto trays and every bend of a bridge or a tunnel. Two bends that are a short jog apart (every tray step) share one periscope box; other tight bends get a smaller mirror; where beams share a corner there is one glass splitter instead of two plates through each other.
+- **Devices.** A node that only sends is an emitter (a lens barrel where each beam leaves), one that only receives is a detector (a lit hit spot where each beam lands), one that does both is a relay, and one with no edges is dark. Lazers has no arrowhead: the beam ends in the hit spot.
+
+```mermaid {height=320 theme=lazers}
+flowchart LR
+  Client --> Gateway
+  Gateway --> Auth & Orders & DB
+  Metrics --> Orders
+  Orders --> DB --> Logs
+  style Client fill:#ff3b3b
+  classDef cool fill:#2ff0ff
+  class Metrics cool
+```
+
+| Token | What it is |
+| --- | --- |
+| `edge.beam` | `off` (or `false`) turns the glow and the colours off: plain lines in `edge.color`. |
+| `edge.beam.width`, `edge.beam.centre`, `edge.beam.centreWidth` | The beam line's width, how far its centre line is mixed towards white (0 to 1), and that line's width. |
+| `edge.beam.halo`, `edge.beam.haloWidth`, `edge.beam.haloOpacity` | The faint wide lines round the beam. `null` is the beam's own colour. |
+| `edge.optics` | `off` leaves out the mirrors, periscopes and splitters. |
+| `edge.optics.metal`, `.face`, `.glass`, `.jog` | A mirror's body and face, the splitter's glass, and how close two bends must be to count as a jog. |
+| `edge.arrow` | `head` (a cone) or `spot` (a lit hit spot where the beam lands). |
+| `node.form` | `device` draws the status light and lens barrels; `block` and `landscape` are the other forms. |
+| `node.lasers.0` … | The automatic laser colours. |
+
 ### The trench light
 
 A tunnel's trench can be lit by the theme: a light along the floor, a wash on the walls and a rim round the lip. What each theme does on its own:
@@ -111,6 +142,7 @@ A tunnel's trench can be lit by the theme: a light along the floor, a wash on th
 | `classic` | On: grey-white `#e0e0e0` at 30% strength (core 2.1 wide; halo 6.6 wide at 0.17 opacity; wash intensity 0.18) | None (`edge.rim: none`) |
 | `bonkei`, `bonkei-landscape` | Off (the colours are `null`) | Dark `#2A2622`, 2 wide, as it always was |
 | `blueprint` | On: pale blue `#bfe4ff` at 50% strength | Pale blue `#bcdcff`, 1.5 wide |
+| `lazers` | On: pale blue `#9fd3ff` at 50% strength | None |
 
 A diagram can change any part, so a Bonkei diagram can switch its light on, or a Classic one put a rim back:
 
@@ -146,4 +178,4 @@ flowchart LR
 
 ## The theme objects
 
-`CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE` and `BLUEPRINT` are frozen `Theme` objects, for passing as `theme` or as a base to copy and edit. Their fields are in the [Theme](/api/interfaces/Theme) reference.
+`CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE`, `BLUEPRINT` and `LAZERS` are frozen `Theme` objects, for passing as `theme` or as a base to copy and edit. Their fields are in the [Theme](/api/interfaces/Theme) reference.

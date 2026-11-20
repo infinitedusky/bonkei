@@ -25,6 +25,10 @@ export const Landscape3D = draw('bonkei-landscape', '3d')
 export const BlueprintFlat = draw('blueprint', 'flat')
 export const BlueprintIso = draw('blueprint', 'iso')
 export const Blueprint3D = draw('blueprint', '3d')
+export const LazersFlat = draw('lazers', 'flat')
+export const LazersIso = draw('lazers', 'iso')
+export const Lazers3D = draw('lazers', '3d')
+export const LazersSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'lazers', mode: 'iso' }, decorators: [stage()] }
 
 // The sequence diagram in the Bonkei looks and Blueprint.
 export const BonkeiSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'bonkei', mode: 'iso' }, decorators: [stage()] }
