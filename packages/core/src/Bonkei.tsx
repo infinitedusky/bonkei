@@ -236,13 +236,18 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   const sourceRef = useRef(source)
   sourceRef.current = source
   const seq = useRef(0)
+  // The theme prop goes to prepare too: a look whose tray titles sit off the tray (Blueprint) needs room for them in the layout.
+  const themeRef = useRef(props.theme)
+  themeRef.current = props.theme
+  // Bumped when the look drawn and the layout disagree on that room (the theme prop changed it), to lay the diagram out again.
+  const [relayout, setRelayout] = useState(0)
 
   useEffect(() => {
     const run = ++seq.current
     let alive = true
     const accepted = performance.now()
     setStatus('loading')
-    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings }).then(p => {
+    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: themeRef.current }).then(p => {
       if (!alive || run !== seq.current) return
       acceptedAt.current = accepted
       setPrepared({ ...p, key })
@@ -259,7 +264,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
       for (const w of warnings as BonkeiWarning[]) cbs.current.onWarning?.(w)
     })
     return () => { alive = false }
-  }, [key])
+  }, [key, relayout])
 
   // Props over frontmatter; the frontmatter is read once per prepared source.
   const ctlKey = JSON.stringify(props.controls ?? null)
@@ -273,6 +278,9 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const look = useMemo(() => resolveTheme(props.theme, prepared?.theme), [themeKey, prepared?.theme])
   const theme = look.theme
+  const roomWanted = theme.tray.titles === 'off'
+  const roomMade = prepared && 'boxes' in prepared.data ? !!prepared.data.titleRoom : roomWanted // a sequence diagram has no trays
+  useEffect(() => { if (roomMade !== roomWanted) setRelayout(n => n + 1) }, [roomMade, roomWanted])
   // one event per look a diagram is drawn in: which theme, asked for how, and whether the name was known
   const lookKey = prepared ? `${look.source}|${look.requested ?? ''}|${JSON.stringify(theme)}` : ''
   useEffect(() => {

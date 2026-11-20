@@ -90,6 +90,11 @@ export function patternTexture(kind: Pattern, ink: string, paper: string, line: 
     const pr = N * 0.17, d = N * 0.2
     for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) { g.beginPath(); g.arc(m + dx * d, m + dy * d, pr, 0, 7); g.fill() }
     g.fillStyle = paper; g.beginPath(); g.arc(m, m, N * 0.1, 0, 7); g.fill()
+  } else if (kind === 'hatch') { // section hatching: 45 degree lines on the paper, three across the tile (the period divides the tile, so it joins up)
+    g.fillStyle = paper; g.fillRect(0, 0, N, N)
+    g.strokeStyle = ink; g.lineWidth = N * 0.05; g.lineCap = 'butt'
+    const p = N / 3
+    for (let o = -N; o <= N; o += p) { g.beginPath(); g.moveTo(o, N + 2); g.lineTo(o + N + 4, -2); g.stroke() }
   } else { // stone: dark ground with wavy veins
     g.fillStyle = '#5f5850'; g.fillRect(0, 0, N, N)
     g.strokeStyle = '#4a443d'; g.lineWidth = N * 0.06; g.lineCap = 'round'
@@ -102,6 +107,39 @@ export function patternTexture(kind: Pattern, ink: string, paper: string, line: 
   t.colorSpace = THREE.SRGBColorSpace
   t.anisotropy = 8
   pats.set(key, t)
+  return t
+}
+
+// ---- a hand-drawn box (an off-tray title, Blueprint): coloured in, a wobbly outline with a lighter second stroke over it ----
+// Drawn at the box's own aspect (`aspect`: width over depth), 64 px deep, so the strokes keep one width whatever the box's size.
+// The wobble is seeded by `seed` (the title), so a box looks the same every time it is drawn.
+const boxes = new Map<string, THREE.CanvasTexture>()
+export function handBox(fill: string, line: string, seed: string, aspect: number): THREE.Texture {
+  const H = 64, W = Math.max(H, Math.min(2048, Math.round(H * aspect)))
+  const key = `${fill}|${line}|${seed}|${W}`
+  let t = boxes.get(key)
+  if (t) return t
+  const c = document.createElement('canvas')
+  c.width = W; c.height = H
+  const g = c.getContext('2d')!
+  let s = 11
+  for (const ch of seed) s = (s * 31 + ch.charCodeAt(0)) % 2147483647
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
+  const j = () => (rnd() - 0.5) * 3.2
+  const m = 5
+  const path = () => {
+    g.beginPath()
+    g.moveTo(m + j(), m + j()); g.lineTo(W / 2 + j(), m + j()); g.lineTo(W - m + j(), m + j() + 1)
+    g.lineTo(W - m + j(), H / 2 + j()); g.lineTo(W - m + j(), H - m + j())
+    g.lineTo(W / 2 + j(), H - m + j()); g.lineTo(m + j(), H - m + j() - 1); g.lineTo(m + j(), H / 2 + j()); g.closePath()
+  }
+  path(); g.globalAlpha = 0.28; g.fillStyle = fill; g.fill(); g.globalAlpha = 1
+  g.strokeStyle = line; g.lineJoin = 'round'; g.lineCap = 'round'
+  g.lineWidth = 3.4; path(); g.stroke()
+  g.lineWidth = 1.5; g.globalAlpha = 0.6; path(); g.stroke()
+  t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8
+  boxes.set(key, t)
   return t
 }
 

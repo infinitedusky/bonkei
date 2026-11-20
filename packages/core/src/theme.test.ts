@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { BONKEI, CLASSIC, BONKEI_LANDSCAPE, themeByName, trenchParts, withVariables } from './theme.ts'
+import { BLUEPRINT, BONKEI, CLASSIC, BONKEI_LANDSCAPE, themeByName, trenchParts, withVariables } from './theme.ts'
 
 test('presets are plain JSON: they survive a round trip', () => {
-  for (const t of [CLASSIC, BONKEI, BONKEI_LANDSCAPE]) assert.deepEqual(JSON.parse(JSON.stringify(t)), t)
+  for (const t of [CLASSIC, BONKEI, BONKEI_LANDSCAPE, BLUEPRINT]) assert.deepEqual(JSON.parse(JSON.stringify(t)), t)
 })
 
 test('landscape is Bonkei with two tokens changed: the form, and how far its label is pulled forward', () => {
@@ -27,9 +27,9 @@ test('variables override single tokens on a copy, and bad ones are reported', ()
   assert.deepEqual(r.problems.map(p => p.key), ['node.nope', 'edge.color', 'node'])
 })
 
-test('the names a diagram can use are classic, bonkei and bonkei-landscape, and each preset is named for its key', async () => {
+test('the names a diagram can use are classic, bonkei, bonkei-landscape and blueprint, and each preset is named for its key', async () => {
   const { PRESETS, THEME_NAMES } = await import('./theme.ts')
-  assert.deepEqual(THEME_NAMES, ['classic', 'bonkei', 'bonkei-landscape'])
+  assert.deepEqual(THEME_NAMES, ['classic', 'bonkei', 'bonkei-landscape', 'blueprint'])
   for (const n of THEME_NAMES) assert.equal(PRESETS[n].name, n)
   assert.equal(themeByName('bonkei-landscape').theme, BONKEI_LANDSCAPE)
 })

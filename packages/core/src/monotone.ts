@@ -261,16 +261,18 @@ export const SLIDE = { max: 240, step: 4 }
  * round) has to turn back whatever the router does. For each such line, one of its two blocks is slid across the flow (`axis`
  * 0: along x, 1: along y), the least distance that gives the line a direct route, if the block stays `pad` inside its tray (or
  * inside `area` at the top), keeps `gap` from every other block and tray it is not in, and no other line loses its direct route.
- * The lines of a slid block are given their direct route. Returns the boxes, the routes and the ids of the slid blocks.
+ * The lines of a slid block are given their direct route. `keepOff`: more blocks that never move (the off-tray titles), kept clear of
+ * like the others. Returns the boxes, the routes and the ids of the slid blocks.
  */
-export function unblock(boxes: Box[], routes: Route[], buffer: number, axis: 0 | 1, gap: number, pad: number, area: Rect): { boxes: Box[]; routes: Route[]; moved: string[] } {
+export function unblock(boxes: Box[], routes: Route[], buffer: number, axis: 0 | 1, gap: number, pad: number, area: Rect, keepOff: Box[] = []): { boxes: Box[]; routes: Route[]; moved: string[] } {
   let bs = boxes.map(b => ({ ...b }))
+  const all = (b: Box[]) => keepOff.length ? b.concat(keepOff) : b
   let rs = routes.slice()
   const by = () => new Map(bs.map(b => [b.id, b]))
   const anc = (m: Map<string, Box>, id: string) => { const l = new Set<string>(); for (let p = m.get(id)?.parent; p; p = m.get(p)?.parent) l.add(p); return l }
   const m0 = by()
   const own = (r: Route) => m0.has(r.from) && m0.has(r.to) && r.from !== r.to && !anc(m0, r.from).has(r.to) && !anc(m0, r.to).has(r.from)
-  const blockedIds = (b: Box[]) => rs.filter(r => own(r) && !canGoDirect(b, r, buffer)).map(r => r.id)
+  const blockedIds = (b: Box[]) => rs.filter(r => own(r) && !canGoDirect(all(b), r, buffer)).map(r => r.id)
   let stuck = blockedIds(bs)
   const moved: string[] = []
   for (const id of stuck.slice()) {
@@ -291,16 +293,16 @@ export function unblock(boxes: Box[], routes: Route[], buffer: number, axis: 0 |
         if (at < lo || at + size > hi) continue
         const moved1 = { ...n, [k]: at }
         const mine = anc(m, end)
-        const clash = bs.some(o => o.id !== end && !mine.has(o.id) && o.x - gap < moved1.x + moved1.w && moved1.x < o.x + o.w + gap && o.y - gap < moved1.y + moved1.h && moved1.y < o.y + o.h + gap)
+        const clash = all(bs).some(o => o.id !== end && !mine.has(o.id) && o.x - gap < moved1.x + moved1.w && moved1.x < o.x + o.w + gap && o.y - gap < moved1.y + moved1.h && moved1.y < o.y + o.h + gap)
         if (clash) continue
         const next = bs.map(b => b.id === end ? moved1 : b)
-        if (!canGoDirect(next, r, buffer)) continue
+        if (!canGoDirect(all(next), r, buffer)) continue
         const after = blockedIds(next)
         if (after.length >= stuck.length || after.some(a => !stuck.includes(a))) continue
         bs = next
         stuck = after
         moved.push(end)
-        rs = rs.map(x => x.from !== end && x.to !== end ? x : { ...x, points: (own(x) && (monotoneRoute(bs, x, [], buffer) ?? detourRoute(bs, x, [], buffer))) || x.points })
+        rs = rs.map(x => x.from !== end && x.to !== end ? x : { ...x, points: (own(x) && (monotoneRoute(all(bs), x, [], buffer) ?? detourRoute(all(bs), x, [], buffer))) || x.points })
         done = true
         break
       }
