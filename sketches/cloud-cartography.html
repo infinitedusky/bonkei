@@ -28,7 +28,7 @@
 </div>
 <div class="note">
   <b>Sketch: Cloud Cartography (made-up diagram)</b>
-  Zones are thin coloured floors with the name in big letters on the ground. Nodes are modelled icons with ink outlines, one per shape: box = server, rounded = service, cylinder = storage, diamond = decision. The labels are callout cards on dotted leaders. Lines are navy with an arrow partway along. Dotted links (<code>-.-&gt;</code>) arc overhead, dashed.
+  Zones are thin coloured floors with the name in big letters on the ground. Nodes are modelled icons with ink outlines, one per shape: box = server, rounded = service, cylinder = storage, diamond = decision. The labels are callout cards on dotted leaders. Lines are navy with an arrow partway along and one at the end. Dotted links (<code>-.-&gt;</code>) arc overhead, dashed.
   <ul>
     <li>Turn the view: the icons turn with the scene, because they are shapes, not pictures.</li>
     <li>Arcs are the links written as Mermaid dotted links, <code>queue -.-&gt; papi</code> and <code>ledger -.-&gt; browser</code>. Every other link stays on the ground.</li>
@@ -166,6 +166,9 @@ function line(e, opts = {}) {
   for (let i = 1; i < e.pts.length; i++) { const l = Math.hypot(e.pts[i][0] - e.pts[i - 1][0], e.pts[i][1] - e.pts[i - 1][1]); if (l > best) { best = l; bi = i } }
   const a = e.pts[bi - 1], b = e.pts[bi], m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
   groundArrow(back, m, [(b[0] - a[0]) / best, (b[1] - a[1]) / best], z, col)
+  // and one at the end, its tip at the icon's edge
+  const p = e.pts[e.pts.length - 2], q = e.pts[e.pts.length - 1], ql = Math.hypot(q[0] - p[0], q[1] - p[1]), qd = [(q[0] - p[0]) / ql, (q[1] - p[1]) / ql]
+  groundArrow(back, [q[0] - qd[0] * .95, q[1] - qd[1] * .95], qd, z, col)
   if (e.label) pill(front, m[0], m[1] + (Math.abs(b[0] - a[0]) > .1 ? -.55 : 0), z, e.label)
 }
 // ---- long links: a dashed arc overhead ----
