@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pickCorner, titleRect, titleWidth, CORNERS } from './titles.ts'
+import { pickCorner, titleRect, titleWidth, groundTitle, groundWidth, GROUND, CORNERS } from './titles.ts'
 
 const tray = { w: 10, h: 6 }, tw = 2.5, th = 0.7, G = { x0: 0.5, x1: 0.5, z0: 0.5, z1: 0.5 }
 
@@ -34,4 +34,32 @@ test('every corner covered: the least covered one, never an exception', () => {
 
 test('a longer title is wider', () => {
   assert.ok(titleWidth('Billing and payments', 0.4) > titleWidth('Data', 0.4))
+})
+
+// a ground title's lines as estimated, world units, on a floor w by h
+const groundRect = (w: number, h: number, f: { lines: string[]; size: number }) => ({
+  wide: Math.max(...f.lines.map(l => groundWidth(l, f.size))) <= w - 2 * GROUND.inset + 1e-9,
+  deep: f.lines.length * f.size * GROUND.line <= h - 2 * GROUND.inset + 1e-9,
+})
+
+test('a zone name that fits on one line stays on one line, at the size it had', () => {
+  const f = groundTitle(20, 12, 'Payments', 0)
+  assert.deepEqual(f.lines, ['Payments'])
+  assert.equal(f.size, Math.min(12 * 0.16, GROUND.max))
+})
+
+test('a long zone name on a one-node floor wraps between words and stays inside the floor', () => {
+  const w = 4.75, h = 4.5, f = groundTitle(w, h, 'Customer Identity Platform', 0) // the floor the layout gives a TD zone holding one node
+  assert.ok(f.lines.length > 1)
+  assert.equal(f.lines.join(' '), 'Customer Identity Platform')
+  assert.deepEqual(groundRect(w, h, f), { wide: true, deep: true })
+  assert.ok(f.size >= GROUND.min) // wrapping lets it stay readable
+})
+
+test('a name too long even wrapped is drawn smaller, never past the floor', () => {
+  for (const text of ['Supercalifragilisticexpialidocious', 'A zone whose name is far longer than the zone is wide and then some more words', '']) {
+    const f = groundTitle(4, 3, text, 1)
+    assert.deepEqual(groundRect(4, 3, f), { wide: true, deep: true }, text)
+    assert.ok(f.size > 0, text)
+  }
 })

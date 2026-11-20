@@ -11,7 +11,7 @@ import { Icon, Card } from './icons'
 import { slotShape } from './EdgeScene'
 import { Mat, Ink, PlateText, handBox, useTheme, fontUrl, fontOf, patternTexture, useFormTexture, FORM_ASPECT } from './look'
 import type { Plate } from './theme'
-import { pickCorner, titleWidth, offTitleWidth, OFF_TITLE, type Corner, type Rect } from './titles'
+import { pickCorner, titleWidth, offTitleWidth, groundTitle, groundWidth, GROUND, OFF_TITLE, type Corner, type GroundFit, type Rect } from './titles'
 export { S, TRAY, NODE_H }
 
 
@@ -176,10 +176,10 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
   const ground = th.tray.titles === 'ground'
   // the title's corner: fixed back-left, or the first corner nothing stands on (a form stands taller than its footprint, so it is grown more)
   const last = useRef<Corner>(ground ? 'fl' : 'bl')
-  const gsize = groundSize(w, h, b.label, b.level)
+  const gfit = useMemo(() => groundTitle(w, h, b.label, b.level), [w, h, b.label, b.level])
   const corner: Corner = useMemo(() => {
     if (ground) {
-      const c = pickCorner(w, h, groundWidth(b.label, gsize), gsize * 1.2, kids, GROUND_GROW, last.current, GROUND_ORDER)
+      const c = pickCorner(w, h, Math.max(...gfit.lines.map(l => groundWidth(l, gfit.size))), gfit.size * GROUND.line * gfit.lines.length, kids, GROUND_GROW, last.current, GROUND_ORDER)
       last.current = c
       return c
     }
@@ -187,7 +187,7 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
     const c = pickCorner(w, h, titleWidth(b.label, 0.4), 0.75, kids, th.node.form === 'landscape' ? { x0: 1.0, x1: 0.3, z0: 1.9, z1: 0.3 } : { x0: 0.4, x1: 0.3, z0: 0.8, z1: 0.3 }, last.current)
     last.current = c
     return c
-  }, [ground, th.tray.titles, th.node.form, w, h, b.label, gsize, JSON.stringify(kids)])
+  }, [ground, th.tray.titles, th.node.form, w, h, b.label, gfit, JSON.stringify(kids)])
   const pat = th.tray.sides[lv]
   const side = useMemo(() => {
     const t = patternTexture(pat, th.tray.patternInk, th.tray.patternPaper, th.tray.outline ?? th.tray.patternInk)
@@ -221,7 +221,7 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
       {th.tray.titles === 'off'
         ? <OffTitle text={b.label} w={w} h={h} />
         : ground
-          ? <GroundTitle text={b.label} w={w} h={h} T={T} size={gsize} left={left} back={back} color={mixc(zone?.color ?? th.tray.colors[lv], '#000000', th.tray.groundInk)} />
+          ? <GroundTitle fit={gfit} w={w} h={h} T={T} left={left} back={back} color={mixc(zone?.color ?? th.tray.colors[lv], '#000000', th.tray.groundInk)} />
           : (
             <group position={[left ? -w / 2 + 0.25 : w / 2 - 0.25, 0, back ? -h / 2 + 0.5 : h / 2 - 0.5]}>
               <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={left} right={!left} role="tray" />
@@ -231,20 +231,26 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
   )
 }
 
-// A zone's name in big capitals lying on its floor, at a corner nothing stands on (front-left first). Its size follows the zone's, a nested zone's smaller.
+// A zone's name in big capitals lying on its floor, at a corner nothing stands on (front-left first), wrapped and sized to fit it
+// (titles.ts groundTitle). The font's real width can differ from that estimate, so the text as drawn is shrunk to the floor if it is wider.
 const GROUND_ORDER: Corner[] = ['fl', 'fr', 'bl', 'br']
 const GROUND_GROW = { x0: 0.5, x1: 0.2, z0: 0.6, z1: 0.3 } // an icon (its box is larger than the icon) stands over the floor it is on; the card is drawn over everything, so only the footprint counts
-const groundWidth = (text: string, size: number) => text.length * size * 0.8 + size * 0.2
-function groundSize(w: number, h: number, text: string, level: number) {
-  const want = Math.min(w, h) * 0.16 * (level > 0 ? 0.65 : 1)
-  return Math.max(0.35, Math.min(want, 1.3, (w - 0.9) / (text.length * 0.8 + 0.2)))
-}
-function GroundTitle({ text, w, h, T, size, left, back, color }: { text: string; w: number; h: number; T: number; size: number; left: boolean; back: boolean; color: string }) {
+function GroundTitle({ fit, w, h, T, left, back, color }: { fit: GroundFit; w: number; h: number; T: number; left: boolean; back: boolean; color: string }) {
   const th = useTheme()
   const font = fontOf(th.tray.groundFont)
+  const { lines, size } = fit
+  const [k, setK] = useState(1)
+  const roomW = w - 2 * GROUND.inset, roomH = h - 2 * GROUND.inset
   return (
-    <Text position={[left ? -w / 2 + 0.45 : w / 2 - 0.45, T + 0.004, back ? -h / 2 + 0.45 + size : h / 2 - 0.45]} rotation={[-Math.PI / 2, 0, 0]} font={font} fontSize={size} letterSpacing={0.04}
-      anchorX={left ? 'left' : 'right'} anchorY="bottom" color={color} fillOpacity={0.8} layers={TEXT_LAYER as any}>{text.toUpperCase()}</Text>
+    <Text position={[left ? -w / 2 + GROUND.inset : w / 2 - GROUND.inset, T + 0.004, back ? -h / 2 + GROUND.inset + size + (lines.length - 1) * size * GROUND.line : h / 2 - GROUND.inset]}
+      rotation={[-Math.PI / 2, 0, 0]} scale={k} font={font} fontSize={size} letterSpacing={0.04} lineHeight={lines.length > 1 ? GROUND.line : undefined}
+      textAlign={left ? 'left' : 'right'} anchorX={left ? 'left' : 'right'} anchorY="bottom" color={color} fillOpacity={0.8} layers={TEXT_LAYER as any}
+      onSync={(t: any) => {
+        const r = t.textRenderInfo?.blockBounds
+        if (!r) return
+        const scale = Math.min(1, roomW / (r[2] - r[0]), roomH / (r[3] - r[1]))
+        setK(p => (Math.abs(p - scale) < 1e-3 ? p : scale))
+      }}>{lines.join('\n').toUpperCase()}</Text>
   )
 }
 
