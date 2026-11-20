@@ -486,3 +486,13 @@ Each is a new setting Blueprint uses; Classic and Bonkei keep theirs as they are
 **Alternatives considered.** A settings-only preset (single-weight grid, plain sides, the default font): less code, but it reads less like a blueprint.
 
 **Consequences.** The build adds a grid-weight setting, a `hatch` side pattern and a second font file to the package. From the mockups (Mockups/Blueprint): shaded fills (a shade lighter than the paper), not outline only; the lighter paper `#1d4f8c`, not the deeper `#123a6b`; and the hatched tray sides stay. Lines must be hidden behind blocks, as in the other themes (checked in the mockup).
+
+## 2026-11-19 — Blueprint: tray titles on the surface beside the tray, with room left for them (BON-234)
+
+**Context.** Bonkei puts a tray's title on the tray's own top, in a corner. The person asked for Blueprint's titles to sit off the tray, drawn on the surface beside it like a box someone drew and coloured in.
+
+**Decision.** In Blueprint a tray's title is drawn as a filled, hand-drawn box on the surface the tray stands on, just past its front edge: the paper for a top-level tray, the parent tray's top for a sub-tray. The layout leaves room for it there: a parent tray is made deeper below a sub-tray, and top-level trays keep a gap below them, so the title touches no neighbouring tray, node or line.
+
+**Alternatives considered.** Keep the title on the tray (as Bonkei): no layout change, but it reads less like a drawing. Put the title off the tray without making room: it would overlap whatever sits next to the tray.
+
+**Consequences.** New code: a title placement off the tray, and the layout taking the title's room into account for themes that ask for it. Classic and Bonkei keep their titles where they are and their layout unchanged.
