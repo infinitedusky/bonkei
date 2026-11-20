@@ -1,10 +1,10 @@
 ---
-description: Bonkei's three built-in themes (classic, bonkei, bonkei-landscape), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
+description: Bonkei's four built-in themes (classic, bonkei, bonkei-landscape, blueprint), how to pick one in a fence, frontmatter, a prop or a script tag, and how to change single theme variables.
 ---
 
 # Themes
 
-A theme is data: every colour, material, label and line style the scene reads. Three ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei` and `bonkei-landscape`. `classic` is the default.
+A theme is data: every colour, material, label and line style the scene reads. Four ship with Bonkei, named by `THEME_NAMES`: `classic`, `bonkei`, `bonkei-landscape` and `blueprint`. `classic` is the default.
 
 <div class="grid4">
 
@@ -23,9 +23,14 @@ flowchart LR
   Build --> Test --> Ship
 ```
 
+```mermaid {height=220 theme=blueprint mode=flat}
+flowchart LR
+  Build --> Test --> Ship
+```
+
 </div>
 
-<p class="cap">classic · bonkei · bonkei-landscape</p>
+<p class="cap">classic · bonkei · bonkei-landscape · blueprint</p>
 
 ## Choosing a theme
 
@@ -78,6 +83,7 @@ A tunnel's trench can be lit by the theme: a light along the floor, a wash on th
 | --- | --- | --- |
 | `classic` | On: grey-white `#e0e0e0` at 30% strength (core 2.1 wide; halo 6.6 wide at 0.17 opacity; wash intensity 0.18) | None (`edge.rim: none`) |
 | `bonkei`, `bonkei-landscape` | Off (the colours are `null`) | Dark `#2A2622`, 2 wide, as it always was |
+| `blueprint` | On: pale blue `#bfe4ff` at 50% strength | Pale blue `#bcdcff`, 1.5 wide |
 
 A diagram can change any part, so a Bonkei diagram can switch its light on, or a Classic one put a rim back:
 

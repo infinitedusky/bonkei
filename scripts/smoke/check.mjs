@@ -17,7 +17,7 @@ export async function freePort() {
 
 const DIAGRAMS = ['default', 'bonkei']
 // fonts/ZenOldMincho-Bold-latin.ttf beside the module or the script, or assets/ZenOldMincho-Bold-latin-<hash>.ttf in a host build
-const FONT = /\/ZenOldMincho-Bold-latin(-[\w-]+)?\.ttf(\?|$)/
+const FONT = /\/(ZenOldMincho-Bold|ArchitectsDaughter-Regular)-latin(-[\w-]+)?\.ttf(\?|$)/
 
 /**
  * @param {string} url

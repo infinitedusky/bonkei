@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { useMemo, useRef } from 'react'
-import { Billboard, Line } from '@react-three/drei'
+import { useMemo, useRef, useState } from 'react'
+import { Billboard, Line, Text } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import type { Box, LabelMode } from './model'
 
@@ -8,9 +8,9 @@ export type { LabelMode }
 
 import { S, TRAY, NODE_H, TEXT_LAYER } from './scale.ts'
 import { slotShape } from './EdgeScene'
-import { Mat, Ink, PlateText, useTheme, fontUrl, patternTexture, useFormTexture, FORM_ASPECT } from './look'
+import { Mat, Ink, PlateText, handBox, useTheme, fontUrl, patternTexture, useFormTexture, FORM_ASPECT } from './look'
 import type { Plate } from './theme'
-import { pickCorner, titleWidth, type Corner, type Rect } from './titles'
+import { pickCorner, titleWidth, TITLE, type Corner, type Rect } from './titles'
 export { S, TRAY, NODE_H }
 
 
@@ -199,10 +199,36 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [] }: { b
         {cut ? <>{mat(null, 'material-0')}{mat(side, 'material-1')}</> : mat(null)}
         <Ink color={th.tray.outline} width={th.node.outlineWidth} />
       </mesh>
-      <group position={[corner === 'bl' || corner === 'fl' ? -w / 2 + 0.25 : w / 2 - 0.25, 0, corner === 'bl' || corner === 'br' ? -h / 2 + 0.5 : h / 2 - 0.5]}>
+      {th.tray.titles === 'off'
+        ? <OffTitle text={b.label} w={w} h={h} lv={lv} />
+        : <group position={[corner === 'bl' || corner === 'fl' ? -w / 2 + 0.25 : w / 2 - 0.25, 0, corner === 'bl' || corner === 'br' ? -h / 2 + 0.5 : h / 2 - 0.5]}>
         <Label text={b.label} mode={labelMode} y={T + 0.01} size={0.4} maxWidth={w - 0.5} left={corner === 'bl' || corner === 'fl'} right={corner === 'br' || corner === 'fr'} role="tray" />
-      </group>
+        </group>}
     </>
+  )
+}
+
+// A tray's title as a box on the surface in front of it (theme.tray.titles 'off'): coloured in, with a hand-drawn border, lying flat.
+// The group's origin is the surface the tray stands on (the paper, or the parent tray's top), so this lies on that surface.
+function OffTitle({ text, w, h, lv }: { text: string; w: number; h: number; lv: number }) {
+  const th = useTheme()
+  const [tw, setTw] = useState(0)
+  const font = fontUrl(th)
+  const plate = th.label.tray
+  const bw = Math.min(tw + TITLE.pad * 2, w), bd = TITLE.depth
+  const tex = useMemo(() => handBox(plate.border, plate.text, text), [plate.border, plate.text, text])
+  return (
+    <group position={[-w / 2 + 0.05, 0.015, h / 2 + TITLE.gap]} rotation={[-Math.PI / 2, 0, 0]}>
+      {tw > 0 && (
+        <mesh position={[bw / 2, -bd / 2, 0]} layers={TEXT_LAYER as any} renderOrder={1}>
+          <planeGeometry args={[bw, bd]} />
+          <meshBasicMaterial map={tex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-6} polygonOffsetUnits={-6} toneMapped={false} />
+        </mesh>
+      )}
+      <Text layers={TEXT_LAYER as any} renderOrder={3} position={[bw / 2, -bd / 2, 0.01]} depthOffset={-12} font={font} fontSize={TITLE.size} color={plate.text}
+        anchorX="center" anchorY="middle" whiteSpace="nowrap" maxWidth={w}
+        onSync={(t: any) => { const r = t.textRenderInfo?.blockBounds; if (r) setTw(p => (Math.abs(p - (r[2] - r[0])) < 1e-3 ? p : r[2] - r[0])) }}>{text}</Text>
+    </group>
   )
 }
 

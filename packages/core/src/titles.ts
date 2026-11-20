@@ -29,3 +29,9 @@ export function pickCorner(w: number, h: number, tw: number, th: number, kids: R
 
 /** About how wide a title is (world units) at font size `size`. */
 export const titleWidth = (text: string, size: number) => text.length * size * 0.56 + size * 1.1
+
+// theme.tray.titles 'off': the title is a box lying on the surface the tray stands on, just in front of the tray's front edge (+z).
+// The layout leaves TITLE_ROOM px (layout units) below every tray for it: the box, its gap to the tray, and a clearance so it
+// touches nothing in front of it.
+export const TITLE = { size: 0.38, depth: 0.72, gap: 0.1, pad: 0.25 } // world units
+export const TITLE_ROOM = 48 // px, = (depth + gap) * 40 plus 15 px clearance

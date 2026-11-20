@@ -27,9 +27,9 @@ test('variables override single tokens on a copy, and bad ones are reported', ()
   assert.deepEqual(r.problems.map(p => p.key), ['node.nope', 'edge.color', 'node'])
 })
 
-test('the names a diagram can use are classic, bonkei and bonkei-landscape, and each preset is named for its key', async () => {
+test('the names a diagram can use are classic, bonkei, bonkei-landscape and blueprint, and each preset is named for its key', async () => {
   const { PRESETS, THEME_NAMES } = await import('./theme.ts')
-  assert.deepEqual(THEME_NAMES, ['classic', 'bonkei', 'bonkei-landscape'])
+  assert.deepEqual(THEME_NAMES, ['classic', 'bonkei', 'bonkei-landscape', 'blueprint'])
   for (const n of THEME_NAMES) assert.equal(PRESETS[n].name, n)
   assert.equal(themeByName('bonkei-landscape').theme, BONKEI_LANDSCAPE)
 })

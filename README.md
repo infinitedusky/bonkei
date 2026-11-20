@@ -34,6 +34,7 @@ All three are in the package's `dist/`, laid out as they should be served:
 bonkei.global.js
 libavoid.wasm
 fonts/ZenOldMincho-Bold-latin.ttf   (the Bonkei themes' labels; OFL-ZenOldMincho.txt beside it)
+fonts/ArchitectsDaughter-Regular-latin.ttf   (Blueprint's labels; OFL-ArchitectsDaughter.txt beside it)
 ```
 
 Like the wasm, the font is looked for beside the script that loaded `bonkei.global.js`. Leave `fonts/` out and Bonkei-theme labels fall back to the default font, with a warning to `onWarning`.
@@ -109,7 +110,7 @@ Props of `<Bonkei />`, and the options of `render(element, source, options)`:
 | `controls` | `boolean \| { zoom?, pan?, move?, drillIn? }` | `true` | The reader's controls: all on, all off, or per control (one left out is on). |
 | `crossings` | `'none' \| 'bridge' \| 'tunnel' \| 'portal'` | `'none'` | How a line gets past another where two cross: not at all (they cross flat), a hop over it, an open trough under it, or a pair of portals. With `crossingControls` on, the reader can switch it too, and the diagram redraws at once. |
 | `avoidCrossings` | `'off' \| 'some' \| 'strong'` | `'some'` | How hard lines avoid crossing each other. `some` keeps every line on its most direct route; `strong` lets a line take a short sideways jog to cross fewer lines. With `crossingControls` on, the reader can switch it too, and the lines are routed again at once. |
-| `theme` | `string \| Theme` | from the frontmatter, else `'classic'` | The look: `'classic'`, `'bonkei'` or `'bonkei-landscape'` (`THEME_NAMES`), or a whole `Theme` object (copy one of `CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE` and change it). Wins over the frontmatter's `config.theme`. An unknown name draws in Classic and warns. |
+| `theme` | `string \| Theme` | from the frontmatter, else `'classic'` | The look: `'classic'`, `'bonkei'`, `'bonkei-landscape'` or `'blueprint'` (`THEME_NAMES`), or a whole `Theme` object (copy one of `CLASSIC`, `BONKEI`, `BONKEI_LANDSCAPE`, `BLUEPRINT` and change it). Wins over the frontmatter's `config.theme`. An unknown name draws in Classic and warns. |
 | `fit` | `'default' \| 'tight'` | `'default'` | `tight` frames what the view really shows (the diagram's boxes as the camera sees them) with a small margin, centres it, and frames it again when the container changes size. |
 | `minLabelPx` | `number` | `0` | When showing the whole diagram would make node labels smaller than this many pixels (a phone), open zoomed in on the largest tray instead. `fit()` still shows everything. |
 | `onError` | `(error: BonkeiError) => void` | | Nothing could be drawn. |
@@ -151,11 +152,12 @@ flowchart TD
 
 ### Themes
 
-A theme is the diagram's whole look as data: colours, light, materials, outlines, tray sides, label plates and lines (`Theme`, JSON). Three come built in:
+A theme is the diagram's whole look as data: colours, light, materials, outlines, tray sides, label plates and lines (`Theme`, JSON). Four come built in:
 
 - **Classic** (`classic`, the default): the dark scene Bonkei has always drawn.
 - **Bonkei** (`bonkei`): drawn from the 1848 tray-landscape prints. Cream paper ground, ink outlines, flat washes, tray sides patterned by how deep they are nested, labels on plaques, and lines in ink that keep their steps, tunnels, portals and arrowheads.
 - **Bonkei · landscape** (`bonkei-landscape`): Bonkei, with every node a house, bonsai, rock or peak (by shape) on a raised plinth in its footprint, its label in front.
+- **Blueprint** (`blueprint`): an architect's drawing. White and pale-blue lines on blue paper with a fine grid and a heavier line every 5 squares, flat shading, hatched tray sides, hand lettering (Architects Daughter, SIL OFL, bundled), and each tray's title in a box on the surface in front of the tray.
 
 A tunnel's trench can be lit (`edge.glow`): a light along the floor, a wash on the walls and a rim round the lip (`edge.rim`). Classic lights it grey-white at 30% with no rim; the Bonkei themes leave the light off. Each part can be recoloured, made stronger or weaker, or turned off by a diagram's `themeVariables` (`edge.glow: off`, `edge.glow.core: null`, `edge.rim: none`); the docs' Edge styles page has controls to try it.
 

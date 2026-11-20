@@ -154,7 +154,7 @@ const vp = async (args) => {
   for (let i = 0; i < 90; i++) { try { await fetch(`http://localhost:${port}/`); return { p, url: `http://localhost:${port}/` } } catch { await new Promise(r => setTimeout(r, 500)) } }
   p.kill('SIGTERM'); throw new Error(`vitepress ${args[0]} did not start`)
 }
-const HEAVY = /bonkei|three|react|elk|libavoid|\.wasm|ZenOldMincho/i
+const HEAVY = /bonkei|three|react|elk|libavoid|\.wasm|ZenOldMincho|ArchitectsDaughter/i
 
 async function checkSite(label, url, { built }) {
   const browser = await launch()

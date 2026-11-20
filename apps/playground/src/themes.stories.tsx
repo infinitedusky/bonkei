@@ -1,4 +1,4 @@
-// Themes: Classic, Bonkei and Bonkei · landscape, each in flat, iso and 3D, plus the three ways to pick one and the
+// Themes: Classic, Bonkei, Bonkei · landscape and Blueprint, each in flat, iso and 3D, plus the three ways to pick one and the
 // warning for a name nobody knows. The diagram is the one in sketches/brand-theme.html; MADE-UP SAMPLE DATA.
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
@@ -22,9 +22,13 @@ export const Bonkei3D = draw('bonkei', '3d')
 export const LandscapeFlat = draw('bonkei-landscape', 'flat')
 export const LandscapeIso = draw('bonkei-landscape', 'iso')
 export const Landscape3D = draw('bonkei-landscape', '3d')
+export const BlueprintFlat = draw('blueprint', 'flat')
+export const BlueprintIso = draw('blueprint', 'iso')
+export const Blueprint3D = draw('blueprint', '3d')
 
 // The sequence diagram in both Bonkei looks.
 export const BonkeiSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'bonkei', mode: 'iso' }, decorators: [stage()] }
+export const BlueprintSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'blueprint', mode: 'iso' }, decorators: [stage()] }
 export const LandscapeSequence: Story = { args: { source: SAMPLES['seq: login flow'], theme: 'bonkei-landscape', mode: 'iso' }, decorators: [stage()] }
 
 // The theme and one overridden token, chosen by the diagram's own frontmatter (config.theme, config.themeVariables).

@@ -55,6 +55,14 @@ test('the bundled font sits in dist/fonts with its licence, found by the same pa
   assert.ok(![...esm, 'bonkei.global.js'].some(f => read(f).includes(head)), 'the font is not inlined as base64')
 })
 
+test('Blueprint\'s bundled font sits in dist/fonts with its licence, found by the same pattern', () => {
+  const st = fs.lstatSync(new URL('fonts/ArchitectsDaughter-Regular-latin.ttf', dist))
+  assert.ok(st.isFile() && !st.isSymbolicLink())
+  assert.deepEqual([...fs.readFileSync(new URL('fonts/ArchitectsDaughter-Regular-latin.ttf', dist)).subarray(0, 4)], [0, 1, 0, 0], 'TrueType magic')
+  assert.match(read('fonts/OFL-ArchitectsDaughter.txt'), /SIL Open Font License, Version 1\.1/)
+  assert.ok(esm.some(f => read(f).includes('new URL("./fonts/ArchitectsDaughter-Regular-latin.ttf", import.meta.url)')))
+})
+
 test('the wasm fallback is a lazy chunk: only a dynamic import reaches it', () => {
   const inline = esm.find(f => f.startsWith('_libavoid-inline-'))
   assert.ok(inline, 'the base64 chunk exists')

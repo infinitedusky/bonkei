@@ -269,6 +269,9 @@ function Env({ cam, children, controls, slots = NO_SLOTS }: { cam: Camera; child
       ))}
       {th.ground.grid && <gridHelper key={slots.length ? 'masked' : 'plain'} args={[200, 200, ...th.ground.grid]} position={[0, -0.01, 0]} renderOrder={1}
         material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />}
+      {/* a heavier line every `major` squares, laid over the fine grid (a second, wider grid in its own colour) */}
+      {th.ground.grid && th.ground.major > 0 && <gridHelper key={'major' + th.ground.major + (slots.length ? 'masked' : 'plain')} args={[200, Math.floor(200 / th.ground.major), th.ground.majorColor, th.ground.majorColor]} position={[0, -0.009, 0]} renderOrder={1}
+        material-stencilWrite={slots.length > 0} material-stencilRef={1} material-stencilFunc={THREE.NotEqualStencilFunc} />}
       {children}
     </>
   )

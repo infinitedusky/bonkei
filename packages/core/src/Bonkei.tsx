@@ -237,12 +237,16 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   sourceRef.current = source
   const seq = useRef(0)
 
+  // A theme prop whose tray titles sit off the tray needs room in the layout: a change in that one fact lays the diagram out again.
+  const themeRef = useRef(props.theme)
+  themeRef.current = props.theme
+  const titleRoom = resolveTheme(props.theme).theme.tray.titles === 'off'
   useEffect(() => {
     const run = ++seq.current
     let alive = true
     const accepted = performance.now()
     setStatus('loading')
-    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings }).then(p => {
+    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: themeRef.current }).then(p => {
       if (!alive || run !== seq.current) return
       acceptedAt.current = accepted
       setPrepared({ ...p, key })
@@ -259,7 +263,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
       for (const w of warnings as BonkeiWarning[]) cbs.current.onWarning?.(w)
     })
     return () => { alive = false }
-  }, [key])
+  }, [key, titleRoom])
 
   // Props over frontmatter; the frontmatter is read once per prepared source.
   const ctlKey = JSON.stringify(props.controls ?? null)
