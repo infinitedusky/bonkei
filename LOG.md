@@ -484,3 +484,22 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - **`<Bonkei>` lays a diagram out again when the look drawn and the layout disagree on the room** (a theme prop that turns `off` titles on or off, over whatever the frontmatter says); the view is kept as for any new layout (BON-195). Turned down: laying out again on every theme change (Classic ⇄ Bonkei needs none).
 
 **Consequences.** A Blueprint diagram is laid out more spaciously than the same diagram in Classic (the 50-node sample is 28% taller). A long title in a narrow tray is drawn small. A block dragged by the reader can still be dropped on a title (the drag clamp keeps it inside its tray, as before). The main chunk grew to 196.2 of its 197 kB budget; the font is its own 14.4 kB file, fetched only when a theme names it. Telemetry: choosing Blueprint is the existing `bonkei.theme` event (`bonkei.theme: blueprint`, and how it was asked for); the font's fallback is the existing `bonkei.font.load` span's `bonkei.font.fallback` event and an `onWarning`; the routing span `bonkei.route` now says whether room was made (`bonkei.title_room`). The homepage Themes section lets a visitor try Blueprint live; its lead no longer says "the same layout".
+
+## 2026-11-20 — Cloud Cartography theme (BON-235)
+
+**Context.** A fifth built-in look, drawn like an illustrated map of a system (the Isoflow reference): coloured zone floors named in big capitals, inked icons by shape under callout cards, navy links with one arrow partway along, dotted links as arcs overhead. It needs drawing Bonkei did not have, so it follows Bonkei · landscape (BON-117): tokens for each capability, scene code that reads tokens only.
+
+**Decision.**
+- Tokens (all neutral in the other presets): `node.form: 'icon'` and `node.icon`; `tray.colorBy: 'zone'`, `tray.zones`, `tray.zoneMix`, `tray.radius`, `tray.titles: 'ground'`, `tray.groundFont`, `tray.groundInk`; `label.node.style: 'card'`, `label.card`, `label.pill`; `edge.arrow: 'mid'`, `edge.dotted: 'arc'`, `edge.arc`. Icons and cards live in `icons.tsx`.
+- Parser: an edge keeps `dotted` (for `-.->` and `-.-`); a node keeps `title`/`sub` beside `label` when its label has a `<br>`. `label` stays the one-line reading, so every other theme draws what it drew; layout sizes from `label` as before. `Box` carries `title`/`sub` only for a two-line label.
+- Arcs: with `edge.dotted: 'arc'` the layout is asked (`arcs`, from `prepare`, which reads the theme like `titleRoom` does) to leave the dotted links out of placing and routing and return them as `LayoutResult.arcs`; the scene draws each from the top of one icon to the top of the other, peak a quarter of its span. The component lays out again when the look changes to or from one (as for `titleRoom`).
+- Lines end at a node's box, larger than an icon: `trimToIcons` lengthens each end inward to the icon's footprint; the routing is unchanged.
+- Zone titles lie on the floor, front-left, so the layout leaves `GROUND_ROOM` at the bottom of every tray (`groundRoom`, as `titleRoom` does for `off`).
+- Callout cards stand in the camera's frame, `gap` above the icon along the screen's up (so flat view puts them towards the top of the screen), drawn over everything.
+- The fit learns the height of icons and cards through `Camera.top` (`headroom(theme)` in `scale.ts`) in the default and the tight fit.
+- Font: Archivo Black (SIL OFL 1.1), subset to Latin (44 KB), bundled as `archivo` beside `mincho`; it is also the card names' bold.
+- Proof the others are unchanged: `cloud.test.ts` (tokens against `fixtures/themes-main.json`, layout of a sample with dotted links and `<br>` labels against `fixtures/cloud-layouts-main.json`), and 0 differing pixels against main's viewer, 18 comparisons.
+
+**Alternatives.** Splitting the label at draw time (the two-line reading would then be lost in the layout); routing the arcs and hiding them (they would still push the lines); a billboarded picture per icon (it would not turn with the view).
+
+**Consequence.** Any change to how Bonkei draws retakes the site pictures with `pnpm capture` in the same PR (BON-209). Card names and the ground lettering use the bundled font, so the file ships in `dist/fonts/`.
