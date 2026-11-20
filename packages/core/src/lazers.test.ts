@@ -28,10 +28,31 @@ test('two close bends that do not form a jog get smaller mirrors, down to 40%', 
   assert.ok(r.mirrors.every(m => m.size >= 0.4 && m.size <= 0.5))
 })
 
-test('beams that turn at the same point share one splitter, and no mirror', () => {
-  const r = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 2]]), L([[0, 0, 4], [2, 0, 4], [2, 0, 0], [4, 0, 0]], 1)])
-  assert.equal(r.splitters.length, 1)
-  assert.equal(r.mirrors.length, 1) // the second line's other bend, at (2, 0, 4)
+test('one beam splitting, one straight on and one turning, is one half-silvered plate at 45°: no mirror, no prism', () => {
+  const r = findBends([L([[0, 0, 0], [4, 0, 0]]), L([[0, 0, 0], [2, 0, 0], [2, 0, 2]], 1)])
+  assert.equal(r.halves.length, 1)
+  assert.equal(r.mirrors.length + r.prisms.length, 0)
+  assert.deepEqual(r.halves[0].a, [1, 0, 0]) // the way in and the straight way on
+  assert.deepEqual(r.halves[0].b, [0, 0, 1]) // the turning beam's way out
+})
+
+test('two beams that part in opposite directions (a T) get one prism, not two plates', () => {
+  const r = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 2]]), L([[0, 0, 0], [2, 0, 0], [2, 0, -2]], 1)])
+  assert.equal(r.prisms.length, 1)
+  assert.equal(r.halves.length + r.mirrors.length, 0)
+})
+
+test('three beams parting at one point (straight, left, right) get one prism', () => {
+  const r = findBends([L([[0, 0, 0], [4, 0, 0]]), L([[0, 0, 0], [2, 0, 0], [2, 0, 2]], 1), L([[0, 0, 0], [2, 0, 0], [2, 0, -2]], 2)])
+  assert.equal(r.prisms.length, 1)
+  assert.equal(r.halves.length, 0)
+})
+
+test('two beams joining, one straight on and one arriving from the side, is one half-silvered plate', () => {
+  const r = findBends([L([[0, 0, 0], [4, 0, 0]]), L([[2, 0, 2], [2, 0, 0], [4, 0, 0]], 1)])
+  assert.equal(r.halves.length, 1)
+  assert.deepEqual(r.halves[0].a, [0, 0, -1])
+  assert.deepEqual(r.halves[0].b, [1, 0, 0])
 })
 
 test('a beam through a portal carries on: each part is its own line with no bend at the join', () => {

@@ -154,10 +154,29 @@ export function NodeBody({ b, hover = false, labelMode, device }: { b: Box; hove
       {th.node.outline && b.shape !== 'diamond' && (
         <Silhouette shape={b.shape} w={land ? w * 0.9 : w} h={land ? h * 0.9 : h} height={height} y={0.012} color={th.node.outline} width={th.node.outlineWidth} />
       )}
+      {device?.fires && <FireBand shape={b.shape} w={w} h={h} y={height + 0.03} color={device.fires} />}
       {device && <StatusLight w={w} h={h} y={height} role={device.role} color={device.caught ?? device.fires} />}
       {land
         ? <Form shape={b.shape} w={w} h={h} y={height} gap={th.node.labelGap} label={b.label} plate={th.label.node} font={fontUrl(th)} toward={th.label.toward} />
         : <Label text={b.label} mode={labelMode} y={height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />}
+    </>
+  )
+}
+
+// A device that fires beams wears their colour: a lit band round the top edge (a core line in the laser colour with a faint wider glow),
+// which reads from straight above (flat) as well as in iso, and says which node a beam colour belongs to.
+function FireBand({ shape, w, h, y, color }: { shape: Box['shape']; w: number; h: number; y: number; color: string }) {
+  const pts = useMemo(() => {
+    const p = shape === 'diamond' ? [[-w / 2, 0], [0, -h / 2], [w / 2, 0], [0, h / 2]] as [number, number][] : plan(shape, w, h)
+    const inset = (q: [number, number]): [number, number, number] => [q[0] * 0.96, y, q[1] * 0.96]
+    return [...p, p[0]].map(inset)
+  }, [shape, w, h, y])
+  const hi = useMemo(() => '#' + new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.5).getHexString(), [color])
+  return (
+    <>
+      <Line points={pts} color={color} lineWidth={7} transparent opacity={0.3} depthWrite={false} />
+      <Line points={pts} color={color} lineWidth={3} />
+      <Line points={pts} color={hi} lineWidth={1} />
     </>
   )
 }

@@ -4,7 +4,9 @@ export type V = [number, number, number]
 export interface Line { pts: V[]; ci: number } // a drawn part of an edge, and the index of its colour
 export interface MirrorAt { at: V; a: V; b: V; size: number; ci: number } // a plate on a bend: beam in along a, out along b
 export interface PeriscopeAt { from: V; to: V; a: V; ci: number } // two bends of a jog in one box
-export interface Bends { mirrors: MirrorAt[]; periscopes: PeriscopeAt[]; splitters: V[] }
+export interface PrismAt { at: V; ins: V[]; outs: V[]; ci: number } // beams that part at one point with no straight way on: a small glass prism
+/** halves: half-silvered plates where one beam splits (or two join) with one going straight through; prisms: where a plate cannot do it. */
+export interface Bends { mirrors: MirrorAt[]; periscopes: PeriscopeAt[]; halves: MirrorAt[]; prisms: PrismAt[] }
 
 const sub = (a: V, b: V): V => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 const len = (a: V) => Math.hypot(a[0], a[1], a[2])
@@ -19,15 +21,20 @@ function onSeg(q: V, a: V, b: V) {
   return dist([a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t], q) < 0.05 // a hair: lines nudged apart by the router still share the corner
 }
 
+const SHARE = 0.12 // bends this close are one corner
+const addDir = (set: V[], d: V) => { if (!set.some(x => dist(x, d) < 0.01)) set.push(d) }
+
 /**
  * Every bend of every line: a mirror (scaled to the room either side, down to 40%); a periscope where two bends are closer than `jog` and
- * the beam leaves the second the way it came into the first (a jog: every tray step is one); a splitter where another line runs through
- * the bend (one piece for a shared corner, never two plates through each other).
+ * the beam leaves the second the way it came into the first (a jog: every tray step is one). Where beams share a corner (another line runs
+ * through the bend, or turns at it too) there is one piece, never two plates through each other: a half-silvered plate when one way on is
+ * straight (a beam splits in two, or two join: the turning one reflects, the straight one passes through); a glass prism when none is
+ * (a T, or three or more parting).
  */
 export function findBends(input: Line[], jog = 0.4): Bends {
   const lines = input.map(l => ({ ci: l.ci, pts: l.pts.filter((p, i) => i === 0 || !same(p, l.pts[i - 1])) }))
-  const out: Bends = { mirrors: [], periscopes: [], splitters: [] }
-  const seen = new Set<string>()
+  const out: Bends = { mirrors: [], periscopes: [], halves: [], prisms: [] }
+  const corners: { at: V; ci: number; lines: Set<number> }[] = []
   lines.forEach((l, li) => {
     const { pts } = l
     const dir = (i: number) => unit(sub(pts[i + 1], pts[i]))
@@ -37,8 +44,8 @@ export function findBends(input: Line[], jog = 0.4): Bends {
       if (dist(a, b) < 1e-6) continue
       const shared = lines.some((o, oi) => oi !== li && o.pts.some((q, k) => k > 0 && onSeg(pts[i], o.pts[k - 1], q)))
       if (shared) {
-        const key = pts[i].map(x => Math.round(x * 1000)).join(',')
-        if (!seen.has(key)) { seen.add(key); out.splitters.push(pts[i]) }
+        const c = corners.find(c => dist(c.at, pts[i]) < SHARE)
+        if (c) c.lines.add(li); else corners.push({ at: pts[i], ci: l.ci, lines: new Set([li]) })
         continue
       }
       if (i + 1 < pts.length - 1 && run(i) < jog && dist(dir(i + 1), a) < 1e-6) {
@@ -49,6 +56,25 @@ export function findBends(input: Line[], jog = 0.4): Bends {
       out.mirrors.push({ at: pts[i], a, b, size: Math.min(1, Math.max(0.4, Math.min(run(i - 1), run(i)) / 0.8)), ci: l.ci })
     }
   })
+  // each shared corner: which ways the beams come in and go out of it
+  for (const c of corners) {
+    const ins: V[] = [], outs: V[] = []
+    lines.forEach(({ pts }) => {
+      for (let k = 0; k < pts.length - 1; k++) {
+        if (!onSeg(c.at, pts[k], pts[k + 1])) continue
+        const d = unit(sub(pts[k + 1], pts[k]))
+        const atStart = dist(c.at, pts[k]) < SHARE, atEnd = dist(c.at, pts[k + 1]) < SHARE
+        if (atEnd) { if (k + 2 < pts.length) { addDir(ins, d); addDir(outs, unit(sub(pts[k + 2], pts[k + 1]))) } else addDir(ins, d) } // arrives (and turns, or ends)
+        else if (atStart) { if (k === 0) addDir(outs, d) } // a start; a bend here was counted as the previous segment's end
+        else { addDir(ins, d); addDir(outs, d) } // passes straight through
+      }
+    })
+    const straight = (a: V[], b: V[]) => a.find(d => b.some(e => dist(d, e) < 0.01))
+    const d = ins.length === 1 && outs.length === 2 ? straight(ins, outs) : outs.length === 1 && ins.length === 2 ? straight(outs, ins) : undefined
+    if (d && ins.length === 1) { const o = outs.find(x => dist(x, d) > 0.01)!; out.halves.push({ at: c.at, a: d, b: o, size: 1, ci: c.ci }) } // one beam splits: the turning one reflects
+    else if (d) { const i = ins.find(x => dist(x, d) > 0.01)!; out.halves.push({ at: c.at, a: i, b: d, size: 1, ci: c.ci }) } // two join
+    else out.prisms.push({ at: c.at, ins, outs, ci: c.ci })
+  }
   return out
 }
 

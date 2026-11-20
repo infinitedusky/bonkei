@@ -65,26 +65,55 @@ function Periscope({ from, to, a, c }: { from: V; to: V; a: V; c: Pal }) {
   )
 }
 
-function Splitter({ at }: { at: V }) {
+// A half-silvered mirror: the bend mirror's size and frame, but its face is see-through glass with a thin silver coat. The turning beam
+// reflects off it, the straight one passes through.
+function HalfMirror({ at, a, b, c }: { at: V; a: V; b: V; c: Pal }) {
   const th = useTheme().edge.optics
+  const q = useMemo(() => {
+    const A = v(a), B = v(b)
+    const u = A.clone().add(B).normalize(), w = B.clone().cross(A).normalize(), n = B.clone().sub(A).normalize()
+    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, w, n))
+  }, [a, b])
+  const bar = (x: number, y: number, w: number, h: number) => <mesh position={[x, y, -0.02]}><boxGeometry args={[w, h, 0.06]} /><meshStandardMaterial color={th.metal} metalness={0.6} roughness={0.4} /></mesh>
   return (
-    <mesh position={at}>
-      <boxGeometry args={[0.4, 0.4, 0.4]} />
-      <meshPhysicalMaterial color={th.glass} transparent opacity={0.3} roughness={0.05} metalness={0.1} depthWrite={false} />
+    <group position={at}>
+      <group quaternion={q}>
+        {bar(0, 0.16, 0.4, 0.03)}{bar(0, -0.16, 0.4, 0.03)}{bar(0.2, 0, 0.03, 0.32)}{bar(-0.2, 0, 0.03, 0.32)}
+        <mesh><planeGeometry args={[0.37, 0.29]} /><meshPhysicalMaterial color={th.glass} transparent opacity={0.22} roughness={0.05} side={THREE.DoubleSide} depthWrite={false} /></mesh>
+        <mesh position={[0, 0, 0.003]}><planeGeometry args={[0.37, 0.29]} /><meshStandardMaterial color={th.face} metalness={1} roughness={0.1} transparent opacity={0.3} depthWrite={false} /></mesh>
+      </group>
+      <mesh><sphereGeometry args={[0.05, 12, 12]} /><meshBasicMaterial color={c.core} /></mesh>
+      <mesh><sphereGeometry args={[0.12, 12, 12]} /><meshBasicMaterial color={c.halo} transparent opacity={0.3} depthWrite={false} /></mesh>
+    </group>
+  )
+}
+
+// Where beams part with no straight way on (a T): a small glass wedge, its axis across the plane the beams are in.
+function Prism({ at, ins, outs }: { at: V; ins: V[]; outs: V[] }) {
+  const th = useTheme().edge.optics
+  const q = useMemo(() => {
+    const axis = v(ins[0]).cross(v(outs[0])).normalize()
+    return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.lengthSq() ? axis : new THREE.Vector3(0, 1, 0))
+  }, [ins, outs])
+  return (
+    <mesh position={at} quaternion={q}>
+      <cylinderGeometry args={[0.2, 0.2, 0.3, 3]} />
+      <meshPhysicalMaterial color={th.glass} transparent opacity={0.35} roughness={0.05} metalness={0.1} depthWrite={false} />
     </mesh>
   )
 }
 
 /** Every bend of every drawn line. `lines[i].ci` indexes `pals`. */
-export function Optics({ lines, pals, onCount }: { lines: DrawnLine[]; pals: Pal[]; onCount?: (n: { mirrors: number; periscopes: number; splitters: number }) => void }) {
+export function Optics({ lines, pals, onCount }: { lines: DrawnLine[]; pals: Pal[]; onCount?: (n: { mirrors: number; periscopes: number; halves: number; prisms: number }) => void }) {
   const th = useTheme().edge.optics
   const bends = useMemo(() => findBends(lines, th.jog), [lines, th.jog])
-  useMemo(() => onCount?.({ mirrors: bends.mirrors.length, periscopes: bends.periscopes.length, splitters: bends.splitters.length }), [bends])
+  useMemo(() => onCount?.({ mirrors: bends.mirrors.length, periscopes: bends.periscopes.length, halves: bends.halves.length, prisms: bends.prisms.length }), [bends])
   return (
     <>
       {bends.mirrors.map((m, i) => <Mirror key={`m${i}`} {...m} c={pals[m.ci]} />)}
       {bends.periscopes.map((p, i) => <Periscope key={`p${i}`} {...p} c={pals[p.ci]} />)}
-      {bends.splitters.map((s, i) => <Splitter key={`s${i}`} at={s} />)}
+      {bends.halves.map((h, i) => <HalfMirror key={`h${i}`} {...h} c={pals[h.ci]} />)}
+      {bends.prisms.map((p, i) => <Prism key={`r${i}`} {...p} />)}
     </>
   )
 }
@@ -96,7 +125,8 @@ export function Barrel({ at, dir, c }: { at: THREE.Vector3; dir: THREE.Vector3; 
   return (
     <group position={at} quaternion={q}>
       <mesh position={[0, -0.09, 0]}><cylinderGeometry args={[0.09, 0.09, 0.18, 16]} /><meshStandardMaterial color={th.metal} metalness={0.6} /></mesh>
-      <mesh position={[0, 0.001, 0]}><cylinderGeometry args={[0.06, 0.06, 0.01, 16]} /><meshBasicMaterial color={c.beam} /></mesh>
+      <mesh position={[0, 0.001, 0]}><cylinderGeometry args={[0.075, 0.075, 0.012, 16]} /><meshBasicMaterial color={c.beam} /></mesh>
+      <mesh position={[0, 0.012, 0]}><cylinderGeometry args={[0.13, 0.13, 0.004, 16]} /><meshBasicMaterial color={c.halo} transparent opacity={0.3} depthWrite={false} /></mesh>
     </group>
   )
 }
