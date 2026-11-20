@@ -67,3 +67,28 @@ test('a stage that cannot be fetched rejects prepare with one stage error naming
   assert.equal(e.kind, 'stage')
   assert.equal(e.line, 4)
 })
+
+test('labels accepts base, sign and diamond beside top and billboard', () => {
+  for (const l of ['top', 'billboard', 'base', 'sign', 'diamond']) assert.equal(readFrontmatter(`---\nconfig:\n  bonkei:\n    labels: ${l}\n---\n`).options.labels, l)
+  assert.match(readFrontmatter('---\nconfig:\n  bonkei:\n    labels: arrow\n---\n').warnings[0].message, /labels must be one of/)
+})
+
+import { zoneOf, framed } from './stageZones.ts'
+
+test('auto: a part whose name cannot read on its zone floor is small and floats; the others get a zone', async () => {
+  const small = async (f: string) => { const l = (await loadStage(`/stages/${f}`, undefined, serve())).layout; return l.parts.filter(p => zoneOf(p, l.blockers).small).map(p => p.label) }
+  assert.deepEqual(await small('house.glb'), ['phone', 'router', 'telephone pole'])
+  assert.deepEqual(await small('kitchen.glb'), ['wrap station'])
+})
+
+test('every zone lies wholly on the floor: where it runs past the model a base is grown to hold it, centred, with an even margin; none when nothing runs past', async () => {
+  const l = (await loadStage('/stages/kitchen.glb', undefined, serve())).layout
+  const sign = framed(l, 'sign'), zone = framed(l, 'zone')
+  assert.equal(sign.base, null)
+  assert.ok(zone.base && zone.width > l.width && zone.height > l.height)
+  for (const p of l.parts) {
+    const z = zoneOf(p, l.blockers)
+    assert.ok(z.x0 >= zone.base!.x0 && z.x1 <= zone.base!.x1 && z.z0 >= zone.base!.z0 && z.z1 <= zone.base!.z1, `${p.label} inside the base`)
+  }
+  assert.ok(Math.abs((zone.base!.x0 + zone.ox!) + (zone.base!.x1 + zone.ox!)) < 1e-6) // centred on the origin
+})

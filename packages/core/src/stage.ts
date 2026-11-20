@@ -15,6 +15,10 @@ export interface StageLayout {
   kind: 'stage'; width: number; height: number
   model: THREE.Object3D // the scene, its footprint centred on the origin
   parts: StagePart[]
+  blockers?: { x0: number; x1: number; z0: number; z1: number }[] // what stands on the floor (parts and unnamed objects over 0.3 high), world footprints, grown back by their height (see loadStage): a name lying on a zone's floor keeps clear of them
+  base?: { x0: number; x1: number; z0: number; z1: number } | null // the floor grown under the model to hold every zone (stageZones.ts framed), in the model's own coordinates; null: the model's own floor is enough
+  reach?: number // how high the tallest floating name reaches, world units (stageZones.ts framed)
+  ox?: number; oz?: number // where the model and its names are moved to centre the whole on the origin
   tall: number // how high the model stands, world units: the camera's fit leaves room for it
   url: string
 }
@@ -32,14 +36,14 @@ const nameOf = (o: THREE.Object3D) => {
 const namedBelow = (o: THREE.Object3D) => { let n = 0; o.traverse(c => { if (c !== o && nameOf(c)) n++ }); return n }
 
 /** Which of the scene's objects are parts: the named ones directly under it; a lone wrapper node is looked through. */
-export function findParts(scene: THREE.Object3D): { parts: { name: string; object: THREE.Object3D; pieces: number }[]; warnings: string[]; skipped: number } {
+export function findParts(scene: THREE.Object3D): { parts: { name: string; object: THREE.Object3D; pieces: number }[]; others: THREE.Object3D[]; warnings: string[]; skipped: number } {
   let top = scene.children
   if (top.length === 1 && top[0].children.length) top = top[0].children
   const parts = top.flatMap(object => { const name = nameOf(object); return name ? [{ name, object, pieces: namedBelow(object) }] : [] })
   const seen = new Map<string, number>()
   for (const p of parts) { const k = normaliseName(p.name); seen.set(k, (seen.get(k) ?? 0) + 1) }
   const warnings = [...seen].filter(([, n]) => n > 1).map(([k]) => `two parts are named "${parts.find(p => normaliseName(p.name) === k)!.name}"; a script pointing at it will use the first`)
-  return { parts, warnings, skipped: parts.reduce((n, p) => n + p.pieces, 0) }
+  return { parts, others: top.filter(o => !nameOf(o)), warnings, skipped: parts.reduce((n, p) => n + p.pieces, 0) }
 }
 
 /** Reads the JSON of a .glb or .gltf; throws a stage error when it is neither. */
@@ -107,9 +111,15 @@ export async function loadStage(url: string, parent?: Span, fetcher: typeof fetc
       })
       // frameOf wants x, y in the layout's own corner-origin px: shift world coords by half the footprint
       for (const p of parts) { p.x += width / 2; p.y += height / 2 }
+      const blockers = [...found.parts.map(p => p.object), ...found.others].flatMap(o => {
+        const b = new THREE.Box3().setFromObject(o)
+        const h = b.max.y - b.min.y
+        // a tall thing also hides the floor behind it from the iso and 3D views (they look from the front right): its footprint is grown that way by 0.7 of its height
+        return h >= 0.3 ? [{ x0: b.min.x - 0.7 * h, x1: b.max.x, z0: b.min.z - 0.7 * h, z1: b.max.z }] : []
+      })
       const warnings = found.warnings.map((message): BonkeiWarning => ({ kind: 'stage', message, line: 0 }))
       span.setAttributes({ 'bonkei.stage.ms': performance.now() - t0, 'bonkei.stage.parts': parts.length, 'bonkei.stage.pieces_skipped': found.skipped, 'bonkei.stage.duplicates': warnings.length })
-      return { layout: { kind: 'stage', width, height, model: scene, parts, tall: size.y, url }, warnings, info: { url, parts: parts.map(p => ({ name: p.label, pieces: p.pieces })) } }
+      return { layout: { kind: 'stage', width, height, model: scene, parts, blockers, tall: size.y, url }, warnings, info: { url, parts: parts.map(p => ({ name: p.label, pieces: p.pieces })) } }
     } catch (e) {
       const err = (e as BonkeiError).kind === 'stage' ? e as BonkeiError : fail(`the stage ${url} couldn't be loaded: ${e instanceof Error ? e.message : String(e)}`)
       span.setAttribute('bonkei.error.kind', 'stage')

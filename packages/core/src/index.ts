@@ -50,6 +50,8 @@ export { isBonkeiError } from './diagram'
 export type { Mode } from './camera'
 /** Where labels sit: on top of the shapes, or billboarded towards the camera. */
 export type { LabelMode } from './model'
+/** What `labels` may say on a stage: top, billboard, base, sign (the default) or diamond. */
+export type { StageLabelMode } from './model'
 
 // Hand-built graphs
 /** A finished graph, as parsed from Mermaid. */

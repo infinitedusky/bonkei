@@ -2,6 +2,8 @@
 export type Shape = 'rect' | 'round' | 'cylinder' | 'diamond'
 /** Where labels sit: on top of the shapes, or billboarded towards the camera. */
 export type LabelMode = 'top' | 'billboard'
+/** What `labels` may say on a stage: top and billboard as on a diagram, `base` (the name on the floor at the part's foot, both long sides) or `sign` (a floating arrow board over the part) `diamond` (a spinning plumbob over the part, its name above it) or `zone` (a tinted floor under the part with its name in big capitals on the ground, as Cloud Cartography titles a zone). `auto` (the default for a stage): a part big enough for its name to read on a zone gets one, a small part gets a floating label with a leader line. On a diagram, base, zone and auto read as top; sign and diamond as billboard. */
+export type StageLabelMode = LabelMode | 'base' | 'sign' | 'diamond' | 'zone' | 'auto'
 /** A node in a graph. */
 // title/sub: a label written over two lines (`<br>`); `label` stays the one-line reading ("title sub") every theme but Cloud Cartography draws.
 export interface GNode { id: string; label: string; shape: Shape; parent?: string; title?: string; sub?: string }

@@ -15,7 +15,7 @@ import { pickCorner, titleWidth, offTitleWidth, groundTitle, groundWidth, GROUND
 export { S, TRAY, NODE_H }
 
 
-function rounded(w: number, h: number, r: number) {
+export function rounded(w: number, h: number, r: number) {
   const s = new THREE.Shape(), x = -w / 2, y = -h / 2
   s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r)
   s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
@@ -166,7 +166,7 @@ export function Label({ text, mode, y, size, maxWidth, left = false, right = fal
   return <Billboard position={[0, y + 0.45, 0]}>{body}</Billboard>
 }
 
-const mixc = (a: string, b: string, t: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString()
+export const mixc = (a: string, b: string, t: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString()
 
 export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[]; kids?: Rect[]; zone?: { color: string; nested: boolean } }) {
   const th = useTheme()
@@ -235,14 +235,14 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
 // (titles.ts groundTitle). The font's real width can differ from that estimate, so the text as drawn is shrunk to the floor if it is wider.
 const GROUND_ORDER: Corner[] = ['fl', 'fr', 'bl', 'br']
 const GROUND_GROW = { x0: 0.5, x1: 0.2, z0: 0.6, z1: 0.3 } // an icon (its box is larger than the icon) stands over the floor it is on; the card is drawn over everything, so only the footprint counts
-function GroundTitle({ fit, w, h, T, left, back, color }: { fit: GroundFit; w: number; h: number; T: number; left: boolean; back: boolean; color: string }) {
+export function GroundTitle({ fit, w, h, T, left, back, color, fontKey, x }: { fit: GroundFit; w: number; h: number; T: number; left: boolean; back: boolean; color: string; fontKey?: string; x?: number }) {
   const th = useTheme()
-  const font = fontOf(th.tray.groundFont)
+  const font = fontOf(fontKey ?? th.tray.groundFont)
   const { lines, size } = fit
   const [k, setK] = useState(1)
   const roomW = w - 2 * GROUND.inset, roomH = h - 2 * GROUND.inset
   return (
-    <Text position={[left ? -w / 2 + GROUND.inset : w / 2 - GROUND.inset, T + 0.004, back ? -h / 2 + GROUND.inset + size + (lines.length - 1) * size * GROUND.line : h / 2 - GROUND.inset]}
+    <Text position={[x ?? (left ? -w / 2 + GROUND.inset : w / 2 - GROUND.inset), T + 0.004, back ? -h / 2 + GROUND.inset + size + (lines.length - 1) * size * GROUND.line : h / 2 - GROUND.inset]}
       rotation={[-Math.PI / 2, 0, 0]} scale={k} font={font} fontSize={size} letterSpacing={0.04} lineHeight={lines.length > 1 ? GROUND.line : undefined}
       textAlign={left ? 'left' : 'right'} anchorX={left ? 'left' : 'right'} anchorY="bottom" color={color} fillOpacity={0.8} layers={TEXT_LAYER as any}
       onSync={(t: any) => {

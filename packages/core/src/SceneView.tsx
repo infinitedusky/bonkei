@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, createContext, lazy, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute, trimToIcons, PAD, GROUND_ROOM } from './layout'
@@ -8,8 +8,8 @@ import { measureRoutes, type RouteQuality } from './routeMetrics.ts'
 import { instant } from './telemetry'
 import { createCamera, biggestTray, contentOf, frameOf, PRESET, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
-import { StageScene } from './StageScene'
 import type { StageLayout } from './stage'
+import type { StageLabelMode } from './model'
 import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
@@ -23,6 +23,8 @@ import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gest
 import { Gate, HINT_MS, clipRadii, inScroller } from './hold'
 import type { NodeClick, ResolvedControls } from './options'
 
+// the stage's drawing (signs, zones, plumbobs) is a chunk of its own, fetched with the first stage
+const StageScene = lazy(() => import('./StageScene').then(m => ({ default: m.StageScene })))
 const LIGHT_TILTED = new THREE.Vector3(10, 18, 7) // iso and 3D
 const LIGHT_FLAT = new THREE.Vector3(21.8 * Math.sin(Math.PI / 36), 21.8 * Math.cos(Math.PI / 36), 0) // flat: 5 degrees off straight overhead, same distance
 
@@ -478,7 +480,9 @@ export interface EdgeStats extends Stats { trayDocks: number; recomputeMs: numbe
 
 export interface SceneViewProps {
   data: LayoutResult | SeqLayout | StageLayout | null
-  labelMode: LabelMode
+  labelMode: StageLabelMode
+  /** A stage's floating names: capital letters one under another (default) or turned on their side. */
+  letters?: 'stacked' | 'side'
   mode: Mode
   /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
   camera?: Camera
@@ -504,8 +508,9 @@ export interface SceneViewProps {
   onInput?: (input: Input) => void
 }
 
-export function SceneView({ data, labelMode, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats, theme = CLASSIC, onInput }: SceneViewProps) {
+export function SceneView({ data, labelMode, letters, mode, camera, showFps = true, controls, onNodeClick, hasClick = !!onNodeClick, onFirstFrame, crossings = 'none', avoidCrossings = 'some', onEdgeStats, theme = CLASSIC, onInput }: SceneViewProps) {
   const fpsRef = useRef<HTMLDivElement>(null)
+  const flatLabels: LabelMode = labelMode === 'top' || labelMode === 'base' || labelMode === 'zone' || labelMode === 'auto' ? 'top' : 'billboard' // a diagram has no base, sign or diamond
   const [inkStore] = useState(() => new InkStore())
   const [own] = useState(createCamera)
   const c = camera ?? own
@@ -548,7 +553,7 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
     <div ref={box} data-bonkei-scene="" onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
-        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={data && 'kind' in data && data.kind === 'stage' ? Math.max(headroom(theme), headroom(theme) + 1.2 * data.tall) /* what stands up is cut off the top of the view unless it counts more than once (the fit centres on the floor) */ : headroom(theme)} />
+        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={data && 'kind' in data && data.kind === 'stage' ? Math.max(headroom(theme), headroom(theme) + 1.2 * (data.reach ?? data.tall)) /* what stands up is cut off the top of the view unless it counts more than once (the fit centres on the floor) */ : headroom(theme)} />
         {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
             and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
         <GateCtx.Provider value={gate}><InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
@@ -556,9 +561,9 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
           <Rig cam={c} fpsRef={fpsRef} />
           {data && ('kind' in data
             ? data.kind === 'stage'
-              ? <Env cam={c} controls={ctl}><StageScene data={data} labelMode={labelMode} /></Env>
-              : <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
-            : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
+              ? <Env cam={c} controls={ctl}><Suspense fallback={null}><StageScene data={data} labelMode={labelMode} letters={letters} /></Suspense></Env>
+              : <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={flatLabels} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
+            : <Scene cam={c} data={data} labelMode={flatLabels} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
         </ThemeProvider></InkCtx.Provider></GateCtx.Provider>
       </Canvas>
       {held && (

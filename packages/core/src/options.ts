@@ -2,7 +2,7 @@
 // Decisions: LOG.md, "Diagram options and errors (BON-51)".
 import { load, CORE_SCHEMA, YAMLException } from 'js-yaml'
 import type { Mode } from './camera.ts'
-import type { LabelMode } from './model.ts'
+import type { StageLabelMode } from './model.ts'
 import { themeByName, withVariables, type Theme } from './theme.ts'
 import { CROSSING_STYLES, type CrossingStyle } from './edges3d.ts'
 import { AVOID_CROSSINGS, type AvoidCrossings } from './avoid.ts'
@@ -18,7 +18,7 @@ export type ResolvedControls = Record<ControlName, boolean>
 /** The options that may also come from the diagram's frontmatter (config.bonkei). */
 export interface DiagramOptions {
   mode?: Mode
-  labels?: LabelMode
+  labels?: StageLabelMode
   toolbar?: boolean
   controls?: Controls
   /** How two lines that cross are drawn: 'none' (default, they cross as lines), 'bridge', 'tunnel' or 'portal'. */
@@ -29,8 +29,10 @@ export interface DiagramOptions {
   crossingControls?: boolean
   /** A 3D model to draw as a stage: the URL of a .glb (or .gltf), resolved relative to the page. A diagram with only frontmatter and a stage shows the stage alone. */
   stage?: string
+  /** How the floating names of a stage (`labels: sign` or `diamond`) are written: `stacked`, capital letters one under another (default), or `side`, the capitals turned on their side, read bottom to top. */
+  letters?: 'stacked' | 'side'
 }
-export type ResolvedOptions = Required<Omit<DiagramOptions, 'stage'>>
+export type ResolvedOptions = Required<Omit<DiagramOptions, 'stage' | 'letters'>>
 
 // A BonkeiError means nothing can be drawn. It goes to `onError`.
 /** What onError receives when nothing could be drawn (kind: parse, graph, layout or render). */
@@ -81,7 +83,8 @@ export type BonkeiOptions = DiagramOptions & {
 export const DEFAULTS: Readonly<ResolvedOptions> = Object.freeze({ mode: 'iso', labels: 'top', toolbar: true, controls: true, crossings: 'none', avoidCrossings: 'some', crossingControls: false })
 
 const MODES: readonly Mode[] = ['flat', 'iso', '3d']
-const LABELS: readonly LabelMode[] = ['top', 'billboard']
+const LETTERS = ['stacked', 'side'] as const
+const LABELS: readonly StageLabelMode[] = ['top', 'billboard', 'base', 'sign', 'diamond', 'zone', 'auto']
 const CONTROLS: readonly ControlName[] = ['zoom', 'pan', 'move', 'drillIn']
 
 // Mermaid's own frontmatter regex (mermaid/src/diagram-api/frontmatter.ts).
@@ -180,6 +183,7 @@ export function readFrontmatter(src: string): Frontmatter {
     else if (key === 'crossings') options.crossings = oneOf(key, v, CROSSING_STYLES)
     else if (key === 'avoidCrossings') options.avoidCrossings = oneOf(key, v, AVOID_CROSSINGS)
     else if (key === 'stage') { if (typeof v === 'string' && v.trim()) options.stage = v.trim(); else warn(`config.bonkei.stage must be the address of a .glb file; got ${show(v)}`, lineOf(['config', 'bonkei', key])) }
+    else if (key === 'letters') options.letters = oneOf(key, v, LETTERS)
     else if (key === 'toolbar') options.toolbar = bool(['bonkei', key], v)
     else if (key === 'crossingControls') options.crossingControls = bool(['bonkei', key], v)
     else if (key === 'controls') {
@@ -192,7 +196,7 @@ export function readFrontmatter(src: string): Frontmatter {
         if (b !== undefined) c[name as ControlName] = b
       }
       options.controls = c
-    } else warn(`unknown option config.bonkei.${key}; known: mode, labels, toolbar, controls, crossings, avoidCrossings, crossingControls, stage`, lineOf(['config', 'bonkei', key]))
+    } else warn(`unknown option config.bonkei.${key}; known: mode, labels, toolbar, controls, crossings, avoidCrossings, crossingControls, stage, letters`, lineOf(['config', 'bonkei', key]))
   }
   for (const k of Object.keys(options) as (keyof DiagramOptions)[]) if (options[k] === undefined) delete options[k]
   return { body, lineOffset, options, theme, warnings }

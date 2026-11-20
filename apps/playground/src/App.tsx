@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SAMPLES } from './samples'
-import { Bonkei, THEME_NAMES, normaliseName, type LabelMode, type StageInfo } from 'bonkei'
+import { Bonkei, THEME_NAMES, normaliseName, type StageLabelMode, type StageInfo } from 'bonkei'
 import type { EdgeStats } from 'bonkei/internal'
 
 // The site sits one level above the viewer (/app/ in dev, /merman/app/ on Pages).
@@ -17,7 +17,8 @@ export default function App() {
   const [src, setSrc] = useState(SAMPLES[first])
   const [sel, setSel] = useState(first)
   const [debounced, setDebounced] = useState(src)
-  const [labelMode, setLabelMode] = useState<LabelMode>('top')
+  const [labelMode, setLabelMode] = useState<StageLabelMode | typeof FROM_SOURCE>(FROM_SOURCE) // from source: the frontmatter's, else the default (a stage: sign)
+  const [letters, setLetters] = useState<'stacked' | 'side'>('stacked')
   const [theme, setTheme] = useState(FROM_SOURCE)
   // the last theme warning; line 0 means it came from the theme menu (the prop), so it outlives a new source
   const [warn, setWarn] = useState<{ message: string; line: number } | null>(null)
@@ -47,7 +48,7 @@ export default function App() {
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
-      <Bonkei source={debounced} labels={labelMode} theme={theme === FROM_SOURCE ? undefined : theme === UNKNOWN ? 'nope' : theme}
+      <Bonkei source={debounced} labels={labelMode === FROM_SOURCE ? undefined : labelMode} letters={letters} theme={theme === FROM_SOURCE ? undefined : theme === UNKNOWN ? 'nope' : theme}
         crossingControls
         onReady={r => { setMs(r.layoutMs); setStage(r.stage ?? null) }}
         onError={() => setMs(null)}
@@ -55,8 +56,9 @@ export default function App() {
         onWarning={w => { if (w.kind === 'dropped') setDropped(n => n + 1); else if (w.kind === 'theme' || w.kind === 'stage') setWarn({ message: w.message, line: w.kind === 'stage' ? 0 : w.line }) }} />
       <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6, alignItems: 'center', color: '#9aa6c0' }}>
         <a href={SITE} style={{ ...btn(false), textDecoration: 'none', font: 'inherit' }}>← Site</a>
-        <button style={btn(false)} onClick={() => setLabelMode(l => l === 'top' ? 'billboard' : 'top')}>labels: {labelMode}</button>
+        <select aria-label="Labels" value={labelMode} onChange={e => setLabelMode(e.target.value as StageLabelMode)} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{[FROM_SOURCE, 'top', 'billboard', 'base', 'sign', 'diamond', 'zone'].map(k => <option key={k} value={k}>labels: {k}</option>)}</select>
         <select value={sel} onChange={e => { setSel(e.target.value); setSrc(SAMPLES[e.target.value]) }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{Object.keys(SAMPLES).map(k => <option key={k}>{k}</option>)}</select>
+        <select aria-label="Letters" value={letters} onChange={e => setLetters(e.target.value as 'stacked' | 'side')} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{['stacked', 'side'].map(k => <option key={k} value={k}>letters: {k}</option>)}</select>
         <select aria-label="Theme" value={theme} onChange={e => { setTheme(e.target.value); setWarn(null) }} style={{ padding: 5, background: '#1a2030', color: '#fff', border: '1px solid #3a4560', borderRadius: 5 }}>{THEME_MENU.map(k => <option key={k}>{k}</option>)}</select>
         <button style={btn(edit)} onClick={() => setEdit(e => !e)}>source</button>
       </div>

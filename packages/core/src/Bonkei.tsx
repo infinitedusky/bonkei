@@ -14,6 +14,8 @@ import { fitUsed, gestureRows, helpToggled, modKey, type HelpHow, type Input } f
 import { firstInput } from './hold'
 import { drawnCounts, resolveTheme, themeByName, themeFonts, trenchParts } from './theme'
 import { loadFont } from './fonts.ts'
+import { framed } from './stageZones.ts'
+import type { StageLabelMode } from './model.ts'
 
 /** What a mounted view can be told to do. */
 export interface BonkeiViewHandle {
@@ -305,6 +307,13 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lookKey])
+  // A stage names its parts as `auto` unless props or frontmatter say otherwise: a zone under each part big enough for its name, a floating label for the small ones.
+  const isStage = prepared !== null && 'kind' in prepared.data && prepared.data.kind === 'stage'
+  const stageLabels: StageLabelMode = isStage ? props.labels ?? prepared!.options.labels ?? 'auto' : opts.labels
+  // What is drawn: a stage is framed with its zones' floor grown under it where they run past the model (stageZones.ts), so it depends on the label mode.
+  const shown = useMemo(() => prepared && isStage ? framed(prepared.data as Parameters<typeof framed>[0], stageLabels) : prepared?.data ?? null, [prepared, isStage, stageLabels])
+  const shownRef = useRef(shown)
+  shownRef.current = shown
   const resolvedKey = JSON.stringify(resolveControls(opts.controls))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const controls = useMemo(() => resolveControls(opts.controls), [resolvedKey])
@@ -353,14 +362,16 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     const edits = camera.edits
     camera.whole = true
     camera.square()
-    camera.fit(p.data.width, p.data.height)
+    const d = shownRef.current ?? p.data
+    camera.fit(d.width, d.height)
     fitUsed(modeRef.current, edits)
   }, [camera])
   const frame = useCallback(() => {
     const p = preparedRef.current
     if (!p) return
     camera.whole = false
-    camera.fit(p.data.width, p.data.height, 'boxes' in p.data && camera.minLabel > 0 ? biggestTray(p.data.boxes, p.data.width, p.data.height) : undefined)
+    const d = shownRef.current ?? p.data
+    camera.fit(d.width, d.height, 'boxes' in d && camera.minLabel > 0 ? biggestTray(d.boxes, d.width, d.height) : undefined)
   }, [camera])
 
   useImperativeHandle(ref, () => ({ setMode: m => pick(m, 'handle'), fit }), [pick, fit])
@@ -414,7 +425,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   return (
     <div ref={box} data-bonkei={status} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <SceneBoundary resetKey={prepared?.key ?? ''} onError={onRenderError}>
-        <SceneView data={prepared?.data ?? null} labelMode={opts.labels} mode={mode} camera={camera} showFps={false} theme={theme}
+        <SceneView data={shown} labelMode={stageLabels} letters={props.letters ?? prepared?.options.letters} mode={mode} camera={camera} showFps={false} theme={theme}
           controls={controls} onNodeClick={onNodeClick} hasClick={!!props.onNodeClick} onFirstFrame={onFirstFrame} crossings={crossings} avoidCrossings={avoid} onEdgeStats={props.onEdgeStats} onInput={setInput} />
         {prepared && opts.toolbar && <Toolbar mode={mode} onPick={m => pick(m, 'toolbar')} onFit={fit} input={input}
           {...(opts.crossingControls ? { crossings, onCrossings: pickCrossings, avoid, onAvoid: pickAvoid } : {})} />}
