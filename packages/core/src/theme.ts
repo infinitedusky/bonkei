@@ -183,7 +183,7 @@ const BENCH = '#0f2238'
 /** Lazers, an optics bench of laser beams and mirrors, for passing as `theme` or as a base to copy and edit (it is frozen). */
 export const LAZERS: Theme = deepFreeze({
   name: 'lazers',
-  ground: { bg: BENCH, grid: ['#1a607f', '#0e3550'], major: 5, majorColor: '#2590b8', grain: 0, lit: true }, // a Tron grid: cyan lines, a heavier one every 5
+  ground: { bg: BENCH, grid: ['#17566f', '#0c2e46'], major: 5, majorColor: '#1f7fa3', grain: 0, lit: true }, // a Tron grid: cyan lines, a heavier one every 5
   light: { ...CLASSIC.light, ambient: 0.75, sky: '#dff1ff', floor: '#14283f', hemi: 0.6, sun: 0.9, shadows: false },
   node: {
     ...CLASSIC.node,

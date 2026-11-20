@@ -94,8 +94,8 @@ function Periscope({ from, to, a, c, size, slim }: { from: V; to: V; a: V; c: Pa
   const mid = p.clone().add(q2).multiplyScalar(0.5)
   return (
     <>
-      <Mirror at={from} a={a} b={dn} c={c} size={0.75 * k} slim={false} />
-      <Mirror at={to} a={dn} b={a} c={c} size={0.75 * k} slim={false} />
+      <Mirror at={from} a={a} b={dn} c={c} size={0.55 * k} slim={false} />
+      <Mirror at={to} a={dn} b={a} c={c} size={0.55 * k} slim={false} />
       <group position={mid} quaternion={quat} renderOrder={10}>
         <mesh geometry={box} renderOrder={10}><meshPhysicalMaterial color={th.glass} transparent opacity={0.1} roughness={0.05} metalness={0} side={THREE.DoubleSide} depthWrite={false} /></mesh>
         <lineSegments geometry={edges} renderOrder={11}><lineBasicMaterial color={th.glass} transparent opacity={0.55} depthWrite={false} /></lineSegments>

@@ -154,7 +154,7 @@ export function NodeBody({ b, hover = false, labelMode, device }: { b: Box; hove
       {th.node.outline && b.shape !== 'diamond' && (
         <Silhouette shape={b.shape} w={land ? w * 0.9 : w} h={land ? h * 0.9 : h} height={height} y={0.012} color={th.node.outline} width={th.node.outlineWidth} />
       )}
-      {device?.fires && <FireBand shape={b.shape} w={w} h={h} y={height + 0.03} color={device.fires} />}
+      {device?.fires && <FireBand shape={b.shape} w={w} h={h} y={height + 0.06} color={device.fires} />}
       {device && <StatusLight w={w} h={h} y={height} role={device.role} color={device.caught ?? device.fires} />}
       {land
         ? <Form shape={b.shape} w={w} h={h} y={height} gap={th.node.labelGap} label={b.label} plate={th.label.node} font={fontUrl(th)} toward={th.label.toward} />
@@ -185,7 +185,7 @@ function FireBand({ shape, w, h, y, color }: { shape: Box['shape']; w: number; h
 function StatusLight({ w, h, y, role, color }: { w: number; h: number; y: number; role: Device['role']; color: string | null }) {
   const lit = role !== 'idle' && color
   return (
-    <mesh position={[w / 2 - 0.25, y + 0.035, -h / 2 + 0.25]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh position={[w / 2 - 0.25, y + 0.06, -h / 2 + 0.25]} rotation={[-Math.PI / 2, 0, 0]}>
       <circleGeometry args={[0.08, 16]} /><meshBasicMaterial color={lit ? '#' + new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.7).getHexString() : '#2a3245'} />
     </mesh>
   )
