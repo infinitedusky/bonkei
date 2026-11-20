@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sketch: Lazers theme (BON-248)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #05070c; color: #c9d3e6; font: 14px/1.4 system-ui, sans-serif; }
+  header { padding: 14px 20px; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; border-bottom: 1px solid #141b2a; }
+  header h1 { font-size: 16px; margin: 0; color: #fff; }
+  header .note { color: #7f8aa3; font-size: 12px; }
+  .pick { margin-left: auto; display: flex; gap: 6px; }
+  .pick button { background: #0d1220; color: #c9d3e6; border: 1px solid #222c42; border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 12px; }
+  .pick button.on { border-color: var(--beam); color: #fff; }
+  main { display: grid; grid-template-columns: 1fr 360px; gap: 0; }
+  .stage { position: relative; }
+  .tag { position: absolute; top: 10px; left: 14px; font-size: 11px; color: #7f8aa3; letter-spacing: .08em; text-transform: uppercase; }
+  aside { border-left: 1px solid #141b2a; display: grid; grid-template-rows: auto auto 1fr; }
+  aside .panel { position: relative; border-bottom: 1px solid #141b2a; }
+  .legend { padding: 14px 16px; font-size: 13px; }
+  .legend h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #7f8aa3; margin: 0 0 8px; }
+  .legend dl { margin: 0; display: grid; grid-template-columns: 22px 1fr; gap: 6px 8px; }
+  .legend dt { width: 14px; height: 14px; margin-top: 3px; border-radius: 3px; }
+  .legend dd { margin: 0; }
+  .q { margin-top: 12px; padding: 10px; border: 1px dashed #2a3550; border-radius: 6px; color: #9aa6c0; font-size: 12px; }
+  svg { display: block; width: 100%; height: auto; }
+  svg text { font: 600 12px system-ui, sans-serif; fill: #e9eefb; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lazers · the large flowchart, made-up sample</h1>
+  <span class="note">Sketch only: made-up nodes, hand-placed routes. Beams are a core line plus a wide faint halo (no bloom), as the tunnel light is drawn.</span>
+  <div class="pick" id="pick"></div>
+</header>
+<main>
+  <div class="stage"><span class="tag">Iso</span><svg id="iso" viewBox="0 0 1000 600"></svg></div>
+  <aside>
+    <div class="panel"><span class="tag">Flat (from above)</span><svg id="flat" viewBox="0 0 360 230"></svg></div>
+    <div class="panel"><span class="tag">3D · a bridge: up, over, down, four mirrors</span><svg id="bridge" viewBox="0 0 360 230"></svg></div>
+    <div class="legend">
+      <h2>Devices (from the edges)</h2>
+      <dl>
+        <dt style="background:#1b2233;box-shadow:inset -6px 0 0 var(--beam)"></dt><dd><b>Emitter</b>: only sends. A lens barrel where each beam leaves.</dd>
+        <dt style="background:#1b2233;box-shadow:inset 0 0 0 3px var(--beam)"></dt><dd><b>Detector</b>: only receives. A lit target where each beam lands; the beam ends in a hit spot, no arrowhead.</dd>
+        <dt style="background:linear-gradient(90deg,#1b2233 50%,var(--beam) 50%)"></dt><dd><b>Relay</b>: both. Targets in, barrels out.</dd>
+        <dt style="background:#1b2233;opacity:.5"></dt><dd><b>Idle</b>: no edges. Unlit.</dd>
+        <dt style="background:#cfe3ff"></dt><dd><b>Mirror</b>: a silver plate at 45° on every bend, flat or up/down.</dd>
+        <dt style="background:rgba(160,220,255,.35);border:1px solid #cfe3ff"></dt><dd><b>Splitter</b>: a glass cube where two beams share a corner and part ways (out of Gateway).</dd>
+      </dl>
+      <div class="q">To react to: the colour (buttons up top), devices as dark metal boxes, the hit spot instead of an arrowhead, the splitter cube.</div>
+    </div>
+  </aside>
+</main>
+<script>
+// ---- made-up scene, in plan units: x east, z south, y up ----
+const TRAY = { x0: 4, z0: -0.8, x1: 12, z1: 7.8, t: 0.25, title: 'Platform' }
+const NODE_H = 0.5, W = 1.6, D = 1
+const nodes = [
+  { id: 'Client',  x: 0,    z: 0, onTray: false },
+  { id: 'Gateway', x: 6,    z: 1, onTray: true },
+  { id: 'Auth',    x: 6,    z: 5, onTray: true },
+  { id: 'Orders',  x: 10,   z: 1, onTray: true },
+  { id: 'DB',      x: 10,   z: 5, onTray: true },
+  { id: 'Metrics', x: 14.6, z: 1, onTray: false },
+  { id: 'Logs',    x: 14.6, z: 7, onTray: false },
+  { id: 'Cron',    x: 0,    z: 6, onTray: false },
+]
+const base = n => (n.onTray ? TRAY.t : 0)
+const mid = n => base(n) + NODE_H / 2
+const G = 0.25, T = TRAY.t + 0.25 // beam heights: ground nodes, tray nodes
+// routes as 3D polylines [x, z, y]; every bend is a right angle, risers stand just outside the tray rim
+const edges = [
+  { from: 'Client', to: 'Gateway', pts: [[0.8,0,G],[2,0,G],[2,1,G],[3.5,1,G],[3.5,1,T],[5.2,1,T]] },
+  { from: 'Gateway', to: 'Auth', pts: [[6,1.5,T],[6,4.5,T]] },
+  { from: 'Gateway', to: 'Orders', pts: [[6.8,1,T],[9.2,1,T]] },
+  { from: 'Gateway', to: 'DB', pts: [[6.8,1,T],[8,1,T],[8,5,T],[9.2,5,T]] },
+  { from: 'Orders', to: 'DB', pts: [[10,1.5,T],[10,4.5,T]] },
+  { from: 'Metrics', to: 'Orders', pts: [[13.8,1,G],[12.5,1,G],[12.5,1,T],[10.8,1,T]] },
+  { from: 'DB', to: 'Logs', pts: [[10.8,5,T],[11.4,5,T],[11.4,7,T],[12.5,7,T],[12.5,7,G],[13.8,7,G]] },
+]
+// roles from the edges
+const role = id => {
+  const o = edges.some(e => e.from === id), i = edges.some(e => e.to === id)
+  return o && i ? 'relay' : o ? 'emitter' : i ? 'detector' : 'idle'
+}
+
+const PALETTES = {
+  red:   { core: '#fff0f0', beam: '#ff3b3b', halo: '#ff2020' },
+  green: { core: '#f0fff2', beam: '#39ff6a', halo: '#18e04c' },
+  blue:  { core: '#eef7ff', beam: '#3fa9ff', halo: '#1f7dff' },
+  violet:{ core: '#fbf0ff', beam: '#c25bff', halo: '#9a2cff' },
+}
+let pal = PALETTES.red
+
+// ---- tiny vector helpers ----
+const sub = (a, b) => a.map((v, i) => v - b[i]), add = (a, b) => a.map((v, i) => v + b[i]), mul = (a, k) => a.map(v => v * k)
+const len = a => Math.hypot(...a), norm = a => mul(a, 1 / (len(a) || 1))
+const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]
+// points as [x, z, y] -> vectors (x, y, z) for the maths
+const V = p => [p[0], p[2], p[1]]
+
+// ---- projections: (x, y, z) world -> screen ----
+const projIso = (s, ox, oy) => v => [ox + (v[0] - v[2]) * Math.cos(Math.PI/6) * s, oy + (v[0] + v[2]) * Math.sin(Math.PI/6) * s - v[1] * s]
+const projFlat = (s, ox, oy) => v => [ox + v[0] * s, oy + v[2] * s]
+const proj3d = (s, ox, oy, yaw = 0.55, pitch = 0.42) => v => {
+  const c = Math.cos(yaw), sn = Math.sin(yaw), x = v[0]*c - v[2]*sn, z = v[0]*sn + v[2]*c
+  const cp = Math.cos(pitch), sp = Math.sin(pitch), y = v[1]*cp - z*sp, zz = v[1]*sp + z*cp
+  const f = 9 / (9 + zz) // a little perspective
+  return [ox + x * s * f, oy - y * s * f]
+}
+
+const el = (svg, tag, attrs) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.appendChild(e); return e }
+const path = (P, pts) => pts.map((p, i) => (i ? 'L' : 'M') + P(p).map(n => n.toFixed(1)).join(' ')).join(' ')
+const poly = (P, pts) => path(P, pts) + 'Z'
+
+function beam(svg, P, pts, k = 1) {
+  const d = path(P, pts.map(V))
+  el(svg, 'path', { d, fill: 'none', stroke: pal.halo, 'stroke-width': 14 * k, 'stroke-opacity': 0.12, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+  el(svg, 'path', { d, fill: 'none', stroke: pal.halo, 'stroke-width': 6 * k, 'stroke-opacity': 0.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+  el(svg, 'path', { d, fill: 'none', stroke: pal.beam, 'stroke-width': 2.6 * k, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+  el(svg, 'path', { d, fill: 'none', stroke: pal.core, 'stroke-width': 0.9 * k, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+}
+
+// a mirror on a bend: normal (out - in), spanning in x out (the hinge) and in + out (the face)
+function mirror(svg, P, at, a, b, k = 1) {
+  const p = V(at), u = norm(add(a, b)), w = norm(cross(a, b))
+  const hu = 0.26, hw = 0.2
+  const c = [add(add(p, mul(u, hu)), mul(w, hw)), add(add(p, mul(u, -hu)), mul(w, hw)), add(add(p, mul(u, -hu)), mul(w, -hw)), add(add(p, mul(u, hu)), mul(w, -hw))]
+  // a short stand under a plate that stands upright (flat turns)
+  if (Math.abs(w[1]) > 0.9) el(svg, 'path', { d: path(P, [add(p, [0, -hw, 0]), [p[0], p[1] - 0.25 - hw, p[2]]]), stroke: '#55607a', 'stroke-width': 1.5 * k })
+  el(svg, 'path', { d: poly(P, c), fill: '#cfe3ff', 'fill-opacity': 0.85, stroke: '#ffffff', 'stroke-width': 1 * k, 'stroke-linejoin': 'round' })
+  // the edge facing the beam, a hair darker: the plate's back
+  el(svg, 'path', { d: path(P, [c[2], c[3]]), stroke: '#6f7f9f', 'stroke-width': 1.5 * k })
+  const s = P(p)
+  el(svg, 'circle', { cx: s[0], cy: s[1], r: 7 * k, fill: pal.halo, 'fill-opacity': 0.35 })
+  el(svg, 'circle', { cx: s[0], cy: s[1], r: 2.4 * k, fill: pal.core })
+}
+
+function splitter(svg, P, at, k = 1) {
+  const p = V(at), h = 0.22
+  const q = (dx, dy, dz) => add(p, [dx * h, dy * h, dz * h])
+  const faces = [[q(-1,1,-1), q(1,1,-1), q(1,1,1), q(-1,1,1)], [q(-1,-1,1), q(1,-1,1), q(1,1,1), q(-1,1,1)], [q(1,-1,-1), q(1,-1,1), q(1,1,1), q(1,1,-1)]]
+  for (const f of faces) el(svg, 'path', { d: poly(P, f), fill: 'rgba(160,220,255,.22)', stroke: '#cfe3ff', 'stroke-width': 1 * k })
+  el(svg, 'path', { d: path(P, [q(-1,-1,-1), q(1,1,1)]), stroke: '#ffffff', 'stroke-opacity': 0.6, 'stroke-width': 1 * k }) // the half-silvered diagonal
+  const s = P(p)
+  el(svg, 'circle', { cx: s[0], cy: s[1], r: 8 * k, fill: pal.halo, 'fill-opacity': 0.35 })
+}
+
+function box(svg, P, x0, z0, x1, z1, y0, y1, top, side, front, edge, k = 1) {
+  const v = (x, y, z) => [x, y, z]
+  el(svg, 'path', { d: poly(P, [v(x1,y0,z0), v(x1,y0,z1), v(x1,y1,z1), v(x1,y1,z0)]), fill: side, stroke: edge, 'stroke-width': k })
+  el(svg, 'path', { d: poly(P, [v(x0,y0,z1), v(x1,y0,z1), v(x1,y1,z1), v(x0,y1,z1)]), fill: front, stroke: edge, 'stroke-width': k })
+  el(svg, 'path', { d: poly(P, [v(x0,y1,z0), v(x1,y1,z0), v(x1,y1,z1), v(x0,y1,z1)]), fill: top, stroke: edge, 'stroke-width': k })
+}
+
+// a barrel where a beam leaves (pointing along dir), a target where one lands
+function barrel(svg, P, at, dir, k) {
+  const p = V(at), d = norm(dir), back = add(p, mul(d, -0.18))
+  el(svg, 'path', { d: path(P, [back, p]), stroke: '#3a4560', 'stroke-width': 9 * k, 'stroke-linecap': 'round' })
+  const s = P(p)
+  el(svg, 'circle', { cx: s[0], cy: s[1], r: 4.5 * k, fill: pal.beam })
+  el(svg, 'circle', { cx: s[0], cy: s[1], r: 1.8 * k, fill: pal.core })
+}
+function target(svg, P, at, k) {
+  const s = P(V(at))
+  el(svg, 'circle', { cx: s[0], cy: s[1], r: 13 * k, fill: pal.halo, 'fill-opacity': 0.25 })
+  el(svg, 'circle', { cx: s[0], cy: s[1], r: 7 * k, fill: 'none', stroke: pal.beam, 'stroke-width': 2 * k })
+  el(svg, 'circle', { cx: s[0], cy: s[1], r: 3 * k, fill: pal.core })
+}
+
+function scene(svg, P, k, labels = true) {
+  svg.innerHTML = ''
+  el(svg, 'rect', { x: -2000, y: -2000, width: 4000, height: 4000, fill: '#05070c' })
+  // the ground grid
+  for (let i = -2; i <= 17; i++) el(svg, 'path', { d: path(P, [[i, 0, -2], [i, 0, 10]]), stroke: '#111827', 'stroke-width': 1 })
+  for (let j = -2; j <= 10; j++) el(svg, 'path', { d: path(P, [[-2, 0, j], [17, 0, j]]), stroke: '#111827', 'stroke-width': 1 })
+  // the tray: an optical breadboard, dark with a fine hole pattern
+  box(svg, P, TRAY.x0, TRAY.z0, TRAY.x1, TRAY.z1, 0, TRAY.t, '#0e1422', '#0a0f1a', '#0b111d', '#2a3550', k)
+  for (let x = TRAY.x0 + 0.5; x < TRAY.x1; x += 0.5) for (let z = TRAY.z0 + 0.5; z < TRAY.z1; z += 0.5) {
+    const s = P([x, TRAY.t, z]); el(svg, 'circle', { cx: s[0], cy: s[1], r: 0.6 * k, fill: '#1f2a40' })
+  }
+  if (labels) { const s = P([TRAY.x0 + 0.3, TRAY.t, TRAY.z0 + 0.4]); el(svg, 'text', { x: s[0], y: s[1], fill: '#7f8aa3' }).textContent = TRAY.title }
+
+  // beams, then the pieces on them
+  for (const e of edges) beam(svg, P, e.pts, k)
+  // a corner another beam also runs through (two beams parting ways) gets a splitter cube instead of a mirror
+  const onSeg = (p, a, b) => { const ab = sub(b, a), ap = sub(p, a), t = (ap[0]*ab[0]+ap[1]*ab[1]+ap[2]*ab[2]) / (len(ab) ** 2 || 1); return t >= 0 && t <= 1 && len(sub(ap, mul(ab, t))) < 1e-6 }
+  const shared = (owner, q) => edges.some(e => e !== owner && e.pts.slice(1).some((p, i) => onSeg(q, e.pts[i], p)))
+  for (const e of edges) for (let i = 1; i < e.pts.length - 1; i++) {
+    const a = norm(sub(V(e.pts[i]), V(e.pts[i - 1]))), b = norm(sub(V(e.pts[i + 1]), V(e.pts[i])))
+    if (len(sub(a, b)) < 1e-6) continue
+    if (shared(e, e.pts[i])) splitter(svg, P, e.pts[i], k)
+    else mirror(svg, P, e.pts[i], a, b, k)
+  }
+
+  // the devices, back to front
+  for (const n of [...nodes].sort((p, q) => (p.x + p.z) - (q.x + q.z))) {
+    const r = role(n.id), y0 = base(n), dim = r === 'idle'
+    box(svg, P, n.x - W/2, n.z - D/2, n.x + W/2, n.z + D/2, y0, y0 + NODE_H, dim ? '#141a26' : '#1f2738', dim ? '#0c111a' : '#141b29', dim ? '#10151f' : '#182031', dim ? '#232b3c' : '#3a4866', k)
+    // a status light on top: lit when it receives a beam
+    const lit = r === 'detector' || r === 'relay'
+    const s = P([n.x + W/2 - 0.25, y0 + NODE_H, n.z - D/2 + 0.25])
+    if (lit) el(svg, 'circle', { cx: s[0], cy: s[1], r: 7 * k, fill: pal.halo, 'fill-opacity': 0.35 })
+    el(svg, 'circle', { cx: s[0], cy: s[1], r: 3 * k, fill: lit ? pal.core : '#2a3245' })
+    if (labels) { const t = P([n.x, y0 + NODE_H, n.z]); el(svg, 'text', { x: t[0], y: t[1] + 4, 'text-anchor': 'middle', fill: dim ? '#5c667d' : '#e9eefb' }).textContent = n.id }
+  }
+  // barrels and targets go on after the boxes so they sit on the faces
+  for (const e of edges) {
+    barrel(svg, P, e.pts[0], sub(V(e.pts[1]), V(e.pts[0])), k)
+    target(svg, P, e.pts[e.pts.length - 1], k)
+  }
+}
+
+function bridge(svg) {
+  const P = proj3d(30, 175, 150)
+  svg.innerHTML = ''
+  el(svg, 'rect', { x: 0, y: 0, width: 360, height: 230, fill: '#05070c' })
+  for (let i = -4; i <= 4; i++) { el(svg, 'path', { d: path(P, [[i, 0, -3], [i, 0, 3]]), stroke: '#111827' }); el(svg, 'path', { d: path(P, [[-4, 0, i * 0.75], [4, 0, i * 0.75]]), stroke: '#111827' }) }
+  const under = [[-4, 0, 0.25], [4, 0, 0.25]]
+  const over = [[0, -3, 0.25], [0, -0.4, 0.25], [0, -0.4, 0.85], [0, 0.4, 0.85], [0, 0.4, 0.25], [0, 3, 0.25]]
+  beam(svg, P, under, 0.8)
+  beam(svg, P, over, 0.8)
+  for (let i = 1; i < over.length - 1; i++) mirror(svg, P, over[i], norm(sub(V(over[i]), V(over[i - 1]))), norm(sub(V(over[i + 1]), V(over[i]))), 0.8)
+}
+
+function draw() {
+  document.documentElement.style.setProperty('--beam', pal.beam)
+  scene(document.getElementById('iso'), projIso(40, 343, 90), 1)
+  scene(document.getElementById('flat'), projFlat(19, 30, 50), 0.55, false)
+  bridge(document.getElementById('bridge'))
+}
+
+const pick = document.getElementById('pick')
+for (const name of Object.keys(PALETTES)) {
+  const b = document.createElement('button'); b.textContent = name
+  b.onclick = () => { pal = PALETTES[name]; [...pick.children].forEach(c => c.classList.toggle('on', c === b)); draw() }
+  if (name === 'red') b.classList.add('on')
+  pick.appendChild(b)
+}
+draw()
+</script>
+</body>
+</html>
