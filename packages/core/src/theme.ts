@@ -13,6 +13,15 @@ export interface Plate { style: 'plain' | 'cartouche'; text: string; plate: stri
  */
 export interface Glow { core: string | null; coreWidth: number; halo: string | null; haloWidth: number; haloOpacity: number; wash: string | null; washIntensity: number }
 
+/**
+ * A coloured laser beam (theme.edge.beam): every edge is drawn in the colour of the node it leaves (the node's laser colour: from the
+ * text, else one of node.lasers) as a core line with a white-ish centre and two fainter, wider halo lines round it. `edge.beam: off`
+ * in themeVariables turns it off (plain lines in edge.color); a null halo colour uses the beam's own.
+ */
+export interface Beam { on: boolean; width: number; centre: number; centreWidth: number; halo: string | null; haloWidth: number; haloOpacity: number }
+/** Mirrors on every bend of an edge (theme.edge.optics): a plate at 45° where the beam turns, a periscope box where two bends are a jog, a glass splitter where beams share a corner. */
+export interface Optics { on: boolean; metal: string; face: string; glass: string; jog: number }
+
 /** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
 export interface Theme {
   name: string
@@ -27,7 +36,8 @@ export interface Theme {
   light: { ambient: number; sky: string; floor: string; hemi: number; sun: number; shadows: boolean; shading: 'standard' | 'toon'; tones: number; toneMapping: boolean }
   node: {
     colors: Record<Shape, string>
-    form: 'block' | 'landscape' // landscape: a form stands on the footprint
+    form: 'block' | 'landscape' | 'device' // landscape: a form stands on the footprint; device: a box that fires, catches or relays beams (lens barrels, a status light)
+    lasers: string[] // the colours nodes without a colour of their own take for the beams they fire (edge.beam)
     outline: string | null // ink colour; null: no outline
     outlineWidth: number
     bevel: number // edge rounding of a block; 0 for crisp ink edges
@@ -56,7 +66,7 @@ export interface Theme {
   // Ink follows the drawing's on-screen scale: width in px = token width x (px per world unit / ref), kept between min (px, for an outline;
   // other lines get it in proportion to their own width) and the token width. ref null: fixed widths, as in Classic.
   ink: { ref: number | null; min: number }
-  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean } // rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim. glow: the trench light. flat: lines lie on the surface under them and the arrowhead is a flat triangle
+  edge: { color: string; width: number; label: string; labelOutline: string; portal: string; rim: string | null; rimWidth: number; glow: Glow; flat: boolean; beam: Beam; optics: Optics; arrow: 'head' | 'spot' } // arrow: a cone (or flat triangle) or a lit hit spot where the line lands. beam, optics: see their types. rim: the lip of a tunnel's trough; null: a dark shade of the surface; 'none': no rim. glow: the trench light. flat: lines lie on the surface under them and the arrowhead is a flat triangle
   seq: { lifeline: string; activation: string; note: string; noteText: string; blockText: string; blockSub: string; cross: string; crossLine: string }
 }
 
@@ -66,12 +76,17 @@ function deepFreeze<T>(o: T): T {
   return o
 }
 
+const LASERS = ['#ff3b3b', '#39ff6a', '#3fa9ff', '#ffb020', '#c25bff', '#2ff0ff', '#ff4fd8', '#d6ff3b']
+// beams and optics off: a theme that does not use them (every preset but Lazers) carries the same tokens so themeVariables can turn them on
+const BEAM_OFF: Beam = { on: false, width: 2.6, centre: 0.85, centreWidth: 1, halo: null, haloWidth: 6, haloOpacity: 0.3 }
+const OPTICS_OFF: Optics = { on: false, metal: '#3a4560', face: '#dbe9ff', glass: '#a0dcff', jog: 0.4 }
 /** Classic (today's look) and the two Bonkei looks, for passing as `theme` or as a base to copy and edit (they are frozen). */
 export const CLASSIC: Theme = deepFreeze({
   name: 'classic',
   ground: { bg: '#0f1218', grid: ['#1d2433', '#161c28'], major: 0, majorColor: '#1d2433', grain: 0, lit: true },
   light: { ambient: 0.55, sky: '#bcd0ff', floor: '#202838', hemi: 0.5, sun: 1.6, shadows: true, shading: 'standard', tones: 3, toneMapping: true },
   node: {
+    lasers: LASERS,
     colors: { rect: '#5b8def', round: '#3fbf9b', cylinder: '#e0a458', diamond: '#d96c8a' },
     form: 'block', outline: null, outlineWidth: 2, bevel: 0.03, footprint: { height: 0.12, color: '#e9dfc8', darken: 0.9 }, labelGap: 0.3,
     hover: '#ffffff', hoverIntensity: 0.18,
@@ -88,7 +103,7 @@ export const CLASSIC: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: null, min: 1 },
-  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: 'none', rimWidth: 1.5, flat: false,
+  edge: { color: '#e8edf7', width: 2, label: '#ffd479', labelOutline: '#000000', portal: '#3fa7ff', rim: 'none', rimWidth: 1.5, flat: false, beam: BEAM_OFF, optics: OPTICS_OFF, arrow: 'head',
     // the trench lit in grey-white at 30% strength: 0.6 times the standard sizes (Bonkei's below, which are 50%), and no rim
     glow: { core: '#e0e0e0', coreWidth: 2.1, halo: '#e0e0e0', haloWidth: 6.6, haloOpacity: 0.17, wash: '#e0e0e0', washIntensity: 0.18 } },
   seq: { lifeline: '#5c6b8a', activation: '#f2c14e', note: '#e9d98a', noteText: '#2a2a1a', blockText: '#e8edf7', blockSub: '#cfd8ea', cross: '#ff6b6b', crossLine: '#ff9b9b' },
@@ -100,6 +115,7 @@ export const BONKEI: Theme = deepFreeze({
   ground: { bg: '#EFE6D0', grid: null, major: 0, majorColor: '#EFE6D0', grain: 0.25, lit: false },
   light: { ambient: 1.2, sky: '#fff8e6', floor: '#d8cbaa', hemi: 0.4, sun: 1.5, shadows: false, shading: 'toon', tones: 3, toneMapping: false },
   node: {
+    lasers: LASERS,
     colors: { rect: '#9AAE8C', round: '#5E8F88', cylinder: '#C9A24A', diamond: '#7C93B8' },
     form: 'block', outline: '#2A2622', outlineWidth: 1.5, bevel: 0, footprint: { height: 0.22, color: null, darken: 0.93 }, labelGap: 0.34,
     hover: '#fff2c0', hoverIntensity: 0.15,
@@ -116,7 +132,7 @@ export const BONKEI: Theme = deepFreeze({
     toward: 0,
   },
   ink: { ref: 40, min: 1 },
-  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false,
+  edge: { color: '#2A2622', width: 2, label: '#2A2622', labelOutline: '#EFE6D0', portal: '#2A2622', rim: '#2A2622', rimWidth: 2, flat: false, beam: BEAM_OFF, optics: OPTICS_OFF, arrow: 'head',
     // the light is off (the tunnel looks as it always did); the sizes are the standard light a diagram gets when it sets a colour
     glow: { core: null, coreWidth: 3.5, halo: null, haloWidth: 11, haloOpacity: 0.28, wash: null, washIntensity: 0.3 } },
   seq: { lifeline: '#8a7f6c', activation: '#C9A24A', note: '#f6efdd', noteText: '#2A2622', blockText: '#2A2622', blockSub: '#4a4238', cross: '#C8452C', crossLine: '#C8452C' },
@@ -153,22 +169,49 @@ export const BLUEPRINT: Theme = deepFreeze({
   },
   ink: { ref: 40, min: 1 },
   edge: {
-    color: LINE, width: 2, label: INK, labelOutline: PAPER, portal: LINE, rim: TRAY_INK, rimWidth: 1.5, flat: false,
+    color: LINE, width: 2, label: INK, labelOutline: PAPER, portal: LINE, rim: TRAY_INK, rimWidth: 1.5, flat: false, beam: BEAM_OFF, optics: OPTICS_OFF, arrow: 'head',
     // the trench lit in pale blue at the standard 50%
     glow: { core: '#bfe4ff', coreWidth: 3.5, halo: '#bfe4ff', haloWidth: 11, haloOpacity: 0.28, wash: '#bfe4ff', washIntensity: 0.3 },
   },
   seq: { lifeline: '#8fb6e0', activation: '#2e6db0', note: '#22599a', noteText: INK, blockText: INK, blockSub: TRAY_INK, cross: '#ffd479', crossLine: '#ffd479' },
 })
 
+// Lazers: an optics bench. A dark ground; every edge a glowing beam in the laser colour of the node it leaves, a mirror on every bend,
+// and nodes that are devices (emitter, detector, relay). Values from the Mockups/Lazers stories. No bloom, no scene light: the glow is
+// layered lines, as the trench light is.
+const BENCH = '#05070c'
+/** Lazers, an optics bench of laser beams and mirrors, for passing as `theme` or as a base to copy and edit (it is frozen). */
+export const LAZERS: Theme = deepFreeze({
+  name: 'lazers',
+  ground: { bg: BENCH, grid: ['#151c2b', '#0d1220'], major: 0, majorColor: '#151c2b', grain: 0, lit: true },
+  light: { ...CLASSIC.light, ambient: 0.35, sky: '#9fb2d6', floor: '#0a0e16', hemi: 0.35, sun: 1.1, shadows: false },
+  node: {
+    ...CLASSIC.node,
+    colors: { rect: '#2f3a52', round: '#33405a', cylinder: '#2b354b', diamond: '#364462' },
+    form: 'device', outline: '#3a4866', outlineWidth: 1.2, bevel: 0.02, hover: '#9fd3ff', hoverIntensity: 0.25,
+  },
+  tray: { ...CLASSIC.tray, colors: ['#0e1422', '#111829', '#141c30'], outline: '#2a3550', hover: '#9fd3ff', hoverIntensity: 0.12 },
+  label: { ...CLASSIC.label, node: { ...CLASSIC.label.node, text: '#e9eefb' }, tray: { ...CLASSIC.label.tray, text: '#7f8aa3' } },
+  ink: BONKEI.ink,
+  edge: {
+    color: '#ff3b3b', width: 2.5, label: '#e9eefb', labelOutline: BENCH, portal: '#9fd3ff', rim: 'none', rimWidth: 1.5, flat: false,
+    beam: { on: true, width: 2.6, centre: 0.85, centreWidth: 1, halo: null, haloWidth: 6, haloOpacity: 0.3 },
+    optics: { on: true, metal: '#3a4560', face: '#dbe9ff', glass: '#a0dcff', jog: 0.4 }, arrow: 'spot',
+    glow: { core: '#ffe9e9', coreWidth: 3.5, halo: '#ff3b3b', haloWidth: 11, haloOpacity: 0.28, wash: '#ff3b3b', washIntensity: 0.3 },
+  },
+  seq: { lifeline: '#3a4866', activation: '#39ff6a', note: '#141c30', noteText: '#e9eefb', blockText: '#e9eefb', blockSub: '#9aa6c0', cross: '#ff3b3b', crossLine: '#ff3b3b' },
+})
+
 /** The built-in themes by the name a diagram or the `theme` prop uses. */
-export const PRESETS: Readonly<Record<string, Theme>> = Object.freeze({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE, blueprint: BLUEPRINT })
-/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape, blueprint. */
+export const PRESETS: Readonly<Record<string, Theme>> = Object.freeze({ classic: CLASSIC, bonkei: BONKEI, 'bonkei-landscape': BONKEI_LANDSCAPE, blueprint: BLUEPRINT, lazers: LAZERS })
+/** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape, blueprint, lazers. */
 export const THEME_NAMES = Object.keys(PRESETS)
 
 // Tokens that take one of a few words. A path segment `#` stands for any array index.
 const CHOICES: Record<string, readonly string[]> = {
   'light.shading': ['standard', 'toon'],
-  'node.form': ['block', 'landscape'],
+  'node.form': ['block', 'landscape', 'device'],
+  'edge.arrow': ['head', 'spot'],
   'tray.sides.#': ['plain', 'hishi', 'flower', 'stone', 'hatch'],
   'tray.titles': ['fixed', 'free', 'off'],
   'label.font': ['mincho', 'architect'],
@@ -184,10 +227,10 @@ const at = (o: unknown, keys: string[]) => keys.reduce<any>((c, k) => (c !== nul
 
 // Tokens that may be null in any theme though a preset sets them: null leaves that part of the trench light out.
 // edge.rim: null is a dark shade of the surface, as it always was (Classic's rim is 'none' now, so no preset shows it).
-const NULLABLE = new Set(['edge.rim', 'edge.glow.core', 'edge.glow.halo', 'edge.glow.wash'])
+const NULLABLE = new Set(['edge.rim', 'edge.glow.core', 'edge.glow.halo', 'edge.glow.wash', 'edge.beam.halo'])
 // Tokens whose string is drawn as a colour, with the words they take beside one: a word three.js does not know as a colour would draw
 // in white (an `off` rim drew a light rim), so it is reported instead.
-const COLOURS: Record<string, readonly string[]> = { 'edge.rim': ['none'], 'edge.glow.core': [], 'edge.glow.halo': [], 'edge.glow.wash': [] }
+const COLOURS: Record<string, readonly string[]> = { 'edge.rim': ['none'], 'edge.glow.core': [], 'edge.glow.halo': [], 'edge.glow.wash': [], 'edge.beam.halo': [], 'node.lasers.#': [], 'edge.optics.metal': [], 'edge.optics.face': [], 'edge.optics.glass': [] }
 // A colour as three.js reads one (Color.setStyle): #rgb, #rrggbb, rgb()/rgba() in numbers or %, hsl()/hsla(), or a CSS colour name.
 const isColour = (s: string) =>
   /^#([\da-f]{3}|[\da-f]{6})$/i.test(s)
@@ -195,7 +238,7 @@ const isColour = (s: string) =>
   || /^hsla?\(\s*\d*\.?\d+\s*,\s*\d*\.?\d+%\s*,\s*\d*\.?\d+%\s*(,\s*\d*\.?\d+\s*)?\)$/.test(s)
   || Object.hasOwn(Color.NAMES, s.toLowerCase())
 // Groups that take one word for the whole group: `edge.glow: off` (or false) turns every part of the trench light off.
-const GROUP_OFF: Partial<Record<string, (g: any) => void>> = { 'edge.glow': (g: Glow) => { g.core = g.halo = g.wash = null } }
+const GROUP_OFF: Partial<Record<string, (g: any) => void>> = { 'edge.glow': (g: Glow) => { g.core = g.halo = g.wash = null }, 'edge.beam': (b: Beam) => { b.on = false }, 'edge.optics': (o: Optics) => { o.on = false } }
 
 // Sets one dotted path (`node.form`, `tray.colors.0`) to a value of the type the token has. A token that can be null
 // (an outline, a font) takes null or the type it has in the presets where it is set.
@@ -210,12 +253,14 @@ function setPath(t: Theme, path: string, v: unknown): string | null {
   if (old !== null && typeof old === 'object') return `${path} is a group of tokens; ${off ? 'turn it off with off, or ' : ''}set one of them (${Object.keys(old).map(k => `${path}.${k}`).join(', ')})`
   const types = new Set(Object.values(PRESETS).map(p => at(p, keys)).map(x => (x === null ? 'null' : typeof x)))
   if (NULLABLE.has(path)) types.add('null')
+  if (Object.hasOwn(COLOURS, keys.map(k => (/^\d+$/.test(k) ? '#' : k)).join('.'))) types.add('string')
   const want = [...types].filter(x => x !== 'null')
   const got = v === null ? 'null' : typeof v
   if (!types.has(got)) return `${path} must be ${want.length ? 'a ' + want.join(' or a ') : 'null'}${types.has('null') ? ' or null' : ''}; got ${JSON.stringify(v)}`
   const choices = CHOICES[keys.map(k => (/^\d+$/.test(k) ? '#' : k)).join('.')]
   if (choices?.length && typeof v === 'string' && !choices.includes(v)) return `${path} must be one of ${choices.join(', ')}; got ${JSON.stringify(v)}`
-  const words = Object.hasOwn(COLOURS, path) ? COLOURS[path] : undefined
+  const generic = keys.map(k => (/^\d+$/.test(k) ? '#' : k)).join('.')
+  const words = Object.hasOwn(COLOURS, generic) ? COLOURS[generic] : undefined
   if (words && typeof v === 'string' && !words.includes(v) && !isColour(v)) return `${path} must be a colour${words.map(w => ', ' + w).join('')} or null; got ${JSON.stringify(v)}`
   if (typeof v === 'number' && !Number.isFinite(v)) return `${path} must be a finite number; got ${JSON.stringify(v)}`
   // every number in a theme is a size, a weight or a share (none negative in the presets); a negative one draws nothing

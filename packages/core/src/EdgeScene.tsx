@@ -8,6 +8,7 @@ import { SLOT_W, flatLine, floorGlow, floorGlowAt, type Body, type EdgePlan, typ
 import { useTheme, fontUrl } from './look'
 import { TEXT_LAYER } from './scale.ts'
 import type { LabelMode } from './model'
+import { Beam, Barrel, HitSpot, beamColours } from './Optics'
 
 const v3 = ([x, z, y]: P3) => new THREE.Vector3(x, y, z)
 
@@ -22,19 +23,25 @@ function FlatArrow({ tip, dir, color }: { tip: THREE.Vector3; dir: THREE.Vector3
   return <mesh geometry={geo}><meshBasicMaterial color={color} side={THREE.DoubleSide} /></mesh>
 }
 
-export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label?: string; labelMode: LabelMode; bodies?: Body[] }) {
+/** The parts of an edge as drawn (world coordinates): the plan's, or with the theme's flat lines the whole route laid on the surfaces under it. */
+export function drawnParts(plan: EdgePlan, flat: boolean, bodies?: Body[]): THREE.Vector3[][] {
+  return flat && bodies ? [flatLine(plan.parts.flatMap(p => p), bodies).map(v3)] : plan.parts.map(p => p.map(v3))
+}
+
+export function Edge({ plan, label, labelMode, bodies, color }: { plan: EdgePlan; label?: string; labelMode: LabelMode; bodies?: Body[]; color?: string }) {
   const th = useTheme()
   const flat = th.edge.flat && !!bodies
-  // flat: the whole route (its parts joined) is laid on the surfaces under it; a bridge or tunnel is levelled
-  const parts = flat
-    ? [flatLine(plan.parts.flatMap(p => p), bodies!).map(v3)]
-    : plan.parts.map(p => p.map(v3))
+  const parts = drawnParts(plan, th.edge.flat, bodies)
+  const bm = th.edge.beam
+  const beam = bm?.on ? beamColours(color ?? th.edge.color, bm.centre, bm.halo) : null
+  const spot = th.edge.arrow === 'spot'
   const last = parts[parts.length - 1]
   const n = last.length
   const dir = new THREE.Vector3().subVectors(last[n - 1], last[n - 2]).normalize()
   const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
   const tip = last[n - 1]
-  const lines = parts.map((p, i) => i === parts.length - 1 ? [...p.slice(0, n - 1), tip.clone().addScaledVector(dir, -0.3)] : p)
+  const lines = parts.map((p, i) => i === parts.length - 1 && !spot ? [...p.slice(0, n - 1), tip.clone().addScaledVector(dir, -0.3)] : p)
+  const first = parts[0], d0 = new THREE.Vector3().subVectors(first[1], first[0])
   // label on the longest run in plan
   let best = 0, at = new THREE.Vector3()
   for (const p of parts) for (let i = 0; i < p.length - 1; i++) {
@@ -43,8 +50,13 @@ export function Edge({ plan, label, labelMode, bodies }: { plan: EdgePlan; label
   }
   return (
     <group>
-      {lines.map((l, i) => <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={th.edge.color} lineWidth={th.edge.width} />)}
-      {flat
+      {lines.map((l, i) => beam
+        ? <Beam key={i} pts={l.map(p => p.toArray() as [number, number, number])} c={beam} width={bm.width} centreWidth={bm.centreWidth} haloWidth={bm.haloWidth} haloOpacity={bm.haloOpacity} />
+        : <Line key={i} points={l.map(p => p.toArray() as [number, number, number])} color={th.edge.color} lineWidth={th.edge.width} />)}
+      {beam && th.node.form === 'device' && <Barrel at={first[0]} dir={d0} c={beam} />}
+      {spot
+        ? <HitSpot at={tip} dir={dir} c={beam ?? beamColours(th.edge.color, 0.85, null)} />
+        : flat
         ? <FlatArrow tip={tip} dir={dir} color={th.edge.color} />
         : (
           <mesh position={tip.clone().addScaledVector(dir, -0.2)} quaternion={quat}>

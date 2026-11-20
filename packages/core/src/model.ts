@@ -3,7 +3,7 @@ export type Shape = 'rect' | 'round' | 'cylinder' | 'diamond'
 /** Where labels sit: on top of the shapes, or billboarded towards the camera. */
 export type LabelMode = 'top' | 'billboard'
 /** A node in a graph. */
-export interface GNode { id: string; label: string; shape: Shape; parent?: string }
+export interface GNode { id: string; label: string; shape: Shape; parent?: string; color?: string } // color: the fill the text gave it (style, classDef + class, :::), read by themes whose beams are coloured per node
 /** A group (subgraph) in a graph. */
 export interface GGroup { id: string; label: string; parent?: string }
 /** An edge in a graph. */
@@ -17,6 +17,7 @@ export const REASON = {
   statement: 'not a node or edge',
   strayEnd: 'stray end',
   unclosed: 'unclosed subgraph',
+  colour: 'not a colour',
 } as const
 /** A finished graph, as parsed from Mermaid. */
 export interface Graph {
@@ -35,6 +36,7 @@ export interface Box {
   id: string; label: string; kind: 'node' | 'group'; shape: Shape
   x: number; y: number; w: number; h: number
   level: number // number of ancestor groups
+  color?: string // a node's laser colour from the text (GNode.color)
   height?: number // a node's block height in world units (default NODE_H); set by a custom layout
   parent?: string
 }

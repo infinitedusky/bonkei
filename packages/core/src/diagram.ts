@@ -106,6 +106,11 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   span.setAttribute('bonkei.diagram', 'flowchart')
   const g = parse(fm.body, fm.lineOffset)
   const dropped = g.dropped ?? []
+  // colours the text gave nodes (style, classDef + class, :::), and fills that were not colours: how Lazers' text colours are doing
+  const coloured = g.nodes.filter(n => n.color).length
+  if (coloured) span.setAttribute('bonkei.colours.read', coloured)
+  const badColours = dropped.filter(d => d.reason === 'not a colour').length
+  if (badColours) span.setAttribute('bonkei.colours.skipped', badColours)
   if (!g.nodes.length) throw nothingRead('nodes', dropped)
   const [data, t] = await timedLayout(span, () => layout(g, { avoidCrossings: lo.avoidCrossings ?? fm.options.avoidCrossings, span, titleRoom: wantsTitleRoom(lo.theme, fm.theme) }))
   return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped }, t]

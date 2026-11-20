@@ -126,7 +126,10 @@ function Form({ shape, w, h, y, gap, label, plate, font, toward }: { shape: Box[
 /** The height a node's body stands (a landscape node: its plinth); the edge planner and the drag plane use the same. */
 export const nodeHeight = (th: { node: { form: string; footprint: { height: number } } }, b: Box) => th.node.form === 'landscape' ? th.node.footprint.height : (b.height ?? NODE_H)
 
-export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: boolean; labelMode: LabelMode }) {
+/** What a device-form node shows of its edges: its role, the colour of the beam it catches (its status light) and of the one it fires. */
+export interface Device { role: 'emitter' | 'detector' | 'relay' | 'idle'; caught: string | null; fires: string | null }
+
+export function NodeBody({ b, hover = false, labelMode, device }: { b: Box; hover?: boolean; labelMode: LabelMode; device?: Device }) {
   const th = useTheme()
   const w = b.w * S, h = b.h * S
   const land = th.node.form === 'landscape'
@@ -138,21 +141,34 @@ export function NodeBody({ b, hover = false, labelMode }: { b: Box; hover?: bool
     const under = b.level > 0 ? th.tray.colors[Math.min(b.level - 1, 2)] : th.ground.bg
     return '#' + new THREE.Color(under).multiplyScalar(fp.darken).getHexString()
   }, [th.node.footprint, th.tray.colors, th.ground.bg, b.level])
+  const idle = device?.role === 'idle'
+  const dim = useMemo(() => '#' + new THREE.Color(th.node.colors[b.shape]).multiplyScalar(0.55).getHexString(), [th.node.colors, b.shape])
   const geo = useMemo(() => geometry(b.shape, land ? w * 0.9 : w, land ? h * 0.9 : h, height, th.node.bevel), [b.shape, w, h, height, land, th.node.bevel])
   return (
     <>
       {/* an inked node stands a hair above its surface so its bottom outline is not lost to the depth test against the tray top */}
       <mesh geometry={geo} position={[0, th.node.outline ? 0.012 : 0, 0]} castShadow={th.light.shadows} receiveShadow={th.light.shadows}>
-        <Mat color={land ? plinth : th.node.colors[b.shape]} roughness={0.5} metalness={0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
+        <Mat color={land ? plinth : idle ? dim : th.node.colors[b.shape]} roughness={0.5} metalness={device ? 0.3 : 0.05} emissive={hover ? th.node.hover : '#000000'} emissiveIntensity={hover ? th.node.hoverIntensity : 0} />
         <Ink color={th.node.outline} width={th.node.outlineWidth} />
       </mesh>
       {th.node.outline && b.shape !== 'diamond' && (
         <Silhouette shape={b.shape} w={land ? w * 0.9 : w} h={land ? h * 0.9 : h} height={height} y={0.012} color={th.node.outline} width={th.node.outlineWidth} />
       )}
+      {device && <StatusLight w={w} h={h} y={height} role={device.role} color={device.caught ?? device.fires} />}
       {land
         ? <Form shape={b.shape} w={w} h={h} y={height} gap={th.node.labelGap} label={b.label} plate={th.label.node} font={fontUrl(th)} toward={th.label.toward} />
         : <Label text={b.label} mode={labelMode} y={height + 0.08} size={0.36} maxWidth={w - 0.3} role="node" />}
     </>
+  )
+}
+
+// A device's status light on its top corner: lit in the colour of the beam it catches (an emitter: its own), dark when it has no edges.
+function StatusLight({ w, h, y, role, color }: { w: number; h: number; y: number; role: Device['role']; color: string | null }) {
+  const lit = role !== 'idle' && color
+  return (
+    <mesh position={[w / 2 - 0.25, y + 0.015, -h / 2 + 0.25]} rotation={[-Math.PI / 2, 0, 0]}>
+      <circleGeometry args={[0.08, 16]} /><meshBasicMaterial color={lit ? '#' + new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.7).getHexString() : '#2a3245'} />
+    </mesh>
   )
 }
 

@@ -95,7 +95,7 @@ test('isBonkeiError tells errors from other values', () => {
 })
 
 test('prepare emits a bonkei.prepare span with a bonkei.layout child', async () => {
-  await prepare(FM + 'flowchart TD\nA --> B\n???\nclassDef x fill:#f00\n!!!')
+  await prepare(FM + 'flowchart TD\nA --> B\n???\nclick A cb\n!!!')
   const [p] = spans('bonkei.prepare'), [l] = spans('bonkei.layout')
   assert.ok(p && l)
   assert.equal(l.parentSpanContext?.spanId, p.spanContext().spanId)

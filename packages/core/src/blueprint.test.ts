@@ -28,7 +28,13 @@ test('Classic, Bonkei and Bonkei · landscape have exactly the settings main had
     const { major, majorColor, ...ground } = t.ground
     assert.equal(major, 0, `${name} keeps a single-weight grid`)
     assert.equal(typeof majorColor, 'string')
-    assert.deepEqual({ ...JSON.parse(JSON.stringify(t)), ground }, THEMES_MAIN[name], name)
+    // Lazers' tokens (BON-248): present in every theme, off here (no beams, no mirrors, an arrowhead, blocks)
+    const { lasers, ...node } = t.node, { beam, optics, arrow, ...edge } = t.edge
+    assert.equal(beam.on, false, `${name} draws no beams`)
+    assert.equal(optics.on, false, `${name} draws no mirrors`)
+    assert.equal(arrow, 'head', `${name} keeps its arrowhead`)
+    assert.ok(lasers.length > 0)
+    assert.deepEqual({ ...JSON.parse(JSON.stringify(t)), ground, node, edge }, THEMES_MAIN[name], name)
   }
 })
 

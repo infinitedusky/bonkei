@@ -16,12 +16,24 @@ test('dropped lines carry their reason and 1-based line number', () => {
   ].join('\n'))
   assert.deepEqual(g.nodes.map(n => n.id), ['A', 'B', 'C'])
   assert.deepEqual(g.dropped, [
-    { line: 3, text: 'classDef hot fill:#f00', reason: 'not supported yet' },
-    { line: 4, text: 'class A hot', reason: 'not supported yet' },
-    { line: 5, text: 'style B fill:#0f0', reason: 'not supported yet' },
     { line: 6, text: 'click A callback', reason: 'not supported yet' },
     { line: 7, text: '??? what', reason: 'not a node or edge' },
   ])
+})
+
+test('style, classDef, class and ::: give a node its colour; a fill that is not a colour is dropped', () => {
+  const g = parse([
+    'flowchart LR',
+    '  A --> B & C',
+    '  C:::cool --> D',
+    '  style A fill:#ff3b3b,stroke:#000',
+    '  class B,D cool',
+    '  classDef cool fill:#2ff0ff,color:#fff',
+    '  style D fill:notacolour',
+    '  style C stroke:#000',
+  ].join('\n'))
+  assert.deepEqual(Object.fromEntries(g.nodes.map(n => [n.id, n.color])), { A: '#ff3b3b', B: '#2ff0ff', C: '#2ff0ff', D: '#2ff0ff' })
+  assert.deepEqual(g.dropped, [{ line: 7, text: 'style D fill:notacolour', reason: 'not a colour' }])
 })
 
 test('the line offset shifts every reported line', () => {

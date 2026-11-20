@@ -25,7 +25,7 @@ export type { Controls } from './options'
 /** A look as data: every colour, material, label and line style the scene reads. JSON-serialisable. */
 export type { Theme } from './theme'
 /** Classic (today's look), the two Bonkei looks and Blueprint, for passing as `theme` or as a base to copy and edit (they are frozen). */
-export { CLASSIC, BONKEI, BONKEI_LANDSCAPE, BLUEPRINT } from './theme'
+export { CLASSIC, BONKEI, BONKEI_LANDSCAPE, BLUEPRINT, LAZERS } from './theme'
 /** The names config.theme and the `theme` prop accept: classic, bonkei, bonkei-landscape, blueprint. */
 export { THEME_NAMES } from './theme'
 

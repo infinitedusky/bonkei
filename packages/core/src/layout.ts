@@ -158,6 +158,7 @@ async function place(g: Graph, parent?: Span, titleRoom = false): Promise<Layout
         id: c.id, label: src.label, kind: isGroup ? 'group' : 'node',
         shape: isGroup ? 'rect' : (src as any).shape,
         x: ox + c.x, y: oy + c.y, w: c.width, h: c.height, level, parent,
+        ...((src as any).color ? { color: (src as any).color } : {}),
       })
       if (isGroup) walk(c, ox + c.x, oy + c.y, level + 1, c.id)
     }

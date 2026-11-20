@@ -12,7 +12,9 @@ import type { SeqLayout } from './seq'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
 import { CLASSIC, inkPx, type Theme } from './theme'
-import { Edge, Trench, PortalSystem, slotShape, stadium } from './EdgeScene'
+import { Edge, Trench, PortalSystem, slotShape, stadium, drawnParts } from './EdgeScene'
+import { Optics, beamColours } from './Optics'
+import { laserColours, roles } from './lasers.ts'
 import { planEdges, type Body, type CrossingStyle, type Slot, type Stats } from './edges3d.ts'
 import { S, NODE_H, TEXT_LAYER } from './scale'
 import { UI } from './palette'
@@ -320,6 +322,39 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
     const r = planEdges(bodies, routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [wx(x), wz(y)] as [number, number]) })), crossings)
     return { ...r, ms: performance.now() - t0 }
   }, [bodies, routes, crossings, W, H])
+  // Lazers: each node's laser colour (from the text, else automatic), its role from its edges, and every drawn line for the mirrors
+  const beams = !!th.edge.beam?.on
+  const edgesKey = routes.map(r => `${r.from}>${r.to}`).join(',') + '|' + [...boxes.values()].map(b => b.color ?? '').join(',')
+  const laser = useMemo(() => {
+    if (!beams) return null
+    const given: Record<string, string> = {}
+    for (const b of boxes.values()) if (b.color) given[b.id] = b.color
+    return { ...laserColours(routes, given, th.node.lasers), given: Object.keys(given).length }
+  }, [beams, edgesKey, th.node.lasers])
+  const devices = useMemo(() => {
+    if (th.node.form !== 'device') return null
+    const r = roles([...boxes.keys()], routes)
+    const caught = new Map<string, string>()
+    for (const e of routes) if (!caught.has(e.to)) caught.set(e.to, laser?.colours.get(e.from) ?? th.edge.color)
+    return { roles: r, caught }
+  }, [th.node.form, edgesKey, laser])
+  const pals = useMemo(() => {
+    const bm = th.edge.beam
+    return routes.map(r => beamColours(laser?.colours.get(r.from) ?? th.edge.color, bm?.centre ?? 0.85, bm?.halo ?? null))
+  }, [routes, laser, th.edge.beam, th.edge.color])
+  const optLines = useMemo(() => {
+    if (!th.edge.optics?.on) return null
+    return routes.flatMap((r, ci) => {
+      const p = plans.get(r.id)
+      return p ? drawnParts(p, th.edge.flat, bodies).map(part => ({ ci, pts: part.map(q => q.toArray() as [number, number, number]) })) : []
+    })
+  }, [plans, routes, bodies, th.edge.optics, th.edge.flat])
+  const lazerCounts = useRef<{ mirrors: number; periscopes: number; splitters: number } | null>(null)
+  useEffect(() => {
+    if (!laser && !lazerCounts.current) return
+    const c = lazerCounts.current
+    instant('bonkei.lazers', { 'bonkei.lazers.mirrors': c?.mirrors ?? 0, 'bonkei.lazers.periscopes': c?.periscopes ?? 0, 'bonkei.lazers.splitters': c?.splitters ?? 0, 'bonkei.lazers.colours_text': laser?.given ?? 0, 'bonkei.lazers.colours_auto': laser?.auto ?? 0 })
+  }, [laser, optLines === null ? 0 : optLines.length])
   const groundSlots = useMemo(() => slots.filter(s => !s.tray), [slots])
   const portalList = useMemo(() => [...plans.values()].flatMap(p => p.portals), [plans])
   const statsCb = useRef(onEdgeStats)
@@ -402,10 +437,11 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
           onClick={e => { if (e.delta < 4) { e.stopPropagation(); onNodeClick?.({ id: b.id, label: b.label, kind: 'node' }) } }}
           onOver={() => { setHover(b.id); setCursor(cursorFor('node', controls, hasClick)) }}
           onOut={() => { setHover(null); setCursor('') }}>
-          <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} />
+          <NodeBody b={b} hover={hover === b.id} labelMode={labelMode} device={devices ? { role: devices.roles.get(b.id) ?? 'idle', caught: devices.caught.get(b.id) ?? null, fires: laser?.colours.get(b.id) ?? null } : undefined} />
         </NodeLift>
       })}
-      {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} bodies={bodies} /> : null)}
+      {routes.map(r => plans.get(r.id) ? <Edge key={r.id} plan={plans.get(r.id)!} label={r.label} labelMode={labelMode} bodies={bodies} color={laser?.colours.get(r.from)} /> : null)}
+      {optLines && <Optics lines={optLines} pals={pals} onCount={c => { lazerCounts.current = c }} />}
       {slots.map((s, i) => <Trench key={i} slot={s} color={s.tray ? th.tray.colors[Math.min(boxes.get(s.tray)!.level, 2)] : th.ground.bg} y={s.tray ? 0 : -0.02} />)}
       {portalList.length > 0 && <PortalSystem pairs={portalList} deps={[plans, hover]} />}
       </Env>
