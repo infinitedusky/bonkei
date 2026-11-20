@@ -89,7 +89,7 @@ function HalfMirror({ at, a, b, c }: { at: V; a: V; b: V; c: Pal }) {
 }
 
 // Where beams part with no straight way on (a T): a small glass wedge, its axis across the plane the beams are in.
-function Prism({ at, ins, outs }: { at: V; ins: V[]; outs: V[] }) {
+function Prism({ at, ins, outs }: { at: V; ins: V[]; outs: V[]; [k: string]: unknown }) {
   const th = useTheme().edge.optics
   const q = useMemo(() => {
     const axis = v(ins[0]).cross(v(outs[0])).normalize()
@@ -104,10 +104,10 @@ function Prism({ at, ins, outs }: { at: V; ins: V[]; outs: V[] }) {
 }
 
 /** Every bend of every drawn line. `lines[i].ci` indexes `pals`. */
-export function Optics({ lines, pals, onCount }: { lines: DrawnLine[]; pals: Pal[]; onCount?: (n: { mirrors: number; periscopes: number; halves: number; prisms: number }) => void }) {
+export function Optics({ lines, pals, onCount }: { lines: DrawnLine[]; pals: Pal[]; onCount?: (n: { mirrors: number; periscopes: number; halves: number; prisms: number; prismKinds: Record<string, number> }) => void }) {
   const th = useTheme().edge.optics
   const bends = useMemo(() => findBends(lines, th.jog), [lines, th.jog])
-  useMemo(() => onCount?.({ mirrors: bends.mirrors.length, periscopes: bends.periscopes.length, halves: bends.halves.length, prisms: bends.prisms.length }), [bends])
+  useMemo(() => onCount?.({ mirrors: bends.mirrors.length, periscopes: bends.periscopes.length, halves: bends.halves.length, prisms: bends.prisms.length, prismKinds: bends.prisms.reduce<Record<string, number>>((k, p) => ({ ...k, [p.kind]: (k[p.kind] ?? 0) + 1 }), {}) }), [bends])
   return (
     <>
       {bends.mirrors.map((m, i) => <Mirror key={`m${i}`} {...m} c={pals[m.ci]} />)}

@@ -4,7 +4,9 @@ export type V = [number, number, number]
 export interface Line { pts: V[]; ci: number } // a drawn part of an edge, and the index of its colour
 export interface MirrorAt { at: V; a: V; b: V; size: number; ci: number } // a plate on a bend: beam in along a, out along b
 export interface PeriscopeAt { from: V; to: V; a: V; ci: number } // two bends of a jog in one box
-export interface PrismAt { at: V; ins: V[]; outs: V[]; ci: number } // beams that part at one point with no straight way on: a small glass prism
+/** t: one way in, two out (or the reverse), none straight; cross: two in and two out; many: three or more parting. */
+export type PrismKind = 't' | 'cross' | 'many'
+export interface PrismAt { at: V; ins: V[]; outs: V[]; ci: number; kind: PrismKind } // beams that part at one point with no straight way on: a small glass prism
 /** halves: half-silvered plates where one beam splits (or two join) with one going straight through; prisms: where a plate cannot do it. */
 export interface Bends { mirrors: MirrorAt[]; periscopes: PeriscopeAt[]; halves: MirrorAt[]; prisms: PrismAt[] }
 
@@ -73,7 +75,7 @@ export function findBends(input: Line[], jog = 0.4): Bends {
     const d = ins.length === 1 && outs.length === 2 ? straight(ins, outs) : outs.length === 1 && ins.length === 2 ? straight(outs, ins) : undefined
     if (d && ins.length === 1) { const o = outs.find(x => dist(x, d) > 0.01)!; out.halves.push({ at: c.at, a: d, b: o, size: 1, ci: c.ci }) } // one beam splits: the turning one reflects
     else if (d) { const i = ins.find(x => dist(x, d) > 0.01)!; out.halves.push({ at: c.at, a: i, b: d, size: 1, ci: c.ci }) } // two join
-    else out.prisms.push({ at: c.at, ins, outs, ci: c.ci })
+    else out.prisms.push({ at: c.at, ins, outs, ci: c.ci, kind: ins.length + outs.length === 3 ? 't' : ins.length === 2 && outs.length === 2 ? 'cross' : 'many' })
   }
   return out
 }

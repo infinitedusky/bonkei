@@ -349,7 +349,7 @@ function Scene({ cam, data, labelMode, onDrill, controls, onNodeClick, hasClick,
       return p ? drawnParts(p, th.edge.flat, bodies).map(part => ({ ci, pts: part.map(q => q.toArray() as [number, number, number]) })) : []
     })
   }, [plans, routes, bodies, th.edge.optics, th.edge.flat])
-  const lazerCounts = useRef<{ mirrors: number; periscopes: number; halves: number; prisms: number } | null>(null)
+  const lazerCounts = useRef<{ mirrors: number; periscopes: number; halves: number; prisms: number; prismKinds: Record<string, number> } | null>(null)
   useEffect(() => {
     if (!laser && !lazerCounts.current) return
     const c = lazerCounts.current

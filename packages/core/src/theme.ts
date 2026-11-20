@@ -192,7 +192,7 @@ export const LAZERS: Theme = deepFreeze({
   },
   tray: { ...CLASSIC.tray, colors: ['#0e1422', '#111829', '#141c30'], outline: '#2a3550', hover: '#9fd3ff', hoverIntensity: 0.12 },
   label: { ...CLASSIC.label, node: { ...CLASSIC.label.node, text: '#e9eefb' }, tray: { ...CLASSIC.label.tray, text: '#7f8aa3' } },
-  ink: BONKEI.ink,
+  ink: { ref: 40, min: 0.4 }, // beams, bands and outlines thin out with the zoom to under half their width (BONKEI's floor, 1px for a 1.2px outline, kept them heavy at fit)
   edge: {
     color: '#ff3b3b', width: 2.5, label: '#e9eefb', labelOutline: BENCH, portal: '#9fd3ff', rim: 'none', rimWidth: 1.5, flat: false,
     beam: { on: true, width: 2.6, centre: 0.85, centreWidth: 1, halo: null, haloWidth: 6, haloOpacity: 0.3 },
