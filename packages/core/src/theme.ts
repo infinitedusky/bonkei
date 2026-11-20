@@ -179,27 +179,27 @@ export const BLUEPRINT: Theme = deepFreeze({
 // Lazers: an optics bench. A dark ground; every edge a glowing beam in the laser colour of the node it leaves, a mirror on every bend,
 // and nodes that are devices (emitter, detector, relay). Values from the Mockups/Lazers stories. No bloom, no scene light: the glow is
 // layered lines, as the trench light is.
-const BENCH = '#05070c'
+const BENCH = '#0f2238'
 /** Lazers, an optics bench of laser beams and mirrors, for passing as `theme` or as a base to copy and edit (it is frozen). */
 export const LAZERS: Theme = deepFreeze({
   name: 'lazers',
-  ground: { bg: BENCH, grid: ['#151c2b', '#0d1220'], major: 0, majorColor: '#151c2b', grain: 0, lit: true },
-  light: { ...CLASSIC.light, ambient: 0.35, sky: '#9fb2d6', floor: '#0a0e16', hemi: 0.35, sun: 1.1, shadows: false },
+  ground: { bg: BENCH, grid: ['#1a607f', '#0e3550'], major: 5, majorColor: '#2590b8', grain: 0, lit: true }, // a Tron grid: cyan lines, a heavier one every 5
+  light: { ...CLASSIC.light, ambient: 0.75, sky: '#dff1ff', floor: '#14283f', hemi: 0.6, sun: 0.9, shadows: false },
   node: {
     ...CLASSIC.node,
-    colors: { rect: '#2f3a52', round: '#33405a', cylinder: '#2b354b', diamond: '#364462' },
-    form: 'device', outline: '#3a4866', outlineWidth: 1.2, bevel: 0.02, hover: '#9fd3ff', hoverIntensity: 0.25,
+    colors: { rect: '#2a4d78', round: '#2f567f', cylinder: '#284870', diamond: '#335a88' }, // deep blue-slate
+    form: 'device', outline: '#6fe4ff', outlineWidth: 1.4, bevel: 0.02, hover: '#9fd3ff', hoverIntensity: 0.25, // a lit cyan rim
   },
-  tray: { ...CLASSIC.tray, colors: ['#0e1422', '#111829', '#141c30'], outline: '#2a3550', hover: '#9fd3ff', hoverIntensity: 0.12 },
-  label: { ...CLASSIC.label, node: { ...CLASSIC.label.node, text: '#e9eefb' }, tray: { ...CLASSIC.label.tray, text: '#7f8aa3' } },
+  tray: { ...CLASSIC.tray, colors: ['#1a3b60', '#1f4670', '#255180'], outline: '#4fd8ff', hover: '#9fd3ff', hoverIntensity: 0.12 },
+  label: { ...CLASSIC.label, node: { ...CLASSIC.label.node, text: '#e9eefb' }, tray: { ...CLASSIC.label.tray, text: '#bfe9ff' } },
   ink: { ref: 40, min: 0.4 }, // beams, bands and outlines thin out with the zoom to under half their width (BONKEI's floor, 1px for a 1.2px outline, kept them heavy at fit)
   edge: {
     color: '#ff3b3b', width: 2.5, label: '#e9eefb', labelOutline: BENCH, portal: '#9fd3ff', rim: 'none', rimWidth: 1.5, flat: false,
-    beam: { on: true, width: 2.6, centre: 0.85, centreWidth: 1, halo: null, haloWidth: 6, haloOpacity: 0.3 },
+    beam: { on: true, width: 2.6, centre: 0.85, centreWidth: 1, halo: null, haloWidth: 7, haloOpacity: 0.4 },
     optics: { on: true, metal: '#3a4560', face: '#dbe9ff', glass: '#a0dcff', jog: 0.4 }, arrow: 'spot',
     glow: { core: '#9fd3ff', coreWidth: 3.5, halo: '#9fd3ff', haloWidth: 11, haloOpacity: 0.28, wash: '#9fd3ff', washIntensity: 0.3 },
   },
-  seq: { lifeline: '#3a4866', activation: '#39ff6a', note: '#141c30', noteText: '#e9eefb', blockText: '#e9eefb', blockSub: '#9aa6c0', cross: '#ff3b3b', crossLine: '#ff3b3b' },
+  seq: { lifeline: '#4f86a8', activation: '#39ff6a', note: '#1a3b60', noteText: '#e9eefb', blockText: '#e9eefb', blockSub: '#bfe9ff', cross: '#ff3b3b', crossLine: '#ff3b3b' },
 })
 
 /** The built-in themes by the name a diagram or the `theme` prop uses. */
