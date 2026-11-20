@@ -22,81 +22,114 @@ export function Beam({ pts, c, width, centreWidth, haloWidth, haloOpacity }: { p
   )
 }
 
-// A plate on a bend: its face normal is (b - a), it spans (a + b) and the hinge. Basis is right-handed: (a + b) x (b x a) = b - a.
-function Mirror({ at, a, b, c, size }: { at: V; a: V; b: V; c: Pal; size: number }) {
+const plateQuat = (a: V, b: V) => {
+  const A = v(a), B = v(b)
+  const u = A.clone().add(B).normalize(), w = B.clone().cross(A).normalize(), n = B.clone().sub(A).normalize()
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, w, n))
+}
+const BOUNCE = (c: Pal) => (
+  <>
+    <mesh><sphereGeometry args={[0.035, 10, 10]} /><meshBasicMaterial color={c.core} /></mesh>
+    <mesh><sphereGeometry args={[0.07, 10, 10]} /><meshBasicMaterial color={c.halo} transparent opacity={0.3} depthWrite={false} /></mesh>
+  </>
+)
+
+// The slimmest form, where a piece has no room at all: the plate seen as a thin silver line across the beam's corner, and the bounce spot.
+function SlimPlate({ at, a, b, c }: { at: V; a: V; b: V; c: Pal }) {
   const th = useTheme().edge.optics
-  const q = useMemo(() => {
-    const A = v(a), B = v(b)
-    const u = A.clone().add(B).normalize(), w = B.clone().cross(A).normalize(), n = B.clone().sub(A).normalize()
-    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, w, n))
-  }, [a, b])
-  const upright = Math.abs(v(a).cross(v(b)).normalize().y) > 0.9
+  const q = useMemo(() => plateQuat(a, b), [a, b])
   return (
     <group position={at}>
-      <group quaternion={q} scale={size}>
-        <mesh position={[0, 0, -0.04]}><boxGeometry args={[0.4, 0.32, 0.08]} /><meshStandardMaterial color={th.metal} metalness={0.6} roughness={0.4} /></mesh>
-        <mesh position={[0, 0, 0.002]}><planeGeometry args={[0.38, 0.3]} /><meshStandardMaterial color={th.face} metalness={1} roughness={0.08} emissive={th.face} emissiveIntensity={0.3} /></mesh>
-      </group>
-      {upright && size === 1 && <mesh position={[0, -0.28, 0]}><cylinderGeometry args={[0.025, 0.04, 0.24, 8]} /><meshStandardMaterial color={th.metal} /></mesh>}
-      <mesh><sphereGeometry args={[0.05, 12, 12]} /><meshBasicMaterial color={c.core} /></mesh>
-      <mesh><sphereGeometry args={[0.12, 12, 12]} /><meshBasicMaterial color={c.halo} transparent opacity={0.3} depthWrite={false} /></mesh>
+      <mesh quaternion={q}><boxGeometry args={[0.13, 0.012, 0.012]} /><meshStandardMaterial color={th.face} metalness={1} roughness={0.1} emissive={th.face} emissiveIntensity={0.3} /></mesh>
+      {BOUNCE(c)}
     </group>
   )
 }
 
-// Two bends of a jog in one box: the beam goes in at one window and out at the other.
-function Periscope({ from, to, a, c }: { from: V; to: V; a: V; c: Pal }) {
+// A plate on a bend: its face normal is (b - a), it spans (a + b) and the hinge. Basis is right-handed: (a + b) x (b x a) = b - a.
+// size scales the whole piece; double: silvered both sides (a thin core, a face each side).
+function Mirror({ at, a, b, c, size, slim, double }: { at: V; a: V; b: V; c: Pal; size: number; slim: boolean; double?: boolean }) {
+  const th = useTheme().edge.optics
+  const q = useMemo(() => plateQuat(a, b), [a, b])
+  if (slim) return <SlimPlate at={at} a={a} b={b} c={c} />
+  const upright = Math.abs(v(a).cross(v(b)).normalize().y) > 0.9
+  return (
+    <group position={at}>
+      <group quaternion={q} scale={size}>
+        {double
+          ? (
+            <>
+              <mesh><boxGeometry args={[0.4, 0.32, 0.03]} /><meshStandardMaterial color={th.metal} metalness={0.6} roughness={0.4} /></mesh>
+              {[1, -1].map(f => <mesh key={f} position={[0, 0, f * 0.017]} rotation={[0, f > 0 ? 0 : Math.PI, 0]}><planeGeometry args={[0.38, 0.3]} /><meshStandardMaterial color={th.face} metalness={1} roughness={0.08} emissive={th.face} emissiveIntensity={0.3} /></mesh>)}
+            </>
+          )
+          : (
+            <>
+              <mesh position={[0, 0, -0.04]}><boxGeometry args={[0.4, 0.32, 0.08]} /><meshStandardMaterial color={th.metal} metalness={0.6} roughness={0.4} /></mesh>
+              <mesh position={[0, 0, 0.002]}><planeGeometry args={[0.38, 0.3]} /><meshStandardMaterial color={th.face} metalness={1} roughness={0.08} emissive={th.face} emissiveIntensity={0.3} /></mesh>
+            </>
+          )}
+      </group>
+      {upright && size > 0.95 && <mesh position={[0, -0.28, 0]}><cylinderGeometry args={[0.025, 0.04, 0.24, 8]} /><meshStandardMaterial color={th.metal} /></mesh>}
+      <group scale={Math.max(size, 0.5)}>{BOUNCE(c)}</group>
+    </group>
+  )
+}
+
+// Two bends of a jog in one box: the beam goes in at one window and out at the other. glass: other beams pass through it, so its sides are
+// see-through. No room: two slim plates, one at each bend.
+function Periscope({ from, to, a, c, size, slim, glass }: { from: V; to: V; a: V; c: Pal; size: number; slim: boolean; glass?: boolean }) {
   const th = useTheme().edge.optics
   const p = v(from), q2 = v(to), d = q2.clone().sub(p), L = d.length()
   const quat = useMemo(() => {
     const y = d.clone().normalize(), z = v(a).cross(y).normalize()
     return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(v(a).normalize(), y, z))
   }, [from, to, a])
-  const mid = p.clone().add(q2).multiplyScalar(0.5)
+  if (slim) {
+    const dn = d.clone().normalize().toArray() as V
+    return <><SlimPlate at={from} a={a} b={dn} c={c} /><SlimPlate at={to} a={dn} b={a} c={c} /></>
+  }
+  const mid = p.clone().add(q2).multiplyScalar(0.5), k = size
   return (
     <group position={mid} quaternion={quat}>
-      <mesh><boxGeometry args={[0.34, L + 0.3, 0.26]} /><meshStandardMaterial color={th.metal} metalness={0.6} roughness={0.4} /></mesh>
-      <mesh position={[-0.171, -L / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><circleGeometry args={[0.07, 16]} /><meshBasicMaterial color={c.core} side={THREE.DoubleSide} /></mesh>
-      <mesh position={[0.171, L / 2, 0]} rotation={[0, Math.PI / 2, 0]}><circleGeometry args={[0.07, 16]} /><meshBasicMaterial color={c.core} side={THREE.DoubleSide} /></mesh>
+      <mesh><boxGeometry args={[0.34 * k, L + 0.3 * k, 0.26 * k]} />{glass ? <meshPhysicalMaterial color={th.glass} transparent opacity={0.35} roughness={0.05} depthWrite={false} /> : <meshStandardMaterial color={th.metal} metalness={0.6} roughness={0.4} />}</mesh>
+      <mesh position={[-0.171 * k, -L / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><circleGeometry args={[0.07 * k, 16]} /><meshBasicMaterial color={c.core} side={THREE.DoubleSide} /></mesh>
+      <mesh position={[0.171 * k, L / 2, 0]} rotation={[0, Math.PI / 2, 0]}><circleGeometry args={[0.07 * k, 16]} /><meshBasicMaterial color={c.core} side={THREE.DoubleSide} /></mesh>
       {[-L / 2, L / 2].map((y, i) => (
-        <mesh key={i} position={[0, y, 0.131]} rotation={[0, 0, Math.PI / 4]}><planeGeometry args={[0.3, 0.03]} /><meshBasicMaterial color={th.face} /></mesh>
+        <mesh key={i} position={[0, y, 0.131 * k]} rotation={[0, 0, Math.PI / 4]}><planeGeometry args={[0.3 * k, 0.03 * k]} /><meshBasicMaterial color={th.face} /></mesh>
       ))}
     </group>
   )
 }
 
 // A half-silvered mirror: the bend mirror's size and frame, but its face is see-through glass with a thin silver coat. The turning beam
-// reflects off it, the straight one passes through.
-function HalfMirror({ at, a, b, c }: { at: V; a: V; b: V; c: Pal }) {
+// reflects off it, the straight one passes through. No room: the slim plate.
+function HalfMirror({ at, a, b, c, size, slim }: { at: V; a: V; b: V; c: Pal; size: number; slim: boolean }) {
   const th = useTheme().edge.optics
-  const q = useMemo(() => {
-    const A = v(a), B = v(b)
-    const u = A.clone().add(B).normalize(), w = B.clone().cross(A).normalize(), n = B.clone().sub(A).normalize()
-    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, w, n))
-  }, [a, b])
+  const q = useMemo(() => plateQuat(a, b), [a, b])
+  if (slim) return <SlimPlate at={at} a={a} b={b} c={c} />
   const bar = (x: number, y: number, w: number, h: number) => <mesh position={[x, y, -0.02]}><boxGeometry args={[w, h, 0.06]} /><meshStandardMaterial color={th.metal} metalness={0.6} roughness={0.4} /></mesh>
   return (
     <group position={at}>
-      <group quaternion={q}>
+      <group quaternion={q} scale={size}>
         {bar(0, 0.16, 0.4, 0.03)}{bar(0, -0.16, 0.4, 0.03)}{bar(0.2, 0, 0.03, 0.32)}{bar(-0.2, 0, 0.03, 0.32)}
         <mesh><planeGeometry args={[0.37, 0.29]} /><meshPhysicalMaterial color={th.glass} transparent opacity={0.22} roughness={0.05} side={THREE.DoubleSide} depthWrite={false} /></mesh>
         <mesh position={[0, 0, 0.003]}><planeGeometry args={[0.37, 0.29]} /><meshStandardMaterial color={th.face} metalness={1} roughness={0.1} transparent opacity={0.3} depthWrite={false} /></mesh>
       </group>
-      <mesh><sphereGeometry args={[0.05, 12, 12]} /><meshBasicMaterial color={c.core} /></mesh>
-      <mesh><sphereGeometry args={[0.12, 12, 12]} /><meshBasicMaterial color={c.halo} transparent opacity={0.3} depthWrite={false} /></mesh>
+      <group scale={Math.max(size, 0.5)}>{BOUNCE(c)}</group>
     </group>
   )
 }
 
-// Where beams part with no straight way on (a T): a small glass wedge, its axis across the plane the beams are in.
-function Prism({ at, ins, outs }: { at: V; ins: V[]; outs: V[]; [k: string]: unknown }) {
+// Where beams part with no plate to serve them (a T, three or more): a small glass wedge, its axis across the plane the beams are in.
+function Prism({ at, ins, outs, size }: { at: V; ins: V[]; outs: V[]; size: number; [k: string]: unknown }) {
   const th = useTheme().edge.optics
   const q = useMemo(() => {
     const axis = v(ins[0]).cross(v(outs[0])).normalize()
     return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.lengthSq() ? axis : new THREE.Vector3(0, 1, 0))
   }, [ins, outs])
   return (
-    <mesh position={at} quaternion={q}>
+    <mesh position={at} quaternion={q} scale={Math.max(size, 0.3)}>
       <cylinderGeometry args={[0.2, 0.2, 0.3, 3]} />
       <meshPhysicalMaterial color={th.glass} transparent opacity={0.35} roughness={0.05} metalness={0.1} depthWrite={false} />
     </mesh>
@@ -104,15 +137,16 @@ function Prism({ at, ins, outs }: { at: V; ins: V[]; outs: V[]; [k: string]: unk
 }
 
 /** Every bend of every drawn line. `lines[i].ci` indexes `pals`. */
-export function Optics({ lines, pals, onCount }: { lines: DrawnLine[]; pals: Pal[]; onCount?: (n: { mirrors: number; periscopes: number; halves: number; prisms: number; prismKinds: Record<string, number>; prismAt: [string, V, V[], V[]][] }) => void }) {
+export function Optics({ lines, pals, onCount }: { lines: DrawnLine[]; pals: Pal[]; onCount?: (n: { mirrors: number; periscopes: number; halves: number; doubles: number; prisms: number; slim: number; merged: number; prismKinds: Record<string, number>; prismAt: [string, V, V[], V[]][] }) => void }) {
   const th = useTheme().edge.optics
   const bends = useMemo(() => findBends(lines, th.jog), [lines, th.jog])
-  useMemo(() => onCount?.({ mirrors: bends.mirrors.length, periscopes: bends.periscopes.length, halves: bends.halves.length, prisms: bends.prisms.length, prismKinds: bends.prisms.reduce<Record<string, number>>((k, p) => ({ ...k, [p.kind]: (k[p.kind] ?? 0) + 1 }), {}), prismAt: bends.prisms.map(p => [p.kind, p.at, p.ins, p.outs] as [string, V, V[], V[]]) }), [bends])
+  useMemo(() => onCount?.({ mirrors: bends.mirrors.length, periscopes: bends.periscopes.length, halves: bends.halves.length, doubles: bends.doubles.length, prisms: bends.prisms.length, merged: bends.merged, slim: [...bends.mirrors, ...bends.periscopes, ...bends.halves, ...bends.doubles, ...bends.prisms].filter(x => x.slim).length, prismKinds: bends.prisms.reduce<Record<string, number>>((k, p) => ({ ...k, [p.kind]: (k[p.kind] ?? 0) + 1 }), {}), prismAt: bends.prisms.map(p => [p.kind, p.at, p.ins, p.outs] as [string, V, V[], V[]]) }), [bends])
   return (
     <>
       {bends.mirrors.map((m, i) => <Mirror key={`m${i}`} {...m} c={pals[m.ci]} />)}
       {bends.periscopes.map((p, i) => <Periscope key={`p${i}`} {...p} c={pals[p.ci]} />)}
       {bends.halves.map((h, i) => <HalfMirror key={`h${i}`} {...h} c={pals[h.ci]} />)}
+      {bends.doubles.map((h, i) => <Mirror key={`d${i}`} {...h} c={pals[h.ci]} />)}
       {bends.prisms.map((p, i) => <Prism key={`r${i}`} {...p} />)}
     </>
   )

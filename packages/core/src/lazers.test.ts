@@ -1,7 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { LAZERS, PRESETS, withVariables } from './theme.ts'
-import { findBends, laserColours, roles, type V } from './lasers.ts'
+import fs from 'node:fs'
+import { findBends, laserColours, pieceGap, roles, type Bends, type Line, type V } from './lasers.ts'
+import { prepare } from './diagram.ts'
+import { planEdges, type Body, type CrossingStyle } from './edges3d.ts'
+import { NODE_H, S } from './scale.ts'
+import type { LayoutResult } from './model.ts'
 
 const L = (pts: V[], ci = 0) => ({ pts, ci })
 
@@ -21,11 +26,11 @@ test('a straight run has none; a tray step (a jog 0.25 high, same direction eith
   assert.equal(r.mirrors.length, 0)
 })
 
-test('two close bends that do not form a jog get smaller mirrors, down to 40%', () => {
+test('two close bends that do not form a jog get smaller mirrors that clear each other', () => {
   const r = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 0.2], [0.5, 0, 0.2]])])
   assert.equal(r.periscopes.length, 0)
   assert.equal(r.mirrors.length, 2)
-  assert.ok(r.mirrors.every(m => m.size >= 0.4 && m.size <= 0.5))
+  assert.ok(r.mirrors.every(m => !m.slim && m.size >= 0.3 && m.size < 0.5))
 })
 
 test('one beam splitting, one straight on and one turning, is one half-silvered plate at 45°: no mirror, no prism', () => {
@@ -100,4 +105,86 @@ test('edge.beam and edge.optics take themeVariables like the trench light: tune,
 
 test('every preset carries the same Lazers tokens', () => {
   for (const t of Object.values(PRESETS)) { assert.equal(typeof t.edge.beam.on, 'boolean'); assert.equal(typeof t.edge.optics.on, 'boolean'); assert.ok(t.node.lasers.length) }
+})
+
+test('a lone turn that another beam only passes near is still a plain mirror', () => {
+  const r = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 2]]), L([[0, 0, 0.5], [4, 0, 0.5]], 1)])
+  assert.equal(r.mirrors.length, 1)
+  assert.equal(r.halves.length + r.doubles.length + r.prisms.length, 0)
+})
+
+test('beams on one line in opposite directions with one turning: a half-silvered plate, not a prism', () => {
+  const r = findBends([L([[0, 0, 0], [4, 0, 0]]), L([[4, 0, 0], [0, 0, 0]], 1), L([[0, 0, 0], [2, 0, 0], [2, 0, 2]], 2)])
+  assert.equal(r.halves.length, 1)
+  assert.equal(r.prisms.length + r.mirrors.length, 0)
+})
+
+test('two beams turning in one plane from opposite sides: one plate silvered both sides', () => {
+  const r = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 2]]), L([[2, 0, -2], [2, 0, 0], [4, 0, 0]], 1)])
+  // +x -> +z and +z -> +x turn in one plane (normal -x + z / x - z): one double-sided plate
+  assert.equal(r.doubles.length, 1)
+  assert.equal(r.prisms.length + r.halves.length + r.mirrors.length, 0)
+  const t = findBends([L([[0, 0, 0], [2, 0, 0], [2, 0, 2]]), L([[0, 0, 0], [2, 0, 0], [2, 0, -2]], 1)]) // a true T: two ways, none shared
+  assert.equal(t.prisms.length, 1)
+  assert.equal(t.prisms[0].kind, 't')
+})
+
+test('a jog on a run other beams pass straight through is one half-silvered periscope, not two stacked pieces', () => {
+  const r = findBends([L([[0, 0.5, 0], [1, 0.5, 0], [1, 0.25, 0], [2, 0.25, 0]]), L([[0, 0.5, 0], [3, 0.5, 0]], 1), L([[0, 0.25, 0], [3, 0.25, 0]], 2)])
+  assert.equal(r.periscopes.length, 1)
+  assert.equal(r.periscopes[0].glass, true)
+  assert.equal(r.prisms.length + r.halves.length + r.mirrors.length, 0)
+})
+
+// ---- pieces never touch: on the large sample's own plans, in every crossing style, and on a dense bundle
+const text = (name: string) => {
+  const src = fs.readFileSync(new URL('../../../apps/playground/src/samples.ts', import.meta.url), 'utf8')
+  const at = src.indexOf('const ' + name + ' = `') + ('const ' + name + ' = `').length
+  const body = src.slice(at, src.indexOf('\n`\n', at) + 1)
+  const srcs = Array.from({ length: 30 }, (_, i) => `S${i + 1}[Source ${i + 1}]`) // as samples.ts makes them
+  return new Function('srcs', 'return `' + body + '`')(srcs) as string
+}
+async function drawn(src: string, style: CrossingStyle): Promise<Line[]> {
+  const d = (await prepare(src, { theme: 'lazers' })).data as LayoutResult
+  const W = d.width, H = d.height
+  const bodies: Body[] = d.boxes.map(b => ({ id: b.id, kind: b.kind, x0: (b.x - W / 2) * S, z0: (b.y - H / 2) * S, x1: (b.x + b.w - W / 2) * S, z1: (b.y + b.h - H / 2) * S, level: b.level, parent: b.parent, height: b.kind === 'node' ? (b.height ?? NODE_H) : b.height, tray: 0.25 }))
+  const { plans } = planEdges(bodies, d.routes.map(r => ({ id: r.id, from: r.from, to: r.to, points: r.points.map(([x, y]) => [(x - W / 2) * S, (y - H / 2) * S] as [number, number]) })), style)
+  return [...plans.values()].flatMap((p, ci) => p.parts.map(part => ({ ci, pts: part.map(([x, z, y]) => [x, y, z] as V) })))
+}
+function pieces(b: Bends) {
+  const bound = (r: number, s: number, slim: boolean) => (slim ? 0.07 : r * s)
+  return [
+    ...[...b.mirrors, ...b.halves, ...b.doubles].map(m => ({ p: m.at, q: m.at, r: bound(0.26, m.size, m.slim) })),
+    ...b.periscopes.map(m => ({ p: m.from, q: m.to, r: bound(0.215, m.size, m.slim) })),
+    ...b.prisms.map(m => ({ p: m.at, q: m.at, r: bound(0.25, m.size, m.slim) })),
+  ]
+}
+function overlaps(b: Bends) {
+  const ps = pieces(b), bad: string[] = []
+  for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) if (pieceGap(ps[i], ps[j]) < ps[i].r + ps[j].r) bad.push(`${i}:${j} ${pieceGap(ps[i], ps[j]).toFixed(3)} < ${(ps[i].r + ps[j].r).toFixed(3)}`)
+  return bad
+}
+
+test('no two pieces touch on the large and wide samples, in every crossing style, and on a dense K3,3 bundle', async () => {
+  const k33 = 'flowchart LR\n' + [...'ABC'].flatMap(a => [...'DEF'].map(b => `  ${a} --> ${b}`)).join('\n')
+  for (const [name, src] of [['large', text('large')], ['wide', text('wide')], ['K3,3', k33]] as const) {
+    for (const style of ['none', 'bridge', 'tunnel', 'portal'] as const) {
+      const b = findBends(await drawn(src, style))
+      assert.ok(pieces(b).length > 10 || name === 'K3,3', `${name} ${style} has pieces`)
+      assert.deepEqual(overlaps(b), [], `${name} ${style}`)
+      // none is drawn too big for the room: every piece is a scale in 0.3..1, or slim
+      for (const m of [...b.mirrors, ...b.halves, ...b.doubles, ...b.periscopes, ...b.prisms]) assert.ok(m.slim || (m.size >= 0.3 && m.size <= 1), `${name} ${style} size ${m.size}`)
+    }
+  }
+})
+
+test('the new counts on the large and wide samples and K3,3', async () => {
+  const k33 = 'flowchart LR\n' + [...'ABC'].flatMap(a => [...'DEF'].map(b => `  ${a} --> ${b}`)).join('\n')
+  const out: Record<string, unknown> = {}
+  for (const [name, src] of [['large', text('large')], ['wide', text('wide')], ['K3,3', k33]] as const) {
+    const b = findBends(await drawn(src, 'none'))
+    const all = [...b.mirrors, ...b.halves, ...b.doubles, ...b.periscopes, ...b.prisms]
+    out[name] = { mirrors: b.mirrors.length, periscopes: b.periscopes.length, halves: b.halves.length, doubles: b.doubles.length, prisms: b.prisms.length, ts: b.prisms.filter(p => p.kind === 't').length, slim: all.filter(x => x.slim).length, merged: b.merged }
+  }
+  console.log(JSON.stringify(out))
 })
