@@ -19,7 +19,7 @@ export interface FenceEvent {
 export interface BonkeiMarkdownOptions {
   /** Height of every diagram in px unless the fence sets its own (```mermaid {height=600}). Default 420. */
   height?: number
-  /** A theme name for every diagram (classic, bonkei, bonkei-landscape, blueprint); a fence's {theme=…} wins. */
+  /** A theme name for every diagram (classic, bonkei, bonkei-landscape, blueprint, cloud-cartography); a fence's {theme=…} wins. */
   theme?: string
   /** The starting view for every diagram; a fence's {mode=…} wins. */
   mode?: 'flat' | 'iso' | '3d'
