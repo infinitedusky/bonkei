@@ -7,7 +7,7 @@ import { layout, type LayoutOptions } from './layout.ts'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from './seq.ts'
 import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOptions, type Ready, type ThemeRequest } from './options.ts'
 import { withSpan } from './telemetry.ts'
-import { loadStage, type StageInfo, type StageLayout } from './stage.ts'
+import type { StageInfo, StageLayout } from './stage.ts'
 import { resolveTheme, type Theme } from './theme.ts'
 
 export interface Prepared {
@@ -113,7 +113,8 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
     if (fm.body.trim()) warnings.push({ kind: 'stage', message: 'a diagram drawn on a stage is not supported yet; showing the stage alone', line: fm.lineOffset + 1 })
     span.setAttribute('bonkei.diagram', 'stage')
     const t0 = performance.now()
-    const s = await loadStage(stage, span).catch(e => { throw withLine(e, fm, src, stage) })
+    const s = await (await import('./stage.ts')).loadStage(stage, span) // a chunk a diagram without a stage never fetches
+      .catch(e => { throw withLine(e, fm, src, stage) })
     warnings.push(...s.warnings)
     return [{ data: s.layout, stage: s.info, options: fm.options, theme: fm.theme, nodes: s.layout.parts.length, edges: 0, dropped: [], arcs: false }, performance.now() - t0]
   }

@@ -6,8 +6,8 @@ import type { BonkeiError, BonkeiWarning } from './options.ts'
 import { S } from './scale.ts'
 import { withSpan } from './telemetry.ts'
 
-/** One normaliser for matching names: case, runs of spaces, `_` and `-` do not matter, nor the ends. "Prep Line", "prep_line" and "prep-line" all find "prep line". */
-export const normaliseName = (s: string) => s.trim().toLowerCase().replace(/[\s_-]+/g, ' ')
+import { normaliseName } from './names.ts'
+export { normaliseName }
 
 /** A named top-level object of the model, as laid out: `x`, `y`, `w`, `h` are its footprint in layout px (top-left, like a box), `top` its height in world units. */
 export interface StagePart { id: string; label: string; x: number; y: number; w: number; h: number; top: number; cx: number; cz: number; pieces: number }

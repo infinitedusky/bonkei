@@ -522,6 +522,6 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 
 **Telemetry.** `bonkei.stage.load` (host only, bytes, ms, parts, pieces skipped, duplicate names, error kind and first line), `bonkei.stage.loader.load`; `bonkei.prepare` has `bonkei.diagram: stage`.
 
-**Size.** The main chunk grew 2.1 kB gzip (201.1 to 203.2 kB), budget now 204 kB; the script-tag bundle grew 16.4 kB (867.2 to 883.6, the loader cannot be split out of one file), budget now 890 kB.
+**Size.** The part-finding and loading code is a chunk of its own (`stage-*.js`, 2.7 kB gzip, budgeted at 4 kB, outside the main figure like the wasm fallback), fetched with the first stage, and three's `GLTFLoader` is a further chunk its host bundler makes. The main chunk grew 0.5 kB (201.1 to 201.6, budget still 202 kB): the frontmatter key, the stage drawing and the name normaliser. The script-tag bundle grew 17 kB (867.2 to 884.2) because one file cannot split the loader out; its budget is now 885 kB.
 
 **Consequences.** A new embedder-visible kind of error and option. Model files are the author's: Bonkei does not restyle them. Not done: compressed models, a diagram played on a stage (BON-255), a stage from text (BON-137, BON-254).

@@ -41,7 +41,7 @@ export type { ReadyInfo } from './options'
 /** A stage's parts, as onReady reports them: the named top-level objects of the model. */
 export type { StageInfo } from './stage'
 /** The one way part names are matched (case, spaces, `_` and `-` do not matter): a script's "Prep Line" finds the model's "prep line". */
-export { normaliseName } from './stage'
+export { normaliseName } from './names'
 /** Tells a BonkeiError from any other thrown value. */
 export { isBonkeiError } from './diagram'
 
