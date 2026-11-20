@@ -500,6 +500,8 @@ A host Vite 8 build puts ELK in `elk.bundled-*.js` (1,428 kB raw, 442 kB gzip) a
 - Font: Archivo Black (SIL OFL 1.1), subset to Latin (44 KB), bundled as `archivo` beside `mincho`; it is also the card names' bold.
 - Proof the others are unchanged: `cloud.test.ts` (tokens against `fixtures/themes-main.json`, layout of a sample with dotted links and `<br>` labels against `fixtures/cloud-layouts-main.json`), and 0 differing pixels against main's viewer, 18 comparisons.
 
+**Size.** The main chunk grew 3.8 kB gzip (196.2 to 200.0 kB), so its budget is now 201 kB (`.size-limit.mjs`); the font is a file of its own (22.2 kB gzip, budget 24 kB), fetched only when a theme names it.
+
 **Alternatives.** Splitting the label at draw time (the two-line reading would then be lost in the layout); routing the arcs and hiding them (they would still push the lines); a billboarded picture per icon (it would not turn with the view).
 
 **Consequence.** Any change to how Bonkei draws retakes the site pictures with `pnpm capture` in the same PR (BON-209). Card names and the ground lettering use the bundled font, so the file ships in `dist/fonts/`.
