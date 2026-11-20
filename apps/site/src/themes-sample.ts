@@ -1,5 +1,6 @@
 // MADE-UP SAMPLE DATA: the diagram of sketches/brand-theme.html, drawn live in each theme by the Themes section.
-// Same diagram as the playground's "flow: bonkei mockup" (apps never import each other).
+// The playground's "flow: bonkei mockup" diagram (apps never import each other) plus two dotted links,
+// added so every theme shows how it draws a dotted link and Cloud Cartography shows its arcs.
 export const THEMES_DIAGRAM = `flowchart LR
   Client[Client] --> GW[API gateway]
   subgraph Services
@@ -18,4 +19,6 @@ export const THEMES_DIAGRAM = `flowchart LR
   Orders --> Invoices
   Orders --> PG
   Auth --> Cache
+  Paid -.->|receipt| Client
+  Cache -.-> Orders
 `
