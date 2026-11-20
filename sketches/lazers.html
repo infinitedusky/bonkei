@@ -37,7 +37,7 @@
   <div class="stage"><span class="tag">Iso</span><svg id="iso" viewBox="0 0 1000 600"></svg></div>
   <aside>
     <div class="panel"><span class="tag">Flat (from above)</span><svg id="flat" viewBox="0 0 360 230"></svg></div>
-    <div class="panel"><span class="tag">3D · a bridge: up, over, down, four mirrors</span><svg id="bridge" viewBox="0 0 360 230"></svg></div>
+    <div class="panel"><span class="tag">3D · crossings: a mirror on each of the four bends</span><svg id="bridge" viewBox="0 0 360 300"></svg></div>
     <div class="legend">
       <h2>Devices (from the edges)</h2>
       <dl>
@@ -123,15 +123,21 @@ function beam(svg, P, pts, k = 1) {
 }
 
 // a mirror on a bend: normal (out - in), spanning in x out (the hinge) and in + out (the face)
+// a solid plate: silvered on the side the beam bounces off (+n), dark metal behind, so it reads from any side, even edge-on
 function mirror(svg, P, at, a, b, k = 1) {
-  const p = V(at), u = norm(add(a, b)), w = norm(cross(a, b))
-  const hu = 0.26, hw = 0.2
-  const c = [add(add(p, mul(u, hu)), mul(w, hw)), add(add(p, mul(u, -hu)), mul(w, hw)), add(add(p, mul(u, -hu)), mul(w, -hw)), add(add(p, mul(u, hu)), mul(w, -hw))]
-  // a short stand under a plate that stands upright (flat turns)
-  if (Math.abs(w[1]) > 0.9) el(svg, 'path', { d: path(P, [add(p, [0, -hw, 0]), [p[0], p[1] - 0.25 - hw, p[2]]]), stroke: '#55607a', 'stroke-width': 1.5 * k })
-  el(svg, 'path', { d: poly(P, c), fill: '#cfe3ff', 'fill-opacity': 0.85, stroke: '#ffffff', 'stroke-width': 1 * k, 'stroke-linejoin': 'round' })
-  // the edge facing the beam, a hair darker: the plate's back
-  el(svg, 'path', { d: path(P, [c[2], c[3]]), stroke: '#6f7f9f', 'stroke-width': 1.5 * k })
+  const p = V(at), u = norm(add(a, b)), w = norm(cross(a, b)), n = norm(sub(b, a))
+  const hu = 0.2, hw = 0.16, th = 0.1
+  const quad = off => [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([su, sw]) => add(add(add(p, mul(u, su * hu)), mul(w, sw * hw)), mul(n, off)))
+  const back = quad(-th), front = quad(0.005)
+  // a short stand under a plate that stands upright (flat turns), down to the surface the beam runs over
+  if (Math.abs(w[1]) > 0.9) {
+    const foot = [p[0], p[1] - 0.25, p[2]]
+    el(svg, 'path', { d: path(P, [add(p, [0, -hw, 0]), foot]), stroke: '#55607a', 'stroke-width': 2.5 * k })
+    const f = P(foot); el(svg, 'ellipse', { cx: f[0], cy: f[1], rx: 6 * k, ry: 3 * k, fill: '#2a3245', stroke: '#55607a' })
+  }
+  el(svg, 'path', { d: poly(P, back), fill: '#3a4560', stroke: '#6f7f9f', 'stroke-width': 1 * k, 'stroke-linejoin': 'round' })
+  for (let i = 0; i < 4; i++) el(svg, 'path', { d: poly(P, [back[i], back[(i + 1) % 4], front[(i + 1) % 4], front[i]]), fill: '#55607a', stroke: '#8fa0c0', 'stroke-width': 0.8 * k })
+  el(svg, 'path', { d: poly(P, front), fill: '#dbe9ff', stroke: '#ffffff', 'stroke-width': 1.2 * k, 'stroke-linejoin': 'round' })
   const s = P(p)
   el(svg, 'circle', { cx: s[0], cy: s[1], r: 7 * k, fill: pal.halo, 'fill-opacity': 0.35 })
   el(svg, 'circle', { cx: s[0], cy: s[1], r: 2.4 * k, fill: pal.core })
@@ -212,23 +218,41 @@ function scene(svg, P, k, labels = true) {
   }
 }
 
-function bridge(svg) {
-  const P = proj3d(30, 175, 150)
-  svg.innerHTML = ''
-  el(svg, 'rect', { x: 0, y: 0, width: 360, height: 230, fill: '#05070c' })
-  for (let i = -4; i <= 4; i++) { el(svg, 'path', { d: path(P, [[i, 0, -3], [i, 0, 3]]), stroke: '#111827' }); el(svg, 'path', { d: path(P, [[-4, 0, i * 0.75], [4, 0, i * 0.75]]), stroke: '#111827' }) }
-  const under = [[-4, 0, 0.25], [4, 0, 0.25]]
-  const over = [[0, -3, 0.25], [0, -0.4, 0.25], [0, -0.4, 0.85], [0, 0.4, 0.85], [0, 0.4, 0.25], [0, 3, 0.25]]
+// a crossing in 3D: the other beam runs along x; this one runs along z and gets past it by a bridge (up, over, down) or a tunnel
+// (down into a trench, along, up), with a mirror on each of the four bends
+function crossing(svg, kind, ox) {
+  const P = proj3d(62, ox, 160, 0.75, 0.6)
+  const g = (pts) => el(svg, 'path', { d: path(P, pts), stroke: '#121a2a' })
+  for (let i = -3; i <= 3; i++) { g([[i * 0.5, 0, -1.5], [i * 0.5, 0, 1.5]]); g([[-1.5, 0, i * 0.5], [1.5, 0, i * 0.5]]) }
+  const y = 0.25, under = [[-1.4, 0, y], [1.4, 0, y]]
+  if (kind === 'tunnel') {
+    // the open trench the beam drops into: dark walls and floor, cut in the ground
+    const d = -0.4, x0 = -0.15, x1 = 0.15, z0 = -0.7, z1 = 0.7
+    el(svg, 'path', { d: poly(P, [[x0, d, z0], [x1, d, z0], [x1, d, z1], [x0, d, z1]]), fill: '#03050a' })
+    el(svg, 'path', { d: poly(P, [[x0, 0, z0], [x0, d, z0], [x0, d, z1], [x0, 0, z1]]), fill: '#0a0f1a', stroke: '#1d2638' })
+    el(svg, 'path', { d: poly(P, [[x0, 0, z1], [x0, d, z1], [x1, d, z1], [x1, 0, z1]]), fill: '#0c1220', stroke: '#1d2638' })
+    el(svg, 'path', { d: poly(P, [[x0, 0, z0], [x1, 0, z0], [x1, 0, z1], [x0, 0, z1]]), fill: 'none', stroke: '#2a3550' })
+  }
+  const lo = kind === 'bridge' ? y + 0.6 : -0.22
+  const over = [[0, -1.5, y], [0, -0.5, y], [0, -0.5, lo], [0, 0.5, lo], [0, 0.5, y], [0, 1.5, y]]
+  if (kind === 'tunnel') beam(svg, P, over, 0.8)
   beam(svg, P, under, 0.8)
-  beam(svg, P, over, 0.8)
+  if (kind === 'bridge') beam(svg, P, over, 0.8)
   for (let i = 1; i < over.length - 1; i++) mirror(svg, P, over[i], norm(sub(V(over[i]), V(over[i - 1]))), norm(sub(V(over[i + 1]), V(over[i]))), 0.8)
+  el(svg, 'text', { x: ox, y: 290, 'text-anchor': 'middle', fill: '#7f8aa3' }).textContent = kind === 'bridge' ? 'Bridge' : 'Tunnel'
+}
+function crossings(svg) {
+  svg.innerHTML = ''
+  el(svg, 'rect', { x: 0, y: 0, width: 360, height: 300, fill: '#05070c' })
+  crossing(svg, 'bridge', 95)
+  crossing(svg, 'tunnel', 270)
 }
 
 function draw() {
   document.documentElement.style.setProperty('--beam', pal.beam)
   scene(document.getElementById('iso'), projIso(40, 343, 90), 1)
   scene(document.getElementById('flat'), projFlat(19, 30, 50), 0.55, false)
-  bridge(document.getElementById('bridge'))
+  crossings(document.getElementById('bridge'))
 }
 
 const pick = document.getElementById('pick')
