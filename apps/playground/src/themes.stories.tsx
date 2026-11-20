@@ -81,6 +81,18 @@ export const CloudCartographyLongLabels: Story = {
   },
   decorators: [stage()],
 }
+// A zone holding one node, whose name is far wider than its floor: the name wraps onto more lines, and is drawn smaller if it still
+// does not fit, so no letter runs off the floor. MADE-UP SAMPLE DATA.
+export const CloudCartographyLongZoneName: Story = {
+  args: {
+    source: `flowchart TD
+  subgraph a[Customer Identity Platform]
+    n[Login]
+  end`,
+    theme: 'cloud-cartography', mode: 'flat', toolbar: true,
+  },
+  decorators: [stage()],
+}
 // Cloud Cartography with its lettering font out of reach: the zone names and card names draw in the default font, and onWarning
 // gets why (shown here), once for the font. This copy names a font that is not bundled.
 const noArchivo = { ...CLOUD_CARTOGRAPHY, tray: { ...CLOUD_CARTOGRAPHY.tray, groundFont: 'archivo-missing' }, label: { ...CLOUD_CARTOGRAPHY.label, card: { ...CLOUD_CARTOGRAPHY.label.card, titleFont: 'archivo-missing' } } }
