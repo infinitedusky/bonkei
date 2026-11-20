@@ -46,6 +46,8 @@ export interface Camera {
   frameH: number
   /** Show the whole diagram even with minLabel set (the Fit control); cleared by the next frame()/resize. */
   whole: boolean
+  /** How high the tallest thing standing on a box reaches (world units): a fit leaves room above the diagram for it. Set from the theme (scale.ts headroom). */
+  top: number
   /** What a tight fit frames: the diagram's top-level boxes in world units (centred diagram). Empty: its rectangle. */
   content: Rect[]
   setMode(m: Mode): void
@@ -76,7 +78,7 @@ export function createCamera(): Camera {
   // a re-layout moved or replaced the tray flown into: the next mode switch centres on `focus` again, not on the old pan
   let refocus = false
   // a tight fit of the whole diagram with its boxes known: frame what the view really shows
-  const onContent = (mode: Mode) => (cam.tight && onWhole && cam.content.length ? projectedFit(cam.content, mode, cam.aspect) : null)
+  const onContent = (mode: Mode) => (cam.tight && onWhole && cam.content.length ? projectedFit(cam.content, mode, cam.aspect, cam.top) : null)
   const cam: Camera = {
     mode: 'iso',
     goal: { tx: 0, tz: 0, H: 30, ...PRESET.iso },
@@ -89,6 +91,7 @@ export function createCamera(): Camera {
     frameH: 0,
     whole: false,
     content: [],
+    top: TOP,
     fitH(mode) {
       const h = cam.fitHWhole(mode)
       // labels are 0.36 world units tall (shapes.tsx): at least minLabel px means at most frameH / (minLabel / 0.36) world units on screen
@@ -106,9 +109,11 @@ export function createCamera(): Camera {
         const hy = hz * Math.sin(pitch) + 0.5 * Math.cos(pitch)
         return Math.max(2 * hy + 1.2, (2 * hx) / cam.aspect + 1.2) * (mode === '3d' ? 1.15 : 1)
       }
-      if (mode === 'flat') return Math.max(Z, X / cam.aspect) * 1.12
+      // a theme whose icons stand taller than a landscape form (callout cards) asks for room above them
+      const extra = Math.max(0, cam.top - TOP)
+      if (mode === 'flat') return Math.max(Z + extra, X / cam.aspect) * 1.12
       const diag = Math.hypot(X, Z)
-      return Math.max(diag * Math.sin(PRESET[mode].pitch) + 2, (diag / cam.aspect) * 0.8) * (mode === '3d' ? 1.15 : 0.95)
+      return Math.max(diag * Math.sin(PRESET[mode].pitch) + 2 + extra, (diag / cam.aspect) * 0.8) * (mode === '3d' ? 1.15 : 0.95)
     },
     setMode(m) {
       cam.mode = m
@@ -216,11 +221,11 @@ const MARGIN = 0.6 // world units left free on each side by a tight fit
  * visible height H that holds them with a margin, and the ground point (tx, tz) the camera looks at to centre them.
  * Screen right is (cos yaw, 0, -sin yaw); screen up is (-sin yaw sin pitch, cos pitch, -cos yaw sin pitch).
  */
-export function projectedFit(rects: Rect[], mode: Mode, aspect: number) {
+export function projectedFit(rects: Rect[], mode: Mode, aspect: number, top = TOP) {
   const { yaw, pitch } = PRESET[mode]
   const cy = Math.cos(yaw), sy = Math.sin(yaw), sp = Math.sin(pitch), cp = Math.cos(pitch)
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
-  for (const r of rects) for (const x of [r.x0, r.x1]) for (const z of [r.z0, r.z1]) for (const y of [0, TOP]) {
+  for (const r of rects) for (const x of [r.x0, r.x1]) for (const z of [r.z0, r.z1]) for (const y of [0, top]) {
     const u = x * cy - z * sy, v = -(x * sy + z * cy) * sp + y * cp
     x0 = Math.min(x0, u); x1 = Math.max(x1, u); y0 = Math.min(y0, v); y1 = Math.max(y1, v)
   }

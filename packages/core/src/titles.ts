@@ -21,11 +21,11 @@ export interface Grow { x0: number; x1: number; z0: number; z1: number }
 const grown = (r: Rect, g: Grow): Rect => ({ x0: r.x0 - g.x0, x1: r.x1 + g.x1, z0: r.z0 - g.z0, z1: r.z1 + g.z1 })
 
 /** Picks a corner: `prev` if it is still free (so the title does not jump about while a node is dragged), else the first free one, else the least covered. */
-export function pickCorner(w: number, h: number, tw: number, th: number, kids: Rect[], grow: Grow, prev?: Corner): Corner {
+export function pickCorner(w: number, h: number, tw: number, th: number, kids: Rect[], grow: Grow, prev?: Corner, order: Corner[] = CORNERS): Corner {
   const cover = (c: Corner) => { const t = titleRect(c, w, h, tw, th); return kids.reduce((s, k) => s + overlap(t, grown(k, grow)), 0) }
   if (prev && cover(prev) === 0) return prev
   let best: Corner = 'fl', least = Infinity
-  for (const c of CORNERS) { const v = cover(c); if (v === 0) return c; if (v < least) { least = v; best = c } }
+  for (const c of order) { const v = cover(c); if (v === 0) return c; if (v < least) { least = v; best = c } }
   return best
 }
 

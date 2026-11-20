@@ -1,6 +1,6 @@
-// Bundled fonts a theme can name (theme.label.font). Zen Old Mincho Bold, SIL OFL 1.1 (fonts/OFL-ZenOldMincho.txt), and Blueprint's
-// Architects Daughter Regular, SIL OFL 1.1 (fonts/OFL-ArchitectsDaughter.txt), each
-// subset to Latin (31 KB and 20 KB) because troika loads the whole file. drei's <Text> takes a url.
+// Bundled fonts a theme can name (theme.label.font). Zen Old Mincho Bold, SIL OFL 1.1 (fonts/OFL-ZenOldMincho.txt), Blueprint's
+// Architects Daughter Regular, SIL OFL 1.1 (fonts/OFL-ArchitectsDaughter.txt), and Cloud Cartography's Archivo Black, SIL OFL 1.1
+// (fonts/OFL-ArchivoBlack.txt), each subset to Latin (31 KB, 20 KB and 44 KB) because troika loads the whole file. drei's <Text> takes a url.
 // Imported by node tests and scripts: explicit .ts extensions, no .tsx.
 //
 // Found like the wasm (BON-52, LOG.md): nothing is worked out on import. The URL is made when a theme first asks for the font.
@@ -12,7 +12,7 @@ import { scriptSrc } from './avoid.ts'
 import { withSpan } from './telemetry.ts'
 
 /** The font names a theme may give as label.font. */
-export const FONT_NAMES = ['mincho', 'architect'] as const
+export const FONT_NAMES = ['mincho', 'architect', 'archivo'] as const
 export type FontName = typeof FONT_NAMES[number]
 
 // One literal `new URL(…, import.meta.url)` per file, so a host bundler sees each one.
@@ -20,9 +20,10 @@ function moduleUrl(name: FontName): string {
   switch (name) {
     case 'mincho': return new URL('./fonts/ZenOldMincho-Bold-latin.ttf', import.meta.url).href
     case 'architect': return new URL('./fonts/ArchitectsDaughter-Regular-latin.ttf', import.meta.url).href
+    case 'archivo': return new URL('./fonts/ArchivoBlack-latin.ttf', import.meta.url).href
   }
 }
-const FILES: Record<FontName, string> = { mincho: 'ZenOldMincho-Bold-latin.ttf', architect: 'ArchitectsDaughter-Regular-latin.ttf' }
+const FILES: Record<FontName, string> = { mincho: 'ZenOldMincho-Bold-latin.ttf', architect: 'ArchitectsDaughter-Regular-latin.ttf', archivo: 'ArchivoBlack-latin.ttf' }
 
 /** Where the browser finds a bundled font: beside the module, or in `fonts/` beside the script tag. Undefined for an unknown name, or with neither. */
 export function fontFileUrl(name: string): string | undefined {

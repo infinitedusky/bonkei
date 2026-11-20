@@ -12,7 +12,7 @@ import { instant, tracer } from './telemetry'
 import { UI } from './palette'
 import { fitUsed, gestureRows, helpToggled, modKey, type HelpHow, type Input } from './controls'
 import { firstInput } from './hold'
-import { resolveTheme, themeByName, trenchParts } from './theme'
+import { drawnCounts, resolveTheme, themeByName, themeFonts, trenchParts } from './theme'
 import { loadFont } from './fonts.ts'
 
 /** What a mounted view can be told to do. */
@@ -281,6 +281,14 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   const roomWanted = theme.tray.titles === 'off'
   const roomMade = prepared && 'boxes' in prepared.data ? !!prepared.data.titleRoom : roomWanted // a sequence diagram has no trays
   useEffect(() => { if (roomMade !== roomWanted) setRelayout(n => n + 1) }, [roomMade, roomWanted])
+  // likewise for a look that draws dotted links as arcs: the layout leaves them out, so it is made again when the look changes to or from one
+  const arcsWanted = theme.edge.dotted === 'arc'
+  const arcsMade = prepared ? prepared.arcs : arcsWanted
+  useEffect(() => { if (arcsMade !== arcsWanted) setRelayout(n => n + 1) }, [arcsMade, arcsWanted])
+  // and for a look whose tray titles lie on the floor in front: the layout leaves room at the bottom of each tray for them
+  const groundWanted = theme.tray.titles === 'ground'
+  const groundMade = prepared && 'boxes' in prepared.data ? !!prepared.data.groundRoom : groundWanted
+  useEffect(() => { if (groundMade !== groundWanted) setRelayout(n => n + 1) }, [groundMade, groundWanted])
   // one event per look a diagram is drawn in: which theme, asked for how, and whether the name was known
   const lookKey = prepared ? `${look.source}|${look.requested ?? ''}|${JSON.stringify(theme)}` : ''
   useEffect(() => {
@@ -291,9 +299,9 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
       'bonkei.theme.variables': look.variables, 'bonkei.theme.unknown': unknown, 'bonkei.theme.trench': trenchParts(theme),
     })
     if (look.problem) cbs.current.onWarning?.({ kind: 'theme', message: look.problem.message, line: 0 })
-    // the theme's font file missing (labels drawn in the default font, fonts.ts): a warning too, once per look
+    // a font file the theme draws with missing (that text drawn in the default font, fonts.ts): a warning too, once per look and font
     let alive = true
-    if (theme.label.font) loadFont(theme.label.font).then(f => { if (alive && f.problem) cbs.current.onWarning?.({ kind: 'theme', message: f.problem, line: 0 }) })
+    for (const name of themeFonts(theme)) loadFont(name).then(f => { if (alive && f.problem) cbs.current.onWarning?.({ kind: 'theme', message: f.problem, line: 0 }) })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lookKey])
@@ -373,8 +381,8 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     return () => { ro.disconnect(); clearTimeout(t) }
   }, [props.fit, frame])
 
-  const themeName = useRef(theme.name)
-  themeName.current = theme.name
+  const themeNow = useRef(theme)
+  themeNow.current = theme
   const crossingControlsRef = useRef(opts.crossingControls)
   crossingControlsRef.current = opts.crossingControls
   const onFirstFrame = useCallback(() => {
@@ -383,8 +391,9 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     setStatus(s => s === 'loading' ? 'ready' : s)
     instant('bonkei.first_frame', {
       'bonkei.nodes': p.ready.nodes, 'bonkei.edges': p.ready.edges,
-      'bonkei.dropped': p.ready.dropped, 'bonkei.layout_ms': p.ready.layoutMs, 'bonkei.theme': themeName.current,
+      'bonkei.dropped': p.ready.dropped, 'bonkei.layout_ms': p.ready.layoutMs, 'bonkei.theme': themeNow.current.name,
       'bonkei.mode': modeRef.current, 'bonkei.crossing_controls': crossingControlsRef.current,
+      ...drawnCounts(themeNow.current, 'boxes' in p.data ? p.data : undefined),
     }, acceptedAt.current)
     cbs.current.onReady?.({ ...p.ready })
   }, [])
