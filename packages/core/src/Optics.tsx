@@ -76,29 +76,31 @@ function Mirror({ at, a, b, c, size, slim, double }: { at: V; a: V; b: V; c: Pal
   )
 }
 
-// Two bends of a jog in one box: the beam goes in at one window and out at the other. glass: other beams pass through it, so its sides are
-// see-through. No room: two slim plates, one at each bend.
-function Periscope({ from, to, a, c, size, slim, glass }: { from: V; to: V; a: V; c: Pal; size: number; slim: boolean; glass?: boolean }) {
+// Two bends of a jog in a clear box (acrylic: faint tint, lighter edges, nothing solid). The beam is drawn through it as everywhere else and
+// the two real mirrors sit at its bends, so you see it run in, across the jog and out. The glass writes no depth and is drawn after the
+// beams, so it never hides or washes them out. No room: two slim plates, one at each bend, and no box.
+function Periscope({ from, to, a, c, size, slim }: { from: V; to: V; a: V; c: Pal; size: number; slim: boolean; glass?: boolean }) {
   const th = useTheme().edge.optics
   const p = v(from), q2 = v(to), d = q2.clone().sub(p), L = d.length()
+  const dn = useMemo(() => d.clone().normalize().toArray() as V, [from, to])
   const quat = useMemo(() => {
     const y = d.clone().normalize(), z = v(a).cross(y).normalize()
     return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(v(a).normalize(), y, z))
   }, [from, to, a])
-  if (slim) {
-    const dn = d.clone().normalize().toArray() as V
-    return <><SlimPlate at={from} a={a} b={dn} c={c} /><SlimPlate at={to} a={dn} b={a} c={c} /></>
-  }
-  const mid = p.clone().add(q2).multiplyScalar(0.5), k = size
+  const k = size, W = 0.4 * k, D = 0.34 * k, H = L + 0.3 * k
+  const box = useMemo(() => new THREE.BoxGeometry(W, H, D), [W, H, D])
+  const edges = useMemo(() => new THREE.EdgesGeometry(box), [box])
+  if (slim) return <><SlimPlate at={from} a={a} b={dn} c={c} /><SlimPlate at={to} a={dn} b={a} c={c} /></>
+  const mid = p.clone().add(q2).multiplyScalar(0.5)
   return (
-    <group position={mid} quaternion={quat}>
-      <mesh><boxGeometry args={[0.34 * k, L + 0.3 * k, 0.26 * k]} />{glass ? <meshPhysicalMaterial color={th.glass} transparent opacity={0.35} roughness={0.05} depthWrite={false} /> : <meshStandardMaterial color={th.metal} metalness={0.6} roughness={0.4} />}</mesh>
-      <mesh position={[-0.171 * k, -L / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><circleGeometry args={[0.07 * k, 16]} /><meshBasicMaterial color={c.core} side={THREE.DoubleSide} /></mesh>
-      <mesh position={[0.171 * k, L / 2, 0]} rotation={[0, Math.PI / 2, 0]}><circleGeometry args={[0.07 * k, 16]} /><meshBasicMaterial color={c.core} side={THREE.DoubleSide} /></mesh>
-      {[-L / 2, L / 2].map((y, i) => (
-        <mesh key={i} position={[0, y, 0.131 * k]} rotation={[0, 0, Math.PI / 4]}><planeGeometry args={[0.3 * k, 0.03 * k]} /><meshBasicMaterial color={th.face} /></mesh>
-      ))}
-    </group>
+    <>
+      <Mirror at={from} a={a} b={dn} c={c} size={0.75 * k} slim={false} />
+      <Mirror at={to} a={dn} b={a} c={c} size={0.75 * k} slim={false} />
+      <group position={mid} quaternion={quat} renderOrder={10}>
+        <mesh geometry={box} renderOrder={10}><meshPhysicalMaterial color={th.glass} transparent opacity={0.1} roughness={0.05} metalness={0} side={THREE.DoubleSide} depthWrite={false} /></mesh>
+        <lineSegments geometry={edges} renderOrder={11}><lineBasicMaterial color={th.glass} transparent opacity={0.55} depthWrite={false} /></lineSegments>
+      </group>
+    </>
   )
 }
 

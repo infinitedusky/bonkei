@@ -59,7 +59,7 @@ const normal = (x: Pass) => unit(sub(x.b, x.a))
 const parallel = (x: V, y: V) => Math.abs(dot(x, y)) > 0.999
 
 // ---------- sizes: every piece is a sphere or a capsule (a bound on its box) that must clear its neighbours ----------
-const RHO = { mirror: 0.26, periscope: 0.215, prism: 0.25 } // the bound's radius at full size (plate 0.4 x 0.32; box 0.34 x 0.26; prism r 0.2, 0.3 tall)
+const RHO = { mirror: 0.26, periscope: 0.27, prism: 0.25 } // the bound's radius at full size (plate 0.4 x 0.32; clear box 0.4 x 0.34; prism r 0.2, 0.3 tall)
 const SMALLEST = 0.3 // the smallest scale a piece is drawn at; below it, slim
 const SLIM = 0.07 // the radius of the slim form
 const MARGIN = 0.02 // clear air between a piece and what is next to it

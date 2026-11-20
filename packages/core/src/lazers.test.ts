@@ -155,7 +155,7 @@ function pieces(b: Bends) {
   const bound = (r: number, s: number, slim: boolean) => (slim ? 0.07 : r * s)
   return [
     ...[...b.mirrors, ...b.halves, ...b.doubles].map(m => ({ p: m.at, q: m.at, r: bound(0.26, m.size, m.slim) })),
-    ...b.periscopes.map(m => ({ p: m.from, q: m.to, r: bound(0.215, m.size, m.slim) })),
+    ...b.periscopes.map(m => ({ p: m.from, q: m.to, r: bound(0.27, m.size, m.slim) })),
     ...b.prisms.map(m => ({ p: m.at, q: m.at, r: bound(0.25, m.size, m.slim) })),
   ]
 }
