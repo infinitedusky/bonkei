@@ -63,9 +63,9 @@ const overlap = (a: Rect, b: Rect) => a.x0 < b.x1 - 1e-6 && a.x1 > b.x0 + 1e-6 &
 const footprint = (p: StagePart): Rect => ({ x0: p.cx - (p.w * S) / 2, x1: p.cx + (p.w * S) / 2, z0: p.cz - (p.h * S) / 2, z1: p.cz + (p.h * S) / 2 })
 
 /**
- * How each part is named, under a label mode (`zone`, `auto`; otherwise nothing here). A part whose name lies on its floor has a zone, the flat shaded area under it (one named on its sides or floating has none):
+ * How each part is named, under a label mode (`zone`, `auto`; otherwise nothing here). Every part has a zone, the flat shaded area under it, whichever way it is named (it has a title on it when the name lies on the floor):
  * its footprint and an even margin, with a strip on one side for the name when the name lies on the floor. No zone overlaps another zone or
- * another part: a part tries the margins in turn (smaller where a neighbour is close); a part named on its sides has no area at all. In `auto` the name is then, in this order, on the zone's
+ * another part: a part tries the margins in turn (smaller where a neighbour is close);  In `auto` the name is then, in this order, on the zone's
  * floor at the one title size if it fits there readably (the front strip or the back, slid along to where nothing stands over it: a tall
  * thing hides the floor behind it from the iso and 3D views); else written on the part's own sides at the one side size; else floating.
  */
@@ -127,25 +127,25 @@ export function solveNames(layout: StageLayout, mode: StageLabelMode): { zones: 
       const rect = { x0, x1, z0, z1 }
       return { ...rect, w, h: z1 - z0, title, room, side, titleX: title ? (titleX ?? x0 + TITLE_INSET) - (x0 + x1) / 2 : 0, clear: titleX !== null && free(rect) }
     }
-    // the name on the part's own sides first (no area under the part), else on its floor at the one title size, else floating
-    const side = mode === 'auto' ? onSide(p, i) : null
-    // the floor: the largest margin, the front strip then the back, where the title fits and nothing overlaps
+    // the name on the zone's floor first, at the one title size: the largest margin, the front strip then the back, where the title fits and nothing overlaps
     let zone: Zone | null = null
-    if (!side) for (const m of ZONE_MARGINS) for (const sd of ['front', 'back'] as const) {
+    for (const m of ZONE_MARGINS) for (const sd of ['front', 'back'] as const) {
       if (zone) break
       const lines = wrapTo(p.label, FLOOR_SIZE, fw + 2 * m - 2 * TITLE_INSET)
       if (!lines) continue
       const zn = make(m, sd, { lines, size: FLOOR_SIZE })
       if (zn.clear) zone = zn
     }
-    if (!side && !zone && mode === 'zone') {
+    if (!zone && mode === 'zone') {
       // the Cloud Cartography way, for comparison: the name is made smaller to fit the floor it has
       const m = ZONE_MARGINS[0], fit = groundTitle(fw + 2 * m, fd + 2 * m, p.label, 0)
       for (const sd of ['front', 'back'] as const) { if (!zone) { const zn = make(m, sd, fit); if (zn.clear) zone = zn } }
       zone ??= make(ZONE_MARGINS[ZONE_MARGINS.length - 1], 'front', fit)
     }
-    // floating: no area under it (a bare zone round a pole or a sofa reads as a blob)
-    const bare: Zone | null = null
+    // else (in `auto`) on the part's own sides, else floating; every part keeps its area, a zone without a title (the largest margin that overlaps nothing)
+    const side = zone || mode !== 'auto' ? null : onSide(p, i)
+    let bare: Zone | null = null
+    if (!zone) for (const m of ZONE_MARGINS) { if (!bare) { const zn = make(m, 'front', null); if (zn.clear) bare = zn } }
     const chosen = zone ?? bare
     if (chosen) placed.push(chosen)
     zones[i] = chosen

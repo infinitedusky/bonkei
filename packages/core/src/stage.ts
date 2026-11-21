@@ -126,7 +126,9 @@ export async function loadStage(url: string, parent?: Span, fetcher: typeof fetc
       })
       // frameOf wants x, y in the layout's own corner-origin px: shift world coords by half the footprint
       for (const p of parts) { p.x += width / 2; p.y += height / 2 }
-      const objects = [...found.parts.map((p, i) => [p.object, i] as const), ...found.others.map(o => [o, -1] as const)]
+      // each part is one blocker; an unnamed object is one per mesh (the house's walls are one group, whose box would cover the rooms inside it)
+      const meshes = (o: THREE.Object3D) => { const out: THREE.Object3D[] = []; o.traverse(m => { if ((m as THREE.Mesh).isMesh) out.push(m) }); return out }
+      const objects = [...found.parts.map((p, i) => [p.object, i] as const), ...found.others.flatMap(o => meshes(o).map(m => [m, -1] as const))]
       const blockers = objects.flatMap(([o, part]) => {
         const b = new THREE.Box3().setFromObject(o)
         return b.max.y - b.min.y >= 0.3 ? [{ x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z, h: b.max.y - b.min.y, part }] : []

@@ -81,12 +81,11 @@ const how = (l: Awaited<ReturnType<typeof loadStage>>['layout'], mode: 'auto' | 
   return Object.fromEntries(l.parts.map((p, i) => [p.label, g.zones![i]?.title ? 'floor' : g.sides![i] ? 'side' : 'float']))
 }
 
-test('auto: a name goes on the part\'s sides if it fits, else on its zone floor at one size, else floats', async () => {
+test('auto: a name goes on its zone floor at one size if it fits, else on the part\'s sides, else floats', async () => {
   const k = (await loadStage('/stages/kitchen.glb', undefined, serve())).layout, h = (await loadStage('/stages/house.glb', undefined, serve())).layout
-  console.log(JSON.stringify(how(k)), JSON.stringify(how(h)))
   for (const l of [k, h]) for (const z of framed(l, 'auto').zones!) if (z?.title) assert.equal(z.title.size, FLOOR_SIZE)
-  assert.deepEqual(how(k), { grill: 'side', 'prep line': 'side', 'wrap station': 'side', register: 'side' })
-  assert.deepEqual(how(h), { phone: 'float', router: 'float', 'telephone pole': 'float', exchange: 'side', server: 'side' })
+  assert.deepEqual(how(k), { grill: 'side', 'prep line': 'floor', 'wrap station': 'side', register: 'floor' })
+  assert.deepEqual(how(h), { phone: 'float', router: 'float', 'telephone pole': 'float', exchange: 'floor', server: 'floor' })
 })
 
 test('zones never overlap each other or another part, and the model\'s own floor is the one grown to hold them', async () => {
