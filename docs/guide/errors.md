@@ -6,8 +6,8 @@ description: What Bonkei does when a diagram cannot be drawn (error card, onErro
 
 Two kinds of problem, and three more events.
 
-- **Error** (`BonkeiError`): nothing could be drawn. Bonkei shows a card in the diagram's place and calls `onError` with a `kind` (`parse`, `graph`, `layout` or `render`), a `message` and, when it knows, the `line`.
-- **Warning** (`BonkeiWarning`): the diagram is drawn despite the problem. A source line it could not use (`dropped`), a bad frontmatter key (`frontmatter`), an unknown theme or theme variable (`theme`). `onWarning` gets the `line` and the text.
+- **Error** (`BonkeiError`): nothing could be drawn. Bonkei shows a card in the diagram's place and calls `onError` with a `kind` (`parse`, `graph`, `layout`, `render`, or `stage` for a 3D model that could not be shown: see [Stages](./stages)), a `message` and, when it knows, the `line`.
+- **Warning** (`BonkeiWarning`): the diagram is drawn despite the problem. A source line it could not use (`dropped`), a bad frontmatter key (`frontmatter`), an unknown theme or theme variable (`theme`), two parts of a stage named alike or a diagram written beside a stage (`stage`). `onWarning` gets the `line` and the text.
 
 ## An error
 
