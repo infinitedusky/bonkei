@@ -378,7 +378,7 @@ Run the viewer (`pnpm dev`, or the smoke test's set-up) and open `/app/?sample=s
 7. **Two parts named alike.** **stage: two parts named alike**: grill and Grill both drawn and named; the yellow warning at the bottom names both.
 8. **Each failure, never a blank screen.** Pick in turn **stage: no named parts** (`… none of its top-level objects has a name. Name them in your 3D tool …`), **stage: missing file** (`line 4: the stage stages/kichen.glb wasn't found …`), **stage: not a glTF**, **stage: Draco compression** (names `KHR_draco_mesh_compression`), **stage: KTX2 textures** (names `KHR_texture_basisu`), **stage: other site (CORS)**. Each shows the card **This stage couldn't be shown** with that message.
 9. **A bad address while editing.** Pick **stage: kitchen**, click **source**, change `kitchen.glb` to `kitche.glb`: the kitchen stays, with **Not updated** and the message at the bottom. Put the name back: the strip goes.
-10. **Nothing extra without a stage.** Open the developer tools' Network tab, pick **flow: small (sample.mmd)** and reload: no `stage-`, `stageZones-`, `StageScene-` or `GLTFLoader` request. Pick **stage: kitchen**: those, then `kitchen.glb` and `ArchivoBlack-latin.ttf`.
+10. **Nothing extra without a stage.** Open the developer tools' Network tab, pick **flow: small (sample.mmd)** and reload: no `stage-`, `StageScene-` or `GLTFLoader` request. Pick **stage: kitchen**: those, then `kitchen.glb` and `ArchivoBlack-latin.ttf`.
 
 ## 2. Storybook
 
