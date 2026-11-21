@@ -73,22 +73,46 @@ test('labels accepts base, sign and diamond beside top and billboard', () => {
   assert.match(readFrontmatter('---\nconfig:\n  bonkei:\n    labels: arrow\n---\n').warnings[0].message, /labels must be one of/)
 })
 
-import { zoneOf, framed } from './stageZones.ts'
+import { FLOOR_SIZE, framed } from './stageZones.ts'
 
-test('auto: a part whose name cannot read on its zone floor is small and floats; the others get a zone', async () => {
-  const small = async (f: string) => { const l = (await loadStage(`/stages/${f}`, undefined, serve())).layout; return l.parts.filter(p => zoneOf(p, l.blockers).small).map(p => p.label) }
-  assert.deepEqual(await small('house.glb'), ['phone', 'router', 'telephone pole'])
-  assert.deepEqual(await small('kitchen.glb'), ['wrap station'])
+// how each part is named in `auto`: on its floor, on its sides, or floating
+const how = (l: Awaited<ReturnType<typeof loadStage>>['layout'], mode: 'auto' | 'zone' = 'auto') => {
+  const g = framed(l, mode)
+  return Object.fromEntries(l.parts.map((p, i) => [p.label, g.zones![i]?.title ? 'floor' : g.sides![i] ? 'side' : 'float']))
+}
+
+test('auto: a name goes on the part\'s sides if it fits, else on its zone floor at one size, else floats', async () => {
+  const k = (await loadStage('/stages/kitchen.glb', undefined, serve())).layout, h = (await loadStage('/stages/house.glb', undefined, serve())).layout
+  console.log(JSON.stringify(how(k)), JSON.stringify(how(h)))
+  for (const l of [k, h]) for (const z of framed(l, 'auto').zones!) if (z?.title) assert.equal(z.title.size, FLOOR_SIZE)
+  assert.deepEqual(how(k), { grill: 'side', 'prep line': 'side', 'wrap station': 'side', register: 'side' })
+  assert.deepEqual(how(h), { phone: 'float', router: 'float', 'telephone pole': 'float', exchange: 'side', server: 'side' })
 })
 
-test('every zone lies wholly on the floor: where it runs past the model a base is grown to hold it, centred, with an even margin; none when nothing runs past', async () => {
-  const l = (await loadStage('/stages/kitchen.glb', undefined, serve())).layout
-  const sign = framed(l, 'sign'), zone = framed(l, 'zone')
-  assert.equal(sign.base, null)
-  assert.ok(zone.base && zone.width > l.width && zone.height > l.height)
-  for (const p of l.parts) {
-    const z = zoneOf(p, l.blockers)
-    assert.ok(z.x0 >= zone.base!.x0 && z.x1 <= zone.base!.x1 && z.z0 >= zone.base!.z0 && z.z1 <= zone.base!.z1, `${p.label} inside the base`)
+test('zones never overlap each other or another part, and the model\'s own floor is the one grown to hold them', async () => {
+  for (const f of ['kitchen.glb', 'house.glb']) for (const mode of ['auto'] as const) { // (`zone`, the Cloud Cartography way for comparison, draws a zone for every part even where none is clear)
+    const l = (await loadStage(`/stages/${f}`, undefined, serve())).layout
+    const g = framed(l, mode), zs = g.zones!
+    zs.forEach((z, i) => {
+      if (!z) return
+      assert.ok(z.clear, `${f} ${mode} ${l.parts[i].label} has a clear place`)
+      zs.forEach((o, k) => { if (o && k !== i) assert.ok(z.x1 <= o.x0 + 1e-6 || o.x1 <= z.x0 + 1e-6 || z.z1 <= o.z0 + 1e-6 || o.z1 <= z.z0 + 1e-6, `${f} ${mode}: zones ${i} and ${k} apart`) })
+      l.parts.forEach((p, k) => { if (k !== i) assert.ok(z.x1 <= p.cx - p.w / 80 + 1e-6 || p.cx + p.w / 80 <= z.x0 + 1e-6 || z.z1 <= p.cz - p.h / 80 + 1e-6 || p.cz + p.h / 80 <= z.z0 + 1e-6, `${f} ${mode}: zone ${i} clear of part ${k}`) })
+    })
+    assert.ok(g.floor, 'both samples bring a floor of their own, so none is added')
+    assert.equal(g.base, null)
+    if (g.floorTo) for (const z of zs) if (z) assert.ok(z.x0 >= g.floorTo.x0 - 1e-6 && z.x1 <= g.floorTo.x1 + 1e-6 && z.z0 >= g.floorTo.z0 - 1e-6 && z.z1 <= g.floorTo.z1 + 1e-6)
   }
-  assert.ok(Math.abs((zone.base!.x0 + zone.ox!) + (zone.base!.x1 + zone.ox!)) < 1e-6) // centred on the origin
+})
+
+test('where a zone runs past the model\'s own floor, that floor is the one grown (same mesh), and fit frames it', async () => {
+  const l = (await loadStage('/stages/kitchen.glb', undefined, serve())).layout
+  // a floor a little smaller than the kitchen's: the zones reach past it
+  const f = l.floor!.rect, small = { x0: f.x0 + 1.5, x1: f.x1 - 1.5, z0: f.z0 + 1.2, z1: f.z1 - 1.2 }
+  const g = framed({ ...l, floor: { ...l.floor!, rect: small } }, 'zone')
+  assert.ok(g.floorTo && g.floorTo.x0 <= small.x0 && g.floorTo.x1 >= small.x1 && g.base === null)
+  for (const z of g.zones!) if (z) assert.ok(z.x0 >= g.floorTo!.x0 - 1e-6 && z.x1 <= g.floorTo!.x1 + 1e-6 && z.z0 >= g.floorTo!.z0 - 1e-6 && z.z1 <= g.floorTo!.z1 + 1e-6)
+  // a model with no floor of its own gets one in the theme's style (base) only when a zone runs past it
+  const none = framed({ ...l, floor: null }, 'zone')
+  assert.equal(none.floorTo, null)
 })

@@ -10,13 +10,19 @@ import { normaliseName } from './names.ts'
 export { normaliseName }
 
 /** A named top-level object of the model, as laid out: `x`, `y`, `w`, `h` are its footprint in layout px (top-left, like a box), `top` its height in world units. */
-export interface StagePart { id: string; label: string; x: number; y: number; w: number; h: number; top: number; cx: number; cz: number; pieces: number }
+/** The part's body: its mesh of the largest volume (the grill's counter, not the hood over it; the exchange's walls, not its roof), where a name written on the part's own sides goes. */
+export interface PartBody { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number }
+export interface StagePart { id: string; label: string; x: number; y: number; w: number; h: number; top: number; cx: number; cz: number; pieces: number; body: PartBody; solids: PartBody[] }
 export interface StageLayout {
   kind: 'stage'; width: number; height: number
   model: THREE.Object3D // the scene, its footprint centred on the origin
   parts: StagePart[]
-  blockers?: { x0: number; x1: number; z0: number; z1: number }[] // what stands on the floor (parts and unnamed objects over 0.3 high), world footprints, grown back by their height (see loadStage): a name lying on a zone's floor keeps clear of them
-  base?: { x0: number; x1: number; z0: number; z1: number } | null // the floor grown under the model to hold every zone (stageZones.ts framed), in the model's own coordinates; null: the model's own floor is enough
+  blockers?: { x0: number; x1: number; z0: number; z1: number; h: number; part: number }[] // what stands on the floor (parts and unnamed objects over 0.3 high): world footprints, their height, and the part's index (-1: unnamed). Zones keep off them and a name keeps out of the floor they hide
+  floor?: { group: THREE.Object3D; rect: { x0: number; x1: number; z0: number; z1: number } } | null // the model's own floor (its largest flat mesh at ground level), under a group the scene moves and stretches to grow it; null: the model has none
+  floorTo?: { x0: number; x1: number; z0: number; z1: number } | null // the floor as grown to hold the zones (stageZones.ts framed); null: as it is
+  zones?: (import('./stageZones.ts').Zone | null)[] // each part's zone under the label mode; null: it has none
+  sides?: (import('./stageZones.ts').SideName | null)[] // a part whose name is not on its floor: the name written on its own sides, if it fits there
+  base?: { x0: number; x1: number; z0: number; z1: number } | null // a floor in the theme's style, only for a model with no floor of its own, when a zone runs past the model
   reach?: number // how high the tallest floating name reaches, world units (stageZones.ts framed)
   ox?: number; oz?: number // where the model and its names are moved to centre the whole on the origin
   tall: number // how high the model stands, world units: the camera's fit leaves room for it
@@ -107,19 +113,43 @@ export async function loadStage(url: string, parent?: Span, fetcher: typeof fetc
       const parts = found.parts.map((p, i): StagePart => {
         const b = new THREE.Box3().setFromObject(p.object)
         const c = b.getCenter(new THREE.Vector3())
-        return { id: `${i}:${p.name}`, label: p.name, x: b.min.x / S, y: b.min.z / S, w: (b.max.x - b.min.x) / S, h: (b.max.z - b.min.z) / S, top: b.max.y, cx: c.x, cz: c.z, pieces: p.pieces }
+        const solids: PartBody[] = []
+        let body: PartBody = { x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z, y0: b.min.y, y1: b.max.y }, bodyArea = -1
+        p.object.traverse(m => {
+          if (!(m as THREE.Mesh).isMesh) return
+          const mb = new THREE.Box3().setFromObject(m)
+          solids.push({ x0: mb.min.x, x1: mb.max.x, z0: mb.min.z, z1: mb.max.z, y0: mb.min.y, y1: mb.max.y })
+          const area = (mb.max.x - mb.min.x) * (mb.max.z - mb.min.z) * (mb.max.y - mb.min.y)
+          if (area > bodyArea + 1e-6) { bodyArea = area; body = { x0: mb.min.x, x1: mb.max.x, z0: mb.min.z, z1: mb.max.z, y0: mb.min.y, y1: mb.max.y } }
+        })
+        return { id: `${i}:${p.name}`, label: p.name, x: b.min.x / S, y: b.min.z / S, w: (b.max.x - b.min.x) / S, h: (b.max.z - b.min.z) / S, top: b.max.y, cx: c.x, cz: c.z, pieces: p.pieces, body, solids }
       })
       // frameOf wants x, y in the layout's own corner-origin px: shift world coords by half the footprint
       for (const p of parts) { p.x += width / 2; p.y += height / 2 }
-      const blockers = [...found.parts.map(p => p.object), ...found.others].flatMap(o => {
+      const objects = [...found.parts.map((p, i) => [p.object, i] as const), ...found.others.map(o => [o, -1] as const)]
+      const blockers = objects.flatMap(([o, part]) => {
         const b = new THREE.Box3().setFromObject(o)
-        const h = b.max.y - b.min.y
-        // a tall thing also hides the floor behind it from the iso and 3D views (they look from the front right): its footprint is grown that way by 0.7 of its height
-        return h >= 0.3 ? [{ x0: b.min.x - 0.7 * h, x1: b.max.x, z0: b.min.z - 0.7 * h, z1: b.max.z }] : []
+        return b.max.y - b.min.y >= 0.3 ? [{ x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z, h: b.max.y - b.min.y, part }] : []
       })
+      // the model's own floor: the largest flat mesh standing at ground level among the unnamed objects, if it covers half the footprint; it goes under a group so it can be grown
+      let floor: StageLayout['floor'] = null
+      let best: THREE.Mesh | null = null, bestArea = 0
+      for (const o of found.others) o.traverse(m => {
+        if (!(m as THREE.Mesh).isMesh) return
+        const b = new THREE.Box3().setFromObject(m)
+        const area = (b.max.x - b.min.x) * (b.max.z - b.min.z)
+        if (b.max.y - b.min.y <= 0.3 && b.min.y <= 0.1 && area > bestArea) { best = m as THREE.Mesh; bestArea = area }
+      })
+      if (best && bestArea >= 0.5 * size.x * size.z) {
+        const b = new THREE.Box3().setFromObject(best)
+        const group = new THREE.Group()
+        scene.add(group)
+        group.attach(best)
+        floor = { group, rect: { x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z } }
+      }
       const warnings = found.warnings.map((message): BonkeiWarning => ({ kind: 'stage', message, line: 0 }))
       span.setAttributes({ 'bonkei.stage.ms': performance.now() - t0, 'bonkei.stage.parts': parts.length, 'bonkei.stage.pieces_skipped': found.skipped, 'bonkei.stage.duplicates': warnings.length })
-      return { layout: { kind: 'stage', width, height, model: scene, parts, blockers, tall: size.y, url }, warnings, info: { url, parts: parts.map(p => ({ name: p.label, pieces: p.pieces })) } }
+      return { layout: { kind: 'stage', width, height, model: scene, parts, blockers, floor, tall: size.y, url }, warnings, info: { url, parts: parts.map(p => ({ name: p.label, pieces: p.pieces })) } }
     } catch (e) {
       const err = (e as BonkeiError).kind === 'stage' ? e as BonkeiError : fail(`the stage ${url} couldn't be loaded: ${e instanceof Error ? e.message : String(e)}`)
       span.setAttribute('bonkei.error.kind', 'stage')

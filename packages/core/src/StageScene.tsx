@@ -1,14 +1,14 @@
 // The stage (BON-253): a loaded glTF scene drawn as it was exported, under the theme's lights, with a name for each named part.
 // Six ways to show the names (`labels`): top and billboard as on any diagram, base (on the floor at the part's foot, both long
 // sides), sign (a floating arrow board over the part, the default for a stage) and diamond (a spinning plumbob with the name standing on it); sign and diamond names are capital letters in a column; zone is Cloud Cartography's floor and ground title.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Billboard, Line, Text } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import type { StageLayout, StagePart } from './stage.ts'
 import { GroundTitle, Label, mixc, rounded } from './shapes'
-import { zoneOf, hasZone, type Zone as ZoneRect } from './stageZones'
-import { PlateText, fontUrl, useTheme } from './look'
+import { TITLE_INSET, type SideName, type Zone as ZoneRect } from './stageZones'
+import { PlateText, fontOf, fontUrl, useTheme } from './look'
 import { S, TEXT_LAYER } from './scale'
 import type { StageLabelMode } from './model'
 
@@ -136,6 +136,20 @@ function Diamond({ p, i, letters }: { p: StagePart; i: number; letters: Letters 
   )
 }
 
+// A name written on the part's own front and back faces, in the zone title's lettering and colour, one size for every part.
+function SideText({ p, i, s }: { p: StagePart; i: number; s: SideName }) {
+  const th = useTheme()
+  const color = th.tray.zones[i % th.tray.zones.length]
+  const font = fontOf(th.tray.groundFont ?? 'archivo')
+  const text = s.lines.join('\n')
+  const common = { font, fontSize: s.size, lineHeight: 1.1, textAlign: 'center' as const, anchorX: 'center' as const, anchorY: 'middle' as const, color: '#ffffff', letterSpacing: 0.04, outlineWidth: s.size * 0.09, outlineColor: mixc(color, '#000000', 0.55), layers: TEXT_LAYER as any }
+  return (
+    <>
+      {s.faces.map((f, k) => <Text key={k} {...common} position={f.at} rotation={[0, f.rot, 0]}>{text}</Text>)}
+    </>
+  )
+}
+
 // A zone under the part, as Cloud Cartography draws one: a rounded floor tinted from the theme's zone palette (each part its own colour),
 // a rim line in the zone colour, and the part's name in big capitals in the ground font lying on it, front-left. The floor is the part's
 // footprint plus a margin and a strip in front of it that is the room the name lies in (stageZones.ts), so no part stands on its own name.
@@ -143,7 +157,7 @@ const ZONE_T = 0.1 // the zone's floor reaches 0.1 above the base: above a model
 function Zone({ p, i, z }: { p: StagePart; i: number; z: ZoneRect }) {
   const th = useTheme()
   const color = th.tray.zones[i % th.tray.zones.length]
-  const { w, h, fit } = z
+  const { w, h } = z
   const r = Math.min(th.tray.radius || 0.5, w / 2, h / 2)
   const top = ZONE_T + i * 0.004 // overlapping zones do not share a plane
   const geo = useMemo(() => new THREE.ExtrudeGeometry(rounded(w, h, r), { depth: top, bevelEnabled: false, curveSegments: 8 }).rotateX(-Math.PI / 2), [w, h, r, top])
@@ -154,12 +168,12 @@ function Zone({ p, i, z }: { p: StagePart; i: number; z: ZoneRect }) {
         <meshStandardMaterial color={mixc(color, '#ffffff', th.tray.zoneMix[0])} roughness={0.9} />
       </mesh>
       <Line points={[...rim, rim[0]]} color={color} lineWidth={1.5} />
-      <GroundTitle fit={fit} w={w} h={h} T={top} left back={false} color={mixc(color, '#000000', th.tray.groundInk)} fontKey={th.tray.groundFont ?? 'archivo'} x={z.titleX} />
+      {z.title && <GroundTitle fit={z.title} w={w} h={h} T={top} left back={z.side === 'back'} color={mixc(color, '#000000', th.tray.groundInk)} fontKey={th.tray.groundFont ?? 'archivo'} x={z.titleX} inset={TITLE_INSET} />}
     </group>
   )
 }
 
-// The floor grown under the model where a zone would run past it: the theme's own tray floor, its top level with the bottom of the model.
+// A floor in the theme's style under a model that has none of its own, where a zone would run past the model: its top level with the bottom of the model.
 function Base({ r }: { r: { x0: number; x1: number; z0: number; z1: number } }) {
   const th = useTheme()
   const w = r.x1 - r.x0, h = r.z1 - r.z0, T = th.tray.thickness
@@ -167,7 +181,7 @@ function Base({ r }: { r: { x0: number; x1: number; z0: number; z1: number } }) 
   return <mesh geometry={geo} position={[(r.x0 + r.x1) / 2, -T, (r.z0 + r.z1) / 2]}><meshStandardMaterial color={th.tray.colors[0]} roughness={0.9} /></mesh>
 }
 
-export function StageScene({ data, labelMode, letters = 'stacked' }: { data: StageLayout; labelMode: StageLabelMode; letters?: Letters }) {
+export function StageScene({ data, labelMode, letters = 'stacked', mode }: { data: StageLayout; labelMode: StageLabelMode; letters?: Letters; mode?: string }) {
   // the model's geometry and materials are ours to free when the stage is replaced
   useEffect(() => () => {
     data.model.traverse(o => {
@@ -177,12 +191,33 @@ export function StageScene({ data, labelMode, letters = 'stacked' }: { data: Sta
       for (const mat of Array.isArray(m.material) ? m.material : [m.material]) mat?.dispose()
     })
   }, [data])
+  // the model's own floor, stretched to the extent the zones need (the same mesh and material); back to as exported when none needs it
+  useLayoutEffect(() => {
+    const f = data.floor
+    if (!f) return
+    const to = data.floorTo ?? f.rect, cur = f.rect, off = data.model.position
+    const sx = (to.x1 - to.x0) / (cur.x1 - cur.x0), sz = (to.z1 - to.z0) / (cur.z1 - cur.z0)
+    // the group sits in the model's own frame, which is the world's shifted by the model's position
+    f.group.scale.set(sx, 1, sz)
+    f.group.position.set((to.x0 + to.x1) / 2 - sx * (cur.x0 + cur.x1) / 2 + (sx - 1) * off.x, 0, (to.z0 + to.z1) / 2 - sz * (cur.z0 + cur.z1) / 2 + (sz - 1) * off.z)
+    f.group.updateMatrixWorld(true)
+  }, [data.floor, data.floorTo, data.model])
   const labels = (p: StagePart, i: number) => {
-    const z = zoneOf(p, data.blockers)
+    const z = data.zones?.[i] ?? null
     if (labelMode === 'base') return <BaseLabels key={p.id} p={p} />
     if (labelMode === 'sign') return <Sign key={p.id} p={p} i={i} letters={letters} />
     if (labelMode === 'diamond') return <Diamond key={p.id} p={p} i={i} letters={letters} />
-    if (labelMode === 'zone' || labelMode === 'auto') return hasZone(labelMode, z) ? <Zone key={p.id} p={p} i={i} z={z} /> : <Sign key={p.id} p={p} i={i} letters={letters} plain />
+    if (labelMode === 'zone' || labelMode === 'auto') {
+      const side = data.sides?.[i] ?? null
+      return (
+        <group key={p.id}>
+          {z && <Zone p={p} i={i} z={z} />}
+          {side && <SideText p={p} i={i} s={side} />}
+          {/* named neither on its floor nor (from above, where its sides cannot be seen) on its sides: a floating name */}
+          {!(z?.title) && (!side || mode === 'flat') && <Sign p={p} i={i} letters={letters} plain />}
+        </group>
+      )
+    }
     return (
       <group key={p.id} position={[p.cx, p.top, p.cz]}>
         <Label text={p.label} mode={labelMode} y={0.08} size={0.36} maxWidth={Math.max(2.4, p.w / 40)} role="node" />

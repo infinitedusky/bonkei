@@ -235,14 +235,14 @@ export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone 
 // (titles.ts groundTitle). The font's real width can differ from that estimate, so the text as drawn is shrunk to the floor if it is wider.
 const GROUND_ORDER: Corner[] = ['fl', 'fr', 'bl', 'br']
 const GROUND_GROW = { x0: 0.5, x1: 0.2, z0: 0.6, z1: 0.3 } // an icon (its box is larger than the icon) stands over the floor it is on; the card is drawn over everything, so only the footprint counts
-export function GroundTitle({ fit, w, h, T, left, back, color, fontKey, x }: { fit: GroundFit; w: number; h: number; T: number; left: boolean; back: boolean; color: string; fontKey?: string; x?: number }) {
+export function GroundTitle({ fit, w, h, T, left, back, color, fontKey, x, inset = GROUND.inset }: { fit: GroundFit; w: number; h: number; T: number; left: boolean; back: boolean; color: string; fontKey?: string; x?: number; inset?: number }) {
   const th = useTheme()
   const font = fontOf(fontKey ?? th.tray.groundFont)
   const { lines, size } = fit
   const [k, setK] = useState(1)
-  const roomW = w - 2 * GROUND.inset, roomH = h - 2 * GROUND.inset
+  const roomW = w - 2 * inset, roomH = h - 2 * inset
   return (
-    <Text position={[x ?? (left ? -w / 2 + GROUND.inset : w / 2 - GROUND.inset), T + 0.004, back ? -h / 2 + GROUND.inset + size + (lines.length - 1) * size * GROUND.line : h / 2 - GROUND.inset]}
+    <Text position={[x ?? (left ? -w / 2 + inset : w / 2 - inset), T + 0.004, back ? -h / 2 + inset + size + (lines.length - 1) * size * GROUND.line : h / 2 - inset]}
       rotation={[-Math.PI / 2, 0, 0]} scale={k} font={font} fontSize={size} letterSpacing={0.04} lineHeight={lines.length > 1 ? GROUND.line : undefined}
       textAlign={left ? 'left' : 'right'} anchorX={left ? 'left' : 'right'} anchorY="bottom" color={color} fillOpacity={0.8} layers={TEXT_LAYER as any}
       onSync={(t: any) => {
