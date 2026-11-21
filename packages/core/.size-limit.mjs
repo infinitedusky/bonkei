@@ -2,7 +2,7 @@
 export default [
   { name: 'main chunk: import { Bonkei } (ELK, React and three excluded)', path: 'dist/index.js', import: '{ Bonkei }', ignore: ['react', 'react-dom', 'three', 'elkjs'],
     // the base64 wasm fallback is a lazy chunk of its own (below); esbuild would inline it
-    modifyEsbuildConfig: c => ({ ...c, external: [...(c.external ?? []), './_libavoid-inline-*', './stage-*', './StageScene-*'] }), gzip: true, limit: '203 kB' }, // 202 until BON-253's stage (+1.3 kB: the options, framing and zone sums; the drawing is its own chunk),   190 until BON-78's gestures (+3.9 kB), 197 until Cloud Cartography's icons, cards, arcs and ground titles (+4.2 kB, BON-235): LOG.md
+    modifyEsbuildConfig: c => ({ ...c, external: [...(c.external ?? []), './_libavoid-inline-*', './stage-*', './StageScene-*'] }), gzip: true, limit: '204 kB' }, // 202 until BON-253's stage (+2.6 kB, 201.1 to 203.7: the options, framing and zone sums; the drawing is its own chunk),   190 until BON-78's gestures (+3.9 kB), 197 until Cloud Cartography's icons, cards, arcs and ground titles (+4.2 kB, BON-235): LOG.md
   { name: 'stage chunk (fetched on the first stage: parts, loading; three\'s GLTFLoader is its own chunk beyond it)', path: 'dist/stage-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '4 kB' },
   { name: 'stage drawing chunk (fetched with the first stage: zones, signs, plumbobs, base)', path: 'dist/StageScene-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '6 kB' },
   { name: 'ELK chunk (fetched on first layout)', path: 'node_modules/elkjs/lib/elk.bundled.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '480 kB' },
