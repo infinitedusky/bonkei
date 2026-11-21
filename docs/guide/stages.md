@@ -30,13 +30,14 @@ Each part is labelled with its name **as the author wrote it**: "prep line", not
 
 ## How the names are shown
 
-Every part gets a flat, shaded zone under it, in the theme's zone colours. Its name goes, in this order:
+Each part's name is written in white capitals with a dark drop shadow, at one size for every part:
 
-1. **on its zone**, in big capitals lying on the floor, if it fits there at the one size every zone name has;
-2. else **on the part's own sides**, front and back (or right and left), if the part is wide and tall enough and nothing stands in front of it;
-3. else **floating above the part**, one letter under another, with a thin line down to it. A floating name is drawn over the model, so a part inside walls can still be read.
+1. **on the part's own sides**, front and back (or right and left where the front is too narrow), on its main body (the grill's counter, not its hood), if the part is wide and tall enough and nothing stands in front of it;
+2. else **floating above the part**, one letter under another, with a thin line down to it. A floating name is drawn over the model, so a part inside walls can still be read.
 
-No name is drawn smaller to fit. Zones never overlap each other or another object, and they lie wholly on the model's own floor: where one would run past it, the floor (the model's largest flat object at ground level) is stretched to hold it. A model with no floor of its own gets one in the theme's style, only where a zone needs it. In flat, where the sides of a part cannot be seen, a name written on the sides is also shown floating.
+No name is drawn smaller to fit, and nothing is drawn under a part. In flat, where the sides of a part cannot be seen, every part's name is shown floating.
+
+The model's own floor (its largest flat object at ground level) keeps an even margin round everything standing on it: where a part hangs off the edge or stands nearer it than the margin, the floor is stretched there, and Fit frames the stretched floor. It is never made smaller. A model with no floor of its own gets none.
 
 `labels` does not apply to a stage: a stage always names its parts this way.
 
