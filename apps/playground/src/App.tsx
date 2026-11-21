@@ -3,6 +3,7 @@ import { SAMPLES } from './samples'
 import { Bonkei, THEME_NAMES, type LabelMode, type StageInfo } from 'bonkei'
 import type { EdgeStats } from 'bonkei/internal'
 import { StageParts } from './StageParts'
+import { keptOnNewSource, type ShownWarning } from './warning'
 
 // The site sits one level above the viewer (/app/ in dev, /merman/app/ on Pages).
 const SITE = import.meta.env.BASE_URL.replace(/app\/$/, '')
@@ -21,8 +22,8 @@ export default function App() {
   const [debounced, setDebounced] = useState(src)
   const [labelMode, setLabelMode] = useState<LabelMode>('top')
   const [theme, setTheme] = useState(FROM_SOURCE)
-  // the last theme warning; line 0 means it came from the theme menu (the prop), so it outlives a new source
-  const [warn, setWarn] = useState<{ message: string; line: number } | null>(null)
+  // the last theme or stage warning; only one from the theme menu outlives a new source (keptOnNewSource)
+  const [warn, setWarn] = useState<ShownWarning | null>(null)
   const [fps, setFps] = useState(0)
   // page frame rate: frames the browser drew per second (the canvas renders every frame)
   useEffect(() => {
@@ -41,8 +42,8 @@ export default function App() {
     const t = setTimeout(() => setDebounced(src), 250)
     return () => clearTimeout(t)
   }, [src])
-  // The dropped count and the theme warning are per source.
-  useEffect(() => { setDropped(0); setWarn(w => (w && w.line === 0 ? w : null)) }, [debounced])
+  // The dropped count and the source's warnings are per source.
+  useEffect(() => { setDropped(0); setWarn(keptOnNewSource) }, [debounced])
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
@@ -51,7 +52,7 @@ export default function App() {
         onReady={r => { setMs(r.layoutMs); setStage(r.stage ?? null) }}
         onError={() => setMs(null)}
         onEdgeStats={setEdges}
-        onWarning={w => { if (w.kind === 'dropped') setDropped(n => n + 1); else if (w.kind === 'theme' || w.kind === 'stage') setWarn({ message: w.message, line: w.line }) }} />
+        onWarning={w => { if (w.kind === 'dropped') setDropped(n => n + 1); else if (w.kind === 'theme' || w.kind === 'stage') setWarn({ kind: w.kind, message: w.message, line: w.line }) }} />
       <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6, alignItems: 'center', color: '#9aa6c0' }}>
         <a href={SITE} style={{ ...btn(false), textDecoration: 'none', font: 'inherit' }}>← Site</a>
         <button style={btn(false)} onClick={() => setLabelMode(l => l === 'top' ? 'billboard' : 'top')}>labels: {labelMode}</button>
