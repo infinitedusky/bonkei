@@ -14,18 +14,18 @@ const KITCHEN = {
   floor: { w: 11, d: 7.4, color: '#d9d2c3' },
   parts: [
     { name: 'grill', pieces: [
-      { name: 'Cube.003', x: -4.2, z: -2.4, w: 3, d: 1.4, h: 0.9, color: STEEL },
-      { name: 'griddle', x: -4.2, z: -2.4, w: 2.8, d: 1.2, h: 0.06, y: 0.9, color: DARK },
-      { name: 'patty', x: -4.9, z: -2.5, w: 0.4, d: 0.4, h: 0.08, y: 0.96, color: '#6b3b22' },
-      { name: 'patty.001', x: -4.3, z: -2.3, w: 0.4, d: 0.4, h: 0.08, y: 0.96, color: '#6b3b22' },
-      { name: 'flue', x: -4.2, z: -2.9, w: 0.4, d: 0.4, h: 1.1, y: 0.9, color: STEEL }, // holds the hood up: it stands on the grill
-      { name: 'hood', x: -4.2, z: -2.9, w: 3.2, d: 0.6, h: 0.3, y: 2.0, color: STEEL },
+      { name: 'Cube.003', x: -3.6, z: -2.4, w: 3, d: 1.4, h: 0.9, color: STEEL },
+      { name: 'griddle', x: -3.6, z: -2.4, w: 2.8, d: 1.2, h: 0.06, y: 0.9, color: DARK },
+      { name: 'patty', x: -4.3, z: -2.5, w: 0.4, d: 0.4, h: 0.08, y: 0.96, color: '#6b3b22' },
+      { name: 'patty.001', x: -3.7, z: -2.3, w: 0.4, d: 0.4, h: 0.08, y: 0.96, color: '#6b3b22' },
+      { name: 'flue', x: -3.6, z: -2.9, w: 0.4, d: 0.4, h: 1.1, y: 0.9, color: STEEL }, // holds the hood up: it stands on the grill
+      { name: 'hood', x: -3.6, z: -2.9, w: 3.2, d: 0.6, h: 0.3, y: 2.0, color: STEEL },
     ] },
     { name: 'prep line', pieces: [
-      { x: 0.2, z: -2.4, w: 3.6, d: 1.4, h: 0.9, color: STEEL },
-      { name: 'lettuce bin', x: -0.9, z: -2.4, w: 0.7, d: 0.8, h: 0.12, y: 0.9, color: '#5cae4a' },
-      { name: 'tomato bin', x: -0.1, z: -2.4, w: 0.7, d: 0.8, h: 0.12, y: 0.9, color: '#d8463a' },
-      { name: 'bun rack', x: 1.5, z: -2.4, w: 0.7, d: 0.8, h: 0.4, y: 0.9, color: '#e0b06a' },
+      { x: 0.9, z: -2.4, w: 3.6, d: 1.4, h: 0.9, color: STEEL },
+      { name: 'lettuce bin', x: -0.2, z: -2.4, w: 0.7, d: 0.8, h: 0.12, y: 0.9, color: '#5cae4a' },
+      { name: 'tomato bin', x: 0.6, z: -2.4, w: 0.7, d: 0.8, h: 0.12, y: 0.9, color: '#d8463a' },
+      { name: 'bun rack', x: 2.2, z: -2.4, w: 0.7, d: 0.8, h: 0.4, y: 0.9, color: '#e0b06a' },
     ] },
     { name: 'wrap station', pieces: [
       { x: 4.0, z: -0.4, w: 1.4, d: 2.6, h: 0.9, color: STEEL },
