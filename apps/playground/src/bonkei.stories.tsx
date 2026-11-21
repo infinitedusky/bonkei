@@ -493,6 +493,28 @@ export const StageNamesAlike: Story = {
   },
 }
 
+/**
+ * Three made-up models the probes tried: a part that is a named empty node (the door: a floating name over the spot, no shape), the
+ * kitchen exported in millimetres (shown at its size in metres, like the kitchen), and a model whose only object is the grill (one part, grill).
+ */
+export const StageOddModels: Story = {
+  render: () => {
+    const { log, cbs } = useSpy()
+    const parts = (r: { stage?: { parts: { name: string }[] } }) => cbs.onWarning({ kind: 'stage', line: 0, message: `parts: ${r.stage?.parts.map(p => p.name).join(', ')}` })
+    const cases: [string, string][] = [
+      ['a grill and an empty node named door', 'stages/empty-part.glb'],
+      ['the kitchen in millimetres', 'stages/kitchen-mm.glb'],
+      ['only the grill, its pieces under it', 'stages/lone-part.glb'],
+    ]
+    return (
+      <div style={page}>
+        {cases.map(([label, file]) => <Box key={file} label={label} h={320}><Bonkei source={stage(file)} onError={cbs.onError} onReady={parts} /></Box>)}
+        <Spy log={log} />
+      </div>
+    )
+  },
+}
+
 /** Each way a stage can fail shows the error card with a readable message, never a blank screen. */
 export const StageErrors: Story = {
   render: () => {

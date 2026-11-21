@@ -10,7 +10,8 @@ const here = dirname(fileURLToPath(import.meta.url))
 const outs = [join(here, '../public/stages'), join(here, '../../../packages/core/src/fixtures/stages')]
 
 const STEEL = '#b8c0c8', DARK = '#2b2f36'
-// a piece: a box (x, z centre on the floor plan, w d h size, y its bottom); a part: a named group of pieces; no name: an unnamed object
+// a piece: a box (x, z centre on the floor plan, w d h size, y its bottom); a part: a named group of pieces, or a named empty node `at` [x, z];
+// no name: an unnamed object. A model's `unit` is how many of its units make one metre (1000: in millimetres)
 const KITCHEN = {
   floor: { w: 11, d: 7.4, color: '#d9d2c3' },
   parts: [
@@ -59,20 +60,28 @@ const BLOB = { floor: KITCHEN.floor, parts: KITCHEN.parts.map(p => ({ pieces: p.
 const WRAPPED = { ...HOUSE, wrapper: 'Sketchup_model' }
 // two parts with one name
 const DUPLICATE = { floor: KITCHEN.floor, parts: [KITCHEN.parts[0], { ...KITCHEN.parts[1], name: 'Grill' }, KITCHEN.parts[3]] }
+// a named part with no shape: an empty node marking where the door is
+const EMPTY = { floor: KITCHEN.floor, parts: [KITCHEN.parts[0], { name: 'door', at: [3.5, 3.2] }] }
+// the kitchen exported in millimetres (the floor 11000 x 7400 x 50)
+const MILLIMETRES = { ...KITCHEN, unit: 1000 }
+// a model of one part and nothing else: the grill, its pieces under it
+const LONE = { parts: [KITCHEN.parts[0]] }
 
 const hex = c => [1, 3, 5].map(i => Math.pow(parseInt(c.slice(i, i + 2), 16) / 255, 2.2)).concat(1)
 
 function build(model, extra = {}) {
   const colors = [], mat = c => { let i = colors.indexOf(c); if (i < 0) i = colors.push(c) - 1; return i }
-  const nodes = [], boxNode = (p, material) => nodes.push({ ...(p.name ? { name: p.name } : {}), mesh: material, translation: [p.x, (p.y ?? 0) + p.h / 2, p.z], scale: [p.w, p.h, p.d] }) - 1
+  const u = model.unit ?? 1
+  const nodes = [], boxNode = (p, material) => nodes.push({ ...(p.name ? { name: p.name } : {}), mesh: material, translation: [p.x * u, ((p.y ?? 0) + p.h / 2) * u, p.z * u], scale: [p.w * u, p.h * u, p.d * u] }) - 1
   const floorOf = model.floor
   const top = []
   for (const part of model.parts) {
+    if (part.at) { top.push(nodes.push({ name: part.name, translation: [part.at[0] * u, 0, part.at[1] * u] }) - 1); continue }
     const kids = part.pieces.map(p => boxNode(p, mat(p.color)))
     top.push(nodes.push({ ...(part.name ? { name: part.name } : {}), children: kids }) - 1)
   }
   // the floor is one unnamed top-level slab under everything (a model with a floor of its own)
-  top.push(boxNode({ x: 0, z: 0, w: floorOf.w, d: floorOf.d, h: 0.05, y: -0.05 }, mat(floorOf.color)))
+  if (floorOf) top.push(boxNode({ x: 0, z: 0, w: floorOf.w, d: floorOf.d, h: 0.05, y: -0.05 }, mat(floorOf.color)))
   let roots = top
   if (model.wrapper) roots = [nodes.push({ name: model.wrapper, children: top }) - 1]
   // one unit cube shared by every box
@@ -108,6 +117,7 @@ function glb(json, bin) {
 
 const files = {
   'kitchen.glb': build(KITCHEN), 'house.glb': build(HOUSE), 'blob.glb': build(BLOB), 'wrapped.glb': build(WRAPPED), 'duplicate.glb': build(DUPLICATE),
+  'empty-part.glb': build(EMPTY), 'kitchen-mm.glb': build(MILLIMETRES), 'lone-part.glb': build(LONE),
   'kitchen-draco.glb': build(KITCHEN, { extensionsUsed: ['KHR_draco_mesh_compression'], extensionsRequired: ['KHR_draco_mesh_compression'] }),
   'kitchen-ktx2.glb': build(KITCHEN, { extensionsUsed: ['KHR_texture_basisu'] }),
   'not-a-model.glb': Buffer.from('This is a text file, not a glTF.\n'),

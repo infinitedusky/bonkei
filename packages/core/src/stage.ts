@@ -58,10 +58,21 @@ const nameOf = (o: THREE.Object3D) => {
 }
 const namedBelow = (o: THREE.Object3D) => { let n = 0; o.traverse(c => { if (c !== o && nameOf(c)) n++ }); return n }
 
+// the names exporters give the one node they wrap a whole model in (three.js editor and Spline "Scene", Sketchfab, SketchUp, FBX converters' "RootNode")
+const WRAPPERS = new Set(['scene', 'root', 'rootnode', 'root node', 'sketchfab model', 'sketchup', 'sketchup model', 'model', 'gltf scenerootnode', 'auxscene'])
+/**
+ * Whether the scene's one top-level object wraps the model rather than being a part of it: it has no name, or an exporter's wrapper name,
+ * or something under it holds named pieces of its own (parts inside). A lone named object whose pieces are plain (the grill: Cube.003, hood) is a part.
+ */
+const wraps = (o: THREE.Object3D) => {
+  const name = nameOf(o)
+  return !name || WRAPPERS.has(normaliseName(name)) || o.children.some(c => nameOf(c) && namedBelow(c) > 0)
+}
+
 /** Which of the scene's objects are parts: the named ones directly under it; a lone wrapper node is looked through. */
 export function findParts(scene: THREE.Object3D): { parts: { name: string; object: THREE.Object3D; pieces: number }[]; others: THREE.Object3D[]; warnings: string[]; skipped: number } {
   let top = scene.children
-  if (top.length === 1 && top[0].children.length) top = top[0].children
+  if (top.length === 1 && top[0].children.length && wraps(top[0])) top = top[0].children
   const parts = top.flatMap(object => { const name = nameOf(object); return name ? [{ name, object, pieces: namedBelow(object) }] : [] })
   const seen = new Map<string, string[]>()
   for (const p of parts) { const k = normaliseName(p.name); seen.set(k, [...(seen.get(k) ?? []), p.name]) }
@@ -97,8 +108,14 @@ function getLoader(parent?: Span) {
 
 const host = (url: string) => { try { return new URL(url, typeof location !== 'undefined' ? location.href : undefined).host } catch { return '' } }
 const fileOf = (url: string) => url.split(/[?#]/)[0].split('/').pop() || url
-const box = (o: THREE.Object3D): PartBody => { const b = new THREE.Box3().setFromObject(o); return { x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z, y0: b.min.y, y1: b.max.y } }
+// an object's box; one with no shape (a named empty node) is the point where it stands
+const box = (o: THREE.Object3D): PartBody => {
+  const b = new THREE.Box3().setFromObject(o)
+  if (b.isEmpty()) { const at = o.getWorldPosition(new THREE.Vector3()); b.set(at, at.clone()) }
+  return { x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z, y0: b.min.y, y1: b.max.y } }
 const volume = (b: PartBody) => (b.x1 - b.x0) * (b.z1 - b.z0) * (b.y1 - b.y0)
+/** A model larger than this across, world units (metres in glTF), was exported in smaller units (centimetres, millimetres); it is shown scaled down by tens to fit within it. */
+export const LARGEST = 100
 const meshesOf = (o: THREE.Object3D) => { const out: THREE.Mesh[] = []; o.traverse(m => { if ((m as THREE.Mesh).isMesh) out.push(m as THREE.Mesh) }); return out }
 
 /** Fetches, checks and reads the model at `url`, and lays its parts out. Rejects with a `stage` BonkeiError. */
@@ -128,8 +145,17 @@ export async function loadStage(url: string, parent?: Span, fetcher: typeof fetc
       scene.updateMatrixWorld(true)
       const found = findParts(scene)
       if (!found.parts.length) throw fail('no_parts', `${name} loaded, but none of its top-level objects has a name.\nName them in your 3D tool (grill, register…) and export again.`)
+      if (!meshesOf(scene).length) throw fail('no_scene', `${name} loaded, but it has nothing to show: none of its objects has a shape.\nExport the model with its meshes.`)
+      // the whole model, its parts with no shape counted where they stand
+      const extent = () => found.parts.map(p => box(p.object)).reduce((all, b) => all.expandByPoint(new THREE.Vector3(b.x0, b.y0, b.z0)), new THREE.Box3().setFromObject(scene))
+      let all = extent()
+      const across = Math.max(all.max.x - all.min.x, all.max.z - all.min.z)
+      if (across > LARGEST) {
+        scene.scale.multiplyScalar(10 ** -Math.ceil(Math.log10(across / LARGEST)))
+        scene.updateMatrixWorld(true)
+        all = extent()
+      }
       // the footprint of the whole model, centred on the origin and standing on the floor
-      const all = new THREE.Box3().setFromObject(scene)
       const centre = all.getCenter(new THREE.Vector3())
       scene.position.set(-centre.x, -all.min.y, -centre.z)
       scene.updateMatrixWorld(true)

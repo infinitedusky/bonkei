@@ -108,11 +108,11 @@ export function StageScene({ data, mode }: { data: StageLayout; mode: Mode }) {
   useLayoutEffect(() => {
     const f = data.floor
     if (!f) return
-    const to = data.floorTo ?? f.rect, cur = f.rect, off = data.model.position
+    const to = data.floorTo ?? f.rect, cur = f.rect, off = data.model.position, u = data.model.scale
     const sx = (to.x1 - to.x0) / (cur.x1 - cur.x0), sz = (to.z1 - to.z0) / (cur.z1 - cur.z0)
-    // the group sits in the model's own frame, which is the world's shifted by the model's position
+    // the group sits in the model's own frame, which is the world's shifted by the model's position and scaled by its scale (a model in millimetres)
     f.group.scale.set(sx, 1, sz)
-    f.group.position.set((to.x0 + to.x1) / 2 - sx * (cur.x0 + cur.x1) / 2 + (sx - 1) * off.x, 0, (to.z0 + to.z1) / 2 - sz * (cur.z0 + cur.z1) / 2 + (sz - 1) * off.z)
+    f.group.position.set(((to.x0 + to.x1) / 2 - sx * (cur.x0 + cur.x1) / 2 + (sx - 1) * off.x) / u.x, 0, ((to.z0 + to.z1) / 2 - sz * (cur.z0 + cur.z1) / 2 + (sz - 1) * off.z) / u.z)
     f.group.updateMatrixWorld(true)
   }, [data.floor, data.floorTo, data.model])
   return (

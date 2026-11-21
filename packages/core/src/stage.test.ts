@@ -158,3 +158,40 @@ test('the fit leaves room above the model for its floating names', async () => {
   assert.ok(g.reach! > pole.top + [...'telephone pole'].length * 0.36, 'the pole\'s floating name is counted')
   assert.ok(g.reach! >= h.tall)
 })
+
+test('a named empty node is a part where it stands: a point, its name floating over it', async () => {
+  const l = await load('empty-part.glb')
+  assert.deepEqual(l.parts.map(p => p.label), ['grill', 'door'])
+  const door = l.parts[1]
+  for (const v of [l.width, l.height, l.tall, door.cx, door.cz, door.top, ...Object.values(door.body)]) assert.ok(Number.isFinite(v), 'every number finite')
+  assert.ok(Math.abs(door.cx - 3.5 - (l.parts[0].cx + 4.2)) < 1e-6 && door.w === 0 && door.h === 0, 'at its own place, no footprint')
+  const g = framed(l)
+  assert.ok([g.width, g.height, g.reach!, ...Object.values(g.zones![1] ?? {}).filter(v => typeof v === 'number')].every(Number.isFinite))
+  assert.deepEqual(how(l), { grill: 'zone', door: 'float' })
+  assert.ok(!(l.blockers ?? []).some(b => b.part === 1), 'no shape stands in the way')
+})
+
+test('a model with named parts but no shape at all is a readable stage error', async () => {
+  const json = JSON.stringify({ asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0, 1] }], nodes: [{ name: 'door' }, { name: 'grill', translation: [2, 0, 0] }] })
+  const e = await stageError('empties.gltf', (async () => new Response(json, { headers: { 'content-type': 'model/gltf+json' } })) as any)
+  assert.ok(isBonkeiError(e))
+  assert.equal(e.kind, 'stage')
+  assert.match(e.message, /empties\.gltf loaded, but it has nothing to show: none of its objects has a shape/)
+})
+
+test('a model in millimetres is shown at its size in metres: laid out, named and floored as the kitchen is', async () => {
+  const mm = await load('kitchen-mm.glb'), k = await load('kitchen.glb')
+  assert.ok(Math.abs(mm.width - k.width) < 1e-6 && Math.abs(mm.height - k.height) < 1e-6 && Math.abs(mm.tall - k.tall) < 1e-6)
+  assert.equal(mm.model.scale.x, 0.001)
+  assert.deepEqual(how(mm), how(k))
+  assert.equal(mm.blockers!.length, k.blockers!.length, 'its 50 mm floor is no blocker')
+  assert.ok(mm.floor, 'and is found as its floor')
+  const g = framed(mm), z = framed(k)
+  assert.ok(Math.abs(g.width - z.width) < 1e-6 && Math.abs(g.reach! - z.reach!) < 1e-6)
+})
+
+test('a lone named part is a part, not a wrapper: the grill, not its pieces', async () => {
+  const l = await load('lone-part.glb')
+  assert.deepEqual(l.parts.map(p => p.label), ['grill'])
+  assert.equal(l.parts[0].pieces, 6)
+})

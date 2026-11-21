@@ -24,7 +24,7 @@ A source with a stage and nothing else shows the stage. A diagram written beside
 
 ## What counts as a part
 
-The model's **top-level named objects** are its parts. If the whole scene sits in one wrapper object (as SketchUp and Blender often export it), Bonkei looks inside it. Named objects inside a part are its pieces: the kitchen's grill is a group of named boxes (griddle, hood, …), and only "grill" is labelled. Objects with no name are drawn and not labelled: the kitchen's fridge, the house's walls.
+The model's **top-level named objects** are its parts. If the whole scene sits in one wrapper object (as SketchUp and Blender often export it: unnamed, or named like Scene or RootNode), Bonkei looks inside it; a lone object named by you, such as a grill with nothing else, is one part. A named object with no shape (an empty) is a part where it stands, its name floating over the spot. A model exported in centimetres or millimetres (more than 100 metres across, read as glTF's metres) is shown scaled down to its size in metres. Named objects inside a part are its pieces: the kitchen's grill is a group of named boxes (griddle, hood, …), and only "grill" is labelled. Objects with no name are drawn and not labelled: the kitchen's fridge, the house's walls.
 
 Each part is labelled with its name **as the author wrote it**: "prep line", not "prep_line" (three.js changes spaces in names; Bonkei reads the name from the file).
 
