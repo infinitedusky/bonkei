@@ -447,7 +447,7 @@ export const RenderCrash: Story = {
 const stage = (file: string) => `---\nconfig:\n  bonkei:\n    stage: ${file}\n---\n`
 const KITCHEN = stage('stages/kitchen.glb')
 
-/** A made-up kitchen as a stage: a zone under each part; prep line and register named on their zones, grill and wrap station on their own sides; the unnamed fridge has none. */
+/** A made-up kitchen as a stage: no areas; grill, prep line, wrap station and register named on their own sides in white with a drop shadow; the unnamed fridge has none; the floor grown at the left, where the grill hangs over it. */
 export const Stage: Story = {
   render: () => {
     const { log, cbs } = useSpy()
@@ -462,7 +462,7 @@ export const Stage: Story = {
   },
 }
 
-/** A made-up house and phone line, in flat: exchange and server named on their zones; phone, router and telephone pole float over the walls with a line down. */
+/** A made-up house and phone line, in flat, where sides cannot be seen: every part's name floats with a line down (in iso exchange and server are named on their sides; phone, router and telephone pole float over the walls). */
 export const StageHouseFlat: Story = {
   render: () => (
     <div style={page}>

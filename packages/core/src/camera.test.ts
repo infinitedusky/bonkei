@@ -131,14 +131,13 @@ test('content framing is only for a tight fit: the default fit ignores it', () =
 })
 
 test('a fit shows a small stage\'s floating name whole, top letter and all, in flat and iso', () => {
-  // made-up sample: a 1 m cube named "drive through window", too long a name for its zone or its sides, so it floats
+  // made-up sample: a 1 m cube named "drive through window", too long a name for its sides, so it floats
   const body = { x0: -0.5, x1: 0.5, z0: -0.5, z1: 0.5, y0: 0, y1: 1 }
   const stage = framed({
     kind: 'stage', width: 1 / S, height: 1 / S, tall: 1, url: '/stages/cube.glb', model: null as never, floor: null,
     blockers: [{ x0: -0.5, x1: 0.5, z0: -0.5, z1: 0.5, h: 1, part: 0 }],
     parts: [{ id: 'p0', label: 'drive through window', x: 0, y: 0, w: 1 / S, h: 1 / S, top: 1, cx: 0, cz: 0, pieces: 0, body, solids: [body] }],
   })
-  assert.equal(stage.zones![0]?.title, null)
   assert.equal(stage.sides![0], null)
   assert.equal(stage.upright!.length, 1)
   for (const mode of ['flat', 'iso'] as const) for (const aspect of [1.6, 0.6]) {

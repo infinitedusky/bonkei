@@ -5,7 +5,8 @@ import { trace } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { loadStage, framed, type StageModel } from './stage.ts'
 import { normaliseName } from './names.ts'
-import { FLOOR_SIZE, footprint } from './stageZones.ts'
+import { S } from './scale.ts'
+import { FLOOR_PAD, SIDE, footprint } from './stageZones.ts'
 import { readFrontmatter } from './options.ts'
 import { prepare, isBonkeiError } from './diagram.ts'
 
@@ -104,52 +105,57 @@ test('prepare: a stage that cannot be fetched rejects with one stage error namin
   assert.equal(p.line, undefined)
 })
 
-// how each part is named: on its zone, on its sides, or floating
+// how each part is named: on its own sides, or floating
 const how = (l: StageModel) => {
   const g = framed(l)
-  return Object.fromEntries(l.parts.map((p, i) => [p.label, g.zones![i]?.title ? 'zone' : g.sides![i] ? 'side' : 'float']))
+  return Object.fromEntries(l.parts.map((p, i) => [p.label, g.sides![i] ? 'side' : 'float']))
 }
 
-test('a name goes on its zone at the one size if it fits, else on the part\'s own sides, else floats', async () => {
+test('a name is written on the part\'s own sides at the one size if it fits, else floats; no areas', async () => {
   const k = await load('kitchen.glb'), h = await load('house.glb')
-  assert.deepEqual(how(k), { grill: 'side', 'prep line': 'zone', 'wrap station': 'side', register: 'zone' })
-  assert.deepEqual(how(h), { phone: 'float', router: 'float', 'telephone pole': 'float', exchange: 'zone', server: 'zone' })
-  for (const l of [k, h]) for (const z of framed(l).zones!) if (z?.title) assert.equal(z.title.size, FLOOR_SIZE, 'never drawn smaller')
-})
-
-test('every part has a zone; no zone overlaps another or another thing on the floor; all of them lie on the model\'s own floor', async () => {
-  for (const f of ['kitchen.glb', 'house.glb']) {
-    const l = await load(f)
-    const g = framed(l), zs = g.zones!
-    assert.ok(zs.every(z => z !== null), `${f}: every part has a zone`)
-    const others = [...l.parts.map(footprint), ...(l.blockers ?? []).filter(b => b.part < 0)]
-    const apart = (a: { x0: number; x1: number; z0: number; z1: number }, b: typeof a) => a.x1 <= b.x0 + 1e-6 || b.x1 <= a.x0 + 1e-6 || a.z1 <= b.z0 + 1e-6 || b.z1 <= a.z0 + 1e-6
-    zs.forEach((z, i) => {
-      zs.forEach((o, k) => { if (k !== i) assert.ok(apart(z!, o!), `${f}: zones ${i} and ${k} apart`) })
-      others.forEach((o, k) => { if (k !== i) assert.ok(apart(z!, o), `${f}: zone ${i} clear of thing ${k}`) })
-    })
-    assert.ok(g.floor, 'both samples bring a floor of their own')
-    assert.equal(g.base, null, 'so no other base is drawn')
-    const floor = g.floorTo ?? l.floor!.rect
-    for (const z of zs) assert.ok(z!.x0 >= floor.x0 - 1e-6 && z!.x1 <= floor.x1 + 1e-6 && z!.z0 >= floor.z0 - 1e-6 && z!.z1 <= floor.z1 + 1e-6, `${f}: zone on the floor`)
+  assert.deepEqual(how(k), { grill: 'side', 'prep line': 'side', 'wrap station': 'side', register: 'side' })
+  assert.deepEqual(how(h), { phone: 'float', router: 'float', 'telephone pole': 'float', exchange: 'side', server: 'side' })
+  for (const l of [k, h]) {
+    const g = framed(l)
+    assert.equal('zones' in g, false, 'no area under any part')
+    for (const s of g.sides!) if (s) assert.equal(s.size, SIDE.size, 'never drawn smaller')
   }
 })
 
-test('the kitchen\'s own floor grows to hold its zones; the house\'s already does', async () => {
-  const k = framed(await load('kitchen.glb')), h = framed(await load('house.glb'))
-  assert.ok(k.floorTo, 'the kitchen\'s floor is grown')
-  const was = k.floor!.rect, to = k.floorTo!
-  assert.ok(to.x0 <= was.x0 && to.x1 >= was.x1 && to.z0 <= was.z0 && to.z1 >= was.z1, 'never smaller')
-  assert.ok(to.z1 > was.z1, 'at the front, for the register')
-  assert.equal(h.floorTo, null)
+test('the grill\'s name is on its counter, not its hood', async () => {
+  const k = await load('kitchen.glb'), g = framed(k)
+  const grill = k.parts[0], s = g.sides![0]!
+  assert.ok(grill.body.y1 < 1.5, 'the body is the counter, below the hood')
+  for (const f of s.faces) assert.ok(f.at[1] > grill.body.y0 && f.at[1] < grill.body.y1, 'written on the counter\'s height')
 })
 
-test('a model with no floor of its own gets a base only where a zone runs past the model; the fit frames it', async () => {
+// the floor as framed: grown, or as it was
+const floorOf = (l: StageModel) => framed(l).floorTo ?? l.floor!.rect
+const padded = (l: StageModel, f = floorOf(l)) => [...l.parts.map(footprint), ...(l.blockers ?? []).filter(b => b.part < 0)]
+  .every(r => r.x0 >= f.x0 + FLOOR_PAD - 1e-6 && r.x1 <= f.x1 - FLOOR_PAD + 1e-6 && r.z0 >= f.z0 + FLOOR_PAD - 1e-6 && r.z1 <= f.z1 - FLOOR_PAD + 1e-6)
+
+test('the model\'s own floor keeps an even padding round everything on it: the kitchen\'s grows where the grill hangs off it, never smaller', async () => {
+  for (const f of ['kitchen.glb', 'house.glb']) {
+    const l = await load(f)
+    assert.ok(l.floor, `${f} brings a floor of its own`)
+    assert.ok(padded(l), `${f}: everything on the floor has the padding`)
+  }
+  const k = await load('kitchen.glb'), g = framed(k)
+  const was = k.floor!.rect, to = g.floorTo!
+  assert.ok(to, 'the kitchen\'s floor is grown')
+  assert.ok(footprint(k.parts[0]).x0 < was.x0, 'the sample\'s grill hangs off the left edge')
+  assert.ok(to.x0 <= was.x0 && to.x1 >= was.x1 && to.z0 <= was.z0 && to.z1 >= was.z1, 'never smaller')
+  assert.ok(Math.abs(footprint(k.parts[0]).x0 - FLOOR_PAD - to.x0) < 1e-6, 'the grill gets exactly the padding')
+  assert.ok(Math.abs(g.width * S - (to.x1 - to.x0)) < 1e-6 && Math.abs(g.height * S - (to.z1 - to.z0)) < 1e-6, 'the fit frames the grown floor')
+})
+
+test('a floor that already has the padding is left as it is; a model with no floor gets none', async () => {
   const l = await load('kitchen.glb')
-  const g = framed({ ...l, floor: null })
-  assert.ok(g.base)
-  for (const z of g.zones!) if (z) assert.ok(z.x0 >= g.base!.x0 - 1e-6 && z.x1 <= g.base!.x1 + 1e-6 && z.z0 >= g.base!.z0 - 1e-6 && z.z1 <= g.base!.z1 + 1e-6)
-  assert.ok(g.width >= l.width && g.height >= l.height)
+  const roomy = { x0: -50, x1: 50, z0: -50, z1: 50 }
+  assert.equal(framed({ ...l, floor: { ...l.floor!, rect: roomy } }).floorTo, null)
+  const bare = framed({ ...l, floor: null })
+  assert.equal(bare.floorTo, null)
+  assert.ok(Math.abs(bare.width - l.width) < 1e-6 && Math.abs(bare.height - l.height) < 1e-6, 'framed as the model')
 })
 
 test('the fit leaves room above the model for its floating names', async () => {
@@ -166,8 +172,8 @@ test('a named empty node is a part where it stands: a point, its name floating o
   for (const v of [l.width, l.height, l.tall, door.cx, door.cz, door.top, ...Object.values(door.body)]) assert.ok(Number.isFinite(v), 'every number finite')
   assert.ok(Math.abs(door.cx - 3.5 - (l.parts[0].cx + 4.2)) < 1e-6 && door.w === 0 && door.h === 0, 'at its own place, no footprint')
   const g = framed(l)
-  assert.ok([g.width, g.height, g.reach!, ...Object.values(g.zones![1] ?? {}).filter(v => typeof v === 'number')].every(Number.isFinite))
-  assert.deepEqual(how(l), { grill: 'zone', door: 'float' })
+  assert.ok([g.width, g.height, g.reach!, ...Object.values(g.floorTo ?? {})].every(Number.isFinite))
+  assert.deepEqual(how(l), { grill: 'side', door: 'float' })
   assert.ok(!(l.blockers ?? []).some(b => b.part === 1), 'no shape stands in the way')
 })
 

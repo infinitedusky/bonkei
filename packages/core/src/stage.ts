@@ -11,7 +11,7 @@ import type { Mode, Upright } from './camera.ts'
 import { S } from './scale.ts'
 import { withSpan } from './telemetry.ts'
 import { normaliseName } from './names.ts'
-import { framed, type SideName, type Zone } from './stageZones.ts'
+import { framed, type SideName } from './stageZones.ts'
 
 export { framed }
 
@@ -29,10 +29,8 @@ export interface StageLayout {
   parts: StagePart[]
   blockers?: { x0: number; x1: number; z0: number; z1: number; h: number; part: number }[] // what stands on the floor (parts, and each mesh of an unnamed object, 0.3 high or more): world footprints, height, and the part's index (-1: unnamed)
   floor?: { group: THREE.Object3D; rect: { x0: number; x1: number; z0: number; z1: number } } | null // the model's own floor (its largest flat mesh at ground level), under a group the scene stretches to grow it; null: the model has none
-  floorTo?: { x0: number; x1: number; z0: number; z1: number } | null // the floor as grown to hold the zones (stageZones.ts framed); null: as it is
-  zones?: (Zone | null)[] // each part's zone; null: no clear place for one
-  sides?: (SideName | null)[] // a part whose name is not on its zone: the name written on its own sides, if it fits there
-  base?: { x0: number; x1: number; z0: number; z1: number } | null // a floor in the theme's style, only for a model with no floor of its own, when a zone runs past the model
+  floorTo?: { x0: number; x1: number; z0: number; z1: number } | null // the floor as grown to keep an even padding round everything on it (stageZones.ts framed); null: as it is
+  sides?: (SideName | null)[] // each part's name written on its own sides; null: they are too small for it, and it floats
   reach?: number // how high the model and its tallest floating name reach, world units
   upright?: Upright[] // each floating name's column of letters, which faces the camera: where it stands and how tall it is (stageZones.ts framed)
   ox?: number; oz?: number // where the model and its names are moved to centre the whole on the origin
