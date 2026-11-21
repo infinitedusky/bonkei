@@ -441,3 +441,88 @@ export const RenderCrash: Story = {
     )
   },
 }
+
+// ---- Stages (BON-253) ----
+// The sample models are made up, written by apps/playground/scripts/make-stages.mjs and served at /stages/.
+const stage = (file: string) => `---\nconfig:\n  bonkei:\n    stage: ${file}\n---\n`
+const KITCHEN = stage('stages/kitchen.glb')
+
+/** A made-up kitchen as a stage: a zone under each part; prep line and register named on their zones, grill and wrap station on their own sides; the unnamed fridge has none. */
+export const Stage: Story = {
+  render: () => {
+    const { log, cbs } = useSpy()
+    return (
+      <div style={page}>
+        <Box label="a kitchen with a grill, prep line, register and wrap station" h={460}>
+          <Bonkei source={KITCHEN} onError={cbs.onError} onWarning={cbs.onWarning} onReady={r => { cbs.onReady(r); cbs.onWarning({ kind: 'stage', line: 0, message: `parts: ${r.stage?.parts.map(p => p.name).join(', ')}` }) }} />
+        </Box>
+        <Spy log={log} />
+      </div>
+    )
+  },
+}
+
+/** A made-up house and phone line, in flat: exchange and server named on their zones; phone, router and telephone pole float over the walls with a line down. */
+export const StageHouseFlat: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label="a house, a telephone pole, an exchange and a server" h={460}><Bonkei source={stage('stages/house.glb')} mode="flat" /></Box>
+    </div>
+  ),
+}
+
+/** The `stage` prop over the frontmatter, opening in 3D, where drag turns the view and Shift-drag pans. */
+export const StageFromProp3d: Story = {
+  render: () => (
+    <div style={page}>
+      <Box label='the kitchen, stage="stages/kitchen.glb" mode="3d"' h={460}><Bonkei source="" stage="stages/kitchen.glb" mode="3d" /></Box>
+    </div>
+  ),
+}
+
+/** Two parts named alike ("grill" and "Grill"): both drawn, one stage warning. */
+export const StageNamesAlike: Story = {
+  render: () => {
+    const { log, cbs } = useSpy()
+    return (
+      <div style={page}>
+        <Box label="a kitchen with two parts named grill" h={420}><Bonkei source={stage('stages/duplicate.glb')} onWarning={cbs.onWarning} /></Box>
+        <Spy log={log} />
+      </div>
+    )
+  },
+}
+
+/** Each way a stage can fail shows the error card with a readable message, never a blank screen. */
+export const StageErrors: Story = {
+  render: () => {
+    const cases: [string, string][] = [
+      ['a model whose top-level objects have no names', 'stages/blob.glb'],
+      ['a file that is not there', 'stages/kichen.glb'],
+      ['a text file, not a glTF', 'stages/not-a-model.glb'],
+      ['a model with Draco compression', 'stages/kitchen-draco.glb'],
+      ['a model on another site that does not allow it (CORS)', 'https://example.com/kitchen.glb'],
+    ]
+    return (
+      <div style={page}>
+        {cases.map(([label, file]) => <Box key={file} label={label} h={200}><Bonkei source={stage(file)} /></Box>)}
+      </div>
+    )
+  },
+}
+
+/** A bad address while editing keeps the last stage drawn, with the "Not updated" strip. */
+export const StageUpdateError: Story = {
+  render: () => {
+    const [src, setSrc] = useState(KITCHEN)
+    return (
+      <div style={page}>
+        <div>
+          <button style={btn} onClick={() => setSrc(stage('stages/kitche.glb'))}>mistype the address</button>
+          <button style={btn} onClick={() => setSrc(KITCHEN)}>fix</button>
+        </div>
+        <Box label="the kitchen, then a mistyped address" h={420}><Bonkei source={src} /></Box>
+      </div>
+    )
+  },
+}
