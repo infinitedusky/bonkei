@@ -21,7 +21,7 @@ test('normaliser: case, spaces, underscores and dashes are the same; the ends do
 test('the kitchen: four top-level named parts, labelled as written, pieces and the unnamed fridge not parts', async () => {
   assert.deepEqual(await labels('kitchen.glb'), ['grill', 'prep line', 'wrap station', 'register'])
   const k = (await loadStage('/stages/kitchen.glb', undefined, serve())).layout
-  assert.equal(k.parts.find(p => p.label === 'grill')!.pieces, 5)
+  assert.equal(k.parts.find(p => p.label === 'grill')!.pieces, 6)
   assert.ok(k.width > 0 && k.height > 0)
 })
 
@@ -81,20 +81,21 @@ const how = (l: Awaited<ReturnType<typeof loadStage>>['layout'], mode: 'auto' | 
   return Object.fromEntries(l.parts.map((p, i) => [p.label, g.zones![i]?.title ? 'floor' : g.sides![i] ? 'side' : 'float']))
 }
 
-test('auto: a name goes on its zone floor at one size if it fits, else on the part\'s sides, else floats', async () => {
+test('auto: `auto` writes a name on the part\'s sides if it fits, else floats, with no areas', async () => {
   const k = (await loadStage('/stages/kitchen.glb', undefined, serve())).layout, h = (await loadStage('/stages/house.glb', undefined, serve())).layout
   for (const l of [k, h]) for (const z of framed(l, 'auto').zones!) if (z?.title) assert.equal(z.title.size, FLOOR_SIZE)
-  assert.deepEqual(how(k), { grill: 'side', 'prep line': 'floor', 'wrap station': 'side', register: 'floor' })
-  assert.deepEqual(how(h), { phone: 'float', router: 'float', 'telephone pole': 'float', exchange: 'floor', server: 'floor' })
+  assert.deepEqual(how(k), { grill: 'side', 'prep line': 'side', 'wrap station': 'side', register: 'side' })
+  assert.deepEqual(how(h), { phone: 'float', router: 'float', 'telephone pole': 'float', exchange: 'side', server: 'side' })
+  for (const l of [k, h]) assert.ok(framed(l, 'auto').zones!.every(z => z === null), 'no areas in auto')
 })
 
 test('zones never overlap each other or another part, and the model\'s own floor is the one grown to hold them', async () => {
-  for (const f of ['kitchen.glb', 'house.glb']) for (const mode of ['auto'] as const) { // (`zone`, the Cloud Cartography way for comparison, draws a zone for every part even where none is clear)
+  for (const f of ['kitchen.glb', 'house.glb']) for (const mode of ['zone'] as const) { // (`zone`, the Cloud Cartography way, is the one with areas: where it has a clear place it overlaps nothing)
     const l = (await loadStage(`/stages/${f}`, undefined, serve())).layout
     const g = framed(l, mode), zs = g.zones!
     zs.forEach((z, i) => {
       if (!z) return
-      assert.ok(z.clear, `${f} ${mode} ${l.parts[i].label} has a clear place`)
+      if (!z.clear) return // (`zone` draws the least bad place for a part with none)
       zs.forEach((o, k) => { if (o && k !== i) assert.ok(z.x1 <= o.x0 + 1e-6 || o.x1 <= z.x0 + 1e-6 || z.z1 <= o.z0 + 1e-6 || o.z1 <= z.z0 + 1e-6, `${f} ${mode}: zones ${i} and ${k} apart`) })
       l.parts.forEach((p, k) => { if (k !== i) assert.ok(z.x1 <= p.cx - p.w / 80 + 1e-6 || p.cx + p.w / 80 <= z.x0 + 1e-6 || z.z1 <= p.cz - p.h / 80 + 1e-6 || p.cz + p.h / 80 <= z.z0 + 1e-6, `${f} ${mode}: zone ${i} clear of part ${k}`) })
     })

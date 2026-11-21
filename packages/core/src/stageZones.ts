@@ -106,6 +106,8 @@ export function solveNames(layout: StageLayout, mode: StageLabelMode): { zones: 
     void cx; void cz
     return null
   }
+  // `auto`: the name written on the part's own sides, else floating; no area under anything (the person's rule: write on the sides, get rid of the areas)
+  if (mode === 'auto') return { zones: layout.parts.map(() => null), sides: layout.parts.map((p, i) => onSide(p, i)) }
   layout.parts.forEach((p, i) => {
     const fw = p.w * S, fd = p.h * S
     const free = (rect: Rect) => !solid.some((b, k) => k !== i && overlap(rect, b)) && !placed.some(r => overlap(rect, r))
@@ -143,7 +145,7 @@ export function solveNames(layout: StageLayout, mode: StageLabelMode): { zones: 
       zone ??= make(ZONE_MARGINS[ZONE_MARGINS.length - 1], 'front', fit)
     }
     // else (in `auto`) on the part's own sides, else floating; every part keeps its area, a zone without a title (the largest margin that overlaps nothing)
-    const side = zone || mode !== 'auto' ? null : onSide(p, i)
+    const side = null
     let bare: Zone | null = null
     if (!zone) for (const m of ZONE_MARGINS) { if (!bare) { const zn = make(m, 'front', null); if (zn.clear) bare = zn } }
     const chosen = zone ?? bare
@@ -180,8 +182,8 @@ export function framed(layout: StageLayout, mode: StageLabelMode): StageLayout {
       base = grow(model, need); ext = base
     }
   }
-  // floating names (a small part's in `auto`, every part's in `sign` and `diamond`) stand up to a column of letters above the part: the fit leaves room
-  const floats = layout.parts.filter((p, i) => mode === 'sign' || mode === 'diamond' || (mode === 'auto' && zones[i] === null && sides[i] === null))
+  // floating names (in `auto` every part's, from above where its sides cannot be seen; every part's in `sign` and `diamond`) stand up to a column of letters above the part: the fit leaves room
+  const floats = layout.parts.filter((p, i) => mode === 'sign' || mode === 'diamond' || (mode === 'auto' && zones[i] === null))
   const reach = Math.max(layout.tall, ...floats.map(p => p.top + 1.9 + Math.min(4, [...p.label].length * 0.36)))
   const ox = -(ext.x0 + ext.x1) / 2, oz = -(ext.z0 + ext.z1) / 2
   const width = (ext.x1 - ext.x0) / S, height = (ext.z1 - ext.z0) / S

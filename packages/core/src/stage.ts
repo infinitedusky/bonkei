@@ -12,7 +12,7 @@ export { normaliseName }
 /** A named top-level object of the model, as laid out: `x`, `y`, `w`, `h` are its footprint in layout px (top-left, like a box), `top` its height in world units. */
 /** The part's body: its mesh of the largest volume (the grill's counter, not the hood over it; the exchange's walls, not its roof), where a name written on the part's own sides goes. */
 export interface PartBody { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number }
-export interface StagePart { id: string; label: string; x: number; y: number; w: number; h: number; top: number; cx: number; cz: number; pieces: number; body: PartBody; solids: PartBody[] }
+export interface StagePart { id: string; label: string; x: number; y: number; w: number; h: number; top: number; cx: number; cz: number; pieces: number; body: PartBody; solids: PartBody[]; bodyColor: number }
 export interface StageLayout {
   kind: 'stage'; width: number; height: number
   model: THREE.Object3D // the scene, its footprint centred on the origin
@@ -114,15 +114,16 @@ export async function loadStage(url: string, parent?: Span, fetcher: typeof fetc
         const b = new THREE.Box3().setFromObject(p.object)
         const c = b.getCenter(new THREE.Vector3())
         const solids: PartBody[] = []
+        let bodyColor = 0xcccccc
         let body: PartBody = { x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z, y0: b.min.y, y1: b.max.y }, bodyArea = -1
         p.object.traverse(m => {
           if (!(m as THREE.Mesh).isMesh) return
           const mb = new THREE.Box3().setFromObject(m)
           solids.push({ x0: mb.min.x, x1: mb.max.x, z0: mb.min.z, z1: mb.max.z, y0: mb.min.y, y1: mb.max.y })
           const area = (mb.max.x - mb.min.x) * (mb.max.z - mb.min.z) * (mb.max.y - mb.min.y)
-          if (area > bodyArea + 1e-6) { bodyArea = area; body = { x0: mb.min.x, x1: mb.max.x, z0: mb.min.z, z1: mb.max.z, y0: mb.min.y, y1: mb.max.y } }
+          if (area > bodyArea + 1e-6) { bodyArea = area; const mat = Array.isArray((m as THREE.Mesh).material) ? ((m as THREE.Mesh).material as THREE.Material[])[0] : (m as THREE.Mesh).material as THREE.Material; bodyColor = (mat as THREE.MeshStandardMaterial).color?.getHex() ?? bodyColor; body = { x0: mb.min.x, x1: mb.max.x, z0: mb.min.z, z1: mb.max.z, y0: mb.min.y, y1: mb.max.y } }
         })
-        return { id: `${i}:${p.name}`, label: p.name, x: b.min.x / S, y: b.min.z / S, w: (b.max.x - b.min.x) / S, h: (b.max.z - b.min.z) / S, top: b.max.y, cx: c.x, cz: c.z, pieces: p.pieces, body, solids }
+        return { id: `${i}:${p.name}`, label: p.name, x: b.min.x / S, y: b.min.z / S, w: (b.max.x - b.min.x) / S, h: (b.max.z - b.min.z) / S, top: b.max.y, cx: c.x, cz: c.z, pieces: p.pieces, body, solids, bodyColor }
       })
       // frameOf wants x, y in the layout's own corner-origin px: shift world coords by half the footprint
       for (const p of parts) { p.x += width / 2; p.y += height / 2 }

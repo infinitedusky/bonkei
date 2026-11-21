@@ -18,6 +18,7 @@ const KITCHEN = {
       { name: 'griddle', x: -4.2, z: -2.4, w: 2.8, d: 1.2, h: 0.06, y: 0.9, color: DARK },
       { name: 'patty', x: -4.9, z: -2.5, w: 0.4, d: 0.4, h: 0.08, y: 0.96, color: '#6b3b22' },
       { name: 'patty.001', x: -4.3, z: -2.3, w: 0.4, d: 0.4, h: 0.08, y: 0.96, color: '#6b3b22' },
+      { name: 'flue', x: -4.2, z: -2.9, w: 0.4, d: 0.4, h: 1.1, y: 0.9, color: STEEL }, // holds the hood up: it stands on the grill
       { name: 'hood', x: -4.2, z: -2.9, w: 3.2, d: 0.6, h: 0.3, y: 2.0, color: STEEL },
     ] },
     { name: 'prep line', pieces: [

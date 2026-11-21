@@ -139,13 +139,22 @@ function Diamond({ p, i, letters }: { p: StagePart; i: number; letters: Letters 
 // A name written on the part's own front and back faces, in the zone title's lettering and colour, one size for every part.
 function SideText({ p, i, s }: { p: StagePart; i: number; s: SideName }) {
   const th = useTheme()
-  const color = th.tray.zones[i % th.tray.zones.length]
+  const zone = th.tray.zones[i % th.tray.zones.length]
   const font = fontOf(th.tray.groundFont ?? 'archivo')
   const text = s.lines.join('\n')
-  const common = { font, fontSize: s.size, lineHeight: 1.1, textAlign: 'center' as const, anchorX: 'center' as const, anchorY: 'middle' as const, color: '#ffffff', letterSpacing: 0.04, outlineWidth: s.size * 0.09, outlineColor: mixc(color, '#000000', 0.55), layers: TEXT_LAYER as any }
+  // white letters with a dark drop shadow (a darkened copy a hair lower and to the side, behind): they read on any colour of part, and the shadow gives them a little depth
+  const face = '#ffffff'
+  const edge = mixc(zone, '#000000', 0.72)
+  const depth = s.size * 0.09
+  const common = { font, fontSize: s.size, lineHeight: 1.1, textAlign: 'center' as const, anchorX: 'center' as const, anchorY: 'middle' as const, letterSpacing: 0.04, layers: TEXT_LAYER as any }
   return (
     <>
-      {s.faces.map((f, k) => <Text key={k} {...common} position={f.at} rotation={[0, f.rot, 0]}>{text}</Text>)}
+      {s.faces.map((f, k) => (
+        <group key={k} position={f.at} rotation={[0, f.rot, 0]}>
+          <Text {...common} color={edge} position={[depth, -depth, -0.004]}>{text}</Text>
+          <Text {...common} color={face} position={[0, 0, 0.002]}>{text}</Text>
+        </group>
+      ))}
     </>
   )
 }
