@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, createContext, lazy, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute, trimToIcons, PAD, GROUND_ROOM } from './layout'
@@ -9,6 +9,7 @@ import { instant } from './telemetry'
 import { createCamera, biggestTray, contentOf, frameOf, PRESET, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
+import type { StageLayout } from './stage'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
 import { CLASSIC, inkPx, type Theme } from './theme'
@@ -21,6 +22,11 @@ import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gest
 import { Gate, HINT_MS, clipRadii, inScroller } from './hold'
 import type { NodeClick, ResolvedControls } from './options'
 
+// the stage's drawing is a chunk of its own, fetched with the first stage
+const StageScene = lazy(() => import('./StageScene').then(m => ({ default: m.StageScene })))
+// The room a stage's fit leaves above its floor: the theme's, and as much again as the model and its floating names stand tall
+// (the fit is centred on the floor, so what stands up would be cut off the top of the view if it counted only once).
+const stageTop = (th: Theme, d: StageLayout) => headroom(th) + 1.4 * (d.reach ?? d.tall)
 const LIGHT_TILTED = new THREE.Vector3(10, 18, 7) // iso and 3D
 const LIGHT_FLAT = new THREE.Vector3(21.8 * Math.sin(Math.PI / 36), 21.8 * Math.cos(Math.PI / 36), 0) // flat: 5 degrees off straight overhead, same distance
 
@@ -439,8 +445,8 @@ function NodeLift({ pos, hover, children, onDown, onClick, onOver, onOut }: { po
 // On the first frame drawn with each new `data`. The camera's first layout ever is framed (with the real aspect, known only once
 // the canvas has a size) and snapped to. Every later one (a new source, a new theme, another avoid-crossings level) keeps the view:
 // same pose, same tray flown into, lined up on what is on screen (camera.relayout, BON-195). Then it is reported once.
-function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: LayoutResult | SeqLayout | null; onFirstFrame?: () => void; top: number }) {
-  const seen = useRef<LayoutResult | SeqLayout | null>(null)
+function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: LayoutResult | SeqLayout | StageLayout | null; onFirstFrame?: () => void; top: number }) {
+  const seen = useRef<LayoutResult | SeqLayout | StageLayout | null>(null)
   const cb = useRef(onFirstFrame)
   cb.current = onFirstFrame
   useFrame(({ size }) => {
@@ -475,7 +481,7 @@ function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: Layou
 export interface EdgeStats extends Stats { trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; quality: RouteQuality }
 
 export interface SceneViewProps {
-  data: LayoutResult | SeqLayout | null
+  data: LayoutResult | SeqLayout | StageLayout | null
   labelMode: LabelMode
   mode: Mode
   /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
@@ -546,14 +552,16 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
     <div ref={box} data-bonkei-scene="" onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
-        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={headroom(theme)} />
+        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={data && 'kind' in data && data.kind === 'stage' ? stageTop(theme, data) : headroom(theme)} />
         {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
             and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
         <GateCtx.Provider value={gate}><InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
           <ToneSetup />
           <Rig cam={c} fpsRef={fpsRef} />
           {data && ('kind' in data
-            ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
+            ? data.kind === 'stage'
+              ? <Env cam={c} controls={ctl}><Suspense fallback={null}><StageScene data={data} mode={mode} /></Suspense></Env>
+              : <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
             : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
         </ThemeProvider></InkCtx.Provider></GateCtx.Provider>
       </Canvas>

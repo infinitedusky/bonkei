@@ -22,8 +22,8 @@ test('importing bonkei and bonkei/internal runs nothing: no fetch, no ELK, no wa
   globalThis.fetch = (...a) => { fetched.push(String(a[0])); return real(...a) }
   try {
     const m = await import(new URL('index.js', dist).href)
-    // the theme exports are BON-116's public API, with BLUEPRINT (BON-234) and CLOUD_CARTOGRAPHY (BON-235)
-    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'CLOUD_CARTOGRAPHY', 'THEME_NAMES', 'isBonkeiError', 'render'])
+    // the theme exports are BON-116's public API, with BLUEPRINT (BON-234) and CLOUD_CARTOGRAPHY (BON-235); normaliseName matches a stage's part names (BON-253)
+    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'CLOUD_CARTOGRAPHY', 'THEME_NAMES', 'isBonkeiError', 'normaliseName', 'render'])
     const i = await import(new URL('internal.js', dist).href)
     assert.equal(i.avoidLoaded(), null, 'the wasm is not loaded on import')
   } finally { globalThis.fetch = real }
@@ -34,6 +34,16 @@ test('ELK is only ever a dynamic import, so a host bundler puts it in a chunk of
   const all = esm.map(read).join('\n')
   assert.match(all, /import\("elkjs\/lib\/elk\.bundled\.js"\)/)
   assert.doesNotMatch(all, /from\s*"elkjs/, 'no static import of elkjs')
+})
+
+test('a stage\'s code and three\'s GLTFLoader are only ever dynamic imports, so a page without a stage fetches none of them (BON-253)', () => {
+  const all = esm.map(read).join('\n')
+  assert.match(all, /import\("three\/examples\/jsm\/loaders\/GLTFLoader\.js"\)/)
+  assert.doesNotMatch(all, /from\s*"three\/examples\/jsm\/loaders\/GLTFLoader/, 'no static import of the loader')
+  for (const chunk of ['stage', 'StageScene']) {
+    assert.match(all, new RegExp(`import\\("\\./${chunk}-[\\w-]+\\.js"\\)`), `${chunk} is imported dynamically`)
+    assert.doesNotMatch(all, new RegExp(`from\\s*"\\./${chunk}-`), `no static import of ${chunk}`)
+  }
 })
 
 test('the wasm sits beside the modules as a real file, found by the pattern bundlers turn into an asset', () => {

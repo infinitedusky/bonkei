@@ -15,7 +15,7 @@ import { pickCorner, titleWidth, offTitleWidth, groundTitle, groundWidth, GROUND
 export { S, TRAY, NODE_H }
 
 
-function rounded(w: number, h: number, r: number) {
+export function rounded(w: number, h: number, r: number) {
   const s = new THREE.Shape(), x = -w / 2, y = -h / 2
   s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r)
   s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
@@ -166,7 +166,7 @@ export function Label({ text, mode, y, size, maxWidth, left = false, right = fal
   return <Billboard position={[0, y + 0.45, 0]}>{body}</Billboard>
 }
 
-const mixc = (a: string, b: string, t: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString()
+export const mixc = (a: string, b: string, t: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString()
 
 export function Tray({ b, labelMode, hover = false, slots = [], kids = [], zone }: { b: Box; labelMode: LabelMode; hover?: boolean; slots?: { x0: number; x1: number; z0: number; z1: number }[]; kids?: Rect[]; zone?: { color: string; nested: boolean } }) {
   const th = useTheme()
