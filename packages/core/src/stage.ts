@@ -3,13 +3,14 @@
 // Decisions: LOG.md, "A stage from a 3D model (BON-253)".
 import * as THREE from 'three'
 import { SpanStatusCode, type Span } from '@opentelemetry/api'
-import type { BonkeiError, BonkeiWarning } from './options.ts'
+import type { BonkeiError, BonkeiWarning, Frontmatter } from './options.ts'
+import type { Drawn } from './diagram.ts'
 import { S } from './scale.ts'
 import { withSpan } from './telemetry.ts'
 import { normaliseName } from './names.ts'
-import type { SideName, Zone } from './stageZones.ts'
+import { framed, type SideName, type Zone } from './stageZones.ts'
 
-export { framed } from './stageZones.ts'
+export { framed }
 
 /** A box in world units: a part's body or one of its meshes. */
 export interface PartBody { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number }
@@ -170,4 +171,20 @@ export async function loadStage(url: string, parent?: Span, fetcher: typeof fetc
   }, parent)
   if ('error' in out) throw out.error
   return out.ok
+}
+
+/**
+ * A stage drawn for prepare (diagram.ts): the model at `url`, its parts named (stageZones.ts). `fm` is the frontmatter of a text source
+ * (absent: a graph source); `src` that text when the address came from its frontmatter, so a failure names the stage line. Only the
+ * stage is drawn: a diagram written beside it (a graph always is) is not, and says so in a warning.
+ */
+export async function drawStage(url: string, warnings: BonkeiWarning[], span: Span, fm?: Frontmatter, src?: string): Promise<[Drawn, number]> {
+  span.setAttribute('bonkei.diagram', 'stage')
+  const beside = !fm ? 0 : fm.body.trim() ? fm.lineOffset + 1 : null
+  if (beside !== null) warnings.push({ kind: 'stage', message: 'a diagram drawn on a stage is not supported yet; showing the stage alone', line: beside })
+  const at = src === undefined || !fm ? -1 : src.split('\n').slice(0, fm.lineOffset).findIndex(l => /^\s*stage\s*:/.test(l))
+  const t0 = performance.now()
+  const s = await loadStage(url, span).catch((e: BonkeiError) => { throw at < 0 ? e : { ...e, line: at + 1 } })
+  warnings.push(...s.warnings)
+  return [{ data: framed(s.layout), stage: s.info, options: fm?.options ?? {}, theme: fm?.theme ?? {}, nodes: s.layout.parts.length, edges: 0, dropped: [], arcs: false }, performance.now() - t0]
 }

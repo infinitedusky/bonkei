@@ -233,8 +233,6 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
 
   // A string is its own key; a graph is keyed by structure, so an inline literal is stable. The stage prop is part of it.
   const key = useMemo(() => (typeof source === 'string' ? 's:' + source : 'g:' + stableStringify(source)) + (props.stage ? '|stage:' + props.stage : ''), [source, props.stage])
-  const stageRef = useRef(props.stage)
-  stageRef.current = props.stage
   const sourceRef = useRef(source)
   sourceRef.current = source
   const seq = useRef(0)
@@ -249,7 +247,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     let alive = true
     const accepted = performance.now()
     setStatus('loading')
-    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: themeRef.current, stage: stageRef.current }).then(p => {
+    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: themeRef.current, stage: props.stage }).then(p => {
       if (!alive || run !== seq.current) return
       acceptedAt.current = accepted
       setPrepared({ ...p, key })
@@ -285,7 +283,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   useEffect(() => { if (roomMade !== roomWanted) setRelayout(n => n + 1) }, [roomMade, roomWanted])
   // likewise for a look that draws dotted links as arcs: the layout leaves them out, so it is made again when the look changes to or from one
   const arcsWanted = theme.edge.dotted === 'arc'
-  const arcsMade = prepared && !('kind' in prepared.data && prepared.data.kind === 'stage') ? prepared.arcs : arcsWanted // a stage has no links
+  const arcsMade = prepared && (prepared.data as { kind?: string }).kind !== 'stage' ? prepared.arcs : arcsWanted // a stage has no links
   useEffect(() => { if (arcsMade !== arcsWanted) setRelayout(n => n + 1) }, [arcsMade, arcsWanted])
   // and for a look whose tray titles lie on the floor in front: the layout leaves room at the bottom of each tray for them
   const groundWanted = theme.tray.titles === 'ground'

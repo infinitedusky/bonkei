@@ -42,7 +42,7 @@ function fail(kind: BonkeiError['kind'], message: string, line?: number, text?: 
 const messageOf = (e: unknown) => e instanceof Error ? e.message : String(e)
 
 // What a source turned into, before it becomes a `Prepared`.
-interface Drawn {
+export interface Drawn {
   data: LayoutResult | SeqLayout | StageLayout
   stage?: Ready['stage']
   options: DiagramOptions
@@ -95,17 +95,8 @@ async function timedLayout<T>(parent: Span, run: () => T | Promise<T>): Promise<
   }
 }
 
-// A stage: the model at `url`, its parts named (stageZones.ts). The loading and naming code is a chunk of its own, fetched here, so a
-// diagram without a stage never fetches it. Only the stage is drawn: a diagram written beside it is not, and says so in a warning.
-async function fromStage(url: string, warnings: BonkeiWarning[], span: Span, options: DiagramOptions, theme: ThemeRequest, beside: number | null, line?: number): Promise<[Drawn, number]> {
-  span.setAttribute('bonkei.diagram', 'stage')
-  if (beside !== null) warnings.push({ kind: 'stage', message: 'a diagram drawn on a stage is not supported yet; showing the stage alone', line: beside })
-  const t0 = performance.now()
-  const { loadStage, framed } = await import('./stage.ts')
-  const s = await loadStage(url, span).catch((e: BonkeiError) => { throw line === undefined ? e : { ...e, line } })
-  warnings.push(...s.warnings)
-  return [{ data: framed(s.layout), stage: s.info, options, theme, nodes: s.layout.parts.length, edges: 0, dropped: [], arcs: false }, performance.now() - t0]
-}
+// A stage: everything it takes is in stage.ts (drawStage), a chunk of its own fetched here, so a diagram without a stage never fetches it.
+const fromStage = async (...a: Parameters<typeof import('./stage.ts').drawStage>) => (await import('./stage.ts')).drawStage(...a)
 
 async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
   if (!src.trim() && !lo.stage) throw fail('parse', 'the diagram is empty')
@@ -118,11 +109,7 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   if (fm.theme.name !== undefined) span.setAttribute('bonkei.theme.requested', fm.theme.name)
   if (fm.theme.variables) span.setAttribute('bonkei.theme.variables', Object.keys(fm.theme.variables).length)
   const stage = lo.stage ?? fm.options.stage // props over frontmatter
-  if (stage) {
-    // a failure names the frontmatter's stage line when that is where the address came from
-    const at = lo.stage ? -1 : src.split('\n').slice(0, fm.lineOffset).findIndex(l => /^\s*stage\s*:/.test(l))
-    return fromStage(stage, warnings, span, fm.options, fm.theme, fm.body.trim() ? fm.lineOffset + 1 : null, at >= 0 ? at + 1 : undefined)
-  }
+  if (stage) return fromStage(stage, warnings, span, fm, lo.stage ? undefined : src)
   if (!fm.body.trim()) throw fail('parse', 'the diagram is empty after its frontmatter')
   if (isSeq(fm.body)) {
     span.setAttribute('bonkei.diagram', 'sequence')
@@ -141,7 +128,7 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
 }
 
 async function fromGraph(input: GraphInput, warnings: BonkeiWarning[], span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
-  if (lo.stage) return fromStage(lo.stage, warnings, span, {}, {}, 0)
+  if (lo.stage) return fromStage(lo.stage, warnings, span)
   span.setAttribute('bonkei.diagram', 'flowchart')
   if (typeof input !== 'object' || input === null) throw fail('graph', 'source must be Mermaid text or a graph')
   if (!Array.isArray(input.nodes) || !input.nodes.length) throw fail('graph', 'the graph has no nodes')

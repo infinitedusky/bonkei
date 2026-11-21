@@ -24,9 +24,6 @@ import type { NodeClick, ResolvedControls } from './options'
 
 // the stage's drawing is a chunk of its own, fetched with the first stage
 const StageScene = lazy(() => import('./StageScene').then(m => ({ default: m.StageScene })))
-// The room a stage's fit leaves above its floor: the theme's, and as much again as the model and its floating names stand tall
-// (the fit is centred on the floor, so what stands up would be cut off the top of the view if it counted only once).
-const stageTop = (th: Theme, d: StageLayout) => headroom(th) + 1.4 * (d.reach ?? d.tall)
 const LIGHT_TILTED = new THREE.Vector3(10, 18, 7) // iso and 3D
 const LIGHT_FLAT = new THREE.Vector3(21.8 * Math.sin(Math.PI / 36), 21.8 * Math.cos(Math.PI / 36), 0) // flat: 5 degrees off straight overhead, same distance
 
@@ -552,7 +549,9 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
     <div ref={box} data-bonkei-scene="" onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
-        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={data && 'kind' in data && data.kind === 'stage' ? stageTop(theme, data) : headroom(theme)} />
+        {/* a stage's fit leaves room above the floor for as much again as its model and floating names stand tall (stageZones.ts framed sets
+            reach; a diagram has none): the fit is centred on the floor, so what stands up would be cut off the top if it counted once */}
+        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={headroom(theme) + 1.4 * ((data as StageLayout | null)?.reach ?? 0)} />
         {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
             and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
         <GateCtx.Provider value={gate}><InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
