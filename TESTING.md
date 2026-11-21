@@ -360,3 +360,34 @@ Open `/`, scroll to **Use themes to see how far you can go**. The last button is
 ## 4. The docs
 
 `pnpm docs:dev`, **Themes**: the intro says five themes; the **Cloud Cartography** section's diagram is a map (zones named on the floor, cards, a `receipt` arc), and its tokens table lists `node.form` `icon`, `label.card`, `label.pill`, `tray.titles` `ground`, `tray.colorBy`, `edge.arrow` and `edge.dotted`. **Reference › Script tag** lists `cloud-cartography` as a `theme` value.
+
+# Manual test plan: a stage from a 3D model (BON-253)
+
+How to check by hand that a glTF model shows as a stage with its named parts marked, in every view and with the usual controls, and that every way a model can fail says so. The models are made-up samples written by `apps/playground/scripts/make-stages.mjs`. First run `pnpm --filter bonkei test`: `stage.test.ts` checks the parts, the names as written, the normaliser, where each name goes, that zones never overlap and lie on the floor, the grown floor, every error and the telemetry.
+
+## 1. The viewer: /app/
+
+Run the viewer (`pnpm dev`, or the smoke test's set-up) and open `/app/?sample=stage: kitchen` (or pick the sample from the menu). If the viewer's buttons cover the toolbar, widen the window.
+
+1. **The kitchen, iso.** The model draws on its own floor, a grey fridge at the left. Four parts have a shaded zone, each its own colour: **PREP LINE** and **REGISTER** lie in capitals on their zones; **GRILL** and **WRAP STATION** are written in white on the front of their counters. No name on the fridge, and none on the grill's pieces (griddle, hood, patties). No zone overlaps another or a counter; none hangs over the floor's edge (the floor reaches a little further at the front than the model's, for the register's zone). No name is smaller than the others of its kind.
+2. **Flat and 3D.** Press **Flat**: the same zones from above; GRILL and WRAP STATION now float over their parts, one letter under another, a thin line down to a ring. Press **3D**: the side names read on the counters.
+3. **Controls.** In each view: ⌘/Ctrl + scroll zooms, a background drag moves (in 3D it turns the view, ⇧ + drag moves), **Fit** brings back the whole stage with the hood and the floating names in view.
+4. **Stage parts.** The panel at the right lists `grill · 6 pieces`, `prep line · 3 pieces`, `wrap station · 1 piece`, `register · 1 piece`. Type `Prep Line`: only `prep line · 3 pieces` is left. Type `prep_line`: the same. Type `nothing`: `no part is called that`.
+5. **The house.** Pick **stage: house and phone line**, iso: **EXCHANGE** and **SERVER** lie on their zones; **phone**, **router** and **telephone pole** float above the walls, readable, each with a line down. The walls and the road have no name. Its floor is not grown.
+6. **A wrapper node.** **stage: inside a wrapper node**: the same five parts as the house.
+7. **Two parts named alike.** **stage: two parts named alike**: grill and Grill both drawn and named; the yellow warning at the bottom names both.
+8. **Each failure, never a blank screen.** Pick in turn **stage: no named parts** (`… none of its top-level objects has a name. Name them in your 3D tool …`), **stage: missing file** (`line 4: the stage stages/kichen.glb wasn't found …`), **stage: not a glTF**, **stage: Draco compression** (names `KHR_draco_mesh_compression`), **stage: KTX2 textures** (names `KHR_texture_basisu`), **stage: other site (CORS)**. Each shows the card **This stage couldn't be shown** with that message.
+9. **A bad address while editing.** Pick **stage: kitchen**, click **source**, change `kitchen.glb` to `kitche.glb`: the kitchen stays, with **Not updated** and the message at the bottom. Put the name back: the strip goes.
+10. **Nothing extra without a stage.** Open the developer tools' Network tab, pick **flow: small (sample.mmd)** and reload: no `stage-`, `stageZones-`, `StageScene-` or `GLTFLoader` request. Pick **stage: kitchen**: those, then `kitchen.glb` and `ArchivoBlack-latin.ttf`.
+
+## 2. Storybook
+
+**Components / Bonkei / Stage** (the kitchen; the spy lists onReady and the four parts), **Stage House Flat** (floating names over the house in flat), **Stage From Prop 3d** (the `stage` prop, opening in 3D), **Stage Names Alike** (one `stage` warning), **Stage Errors** (five error cards, each readable), **Stage Update Error** (mistype, then fix). **Components / Stage parts**: Kitchen, Found As Prep Line, Found As Prep Underscore Line (each leaves `prep line · 3 pieces`), Nothing Found, Many Parts (the list scrolls, the long name wraps).
+
+## 3. The docs
+
+`pnpm docs:dev`, **Stages from a 3D model**: the live kitchen draws as in section 1; **Options and frontmatter** has a `stage` row; **Errors and warnings** lists the `stage` kind.
+
+## 4. Size
+
+`pnpm size`: the main chunk within 202 kB; the stage, stage naming and stage drawing chunks within their own budgets; the script-tag bundle within 892 kB.
