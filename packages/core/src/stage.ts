@@ -7,7 +7,7 @@ import type { ComponentType } from 'react'
 import { SpanStatusCode, type Span } from '@opentelemetry/api'
 import type { BonkeiError, BonkeiWarning, Frontmatter } from './options.ts'
 import type { Drawn } from './diagram.ts'
-import type { Mode } from './camera.ts'
+import type { Mode, Upright } from './camera.ts'
 import { S } from './scale.ts'
 import { withSpan } from './telemetry.ts'
 import { normaliseName } from './names.ts'
@@ -34,6 +34,7 @@ export interface StageLayout {
   sides?: (SideName | null)[] // a part whose name is not on its zone: the name written on its own sides, if it fits there
   base?: { x0: number; x1: number; z0: number; z1: number } | null // a floor in the theme's style, only for a model with no floor of its own, when a zone runs past the model
   reach?: number // how high the model and its tallest floating name reach, world units
+  upright?: Upright[] // each floating name's column of letters, which faces the camera: where it stands and how tall it is (stageZones.ts framed)
   ox?: number; oz?: number // where the model and its names are moved to centre the whole on the origin
   tall: number // how high the model stands, world units
   url: string

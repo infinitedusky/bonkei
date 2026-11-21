@@ -4,6 +4,7 @@
 import { GROUND, groundWidth, type GroundFit } from './titles.ts'
 import { S } from './scale.ts'
 import type { PartBody, StageModel, StagePart } from './stage.ts'
+import type { Upright } from './camera.ts'
 
 /** The margins a zone may have round its part, world units, tried in turn: modest and even; smaller only where a neighbour is close. */
 export const ZONE_MARGINS = [0.5, 0.35, 0.2, 0.1]
@@ -25,8 +26,10 @@ export const SIDE = { size: 0.32, pad: 0.15, off: 0.012 }
 /** A floating name: its letter size (one for every part, never smaller for a long name) and how high over the part's top its column starts, world units. */
 export const FLOAT_SIZE = 0.36
 export const FLOAT_HOVER = 0.9
+/** A floating name's column of letters (StageScene): it starts this far over its part's top and stands this tall with a little to spare, facing the camera, world units. */
+const column = (label: string) => ({ foot: FLOAT_HOVER + 0.1, h: [...label.trim()].length * FLOAT_SIZE + 0.2 })
 /** How high a floating name reaches over its part's top, world units: the hover, then one letter under another (StageScene). */
-export const floatRoom = (label: string) => FLOAT_HOVER + 0.1 + [...label.trim()].length * FLOAT_SIZE + 0.2
+export const floatRoom = (label: string) => { const c = column(label); return c.foot + c.h }
 /** How far the floor behind a tall thing is hidden from the iso and 3D views (which look from the front right), as a multiple of its height. */
 const SHADOW = 1
 
@@ -158,7 +161,8 @@ export function solveNames(layout: StageModel): { zones: (Zone | null)[]; sides:
  * The stage as the camera frames it. Where a zone runs past the model's own floor, that floor (a flat mesh the scene stretches, with its own
  * material) is grown to hold every zone with FLOOR_MARGIN to spare; a model with no floor of its own gets one in the theme's style, `base`,
  * only when a zone runs past the model. The whole is centred on the origin (`ox`, `oz` move the model and its names there), the layout's
- * width and height are those of the grown floor, so fit, pan and zoom frame it, and `reach` is how high the tallest floating name stands.
+ * width and height are those of the grown floor, so fit, pan and zoom frame it, `reach` is how high the tallest floating name stands, and
+ * `upright` where each floating name's column of letters stands (it faces the camera, so a flat or iso fit counts it whole).
  */
 export function framed(layout: StageModel): StageModel {
   const hw = (layout.width * S) / 2, hd = (layout.height * S) / 2
@@ -183,5 +187,6 @@ export function framed(layout: StageModel): StageModel {
   const ox = -(ext.x0 + ext.x1) / 2, oz = -(ext.z0 + ext.z1) / 2
   const width = (ext.x1 - ext.x0) / S, height = (ext.z1 - ext.z0) / S
   const parts = layout.parts.map(p => ({ ...p, x: (p.cx + ox) / S + width / 2 - p.w / 2, y: (p.cz + oz) / S + height / 2 - p.h / 2 }))
-  return { ...layout, width, height, parts, zones, sides, floorTo, base, reach, ox, oz }
+  const upright = floats.map((p): Upright => { const c = column(p.label); return { x: p.cx + ox, y: p.top + c.foot, z: p.cz + oz, h: c.h } })
+  return { ...layout, width, height, parts, zones, sides, floorTo, base, reach, upright, ox, oz }
 }

@@ -7,7 +7,7 @@
 - **Stories**: Components / Bonkei / Stage, Stage House Flat, Stage From Prop 3d, Stage Names Alike, Stage Errors, Stage Update Error; Components / Stage parts (Kitchen, Found As Prep Line, Found As Prep Underscore Line, Nothing Found, Many Parts). Storybook serves `public/stages` at `/stages`.
 - **Tests**: `packages/core/src/stage.test.ts`: the parts of each sample, names as written, pieces not parts, the wrapper, names alike, the normaliser, each error, the frontmatter key and the error's line, where each name goes on the kitchen and the house, zones apart and on the floor, the grown floor, a base for a model without a floor, the headroom, and the telemetry (a reason word, never the address).
 - **Telemetry**: `bonkei.stage.load` and `bonkei.stage.loader.load` spans; `bonkei.prepare` says `bonkei.diagram: stage`.
-- **Size**: main chunk 201.38 kB (201.10 on main; budget 202, unchanged); `stage-*` 7.4, `StageScene-*` 2.3 kB, each with its own budget; the script-tag bundle 890.2 kB, its budget raised from 880 to 892 kB (one file holds the loader and the stage code).
+- **Size**: main chunk 201.50 kB (201.10 on main; budget 202, unchanged); `stage-*` 7.4, `StageScene-*` 2.3 kB, each with its own budget; the script-tag bundle 890.2 kB, its budget raised from 880 to 892 kB (one file holds the loader and the stage code).
 
 Docs: a new guide page, Stages from a 3D model (with a live kitchen), the `stage` row in Options, the `stage` kind in Errors and warnings, README (the option, error, warning, `onReady` and telemetry), CONTRIBUTING's code map. Decision in LOG.md ("A stage from a 3D model (BON-253)"); manual test plan in TESTING.md ("Manual test plan: a stage from a 3D model (BON-253)").
 

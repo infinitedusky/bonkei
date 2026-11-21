@@ -450,6 +450,7 @@ function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: Layou
     if (size.width > 0 && size.height > 0) { cam.aspect = size.width / size.height; cam.frameH = size.height }
     cam.top = top // the theme's tallest icon and card: the fit leaves room for them
     cam.content = 'boxes' in data ? contentOf(data.boxes, data.width, data.height) : []
+    cam.upright = 'upright' in data ? data.upright ?? [] : [] // a stage's floating names face the camera: a flat or iso fit shows each whole
     if (!cam.layout) {
       cam.whole = false
       cam.fit(data.width, data.height, 'boxes' in data && cam.minLabel > 0 ? biggestTray(data.boxes, data.width, data.height) : undefined)
