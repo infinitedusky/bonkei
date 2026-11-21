@@ -10,6 +10,8 @@ import type { StageLabelMode } from './model.ts'
 export const ZONE_MARGINS = [0.5, 0.35, 0.2, 0.1]
 /** How far the floor reaches past a zone it had to be grown for, world units. */
 export const FLOOR_MARGIN = 0.3
+/** The padding the model's own floor keeps round everything standing on it, world units: where something stands nearer an edge (or over it) the floor is grown to this, evenly. */
+export const FLOOR_PAD = 0.6
 /**
  * Every zone title on a stage is this size, world units (Cloud Cartography lets a zone's name run from 0.35 to 1.3 by the zone's size; a
  * stage wants one size so the names read alike). A name that does not fit its zone at it, on one line or wrapped between words, goes
@@ -171,16 +173,19 @@ export function framed(layout: StageLayout, mode: StageLabelMode): StageLayout {
   let ext = model
   let floorTo: Rect | null = null, base: Rect | null = null
   const placed = zones.filter((z): z is Zone => z !== null)
-  if (placed.length) {
+  const floor = layout.floor?.rect ?? null
+  // everything standing on the floor: the parts and the unnamed solid objects
+  const stands = [...layout.parts.map(footprint), ...(layout.blockers ?? []).filter(b => b.part < 0)]
+  if (floor && stands.length) {
+    // The floor keeps an even padding round all of it, like a box with padding: where something hangs off an edge or stands nearer it than that, the
+    // floor (its own mesh, stretched) grows to the padding, together with room for any zone. It is never made smaller.
+    const need = [...stands.map((r): Rect => ({ x0: r.x0 - FLOOR_PAD, x1: r.x1 + FLOOR_PAD, z0: r.z0 - FLOOR_PAD, z1: r.z1 + FLOOR_PAD })),
+      ...placed.map((z): Rect => ({ x0: z.x0 - FLOOR_MARGIN, x1: z.x1 + FLOOR_MARGIN, z0: z.z0 - FLOOR_MARGIN, z1: z.z1 + FLOOR_MARGIN }))].reduce(grow)
+    if (!inside(need, floor)) { floorTo = grow(floor, need); ext = grow(model, floorTo) }
+  } else if (placed.length) {
     const need = placed.map((z): Rect => ({ x0: z.x0 - FLOOR_MARGIN, x1: z.x1 + FLOOR_MARGIN, z0: z.z0 - FLOOR_MARGIN, z1: z.z1 + FLOOR_MARGIN })).reduce(grow)
-    const floor = layout.floor?.rect ?? null
-    if (floor) {
-      // the zones are on the floor where they fit as it is; the floor is grown only where one reaches past it
-      const reach = placed.map((z): Rect => ({ x0: z.x0, x1: z.x1, z0: z.z0, z1: z.z1 })).reduce(grow)
-      if (!inside(reach, floor)) { floorTo = grow(floor, need); ext = grow(model, floorTo) }
-    } else if (!inside(placed.reduce<Rect>((r, z) => grow(r, z), placed[0]), model)) {
-      base = grow(model, need); ext = base
-    }
+    // a model with no floor gets one in the theme's style, only where a zone runs past the model
+    if (!inside(placed.reduce<Rect>((r, z) => grow(r, z), placed[0]), model)) { base = grow(model, need); ext = base }
   }
   // floating names (in `auto` every part's, from above where its sides cannot be seen; every part's in `sign` and `diamond`) stand up to a column of letters above the part: the fit leaves room
   const floats = layout.parts.filter((p, i) => mode === 'sign' || mode === 'diamond' || (mode === 'auto' && zones[i] === null))

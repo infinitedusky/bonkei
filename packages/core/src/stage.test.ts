@@ -116,3 +116,15 @@ test('where a zone runs past the model\'s own floor, that floor is the one grown
   const none = framed({ ...l, floor: null }, 'zone')
   assert.equal(none.floorTo, null)
 })
+
+test('the model\'s own floor keeps an even padding round everything on it: a part hanging off its edge makes the floor grow, never shrink', async () => {
+  const l = (await loadStage('/stages/kitchen.glb', undefined, serve())).layout
+  const g = framed(l, 'auto')
+  assert.ok(g.floorTo, 'the sample\'s grill overhangs the floor, so the floor is grown')
+  const f = g.floorTo!, o = l.floor!.rect
+  assert.ok(f.x0 <= o.x0 && f.x1 >= o.x1 && f.z0 <= o.z0 && f.z1 >= o.z1, 'never smaller')
+  for (const p of l.parts) assert.ok(p.cx - p.w / 80 >= f.x0 + 0.6 - 1e-6 && p.cx + p.w / 80 <= f.x1 - 0.6 + 1e-6 && p.cz - p.h / 80 >= f.z0 + 0.6 - 1e-6 && p.cz + p.h / 80 <= f.z1 - 0.6 + 1e-6, `${p.label} has the padding`)
+  // a floor that already has the padding is left as it is
+  const roomy = { x0: -50, x1: 50, z0: -50, z1: 50 }
+  assert.equal(framed({ ...l, floor: { ...l.floor!, rect: roomy } }, 'auto').floorTo, null)
+})
