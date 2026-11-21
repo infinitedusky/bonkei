@@ -1,10 +1,13 @@
 // A stage from a glTF model (BON-253): load it, find its named parts, lay it out for the camera. No React here. This module and what
-// it imports beyond the main chunk are a chunk of their own, fetched with the first stage (diagram.ts imports it dynamically).
+// it imports beyond the main chunk are a chunk of their own, fetched with the first stage (diagram.ts imports it dynamically); it
+// fetches the drawing (StageScene.tsx), a chunk of its own too, alongside the model.
 // Decisions: LOG.md, "A stage from a 3D model (BON-253)".
 import * as THREE from 'three'
+import type { ComponentType } from 'react'
 import { SpanStatusCode, type Span } from '@opentelemetry/api'
 import type { BonkeiError, BonkeiWarning, Frontmatter } from './options.ts'
 import type { Drawn } from './diagram.ts'
+import type { Mode } from './camera.ts'
 import { S } from './scale.ts'
 import { withSpan } from './telemetry.ts'
 import { normaliseName } from './names.ts'
@@ -34,7 +37,10 @@ export interface StageLayout {
   ox?: number; oz?: number // where the model and its names are moved to centre the whole on the origin
   tall: number // how high the model stands, world units
   url: string
+  Scene: ComponentType<{ data: StageLayout; mode: Mode }> // what draws it (StageScene.tsx), given by drawStage; SceneView renders it
 }
+/** A stage as loadStage lays it out, before drawStage gives it its drawing. */
+export type StageModel = Omit<StageLayout, 'Scene'>
 /** What an embedder is told about a stage's parts (ReadyInfo.stage): the named top-level objects of the model, as written, and how many named pieces each holds. */
 export interface StageInfo { url: string; parts: { name: string; pieces: number }[] }
 
@@ -96,7 +102,7 @@ const volume = (b: PartBody) => (b.x1 - b.x0) * (b.z1 - b.z0) * (b.y1 - b.y0)
 const meshesOf = (o: THREE.Object3D) => { const out: THREE.Mesh[] = []; o.traverse(m => { if ((m as THREE.Mesh).isMesh) out.push(m as THREE.Mesh) }); return out }
 
 /** Fetches, checks and reads the model at `url`, and lays its parts out. Rejects with a `stage` BonkeiError. */
-export async function loadStage(url: string, parent?: Span, fetcher: typeof fetch = fetch): Promise<{ layout: StageLayout; warnings: BonkeiWarning[]; info: StageInfo }> {
+export async function loadStage(url: string, parent?: Span, fetcher: typeof fetch = fetch): Promise<{ layout: StageModel; warnings: BonkeiWarning[]; info: StageInfo }> {
   // a failure is returned out of the span, not thrown through it, so the span's status says only the reason, never the address in the message
   const out = await withSpan('bonkei.stage.load', { 'bonkei.stage.host': host(url) }, async span => {
     const t0 = performance.now()
@@ -184,7 +190,11 @@ export async function drawStage(url: string, warnings: BonkeiWarning[], span: Sp
   if (beside !== null) warnings.push({ kind: 'stage', message: 'a diagram drawn on a stage is not supported yet; showing the stage alone', line: beside })
   const at = src === undefined || !fm ? -1 : src.split('\n').slice(0, fm.lineOffset).findIndex(l => /^\s*stage\s*:/.test(l))
   const t0 = performance.now()
-  const s = await loadStage(url, span).catch((e: BonkeiError) => { throw at < 0 ? e : { ...e, line: at + 1 } })
+  // the drawing is fetched alongside the model; a model that cannot be shown says so first
+  const [loaded, drawing] = await Promise.allSettled([loadStage(url, span), import('./StageScene.tsx')])
+  if (loaded.status === 'rejected') throw at < 0 ? loaded.reason : { ...loaded.reason, line: at + 1 }
+  if (drawing.status === 'rejected') throw { kind: 'stage', message: `the stage's drawing couldn't be fetched: ${drawing.reason instanceof Error ? drawing.reason.message : String(drawing.reason)}` } satisfies BonkeiError
+  const s = loaded.value
   warnings.push(...s.warnings)
-  return [{ data: framed(s.layout), stage: s.info, options: fm?.options ?? {}, theme: fm?.theme ?? {}, nodes: s.layout.parts.length, edges: 0, dropped: [], arcs: false }, performance.now() - t0]
+  return [{ data: { ...framed(s.layout), Scene: drawing.value.StageScene }, stage: s.info, options: fm?.options ?? {}, theme: fm?.theme ?? {}, nodes: s.layout.parts.length, edges: 0, dropped: [], arcs: false }, performance.now() - t0]
 }

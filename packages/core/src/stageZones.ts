@@ -3,7 +3,7 @@
 // Decisions: LOG.md, "A stage from a 3D model (BON-253)".
 import { GROUND, groundWidth, type GroundFit } from './titles.ts'
 import { S } from './scale.ts'
-import type { PartBody, StageLayout, StagePart } from './stage.ts'
+import type { PartBody, StageModel, StagePart } from './stage.ts'
 
 /** The margins a zone may have round its part, world units, tried in turn: modest and even; smaller only where a neighbour is close. */
 export const ZONE_MARGINS = [0.5, 0.35, 0.2, 0.1]
@@ -72,7 +72,7 @@ const inside = (a: Rect, b: Rect) => a.x0 >= b.x0 - 1e-6 && a.x1 <= b.x1 + 1e-6 
 export const footprint = (p: StagePart): Rect => ({ x0: p.cx - (p.w * S) / 2, x1: p.cx + (p.w * S) / 2, z0: p.cz - (p.h * S) / 2, z1: p.cz + (p.h * S) / 2 })
 
 // The name on the part's own sides, if it fits there and nothing stands in front of them; null: it does not.
-function onSide(p: StagePart, i: number, blockers: NonNullable<StageLayout['blockers']>): SideName | null {
+function onSide(p: StagePart, i: number, blockers: NonNullable<StageModel['blockers']>): SideName | null {
   const bd = p.body, faceH = bd.y1 - bd.y0, y = (bd.y0 + bd.y1) / 2
   // the faces across the part (front and back) if the name fits them, else the faces along it (right and left): front and right face the iso and 3D views
   const hiddenFront = blockers.some(b => b.part !== i && b.x0 < bd.x1 && b.x1 > bd.x0 && b.z0 < bd.z1 + 0.6 && b.z1 > bd.z1)
@@ -109,7 +109,7 @@ function onSide(p: StagePart, i: number, blockers: NonNullable<StageLayout['bloc
  * nothing stands over it: a tall thing hides the floor behind it from the iso and 3D views); else on the part's own sides at SIDE.size;
  * else it floats (null in both). A part with no clear place for a zone at any margin has none (null), and is named as if it had no room.
  */
-export function solveNames(layout: StageLayout): { zones: (Zone | null)[]; sides: (SideName | null)[] } {
+export function solveNames(layout: StageModel): { zones: (Zone | null)[]; sides: (SideName | null)[] } {
   const zones: (Zone | null)[] = [], sides: (SideName | null)[] = []
   const placed: Rect[] = []
   const blockers = layout.blockers ?? []
@@ -160,7 +160,7 @@ export function solveNames(layout: StageLayout): { zones: (Zone | null)[]; sides
  * only when a zone runs past the model. The whole is centred on the origin (`ox`, `oz` move the model and its names there), the layout's
  * width and height are those of the grown floor, so fit, pan and zoom frame it, and `reach` is how high the tallest floating name stands.
  */
-export function framed(layout: StageLayout): StageLayout {
+export function framed(layout: StageModel): StageModel {
   const hw = (layout.width * S) / 2, hd = (layout.height * S) / 2
   const model: Rect = { x0: -hw, x1: hw, z0: -hd, z1: hd }
   const { zones, sides } = solveNames(layout)

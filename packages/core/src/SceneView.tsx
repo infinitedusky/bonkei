@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { Suspense, createContext, lazy, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Box, LayoutResult, Route } from './model'
 import { reroute, trimToIcons, PAD, GROUND_ROOM } from './layout'
@@ -22,8 +22,6 @@ import { ALL_ON, TURN_PER_PX, WHEEL_IDLE_MS, chipAt, cursorFor, dragAction, gest
 import { Gate, HINT_MS, clipRadii, inScroller } from './hold'
 import type { NodeClick, ResolvedControls } from './options'
 
-// the stage's drawing is a chunk of its own, fetched with the first stage
-const StageScene = lazy(() => import('./StageScene').then(m => ({ default: m.StageScene })))
 const LIGHT_TILTED = new THREE.Vector3(10, 18, 7) // iso and 3D
 const LIGHT_FLAT = new THREE.Vector3(21.8 * Math.sin(Math.PI / 36), 21.8 * Math.cos(Math.PI / 36), 0) // flat: 5 degrees off straight overhead, same distance
 
@@ -558,9 +556,8 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
           <ToneSetup />
           <Rig cam={c} fpsRef={fpsRef} />
           {data && ('kind' in data
-            ? data.kind === 'stage'
-              ? <Env cam={c} controls={ctl}><Suspense fallback={null}><StageScene data={data} mode={mode} /></Suspense></Env>
-              : <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
+            // a stage brings its own drawing (stage.ts drawStage fetched it with the model), so the main chunk holds none of it
+            ? <Env cam={c} controls={ctl}>{data.kind === 'stage' ? <data.Scene data={data} mode={mode} /> : <SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} />}</Env>
             : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
         </ThemeProvider></InkCtx.Provider></GateCtx.Provider>
       </Canvas>

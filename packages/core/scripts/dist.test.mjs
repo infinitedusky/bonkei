@@ -40,10 +40,19 @@ test('a stage\'s code and three\'s GLTFLoader are only ever dynamic imports, so 
   const all = esm.map(read).join('\n')
   assert.match(all, /import\("three\/examples\/jsm\/loaders\/GLTFLoader\.js"\)/)
   assert.doesNotMatch(all, /from\s*"three\/examples\/jsm\/loaders\/GLTFLoader/, 'no static import of the loader')
-  for (const chunk of ['stage', 'StageScene']) {
-    assert.match(all, new RegExp(`import\\("\\./${chunk}-[\\w-]+\\.js"\\)`), `${chunk} is imported dynamically`)
-    assert.doesNotMatch(all, new RegExp(`from\\s*"\\./${chunk}-`), `no static import of ${chunk}`)
+  // the main chunk imports the stage chunk dynamically, and the stage chunk the drawing, so the drawing comes with the model
+  assert.match(read('index.js') + esm.filter(f => f.startsWith('Bonkei-')).map(read).join('\n'), /import\("\.\/stage-[\w-]+\.js"\)/, 'stage is imported dynamically')
+  assert.match(esm.filter(f => f.startsWith('stage-')).map(read).join('\n'), /import\("\.\/StageScene-[\w-]+\.js"\)/, 'StageScene is imported dynamically')
+  // what loads with bonkei and bonkei/internal: the files their static imports reach
+  const reached = new Set()
+  const walk = f => {
+    if (reached.has(f)) return
+    reached.add(f)
+    for (const [, dep] of read(f).matchAll(/(?:^|\n)\s*(?:import|export)\s[^;]*?from\s*"\.\/([\w-]+\.js)"/g)) walk(dep)
   }
+  walk('index.js'); walk('internal.js')
+  assert.ok(reached.size > 2, 'the walk follows the static imports')
+  assert.deepEqual([...reached].filter(f => /^(stage|StageScene)-/.test(f)), [], 'no stage chunk is reached without a stage')
 })
 
 test('the wasm sits beside the modules as a real file, found by the pattern bundlers turn into an asset', () => {

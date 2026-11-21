@@ -1,6 +1,6 @@
 // The stage (BON-253): a loaded glTF scene drawn as it was exported, under the theme's lights, and each named part marked: a flat
 // shaded zone under it, its name lettered on the zone, else on the part's own sides, else floating above it with a line down
-// (stageZones.ts decides which). A chunk of its own, fetched with the first stage (SceneView imports it lazily).
+// (stageZones.ts decides which). A chunk of its own, fetched with the first stage's model (stage.ts drawStage imports it); SceneView renders what the stage brought.
 // Decisions: LOG.md, "A stage from a 3D model (BON-253)".
 import { useEffect, useLayoutEffect, useMemo } from 'react'
 import * as THREE from 'three'

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { trace } from '@opentelemetry/api'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { loadStage, framed, type StageLayout } from './stage.ts'
+import { loadStage, framed, type StageModel } from './stage.ts'
 import { normaliseName } from './names.ts'
 import { FLOOR_SIZE, footprint } from './stageZones.ts'
 import { readFrontmatter } from './options.ts'
@@ -105,7 +105,7 @@ test('prepare: a stage that cannot be fetched rejects with one stage error namin
 })
 
 // how each part is named: on its zone, on its sides, or floating
-const how = (l: StageLayout) => {
+const how = (l: StageModel) => {
   const g = framed(l)
   return Object.fromEntries(l.parts.map((p, i) => [p.label, g.zones![i]?.title ? 'zone' : g.sides![i] ? 'side' : 'float']))
 }

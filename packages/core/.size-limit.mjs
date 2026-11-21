@@ -2,10 +2,9 @@
 export default [
   { name: 'main chunk: import { Bonkei } (ELK, React and three excluded)', path: 'dist/index.js', import: '{ Bonkei }', ignore: ['react', 'react-dom', 'three', 'elkjs'],
     // the base64 wasm fallback and the stage's chunks are lazy chunks of their own (below); esbuild would inline them
-    modifyEsbuildConfig: c => ({ ...c, external: [...(c.external ?? []), './_libavoid-inline-*', './stage-*', './stageZones-*', './StageScene-*'] }), gzip: true, limit: '202 kB' }, // 190 until BON-78's gestures (+3.9 kB), 197 until Cloud Cartography's icons, cards, arcs and ground titles (+4.2 kB, BON-235): LOG.md
-  { name: 'stage chunk (fetched with the first stage: loading and finding the parts; three\'s GLTFLoader is a chunk the host bundler makes beyond it)', path: 'dist/stage-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '4 kB' },
-  { name: 'stage naming chunk (fetched with the first stage: zones, side and floating names, the grown floor)', path: 'dist/stageZones-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '4.5 kB' },
-  { name: 'stage drawing chunk (fetched with the first stage)', path: 'dist/StageScene-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '3 kB' },
+    modifyEsbuildConfig: c => ({ ...c, external: [...(c.external ?? []), './_libavoid-inline-*', './stage-*', './StageScene-*'] }), gzip: true, limit: '202 kB' }, // 190 until BON-78's gestures (+3.9 kB), 197 until Cloud Cartography's icons, cards, arcs and ground titles (+4.2 kB, BON-235): LOG.md
+  { name: 'stage chunk (fetched with the first stage: loading and finding the parts, zones, side and floating names, the grown floor; three\'s GLTFLoader is a chunk the host bundler makes beyond it)', path: 'dist/stage-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '8.5 kB' },
+  { name: 'stage drawing chunk (fetched by the stage chunk, alongside the model)', path: 'dist/StageScene-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '3 kB' },
   { name: 'ELK chunk (fetched on first layout)', path: 'node_modules/elkjs/lib/elk.bundled.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '480 kB' },
   { name: 'libavoid.wasm (fetched on first layout)', path: 'dist/libavoid.wasm', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '183 kB' },
   { name: 'Zen Old Mincho font (fetched when a theme names it: label.font mincho)', path: 'dist/fonts/ZenOldMincho-Bold-latin.ttf', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '21 kB' },
