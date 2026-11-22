@@ -11,5 +11,5 @@ export default [
   { name: 'Architects Daughter font (fetched when a theme names it: label.font architect)', path: 'dist/fonts/ArchitectsDaughter-Regular-latin.ttf', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '15 kB' },
   { name: 'Archivo Black font (fetched when a theme names it: tray.groundFont or label.card.titleFont archivo)', path: 'dist/fonts/ArchivoBlack-latin.ttf', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '24 kB' },
   { name: 'wasm fallback chunk (fetched only if the file beside the module is not found)', path: 'dist/_libavoid-inline-*.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '255 kB' },
-  { name: 'script-tag bundle (bonkei.global.js, React and three inside)', path: 'dist/bonkei.global.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '892 kB' }, // 880 until BON-253's stage (+9.7 kB: one file holds GLTFLoader and the stage code too): LOG.md
+  { name: 'script-tag bundle (bonkei.global.js, React and three inside)', path: 'dist/bonkei.global.js', disablePlugins: ['@size-limit/esbuild'], gzip: true, limit: '892 kB' }, // 880 until BON-253's stage (+22.3 kB, 867.2 to 889.5 kB: one file holds GLTFLoader and the stage code too): LOG.md
 ]

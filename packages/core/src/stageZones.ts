@@ -92,8 +92,8 @@ function onSide(p: StagePart, i: number, blockers: NonNullable<StageModel['block
  * everything standing on it, the parts and the unnamed solid objects: where one hangs off an edge or stands nearer it than that, the floor
  * grows to the padding; it is never made smaller, and a floor that already has it is left as it is (`floorTo` null). The whole is centred
  * on the origin (`ox`, `oz` move the model and its names there), the layout's width and height are those of the grown floor, so fit, pan
- * and zoom frame it. `sides` is each part's name on its own sides (null: it floats), `reach` how high the tallest floating name stands,
- * and `upright` where each floating name's column of letters stands (it faces the camera, so a flat or iso fit counts it whole).
+ * and zoom frame it. `sides` is each part's name on its own sides (null: it floats), `reach` how high the stage stands: the model's own
+ * height or the top of the highest name were every part's name to float, whichever is higher, and `upright` where each floating name's column of letters stands (it faces the camera, so a flat or iso fit counts it whole).
  */
 export function framed(layout: StageModel): StageModel {
   const hw = (layout.width * S) / 2, hd = (layout.height * S) / 2
