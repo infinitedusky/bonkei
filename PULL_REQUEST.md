@@ -17,7 +17,7 @@ Docs: a new guide page, Stages from a 3D model (with a live kitchen), the `stage
 - **A host bundler that does not split** `three/examples/jsm/loaders/GLTFLoader.js` or the stage chunks: they would ride in the host's main bundle. The Network tab would show no separate loader request; `pnpm size` covers Bonkei's own chunks only.
 - **A real model unlike the samples**: a scene whose parts sit two wrappers deep has no parts (the "no named parts" card); a model in centimetres is a hundred times too big for the name sizes, which are in metres. You would see the card, or tiny names.
 - **The floor guess**: the largest flat object at ground level covering half the footprint is taken as the floor and stretched; a big rug could be taken for it. You would see the rug grow.
-- **The script-tag bundle** is 22 kB larger for every page, stage or not; its budget was raised to 892 kB.
+- **The script-tag bundle** is 22.3 kB larger for every page, stage or not (867.2 kB on main, 889.5 kB here, gzip); its budget was raised to 892 kB.
 
 ## Checklist
 

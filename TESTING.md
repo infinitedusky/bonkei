@@ -382,7 +382,7 @@ Run the viewer (`pnpm dev`, or the smoke test's set-up) and open `/app/?sample=s
 
 ## 2. Storybook
 
-**Components / Bonkei / Stage** (the kitchen; the spy lists onReady and the four parts), **Stage House Flat** (floating names over the house in flat), **Stage From Prop 3d** (the `stage` prop, opening in 3D), **Stage Names Alike** (one `stage` warning), **Stage Errors** (five error cards, each readable), **Stage Update Error** (mistype, then fix). **Components / Stage parts**: Kitchen, Found As Prep Line, Found As Prep Underscore Line (each leaves `prep line · 3 pieces`), Nothing Found, Many Parts (the list scrolls, the long name wraps).
+**Components / Bonkei / Stage** (the kitchen; the spy's `onReady` line lists the four parts), **Stage House Flat** (floating names over the house in flat), **Stage From Prop 3d** (the `stage` prop, opening in 3D), **Stage Names Alike** (one `stage` warning), **Stage Errors** (five error cards, each readable), **Stage Update Error** (mistype, then fix). **Components / Stage parts**: Kitchen, Found As Prep Line, Found As Prep Underscore Line (each leaves `prep line · 3 pieces`), Nothing Found, Many Parts (the list scrolls, the long name wraps).
 
 ## 3. The docs
 
@@ -390,4 +390,4 @@ Run the viewer (`pnpm dev`, or the smoke test's set-up) and open `/app/?sample=s
 
 ## 4. Size
 
-`pnpm size`: the main chunk within 202 kB; the stage, stage naming and stage drawing chunks within their own budgets; the script-tag bundle within 892 kB.
+`pnpm size`: the main chunk within 202 kB; the stage (`stage-*`) and stage drawing (`StageScene-*`) chunks within their own budgets; the script-tag bundle within 892 kB.
