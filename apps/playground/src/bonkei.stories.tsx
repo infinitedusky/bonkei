@@ -446,15 +446,17 @@ export const RenderCrash: Story = {
 // The sample models are made up, written by apps/playground/scripts/make-stages.mjs and served at /stages/.
 const stage = (file: string) => `---\nconfig:\n  bonkei:\n    stage: ${file}\n---\n`
 const KITCHEN = stage('stages/kitchen.glb')
+/** The parts a stage's onReady reports, for the spy. */
+const stageParts = (r: { stage?: { parts: { name: string }[] } }) => `stage parts ${r.stage?.parts.map(p => p.name).join(', ')}`
 
 /** A made-up kitchen as a stage: no areas; grill, prep line, wrap station and register named on their own sides in white with a drop shadow; the unnamed fridge has none; the floor grown at the left, where the grill hangs over it. */
 export const Stage: Story = {
   render: () => {
-    const { log, cbs } = useSpy()
+    const { log, push, cbs } = useSpy()
     return (
       <div style={page}>
         <Box label="a kitchen with a grill, prep line, register and wrap station" h={460}>
-          <Bonkei source={KITCHEN} onError={cbs.onError} onWarning={cbs.onWarning} onReady={r => { cbs.onReady(r); cbs.onWarning({ kind: 'stage', line: 0, message: `parts: ${r.stage?.parts.map(p => p.name).join(', ')}` }) }} />
+          <Bonkei source={KITCHEN} onError={cbs.onError} onWarning={cbs.onWarning} onReady={r => push('onReady', stageParts(r))} />
         </Box>
         <Spy log={log} />
       </div>
@@ -499,8 +501,7 @@ export const StageNamesAlike: Story = {
  */
 export const StageOddModels: Story = {
   render: () => {
-    const { log, cbs } = useSpy()
-    const parts = (r: { stage?: { parts: { name: string }[] } }) => cbs.onWarning({ kind: 'stage', line: 0, message: `parts: ${r.stage?.parts.map(p => p.name).join(', ')}` })
+    const { log, push, cbs } = useSpy()
     const cases: [string, string][] = [
       ['a grill and an empty node named door', 'stages/empty-part.glb'],
       ['the kitchen in millimetres', 'stages/kitchen-mm.glb'],
@@ -508,7 +509,7 @@ export const StageOddModels: Story = {
     ]
     return (
       <div style={page}>
-        {cases.map(([label, file]) => <Box key={file} label={label} h={320}><Bonkei source={stage(file)} onError={cbs.onError} onReady={parts} /></Box>)}
+        {cases.map(([label, file]) => <Box key={file} label={label} h={320}><Bonkei source={stage(file)} onError={cbs.onError} onReady={r => push('onReady', stageParts(r))} /></Box>)}
         <Spy log={log} />
       </div>
     )
