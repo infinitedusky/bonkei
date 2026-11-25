@@ -2,50 +2,57 @@
 // its own sides, else floating above it with a line down (stageZones.ts decides which; in flat every part's floats). A chunk of its own,
 // fetched with the first stage's model (stage.ts drawStage imports it); SceneView renders what the stage brought.
 // Decisions: LOG.md, "A stage from a 3D model (BON-253)".
-import { useEffect, useLayoutEffect, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { Billboard, Line, Text } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
 import type { StageLayout, StagePart } from './stage.ts'
 import { mixc } from './shapes'
-import { FLOAT_HOVER as HOVER, FLOAT_SIZE, type SideName } from './stageZones.ts'
-import { fontOf, useTheme } from './look'
+import { floatColumn, type SideName } from './stageZones.ts'
+import { fontOf, fontUrl, useTheme } from './look'
 import { TEXT_LAYER } from './scale'
 import type { Mode } from './camera'
 
-const STAGE_FONT = 'archivo' // a stage's names, whatever the theme: heavy capitals, which read at a distance
-// each part its own colour, from the theme's zone palette
-const partColor = (th: ReturnType<typeof useTheme>, i: number) => th.tray.zones[i % th.tray.zones.length]
 // drawn over the model: a floating name for a part inside walls can still be read
 const overAll = (m: THREE.Material | null) => { if (m) { m.depthTest = false; m.depthWrite = false } }
 
-// A floating name: the part's name in capitals, one letter under another (a gap for a space), facing the camera over the part,
-// with a thin line straight down to a ring on the part's top: which part it names.
+// A floating name, as the approved prototype draws it: the part's name in capitals, one letter under another (a gap for a space), in the
+// theme's label font and colour with a thin black outline, facing the camera over the part and bobbing gently (each part out of step with
+// the next), with a thin line straight down to a ring on the part's top: which part it names. Line and ring are in the theme's
+// cartouche colour, or its edge-label colour where its labels have no plate.
 function FloatingName({ p, i }: { p: StagePart; i: number }) {
   const th = useTheme()
-  const chars = [...p.label.trim().toUpperCase()]
-  const color = partColor(th, i)
-  const line = useMemo<[number, number, number][]>(() => [[0, HOVER, 0], [0, 0.03, 0]], [])
+  const c = floatColumn(p.label)
+  const bob = useRef<THREE.Group>(null!)
+  useFrame(({ clock }) => { bob.current.position.y = Math.sin(clock.elapsedTime * 1.6 + i * 1.3) * 0.08 })
+  const plate = th.label.node, color = plate.style === 'plain' ? th.edge.label : plate.plate
+  const line = useMemo<[number, number, number][]>(() => [[0, c.line, 0], [0, 0.03, 0]], [c.line])
   return (
     <group position={[p.cx, p.top, p.cz]}>
-      <Line points={line} color={color} lineWidth={1.4} transparent opacity={0.85} depthTest={false} renderOrder={9} />
+      <Line points={line} color={color} lineWidth={1.4} transparent opacity={0.75} depthTest={false} renderOrder={9} />
       <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={9}>
-        <ringGeometry args={[0.09, 0.16, 20]} /><meshBasicMaterial ref={overAll} color={color} transparent opacity={0.9} toneMapped={false} />
+        <ringGeometry args={[0.09, 0.16, 20]} /><meshBasicMaterial ref={overAll} color={color} transparent opacity={0.85} toneMapped={false} />
       </mesh>
-      <Billboard position={[0, HOVER + 0.1, 0]}>
-        <Text layers={TEXT_LAYER as any} renderOrder={12} font={fontOf(STAGE_FONT)} fontSize={FLOAT_SIZE} lineHeight={1} color="#ffffff"
-          outlineWidth={FLOAT_SIZE * 0.1} outlineColor={mixc(color, '#000000', 0.6)} anchorX="center" anchorY="bottom" textAlign="center"
-          onSync={(t: any) => overAll(t.material)}>{chars.join('\n')}</Text>
-      </Billboard>
+      <group position={[0, c.foot, 0]}>
+        <group ref={bob}>
+          <Billboard>
+            <Text layers={TEXT_LAYER as any} renderOrder={12} position={[0, c.h / 2, 0.02]} font={fontUrl(th)} fontSize={c.size} lineHeight={1} color={plate.text}
+              outlineWidth={0.04} outlineColor="#000" anchorX="center" anchorY="middle" textAlign="center"
+              onSync={(t: any) => overAll(t.material)}>{[...p.label.trim().toUpperCase()].join('\n')}</Text>
+          </Billboard>
+        </group>
+      </group>
     </group>
   )
 }
 
-// The name written on the part's own two faces (front and back, or right and left): white capitals over a dark drop shadow (a copy in the
-// part's colour darkened, a hair lower and to one side, behind), which read on a part of any colour.
+// The name written on the part's own two faces (front and back, or right and left), in the theme's ground-title face (Archivo Black where
+// it names none): white capitals over a dark drop shadow (a copy in the part's colour, from the theme's zone palette, darkened, a hair
+// lower and to one side, behind), which read on a part of any colour.
 function SideText({ i, s }: { i: number; s: SideName }) {
   const th = useTheme()
-  const shadow = mixc(partColor(th, i), '#000000', 0.72), d = s.size * 0.09
-  const text = { font: fontOf(STAGE_FONT), fontSize: s.size, lineHeight: 1.1, textAlign: 'center' as const, anchorX: 'center' as const, anchorY: 'middle' as const, letterSpacing: 0.04, layers: TEXT_LAYER as any }
+  const shadow = mixc(th.tray.zones[i % th.tray.zones.length], '#000000', 0.72), d = s.size * 0.09
+  const text = { font: fontOf(th.tray.groundFont ?? 'archivo'), fontSize: s.size, lineHeight: 1.1, textAlign: 'center' as const, anchorX: 'center' as const, anchorY: 'middle' as const, letterSpacing: 0.04, layers: TEXT_LAYER as any }
   return (
     <>
       {s.faces.map((f, k) => (

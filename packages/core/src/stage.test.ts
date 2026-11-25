@@ -6,7 +6,7 @@ import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '
 import { loadStage, framed, type StageModel } from './stage.ts'
 import { normaliseName } from './names.ts'
 import { S } from './scale.ts'
-import { FLOOR_PAD, SIDE, footprint } from './stageZones.ts'
+import { FLOOR_PAD, SIDE, floatColumn, footprint } from './stageZones.ts'
 import { readFrontmatter } from './options.ts'
 import { prepare, isBonkeiError } from './diagram.ts'
 
@@ -158,10 +158,18 @@ test('a floor that already has the padding is left as it is; a model with no flo
   assert.ok(Math.abs(bare.width - l.width) < 1e-6 && Math.abs(bare.height - l.height) < 1e-6, 'framed as the model')
 })
 
-test('the fit leaves room above the model for its floating names', async () => {
+test('a floating name\'s letters are 0.36, a little smaller for a long name so its column stays about 4 tall', () => {
+  assert.equal(floatColumn('phone').size, 0.36)
+  const pole = floatColumn('telephone pole')
+  assert.ok(pole.size < 0.36)
+  assert.ok(Math.abs([...'telephone pole'].length * pole.size - 4) < 1e-9, 'the column of letters is 4 tall')
+})
+
+test('the fit leaves room above the model for its floating names, at the size they are drawn', async () => {
   const h = await load('house.glb'), g = framed(h)
-  const pole = h.parts.find(p => p.label === 'telephone pole')!
-  assert.ok(g.reach! > pole.top + [...'telephone pole'].length * 0.36, 'the pole\'s floating name is counted')
+  const pole = h.parts.find(p => p.label === 'telephone pole')!, c = floatColumn(pole.label)
+  assert.ok(g.reach! >= pole.top + c.foot + 4, 'the pole\'s floating name is counted, its letters all 4 of it')
+  assert.ok(Math.abs(g.reach! - Math.max(h.tall, ...h.parts.map(p => p.top + floatColumn(p.label).foot + floatColumn(p.label).h))) < 1e-9, 'no more room than the tallest name takes')
   assert.ok(g.reach! >= h.tall)
 })
 

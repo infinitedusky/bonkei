@@ -14,13 +14,18 @@ export const FLOOR_PAD = 0.6
  * it), `off` from the surface, if the face is wide and tall enough for it. It is never drawn smaller: if it does not fit, it floats.
  */
 export const SIDE = { size: 0.32, pad: 0.15, off: 0.012 }
-/** A floating name: its letter size (one for every part, never smaller for a long name) and how high over the part's top its column starts, world units. */
-export const FLOAT_SIZE = 0.36
-export const FLOAT_HOVER = 0.9
-/** A floating name's column of letters (StageScene): it starts this far over its part's top and stands this tall with a little to spare, facing the camera, world units. */
-const column = (label: string) => ({ foot: FLOAT_HOVER + 0.1, h: [...label.trim()].length * FLOAT_SIZE + 0.2 })
-/** How high a floating name reaches over its part's top, world units: the hover, then one letter under another (StageScene). */
-export const floatRoom = (label: string) => { const c = column(label); return c.foot + c.h }
+/**
+ * A floating name's column of capitals, one under another (StageScene), as the approved prototype draws it, world units over the part's
+ * top: its letter size (0.36, a little smaller for a long name so the column stays about 4 tall: TELEPHONE POLE), the top of the line
+ * down to the part (`line`), and the frame the column stands in, facing the camera: from `foot`, `h` tall (the letters in its middle,
+ * 0.15 to spare at each end for their gentle bob).
+ */
+export function floatColumn(label: string) {
+  const n = [...label.trim()].length, size = Math.min(0.36, 4 / Math.max(n, 1))
+  return { size, line: 1, foot: 1.3, h: n * size + 0.3 }
+}
+/** How high a floating name reaches over its part's top, world units. */
+export const floatRoom = (label: string) => { const c = floatColumn(label); return c.foot + c.h }
 
 export interface Rect { x0: number; x1: number; z0: number; z1: number }
 /** A name written on the part's own front and back faces. */
@@ -111,6 +116,6 @@ export function framed(layout: StageModel): StageModel {
   const ox = -(ext.x0 + ext.x1) / 2, oz = -(ext.z0 + ext.z1) / 2
   const width = (ext.x1 - ext.x0) / S, height = (ext.z1 - ext.z0) / S
   const parts = layout.parts.map(p => ({ ...p, x: (p.cx + ox) / S + width / 2 - p.w / 2, y: (p.cz + oz) / S + height / 2 - p.h / 2 }))
-  const upright = layout.parts.map((p): Upright => { const c = column(p.label); return { x: p.cx + ox, y: p.top + c.foot, z: p.cz + oz, h: c.h } })
+  const upright = layout.parts.map((p): Upright => { const c = floatColumn(p.label); return { x: p.cx + ox, y: p.top + c.foot, z: p.cz + oz, h: c.h } })
   return { ...layout, width, height, parts, sides, floorTo, reach, upright, ox, oz }
 }
