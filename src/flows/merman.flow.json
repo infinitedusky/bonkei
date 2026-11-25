@@ -1,0 +1,19 @@
+{
+  "$schema": "https://zigbang.github.io/storybook-addon-story-flow/flow.schema.json",
+  "epic": "Merman",
+  "title": "Merman/Map",
+  "scenarios": [{ "id": "start", "label": "The first screen" }],
+  "nodes": [
+    {
+      "id": "app",
+      "data": {
+        "label": "Scene viewer",
+        "coverage": "existing",
+        "tags": ["/"],
+        "scenarios": ["start"],
+        "stories": [{ "id": "merman-app--default", "label": "Default" }]
+      }
+    }
+  ],
+  "edges": []
+}
