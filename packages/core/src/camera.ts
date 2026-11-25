@@ -50,6 +50,11 @@ export interface Camera {
   top: number
   /** What a tight fit frames: the diagram's top-level boxes in world units (centred diagram). Empty: its rectangle. */
   content: Rect[]
+  /**
+   * What stands upright on the screen whatever the view (a stage's floating names, which face the camera): a flat or iso fit keeps
+   * each one whole in view. Empty for a diagram.
+   */
+  upright: Upright[]
   setMode(m: Mode): void
   focusOn(cx: number, cz: number, X: number, Z: number, id?: string): void
   /** A new layout after the first: keep the view where it is (compensating for the diagram's middle moving). */
@@ -79,6 +84,25 @@ export function createCamera(): Camera {
   let refocus = false
   // a tight fit of the whole diagram with its boxes known: frame what the view really shows
   const onContent = (mode: Mode) => (cam.tight && onWhole && cam.content.length ? projectedFit(cam.content, mode, cam.aspect, cam.top) : null)
+  // the visible height that frames the focus in a view, before what stands upright on the screen is counted
+  const fitBody = (mode: Mode): number => {
+    const { X, Z } = cam.focus
+    const proj = onContent(mode)
+    if (proj) return proj.H * (mode === '3d' ? 1.15 : 1)
+    if (cam.tight) {
+      // the diagram's rectangle turned by the view's yaw and squashed by its pitch (a node's height adds a little), plus a margin of 1.2 world units
+      const { yaw, pitch } = PRESET[mode]
+      const hx = (X * Math.abs(Math.cos(yaw)) + Z * Math.abs(Math.sin(yaw))) / 2
+      const hz = (X * Math.abs(Math.sin(yaw)) + Z * Math.abs(Math.cos(yaw))) / 2
+      const hy = hz * Math.sin(pitch) + 0.5 * Math.cos(pitch)
+      return Math.max(2 * hy + 1.2, (2 * hx) / cam.aspect + 1.2) * (mode === '3d' ? 1.15 : 1)
+    }
+    // a theme whose icons stand taller than a landscape form (callout cards) asks for room above them
+    const extra = Math.max(0, cam.top - TOP)
+    if (mode === 'flat') return Math.max(Z + extra, X / cam.aspect) * 1.12
+    const diag = Math.hypot(X, Z)
+    return Math.max(diag * Math.sin(PRESET[mode].pitch) + 2 + extra, (diag / cam.aspect) * 0.8) * (mode === '3d' ? 1.15 : 0.95)
+  }
   const cam: Camera = {
     mode: 'iso',
     goal: { tx: 0, tz: 0, H: 30, ...PRESET.iso },
@@ -91,6 +115,7 @@ export function createCamera(): Camera {
     frameH: 0,
     whole: false,
     content: [],
+    upright: [],
     top: TOP,
     fitH(mode) {
       const h = cam.fitHWhole(mode)
@@ -98,22 +123,13 @@ export function createCamera(): Camera {
       return cam.minLabel > 0 && cam.frameH > 0 && !cam.whole ? Math.min(h, (cam.frameH * LABEL_WORLD) / cam.minLabel) : h
     },
     fitHWhole(mode) {
-      const { X, Z } = cam.focus
-      const proj = onContent(mode)
-      if (proj) return proj.H * (mode === '3d' ? 1.15 : 1)
-      if (cam.tight) {
-        // the diagram's rectangle turned by the view's yaw and squashed by its pitch (a node's height adds a little), plus a margin of 1.2 world units
-        const { yaw, pitch } = PRESET[mode]
-        const hx = (X * Math.abs(Math.cos(yaw)) + Z * Math.abs(Math.sin(yaw))) / 2
-        const hz = (X * Math.abs(Math.sin(yaw)) + Z * Math.abs(Math.cos(yaw))) / 2
-        const hy = hz * Math.sin(pitch) + 0.5 * Math.cos(pitch)
-        return Math.max(2 * hy + 1.2, (2 * hx) / cam.aspect + 1.2) * (mode === '3d' ? 1.15 : 1)
-      }
-      // a theme whose icons stand taller than a landscape form (callout cards) asks for room above them
-      const extra = Math.max(0, cam.top - TOP)
-      if (mode === 'flat') return Math.max(Z + extra, X / cam.aspect) * 1.12
-      const diag = Math.hypot(X, Z)
-      return Math.max(diag * Math.sin(PRESET[mode].pitch) + 2 + extra, (diag / cam.aspect) * 0.8) * (mode === '3d' ? 1.15 : 0.95)
+      const h = fitBody(mode)
+      if (mode === '3d' || !cam.upright.length) return h
+      // the view is centred on the focus: the top of each upright thing, on the screen's up axis, is to be within half the visible height of it
+      const { yaw, pitch } = PRESET[mode], sp = Math.sin(pitch), cp = Math.cos(pitch)
+      const { cx, cz } = cam.focus
+      const v = Math.max(...cam.upright.map(u => -((u.x - cx) * Math.sin(yaw) + (u.z - cz) * Math.cos(yaw)) * sp + u.y * cp + u.h))
+      return Math.max(h, 2 * (v + MARGIN))
     },
     setMode(m) {
       cam.mode = m
@@ -213,6 +229,8 @@ export function biggestTray(boxes: { kind: string; level: number; x: number; y: 
 }
 
 export interface Rect { x0: number; z0: number; x1: number; z1: number }
+/** Something that faces the camera: its foot (world units) and its height, which the screen shows whole whatever the view's tilt. */
+export interface Upright { x: number; y: number; z: number; h: number }
 const TOP = 1.6 // the tallest thing standing on a box (a landscape form on its plinth), world units
 const MARGIN = 0.6 // world units left free on each side by a tight fit
 

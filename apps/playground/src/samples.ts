@@ -277,6 +277,9 @@ flowchart LR
   ledger -.->|receipt| browser
 `
 
+// A stage is a model file beside the page: `stages/…` is /app/stages/… here (apps/playground/scripts/make-stages.mjs writes them).
+const stage = (file: string) => `---\nconfig:\n  bonkei:\n    stage: ${file}\n---\n`
+
 export const SAMPLES: Record<string, string> = {
   'flow: small (sample.mmd)': small,
   'flow: bonkei mockup': bonkeiMockup,
@@ -287,4 +290,17 @@ export const SAMPLES: Record<string, string> = {
   'seq: login flow': login,
   'seq: checkout flow': checkout,
   'flow: cloud cartography (map)': cloudMap,
+  'stage: kitchen': stage('stages/kitchen.glb'),
+  'stage: house and phone line': stage('stages/house.glb'),
+  'stage: inside a wrapper node': stage('stages/wrapped.glb'),
+  'stage: two parts named alike': stage('stages/duplicate.glb'),
+  'stage: a part with no shape': stage('stages/empty-part.glb'),
+  'stage: in millimetres': stage('stages/kitchen-mm.glb'),
+  'stage: one part alone': stage('stages/lone-part.glb'),
+  'stage: no named parts': stage('stages/blob.glb'),
+  'stage: missing file': stage('stages/kichen.glb'),
+  'stage: not a glTF': stage('stages/not-a-model.glb'),
+  'stage: Draco compression': stage('stages/kitchen-draco.glb'),
+  'stage: KTX2 textures': stage('stages/kitchen-ktx2.glb'),
+  'stage: other site (CORS)': stage('https://example.com/kitchen.glb'),
 }

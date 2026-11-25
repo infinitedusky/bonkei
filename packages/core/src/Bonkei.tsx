@@ -58,7 +58,7 @@ export function ErrorCard({ error }: { error: BonkeiError }) {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 16 }}>
       <div role="alert" style={{ ...panel, padding: '14px 18px', maxWidth: 480 }}>
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>This diagram couldn't be drawn</div>
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>{error.kind === 'stage' ? "This stage couldn't be shown" : "This diagram couldn't be drawn"}</div>
         <div style={{ color: UI.error, font: '12px ui-monospace, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{where(error)}</div>
       </div>
     </div>
@@ -231,8 +231,8 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   preparedRef.current = prepared
   const acceptedAt = useRef(0)
 
-  // A string is its own key; a graph is keyed by structure, so an inline literal is stable.
-  const key = useMemo(() => typeof source === 'string' ? 's:' + source : 'g:' + stableStringify(source), [source])
+  // A string is its own key; a graph is keyed by structure, so an inline literal is stable. The stage prop is part of it.
+  const key = useMemo(() => (typeof source === 'string' ? 's:' + source : 'g:' + stableStringify(source)) + (props.stage ? '|stage:' + props.stage : ''), [source, props.stage])
   const sourceRef = useRef(source)
   sourceRef.current = source
   const seq = useRef(0)
@@ -247,7 +247,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
     let alive = true
     const accepted = performance.now()
     setStatus('loading')
-    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: themeRef.current }).then(p => {
+    prepare(sourceRef.current, { avoidCrossings: props.avoidCrossings, theme: themeRef.current, stage: props.stage }).then(p => {
       if (!alive || run !== seq.current) return
       acceptedAt.current = accepted
       setPrepared({ ...p, key })
@@ -283,7 +283,7 @@ export const Bonkei = forwardRef<BonkeiViewHandle, BonkeiProps>(function Bonkei(
   useEffect(() => { if (roomMade !== roomWanted) setRelayout(n => n + 1) }, [roomMade, roomWanted])
   // likewise for a look that draws dotted links as arcs: the layout leaves them out, so it is made again when the look changes to or from one
   const arcsWanted = theme.edge.dotted === 'arc'
-  const arcsMade = prepared ? prepared.arcs : arcsWanted
+  const arcsMade = prepared && (prepared.data as { kind?: string }).kind !== 'stage' ? prepared.arcs : arcsWanted // a stage has no links
   useEffect(() => { if (arcsMade !== arcsWanted) setRelayout(n => n + 1) }, [arcsMade, arcsWanted])
   // and for a look whose tray titles lie on the floor in front: the layout leaves room at the bottom of each tray for them
   const groundWanted = theme.tray.titles === 'ground'

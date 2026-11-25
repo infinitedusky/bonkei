@@ -22,8 +22,8 @@ test('importing bonkei and bonkei/internal runs nothing: no fetch, no ELK, no wa
   globalThis.fetch = (...a) => { fetched.push(String(a[0])); return real(...a) }
   try {
     const m = await import(new URL('index.js', dist).href)
-    // the theme exports are BON-116's public API, with BLUEPRINT (BON-234) and CLOUD_CARTOGRAPHY (BON-235)
-    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'CLOUD_CARTOGRAPHY', 'THEME_NAMES', 'isBonkeiError', 'render'])
+    // the theme exports are BON-116's public API, with BLUEPRINT (BON-234) and CLOUD_CARTOGRAPHY (BON-235); normaliseName matches a stage's part names (BON-253)
+    assert.deepEqual(Object.keys(m).sort(), ['BLUEPRINT', 'BONKEI', 'BONKEI_LANDSCAPE', 'Bonkei', 'CLASSIC', 'CLOUD_CARTOGRAPHY', 'THEME_NAMES', 'isBonkeiError', 'normaliseName', 'render'])
     const i = await import(new URL('internal.js', dist).href)
     assert.equal(i.avoidLoaded(), null, 'the wasm is not loaded on import')
   } finally { globalThis.fetch = real }
@@ -34,6 +34,25 @@ test('ELK is only ever a dynamic import, so a host bundler puts it in a chunk of
   const all = esm.map(read).join('\n')
   assert.match(all, /import\("elkjs\/lib\/elk\.bundled\.js"\)/)
   assert.doesNotMatch(all, /from\s*"elkjs/, 'no static import of elkjs')
+})
+
+test('a stage\'s code and three\'s GLTFLoader are only ever dynamic imports, so a page without a stage fetches none of them (BON-253)', () => {
+  const all = esm.map(read).join('\n')
+  assert.match(all, /import\("three\/examples\/jsm\/loaders\/GLTFLoader\.js"\)/)
+  assert.doesNotMatch(all, /from\s*"three\/examples\/jsm\/loaders\/GLTFLoader/, 'no static import of the loader')
+  // the main chunk imports the stage chunk dynamically, and the stage chunk the drawing, so the drawing comes with the model
+  assert.match(read('index.js') + esm.filter(f => f.startsWith('Bonkei-')).map(read).join('\n'), /import\("\.\/stage-[\w-]+\.js"\)/, 'stage is imported dynamically')
+  assert.match(esm.filter(f => f.startsWith('stage-')).map(read).join('\n'), /import\("\.\/StageScene-[\w-]+\.js"\)/, 'StageScene is imported dynamically')
+  // what loads with bonkei and bonkei/internal: the files their static imports reach
+  const reached = new Set()
+  const walk = f => {
+    if (reached.has(f)) return
+    reached.add(f)
+    for (const [, dep] of read(f).matchAll(/(?:^|\n)\s*(?:import|export)\s[^;]*?from\s*"\.\/([\w-]+\.js)"/g)) walk(dep)
+  }
+  walk('index.js'); walk('internal.js')
+  assert.ok(reached.size > 2, 'the walk follows the static imports')
+  assert.deepEqual([...reached].filter(f => /^(stage|StageScene)-/.test(f)), [], 'no stage chunk is reached without a stage')
 })
 
 test('the wasm sits beside the modules as a real file, found by the pattern bundlers turn into an asset', () => {

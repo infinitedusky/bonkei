@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createCamera, nearestTurn, PRESET, type Frame } from './camera.ts'
 import { S } from './scale.ts'
+import { framed } from './stageZones.ts'
 
 test('setMode on one camera leaves another untouched', () => {
   const a = createCamera(), b = createCamera()
@@ -127,6 +128,28 @@ test('content framing is only for a tight fit: the default fit ignores it', () =
   a.content = [{ x0: 0, z0: 0, x1: 1, z1: 1 }]
   a.fit(800, 400); b.fit(800, 400)
   assert.deepEqual(a.goal, b.goal)
+})
+
+test('a fit shows a small stage\'s floating name whole, top letter and all, in flat and iso', () => {
+  // made-up sample: a 1 m cube named "drive through window", too long a name for its sides, so it floats
+  const body = { x0: -0.5, x1: 0.5, z0: -0.5, z1: 0.5, y0: 0, y1: 1 }
+  const stage = framed({
+    kind: 'stage', width: 1 / S, height: 1 / S, tall: 1, url: '/stages/cube.glb', model: null as never, floor: null,
+    blockers: [{ x0: -0.5, x1: 0.5, z0: -0.5, z1: 0.5, h: 1, part: 0 }],
+    parts: [{ id: 'p0', label: 'drive through window', x: 0, y: 0, w: 1 / S, h: 1 / S, top: 1, cx: 0, cz: 0, pieces: 0, body, solids: [body] }],
+  })
+  assert.equal(stage.sides![0], null)
+  assert.equal(stage.upright!.length, 1)
+  for (const mode of ['flat', 'iso'] as const) for (const aspect of [1.6, 0.6]) {
+    const c = createCamera()
+    c.aspect = aspect; c.top = 1.6 + 1.4 * stage.reach! // as SceneView sets it for the Classic theme
+    c.upright = stage.upright!
+    c.setMode(mode); c.fit(stage.width, stage.height)
+    const { yaw, pitch } = PRESET[mode], u = stage.upright![0]
+    // the column's top on the screen's up axis, from the point the view is centred on: the foot projected, then the letters at full height
+    const top = -((u.x - c.goal.tx) * Math.sin(yaw) + (u.z - c.goal.tz) * Math.cos(yaw)) * Math.sin(pitch) + u.y * Math.cos(pitch) + u.h
+    assert.ok(top <= c.goal.H / 2, `${mode} at ${aspect}: the name's top (${top.toFixed(2)}) is inside the view (${(c.goal.H / 2).toFixed(2)})`)
+  }
 })
 
 test('square() puts a turned and tilted view back on its own heading, the short way round (BON-78)', () => {

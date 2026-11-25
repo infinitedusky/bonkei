@@ -9,6 +9,7 @@ import { instant } from './telemetry'
 import { createCamera, biggestTray, contentOf, frameOf, PRESET, type Camera, type Mode } from './camera'
 import { SeqScene } from './SeqScene'
 import type { SeqLayout } from './seq'
+import type { StageLayout } from './stage'
 import { NodeBody, Tray, baseOf, nodeHeight, type LabelMode } from './shapes'
 import { ThemeProvider, ToneSetup, InkStore, InkCtx, useTheme, grainTexture } from './look'
 import { CLASSIC, inkPx, type Theme } from './theme'
@@ -439,8 +440,8 @@ function NodeLift({ pos, hover, children, onDown, onClick, onOver, onOut }: { po
 // On the first frame drawn with each new `data`. The camera's first layout ever is framed (with the real aspect, known only once
 // the canvas has a size) and snapped to. Every later one (a new source, a new theme, another avoid-crossings level) keeps the view:
 // same pose, same tray flown into, lined up on what is on screen (camera.relayout, BON-195). Then it is reported once.
-function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: LayoutResult | SeqLayout | null; onFirstFrame?: () => void; top: number }) {
-  const seen = useRef<LayoutResult | SeqLayout | null>(null)
+function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: LayoutResult | SeqLayout | StageLayout | null; onFirstFrame?: () => void; top: number }) {
+  const seen = useRef<LayoutResult | SeqLayout | StageLayout | null>(null)
   const cb = useRef(onFirstFrame)
   cb.current = onFirstFrame
   useFrame(({ size }) => {
@@ -449,6 +450,7 @@ function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: Layou
     if (size.width > 0 && size.height > 0) { cam.aspect = size.width / size.height; cam.frameH = size.height }
     cam.top = top // the theme's tallest icon and card: the fit leaves room for them
     cam.content = 'boxes' in data ? contentOf(data.boxes, data.width, data.height) : []
+    cam.upright = 'upright' in data ? data.upright ?? [] : [] // a stage's floating names face the camera: a flat or iso fit shows each whole
     if (!cam.layout) {
       cam.whole = false
       cam.fit(data.width, data.height, 'boxes' in data && cam.minLabel > 0 ? biggestTray(data.boxes, data.width, data.height) : undefined)
@@ -475,7 +477,7 @@ function FirstFrame({ cam, data, onFirstFrame, top }: { cam: Camera; data: Layou
 export interface EdgeStats extends Stats { trayDocks: number; recomputeMs: number; routeMs: number; routerBuildMs: number; unroutable: number; routingError: string | null; dragMs: number; avoidCrossings: AvoidCrossings; quality: RouteQuality }
 
 export interface SceneViewProps {
-  data: LayoutResult | SeqLayout | null
+  data: LayoutResult | SeqLayout | StageLayout | null
   labelMode: LabelMode
   mode: Mode
   /** Camera state. Pass one to control the view from outside; otherwise each SceneView owns its own. */
@@ -546,14 +548,17 @@ export function SceneView({ data, labelMode, mode, camera, showFps = true, contr
     <div ref={box} data-bonkei-scene="" onContextMenu={e => e.preventDefault()} style={{ position: 'relative', width: '100%', height: '100%', overscrollBehavior: 'none' }}>
       <Canvas shadows={theme.light.shadows} dpr={[1, 2]} camera={{ fov: 1, near: 1, far: 5000, position: [0, 100, 0] }} gl={{ antialias: true, stencil: true }}>
         <color attach="background" args={[theme.ground.bg]} />
-        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={headroom(theme)} />
+        {/* a stage's fit leaves room above the floor for as much again as its model and floating names stand tall (stageZones.ts framed sets
+            reach; a diagram has none): the fit is centred on the floor, so what stands up would be cut off the top if it counted once */}
+        <FirstFrame cam={c} data={data} onFirstFrame={onFirstFrame} top={headroom(theme) + 1.4 * ((data as StageLayout | null)?.reach ?? 0)} />
         {/* A new look mounts the scene afresh (keyed by the whole token object): the ink pass rescales line widths in place,
             and a remount is what gives every line its token width back. The camera and the first-frame fit stay outside, so the view keeps its place. */}
         <GateCtx.Provider value={gate}><InkCtx.Provider value={inkStore}><ThemeProvider theme={theme} key={themeKey}>
           <ToneSetup />
           <Rig cam={c} fpsRef={fpsRef} />
           {data && ('kind' in data
-            ? <Env cam={c} controls={ctl}><SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} /></Env>
+            // a stage brings its own drawing (stage.ts drawStage fetched it with the model), so the main chunk holds none of it
+            ? <Env cam={c} controls={ctl}>{data.kind === 'stage' ? <data.Scene data={data} mode={mode} /> : <SeqScene data={data} labelMode={labelMode} onNodeClick={onNodeClick} hasClick={hasClick} />}</Env>
             : <Scene cam={c} data={data} labelMode={labelMode} onDrill={c.focusOn} controls={ctl} onNodeClick={onNodeClick} hasClick={hasClick} crossings={crossings} avoidCrossings={avoidCrossings} onEdgeStats={onEdgeStats} />)}
         </ThemeProvider></InkCtx.Provider></GateCtx.Provider>
       </Canvas>

@@ -74,6 +74,7 @@ export default defineConfig({
         { text: "The reader's controls", link: '/guide/controls' },
         { text: 'Edge styles', link: '/guide/edge-styles' },
         { text: 'Themes', link: '/guide/themes' },
+        { text: 'Stages from a 3D model', link: '/guide/stages' },
         { text: 'Errors and warnings', link: '/guide/errors' },
       ] },
       { text: 'Reference', items: [

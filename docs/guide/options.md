@@ -46,10 +46,11 @@ flowchart LR
 | `fit` | `default` · `tight` | `default` | prop only |
 | `minLabelPx` | a number of pixels, `0` is off | `0` | prop only |
 | `theme` | a theme name or a `Theme` | `classic` | `config.theme` |
+| `stage` | the address of a `.glb` or `.gltf` model | none | `config.bonkei.stage` |
 
 </div>
 
-`controls`, `crossings`, `avoidCrossings` and `crossingControls` have their own pages: [The reader's controls](./controls) and [Edge styles](./edge-styles). `theme` is on [Themes](./themes).
+`controls`, `crossings`, `avoidCrossings` and `crossingControls` have their own pages: [The reader's controls](./controls) and [Edge styles](./edge-styles). `theme` is on [Themes](./themes), `stage` on [Stages from a 3D model](./stages).
 
 ## mode
 

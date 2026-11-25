@@ -7,10 +7,11 @@ import { layout, type LayoutOptions } from './layout.ts'
 import { isSeq, parseSeq, layoutSeq, type SeqLayout } from './seq.ts'
 import { readFrontmatter, type BonkeiError, type BonkeiWarning, type DiagramOptions, type Ready, type ThemeRequest } from './options.ts'
 import { withSpan } from './telemetry.ts'
+import type { StageLayout } from './stage.ts'
 import { resolveTheme, type Theme } from './theme.ts'
 
 export interface Prepared {
-  data: LayoutResult | SeqLayout
+  data: LayoutResult | SeqLayout | StageLayout
   options: DiagramOptions // from the frontmatter; merge with props via mergeOptions
   theme: ThemeRequest // config.theme / config.themeVariables as written; resolved with the theme prop in the component
   warnings: BonkeiWarning[] // frontmatter problems first, then dropped lines in line order
@@ -22,7 +23,7 @@ export interface Prepared {
 // the warnings found before the failure (so they can still go to `onWarning`).
 export type PrepareError = BonkeiError & { warnings: BonkeiWarning[] }
 
-const ERROR_KINDS: readonly BonkeiError['kind'][] = ['parse', 'layout', 'graph', 'render']
+const ERROR_KINDS: readonly BonkeiError['kind'][] = ['parse', 'layout', 'graph', 'render', 'stage']
 
 /** Tells a BonkeiError from any other thrown value. */
 export function isBonkeiError(x: unknown): x is BonkeiError {
@@ -41,8 +42,9 @@ function fail(kind: BonkeiError['kind'], message: string, line?: number, text?: 
 const messageOf = (e: unknown) => e instanceof Error ? e.message : String(e)
 
 // What a source turned into, before it becomes a `Prepared`.
-interface Drawn {
-  data: LayoutResult | SeqLayout
+export interface Drawn {
+  data: LayoutResult | SeqLayout | StageLayout
+  stage?: Ready['stage']
   options: DiagramOptions
   theme: ThemeRequest
   nodes: number
@@ -58,7 +60,7 @@ function finish(result: Drawn, warnings: BonkeiWarning[], t: number): Prepared {
     options: result.options,
     theme: result.theme,
     warnings: all,
-    ready: { layoutMs: t, nodes: result.nodes, edges: result.edges, dropped: result.dropped.length },
+    ready: { layoutMs: t, nodes: result.nodes, edges: result.edges, dropped: result.dropped.length, ...(result.stage ? { stage: result.stage } : {}) },
     arcs: result.arcs,
   }
 }
@@ -71,7 +73,11 @@ function nothingRead(what: 'nodes' | 'participants', dropped: Dropped[]): Bonkei
 }
 
 /** What prepare takes: the routing options, and the `theme` prop, because a look whose tray titles sit off the tray needs room for them in the layout. */
-export interface PrepareOptions extends Omit<LayoutOptions, 'span' | 'titleRoom' | 'groundRoom' | 'arcs'> { theme?: string | Theme }
+export interface PrepareOptions extends Omit<LayoutOptions, 'span' | 'titleRoom' | 'groundRoom' | 'arcs'> {
+  theme?: string | Theme
+  /** The `stage` prop: a model to show, over the frontmatter's config.bonkei.stage. */
+  stage?: string
+}
 /** Whether the look a diagram is drawn in (the theme prop over the frontmatter's, with its themeVariables) puts tray titles off the tray. */
 export const wantsGroundRoom = (prop: string | Theme | undefined, fm?: ThemeRequest) => resolveTheme(prop, fm).theme.tray.titles === 'ground'
 export const wantsTitleRoom = (prop: string | Theme | undefined, fm?: ThemeRequest) => resolveTheme(prop, fm).theme.tray.titles === 'off'
@@ -89,8 +95,11 @@ async function timedLayout<T>(parent: Span, run: () => T | Promise<T>): Promise<
   }
 }
 
+// A stage: everything it takes is in stage.ts (drawStage), a chunk of its own fetched here, so a diagram without a stage never fetches it.
+const fromStage = async (...a: Parameters<typeof import('./stage.ts').drawStage>) => (await import('./stage.ts')).drawStage(...a)
+
 async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
-  if (!src.trim()) throw fail('parse', 'the diagram is empty')
+  if (!src.trim() && !lo.stage) throw fail('parse', 'the diagram is empty')
   const fm = readFrontmatter(src)
   for (const w of fm.warnings) {
     warnings.push(w)
@@ -99,6 +108,8 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   // the look the diagram asks for (config.theme / config.themeVariables); the component resolves it with the theme prop
   if (fm.theme.name !== undefined) span.setAttribute('bonkei.theme.requested', fm.theme.name)
   if (fm.theme.variables) span.setAttribute('bonkei.theme.variables', Object.keys(fm.theme.variables).length)
+  const stage = lo.stage ?? fm.options.stage // props over frontmatter
+  if (stage) return fromStage(stage, warnings, span, fm, lo.stage ? undefined : src)
   if (!fm.body.trim()) throw fail('parse', 'the diagram is empty after its frontmatter')
   if (isSeq(fm.body)) {
     span.setAttribute('bonkei.diagram', 'sequence')
@@ -116,7 +127,8 @@ async function fromText(src: string, warnings: BonkeiWarning[], span: Span, lo: 
   return [{ data, options: fm.options, theme: fm.theme, nodes: g.nodes.length, edges: g.edges.length, dropped, arcs }, t]
 }
 
-async function fromGraph(input: GraphInput, span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
+async function fromGraph(input: GraphInput, warnings: BonkeiWarning[], span: Span, lo: PrepareOptions): Promise<[Drawn, number]> {
+  if (lo.stage) return fromStage(lo.stage, warnings, span)
   span.setAttribute('bonkei.diagram', 'flowchart')
   if (typeof input !== 'object' || input === null) throw fail('graph', 'source must be Mermaid text or a graph')
   if (!Array.isArray(input.nodes) || !input.nodes.length) throw fail('graph', 'the graph has no nodes')
@@ -152,7 +164,7 @@ export async function prepare(source: string | GraphInput, lo: PrepareOptions = 
   const input = typeof source === 'string' ? 'mermaid' : 'graph'
   return withSpan('bonkei.prepare', { 'bonkei.input': input }, async span => {
     try {
-      const [drawn, t] = typeof source === 'string' ? await fromText(source, warnings, span, lo) : await fromGraph(source, span, lo)
+      const [drawn, t] = typeof source === 'string' ? await fromText(source, warnings, span, lo) : await fromGraph(source, warnings, span, lo)
       span.setAttributes({
         'bonkei.nodes': drawn.nodes,
         'bonkei.edges': drawn.edges,
